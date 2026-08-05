@@ -1,0 +1,109 @@
+{
+    "metadata": {
+        "projeto": "Analisador_Financeiro",
+        "gerado_em": "2026-08-04 17:01:52",
+        "tipo": "Mapa de fluxo de dados"
+    },
+    "pipeline": [
+        {
+            "etapa": 1,
+            "nome": "COLETA",
+            "descricao": "Aquisição dos dados externos",
+            "arquivos": [
+                "Coletor.py",
+                "Coleta_Noticias_Calendario.py"
+            ],
+            "entrada": [
+                "TradingView",
+                "Investing.com",
+                "B3",
+                "APIs"
+            ],
+            "saida": [
+                "Coleta_ram.json",
+                "Coleta_rom-0.json",
+                "Noticias_Calendario.json"
+            ]
+        },
+        {
+            "etapa": 2,
+            "nome": "VALIDAÇÃO",
+            "descricao": "Confere qualidade dos dados",
+            "arquivos": [
+                "Validador.py",
+                "Testador_Fontes.py"
+            ],
+            "entrada": [
+                "Dados coletados"
+            ],
+            "saida": [
+                "Dados_Validados.json"
+            ]
+        },
+        {
+            "etapa": 3,
+            "nome": "ANÁLISE",
+            "descricao": "Transforma dados em informações",
+            "arquivos": [
+                "Analise_Noticias.py",
+                "Calculadora.py"
+            ],
+            "entrada": [
+                "Dados_Validados.json",
+                "Noticias_Calendario.json"
+            ],
+            "saida": [
+                "Noticias_Impacto_Dia.json",
+                "Metricas_Calculadas.json"
+            ]
+        },
+        {
+            "etapa": 4,
+            "nome": "CORE",
+            "descricao": "Motor de decisão",
+            "arquivos": [
+                "Engine_Vies.py",
+                "Gerar_Resultado_Operacional.py"
+            ],
+            "entrada": [
+                "Metricas_Calculadas.json",
+                "Noticias_Impacto_Dia.json"
+            ],
+            "saida": [
+                "Decisao_Core.json",
+                "Resultado_Calculadora_Operacional.json"
+            ]
+        },
+        {
+            "etapa": 5,
+            "nome": "RELATÓRIO",
+            "descricao": "Apresentação da decisão",
+            "arquivos": [
+                "Relatorio.py",
+                "Gerar_Relatorio_Mensagem.py"
+            ],
+            "entrada": [
+                "Decisao_Core.json"
+            ],
+            "saida": [
+                "Relatorio_Executivo.md"
+            ]
+        },
+        {
+            "etapa": 6,
+            "nome": "INTERFACE",
+            "descricao": "Visualização pelo usuário",
+            "arquivos": [
+                "app_home.py",
+                "pages/"
+            ],
+            "entrada": [
+                "Arquivos JSON",
+                "Relatórios"
+            ],
+            "saida": [
+                "Dashboard"
+            ]
+        }
+    ]
+}

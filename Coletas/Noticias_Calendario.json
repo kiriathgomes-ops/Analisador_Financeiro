@@ -1,0 +1,93 @@
+{
+  "metadata": {
+    "fonte": "TradingView API",
+    "timestamp": "2026-08-04T16:08:36.314532",
+    "data_referencia": "2026-08-04",
+    "filtros": "Brasil e EUA (2 e 3 Estrelas)"
+  },
+  "calendario_eventos": {
+    "quantidade_eventos": 8,
+    "eventos": [
+      {
+        "hora": "09:00",
+        "pais": "Brazil",
+        "moeda": "BRL",
+        "evento": "Industrial Production YoY",
+        "importancia": 2,
+        "anterior": "0.2",
+        "previsao": "3",
+        "atual": "1.7"
+      },
+      {
+        "hora": "09:00",
+        "pais": "Brazil",
+        "moeda": "BRL",
+        "evento": "Industrial Production MoM",
+        "importancia": 2,
+        "anterior": "-0.9",
+        "previsao": "-0.8",
+        "atual": "-1.8"
+      },
+      {
+        "hora": "09:30",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "Imports",
+        "importancia": 2,
+        "anterior": "395.3",
+        "previsao": "",
+        "atual": "388"
+      },
+      {
+        "hora": "09:30",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "Balance of Trade",
+        "importancia": 2,
+        "anterior": "-77.6",
+        "previsao": "-73",
+        "atual": "-73.3"
+      },
+      {
+        "hora": "09:30",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "Exports",
+        "importancia": 2,
+        "anterior": "317.6",
+        "previsao": "",
+        "atual": "314.7"
+      },
+      {
+        "hora": "11:00",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "Factory Orders MoM",
+        "importancia": 2,
+        "anterior": "-1.1",
+        "previsao": "0.2",
+        "atual": "-0.3"
+      },
+      {
+        "hora": "11:00",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "JOLTs Job Openings",
+        "importancia": 3,
+        "anterior": "7.537",
+        "previsao": "7.4",
+        "atual": "7.359"
+      },
+      {
+        "hora": "17:30",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "API Crude Oil Stock Change",
+        "importancia": 2,
+        "anterior": "3.296",
+        "previsao": "-2",
+        "atual": ""
+      }
+    ]
+  }
+}

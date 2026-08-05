@@ -1,0 +1,63 @@
+{
+  "metadata_calculo": {
+    "timestamp": "2026-08-04T17:59:02.457416",
+    "total_ativos_processados": 24
+  },
+  "cambio_e_arbitragem": {
+    "usd_ptax": 5.1047,
+    "wdo_fut": 5159.5,
+    "spread_wdo_ptax_pontos": 54.8,
+    "spread_wdo_ptax_percentual": 1.0735
+  },
+  "curva_juros_b3": {
+    "di1_2027_taxa": 13.795,
+    "di1_2029_taxa": 14.015,
+    "inclinacao_29_27_bps": 22.0
+  },
+  "indicadores_macro": {
+    "vix": 16.49,
+    "vix_change_pct": 3.9067422810333916,
+    "dxy": 99.857,
+    "crude_oil": 75.31,
+    "crude_oil_change_pct": -6.260891212347524,
+    "iron_ore_fef2": {
+      "close": 93.95,
+      "change_percent": 0.05324813631522594
+    }
+  },
+  "performance_relativa": {
+    "ewz_change_pct": -0.9060955518945587,
+    "sp500_fut_change_pct": 1.9073837380788514,
+    "nasdaq_fut_change_pct": 3.2085283861309892,
+    "adrs_brasileiras": {
+      "BBD_ADR": {
+        "close": 3.49,
+        "change_percent": -3.5911602209944724
+      },
+      "ITUB_ADR": {
+        "close": 8.19,
+        "change_percent": -3.533568904593648
+      },
+      "PETR_ADR": {
+        "close": 18.72,
+        "change_percent": -1.783840503672612
+      },
+      "VALE_ADR": {
+        "close": 14.83,
+        "change_percent": 1.7146776406035666
+      },
+      "BBAS_ADR": {
+        "close": 4.18,
+        "change_percent": -1.8779342723004713
+      },
+      "B3_ADR": {
+        "close": 9.11,
+        "change_percent": -1.4069264069264154
+      }
+    }
+  },
+  "indicadores_compostos": {
+    "indicador_mercado_externo": -10.1144,
+    "indicador_adrs_brasileiras": -10.4788
+  }
+}
