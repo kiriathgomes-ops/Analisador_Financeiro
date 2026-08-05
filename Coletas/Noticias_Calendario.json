@@ -1,91 +1,121 @@
 {
   "metadata": {
     "fonte": "TradingView API",
-    "timestamp": "2026-08-04T16:08:36.314532",
-    "data_referencia": "2026-08-04",
+    "timestamp": "2026-08-05T07:42:10.056541",
+    "data_referencia": "2026-08-05",
     "filtros": "Brasil e EUA (2 e 3 Estrelas)"
   },
   "calendario_eventos": {
-    "quantidade_eventos": 8,
+    "quantidade_eventos": 11,
     "eventos": [
       {
-        "hora": "09:00",
+        "hora": "08:00",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "MBA 30-Year Mortgage Rate",
+        "importancia": 2,
+        "anterior": "6.76",
+        "previsao": "",
+        "atual": ""
+      },
+      {
+        "hora": "09:15",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "ADP Employment Change",
+        "importancia": 2,
+        "anterior": "98",
+        "previsao": "70",
+        "atual": ""
+      },
+      {
+        "hora": "10:00",
         "pais": "Brazil",
         "moeda": "BRL",
-        "evento": "Industrial Production YoY",
+        "evento": "S&P Global Composite PMI",
         "importancia": 2,
-        "anterior": "0.2",
-        "previsao": "3",
-        "atual": "1.7"
+        "anterior": "50.7",
+        "previsao": "",
+        "atual": ""
       },
       {
-        "hora": "09:00",
+        "hora": "10:00",
         "pais": "Brazil",
         "moeda": "BRL",
-        "evento": "Industrial Production MoM",
+        "evento": "S&P Global Services PMI",
         "importancia": 2,
-        "anterior": "-0.9",
-        "previsao": "-0.8",
-        "atual": "-1.8"
-      },
-      {
-        "hora": "09:30",
-        "pais": "United States",
-        "moeda": "USD",
-        "evento": "Imports",
-        "importancia": 2,
-        "anterior": "395.3",
+        "anterior": "51.3",
         "previsao": "",
-        "atual": "388"
+        "atual": ""
       },
       {
-        "hora": "09:30",
+        "hora": "10:45",
         "pais": "United States",
         "moeda": "USD",
-        "evento": "Balance of Trade",
+        "evento": "S&P Global Services PMI Final",
         "importancia": 2,
-        "anterior": "-77.6",
-        "previsao": "-73",
-        "atual": "-73.3"
+        "anterior": "51.2",
+        "previsao": "53.6",
+        "atual": ""
       },
       {
-        "hora": "09:30",
+        "hora": "10:45",
         "pais": "United States",
         "moeda": "USD",
-        "evento": "Exports",
+        "evento": "S&P Global Composite PMI Final",
         "importancia": 2,
-        "anterior": "317.6",
-        "previsao": "",
-        "atual": "314.7"
+        "anterior": "51.9",
+        "previsao": "53.6",
+        "atual": ""
       },
       {
         "hora": "11:00",
         "pais": "United States",
         "moeda": "USD",
-        "evento": "Factory Orders MoM",
-        "importancia": 2,
-        "anterior": "-1.1",
-        "previsao": "0.2",
-        "atual": "-0.3"
-      },
-      {
-        "hora": "11:00",
-        "pais": "United States",
-        "moeda": "USD",
-        "evento": "JOLTs Job Openings",
+        "evento": "ISM Services PMI",
         "importancia": 3,
-        "anterior": "7.537",
-        "previsao": "7.4",
-        "atual": "7.359"
+        "anterior": "54",
+        "previsao": "54.5",
+        "atual": ""
       },
       {
-        "hora": "17:30",
+        "hora": "11:30",
         "pais": "United States",
         "moeda": "USD",
-        "evento": "API Crude Oil Stock Change",
+        "evento": "EIA Gasoline Stocks Change",
         "importancia": 2,
-        "anterior": "3.296",
-        "previsao": "-2",
+        "anterior": "0.007",
+        "previsao": "",
+        "atual": ""
+      },
+      {
+        "hora": "11:30",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "EIA Crude Oil Stocks Change",
+        "importancia": 2,
+        "anterior": "-7.167",
+        "previsao": "-1.5",
+        "atual": ""
+      },
+      {
+        "hora": "17:05",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "Fed Cook Speech",
+        "importancia": 2,
+        "anterior": "",
+        "previsao": "",
+        "atual": ""
+      },
+      {
+        "hora": "18:30",
+        "pais": "Brazil",
+        "moeda": "BRL",
+        "evento": "Interest Rate Decision",
+        "importancia": 3,
+        "anterior": "14.25",
+        "previsao": "14",
         "atual": ""
       }
     ]

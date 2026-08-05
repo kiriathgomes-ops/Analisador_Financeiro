@@ -5,7 +5,7 @@
 # GERADO AUTOMATICAMENTE
 #
 # Data geração:
-# 2026-08-04 17:01:50
+# 2026-08-05 07:53:47
 #
 # Arquivos unificados:
 # 29
@@ -3744,7 +3744,7 @@ if __name__ == "__main__":
 # app_home.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-04 06:04:42
+# 2026-08-04 21:46:07
 # ============================================================
 
 
@@ -4508,7 +4508,7 @@ st.markdown(
     </div>
     """,
     unsafe_allow_html=True,
-)
+) 
 
 
 
