@@ -1,7 +1,7 @@
 """
 Dashboard: Setup Abertura 09:00 – 09:15
 ========================================
-Versão 5.2 - FORMATO MARKDOWN (STRING ÚNICA)
+Versão 5.1 - CORREÇÃO BASEADA NO APP FUNCIONAL (API GROQ)
 """
 
 import json
@@ -38,12 +38,14 @@ class ConfigSetup09:
     forca_max: int = 10
     loss_pts: int = 250
     alvo_min_pts: int = 250
+#    modelo_groq_padrao: str = "llama-3.2-11b-vision-instruct"  # MODELO QUE FUNCIONA
     modelo_groq_padrao: str = "llama-3.2-11b-vision-instruct"
+#    modelo_groq_fallback: str = "qwen/qwen3.6-27b"
     modelo_groq_fallback: str = "llama-3.3-70b-versatile"
     temperatura_groq: float = 0.1
     max_tokens_groq: int = 3500
-    max_imagem_size: int = 300
-    qualidade_imagem: int = 30
+    max_imagem_size: int = 180
+    qualidade_imagem: int = 15
 
 
 CONFIG = ConfigSetup09()
@@ -261,7 +263,7 @@ def garantir_tendencias() -> tuple[bool, str]:
 # FUNÇÕES PARA IMAGENS
 # ============================================================
 
-def imagem_para_base64_otimizada(caminho_imagem, max_size=180, quality=15):
+def imagem_para_base64_otimizada(caminho_imagem, max_size=300, quality=30):
     try:
         if not os.path.exists(caminho_imagem):
             return None, None
@@ -681,11 +683,11 @@ GESTÃO DE RISCO: Loss {dados['loss']}pts | Alvo >{dados['alvo']}pts
 """
 
 # ============================================================
-# CHAMADA GROQ COM VISÃO (IMAGENS) - FORMATO MARKDOWN
+# CHAMADA GROQ COM VISÃO (IMAGENS) - ESTRUTURA CORRIGIDA
 # ============================================================
 
 def chamar_groq_com_visao(api_key: str, prompt: str, imagens: Dict, modelo: str) -> str:
-    """Chama o Groq com texto + DUAS imagens usando Markdown (formato string)."""
+    """Chama o Groq com texto + DUAS imagens (1min + 5min). Estrutura corrigida do app funcional."""
     try:
         from groq import Groq
     except ImportError as exc:
@@ -693,13 +695,24 @@ def chamar_groq_com_visao(api_key: str, prompt: str, imagens: Dict, modelo: str)
 
     client = Groq(api_key=api_key)
     
-    # 1. Monta o conteúdo do usuário como uma ÚNICA STRING com Markdown
-    conteudo_final = prompt + "\n\n"
+    # CORREÇÃO DA API GROQ: O conteúdo deve ser uma LISTA de dicionários
+    content_list = []
     
+    # Adiciona o prompt de texto primeiro
+    content_list.append({
+        "type": "text",
+        "text": prompt
+    })
+    
+    # Adiciona as imagens (se existirem)
     for nome in ["1min", "5min"]:
         if imagens.get(nome) and imagens[nome].get("base64"):
-            url_imagem = f"data:{imagens[nome]['mime']};base64,{imagens[nome]['base64']}"
-            conteudo_final += f"![{nome}]({url_imagem})\n"
+            content_list.append({
+                "type": "image_url",
+                "image_url": {
+                    "url": f"data:{imagens[nome]['mime']};base64,{imagens[nome]['base64']}"
+                }
+            })
     
     messages = [
         {
@@ -716,7 +729,7 @@ SUA RESPOSTA DEVE SER 100% EM PORTUGUÊS."""
         },
         {
             "role": "user",
-            "content": conteudo_final  # <-- AGORA É UMA STRING (A GROQ EXIGE ISSO)
+            "content": content_list  # <-- AQUI É A CORREÇÃO: USAMOS UMA LISTA
         }
     ]
     
@@ -1357,7 +1370,7 @@ def render_bloco_ia_smc(service: SetupService):
         )
         modelo = st.selectbox(
             "Modelo (com visão)",
-            ["llama-3.2-11b-vision-instruct", "llama-3.3-70b-versatile"],
+            ["llama-3.2-11b-vision-instruct", "qwen/qwen3.6-27b"],
             index=0,
             key="modelo_smc"
         )
@@ -1616,7 +1629,7 @@ def main():
     render_checklist()
 
     st.markdown("---")
-    st.caption("Setup Abertura 09:00 • v5.2 • Duas análises IA: SMC/ICT + Pré-Abertura")
+    st.caption("Setup Abertura 09:00 • v5.1 • Duas análises IA: SMC/ICT + Pré-Abertura")
 
 if __name__ == "__main__":
     main()

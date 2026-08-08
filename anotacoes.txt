@@ -121,3 +121,7 @@ Abaixo está o mapa de arquitetura e inventário de arquivos da minha aplicaçã
 1. Respeite sempre a separação de responsabilidades (Interface em `pages/`, Regras de Negócio no `CORE` e persistência em `Coletas/`).
 2. Ao propor alterações em arquivos `.py`, certifique-se de manter a compatibilidade com a estrutura do Streamlit e com a leitura/escrita dos arquivos JSON na pasta `Coletas/`.
 
+
+
+
+GROQ_MODEL=llama-3.1-8b-instant

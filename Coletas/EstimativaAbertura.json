@@ -1,42 +1,42 @@
 {
   "metadata_calculo": {
-    "timestamp_calculo": "2026-08-05T14:04:02.884411",
+    "timestamp_calculo": "2026-08-05T23:14:10.932573",
     "total_ativos_processados": 24
   },
   "estimativas_abertura": {
     "WIN_INDICE": {
-      "variacao_teorica_pct": 0.3237,
-      "pontos_ajuste_base": 178805.0,
-      "abertura_teorica_pontos": 179384.0
+      "variacao_teorica_pct": 0.04,
+      "pontos_ajuste_base": 178180.0,
+      "abertura_teorica_pontos": 178251.0
     },
     "WDO_DOLAR": {
-      "variacao_teorica_pct": -0.0693,
-      "pontos_ajuste_base": 5154.0,
-      "abertura_teorica_pontos": 5150.43
+      "variacao_teorica_pct": 0.0343,
+      "pontos_ajuste_base": 5155.63,
+      "abertura_teorica_pontos": 5157.401
     }
   },
   "pivot_points": {
     "WIN_FUT": {
-      "PP": 179405.0,
-      "R1": 180160.0,
-      "R2": 181475.0,
-      "S1": 178090.0,
-      "S2": 177335.0
+      "PP": 178976.67,
+      "R1": 179923.33,
+      "R2": 181666.67,
+      "S1": 177233.33,
+      "S2": 176286.67
     },
     "WDO_FUT": {
-      "PP": 5148.17,
-      "R1": 5166.33,
-      "R2": 5178.67,
-      "S1": 5135.83,
-      "S2": 5117.67
+      "PP": 5150.54,
+      "R1": 5171.09,
+      "R2": 5186.54,
+      "S1": 5135.09,
+      "S2": 5114.54
     }
   },
   "resumo_macro": {
-    "vix": 15.94,
-    "di1_2027": 13.775,
-    "di1_2029": 13.99,
-    "iron_ore": 94.4,
-    "crude_oil": 74.8,
-    "gold": 4240.805
+    "vix": 15.8,
+    "di1_2027": 13.77,
+    "di1_2029": 14.015,
+    "iron_ore": 94.55,
+    "crude_oil": 75.8,
+    "gold": 4297.586
   }
 }

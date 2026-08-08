@@ -1,22 +1,22 @@
 {
   "metadata": {
-    "timestamp": "2026-08-05T14:04:03.131936",
+    "timestamp": "2026-08-05T23:14:11.101152",
     "status_pipeline": "OK"
   },
   "analise_operacional": {
     "WIN_INDICE": {
-      "score_numeric": 5.0,
-      "vies_final": "FORTE_COMPRA",
+      "score_numeric": 0.0,
+      "vies_final": "NEUTRO",
       "fatores_relevantes": [
-        "ADRs fortes no exterior (+3.53%)",
-        "Commodities e Mercado Externo favoráveis (+2.69%)"
+        "ADRs fracas no exterior (-1.83%)",
+        "Commodities e Mercado Externo favoráveis (+5.38%)"
       ]
     },
     "WDO_DOLAR": {
       "score_numeric": -2.0,
       "vies_final": "MODERADO_VENDA",
       "fatores_relevantes": [
-        "Spread WDO x PTAX esticado (+39.2 pts)"
+        "Spread WDO x PTAX esticado (+40.83 pts)"
       ]
     }
   }
