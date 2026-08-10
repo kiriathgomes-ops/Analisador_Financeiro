@@ -129,7 +129,7 @@ for nome, caminho in ARQUIVOS.items():
 
 st.sidebar.divider()
 
-if st.sidebar.button("🔄 Atualizar Dados", use_container_width=True):
+if st.sidebar.button("🔄 Atualizar Dados", width="stretch"):
     st.cache_data.clear()
     st.rerun()
 

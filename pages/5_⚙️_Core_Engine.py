@@ -159,7 +159,7 @@ for nome, caminho in ARQUIVOS.items():
 
 st.sidebar.divider()
 
-if st.sidebar.button("🔄 Atualizar", use_container_width=True):
+if st.sidebar.button("🔄 Atualizar", width="stretch"):
     st.cache_data.clear()
     st.rerun()
 
@@ -307,7 +307,7 @@ resumo_data = {
 
 st.dataframe(
     resumo_data,
-    use_container_width=True,
+    width="stretch",
     hide_index=True,
 )
 

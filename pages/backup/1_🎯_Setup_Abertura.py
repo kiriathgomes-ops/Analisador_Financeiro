@@ -1,15 +1,13 @@
 """
 Dashboard: Setup Abertura 09:00 – 09:15
 ========================================
-Versão 5.2 - FORMATO MARKDOWN (STRING ÚNICA)
+Versão 5.3 - SEM IA VISUAL (apenas texto)
 """
 
 import json
 import os
 import subprocess
 import sys
-import base64
-import io
 import re
 from datetime import datetime, time
 from dataclasses import dataclass
@@ -17,7 +15,6 @@ from typing import Optional, Dict, Any, List
 from pathlib import Path
 
 import streamlit as st
-from PIL import Image
 from dotenv import load_dotenv
 from groq import Groq
 
@@ -25,6 +22,15 @@ from groq import Groq
 # CARREGAR VARIÁVEIS DE AMBIENTE
 # ============================================================
 load_dotenv()
+
+# ============================================================
+# ADICIONA A RAIZ AO PATH PARA IMPORTAR O KEYMANAGER
+# ============================================================
+BASE_DIR = Path(__file__).resolve().parent.parent
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+
+from utils.KeyManager import get_groq_client, key_manager
 
 # ============================================================
 # CONFIGURAÇÕES CENTRALIZADAS
@@ -38,12 +44,10 @@ class ConfigSetup09:
     forca_max: int = 10
     loss_pts: int = 250
     alvo_min_pts: int = 250
-    modelo_groq_padrao: str = "llama-3.2-11b-vision-instruct"
-    modelo_groq_fallback: str = "llama-3.3-70b-versatile"
-    temperatura_groq: float = 0.1
-    max_tokens_groq: int = 3500
-    max_imagem_size: int = 300
-    qualidade_imagem: int = 30
+    # Modelos apenas para texto (visão removida)
+    modelo_groq_texto: str = "llama-3.3-70b-versatile"
+    temperatura_groq: float = 0.2
+    max_tokens_groq: int = 1200
 
 
 CONFIG = ConfigSetup09()
@@ -83,26 +87,20 @@ TICKER_MAP = {
 # CAMINHOS
 # ============================================================
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-COLETAS_DIR = os.path.join(BASE_DIR, "Coletas")
-PROMPT_DIR = os.path.join(BASE_DIR, "PromptIA")
+COLETAS_DIR = Path(BASE_DIR) / "Coletas"
+PROMPT_DIR = Path(BASE_DIR) / "PromptIA"
 
 ARQUIVOS = {
-    "noticias_0900": os.path.join(COLETAS_DIR, "Noticias_Calendario_0900.json"),
-    "metricas": os.path.join(COLETAS_DIR, "Metricas_Calculadas.json"),
-    "estimativa": os.path.join(COLETAS_DIR, "EstimativaAbertura.json"),
-    "decisao": os.path.join(COLETAS_DIR, "Decisao_Core.json"),
-    "ativos": os.path.join(COLETAS_DIR, "DadosAtivosUnificados.json"),
-    "tendencias": os.path.join(COLETAS_DIR, "Analise_Tendencias.json"),
-    "resultado_operacional": os.path.join(COLETAS_DIR, "Resultado_Calculadora_Operacional_Abertura.json"),
+    "noticias_0900": COLETAS_DIR / "Noticias_Calendario_0900.json",
+    "metricas": COLETAS_DIR / "Metricas_Calculadas.json",
+    "estimativa": COLETAS_DIR / "EstimativaAbertura.json",
+    "decisao": COLETAS_DIR / "Decisao_Core.json",
+    "ativos": COLETAS_DIR / "DadosAtivosUnificados.json",
+    "tendencias": COLETAS_DIR / "Analise_Tendencias.json",
+    "resultado_operacional": COLETAS_DIR / "Resultado_Calculadora_Operacional_Abertura.json",
 }
 
-IMAGENS = {
-    "1min": os.path.join(COLETAS_DIR, "WIN_1min.png"),
-    "5min": os.path.join(COLETAS_DIR, "WIN_5min.png"),
-}
-
-SCRIPT_TENDENCIAS = os.path.join(BASE_DIR, "MapearTendencia15Min.py")
+SCRIPT_TENDENCIAS = BASE_DIR / "MapearTendencia15Min.py"
 
 # ============================================================
 # CSS PERSONALIZADO
@@ -218,7 +216,7 @@ def executar_mapear_tendencias() -> bool:
         if not os.path.exists(SCRIPT_TENDENCIAS):
             return False
         resultado = subprocess.run(
-            [sys.executable, SCRIPT_TENDENCIAS],
+            [sys.executable, str(SCRIPT_TENDENCIAS)],
             capture_output=True,
             text=True,
             timeout=30
@@ -237,9 +235,9 @@ def garantir_tendencias() -> tuple[bool, str]:
         except Exception:
             pass
     
-    rom0 = os.path.join(COLETAS_DIR, "Coleta_rom-0.json")
-    rom5 = os.path.join(COLETAS_DIR, "Coleta_rom-5.json")
-    rom10 = os.path.join(COLETAS_DIR, "Coleta_rom-10.json")
+    rom0 = COLETAS_DIR / "Coleta_rom-0.json"
+    rom5 = COLETAS_DIR / "Coleta_rom-5.json"
+    rom10 = COLETAS_DIR / "Coleta_rom-10.json"
     
     faltando = []
     if not os.path.exists(rom0): faltando.append("Coleta_rom-0.json")
@@ -258,44 +256,6 @@ def garantir_tendencias() -> tuple[bool, str]:
         return False, "Falha ao gerar."
 
 # ============================================================
-# FUNÇÕES PARA IMAGENS
-# ============================================================
-
-def imagem_para_base64_otimizada(caminho_imagem, max_size=180, quality=15):
-    try:
-        if not os.path.exists(caminho_imagem):
-            return None, None
-        
-        img = Image.open(caminho_imagem)
-        if img.mode in ("RGBA", "P"):
-            img = img.convert("RGB")
-        
-        if max(img.size) > max_size:
-            img.thumbnail((max_size, max_size))
-        
-        buffer = io.BytesIO()
-        img.save(buffer, format="JPEG", quality=quality, optimize=True)
-        return base64.b64encode(buffer.getvalue()).decode("utf-8"), "image/jpeg"
-    except Exception as e:
-        print(f"Erro ao processar imagem: {e}")
-        return None, None
-
-def carregar_imagens_otimizadas():
-    imagens = {}
-    for nome, caminho in IMAGENS.items():
-        if os.path.exists(caminho):
-            b64, mime = imagem_para_base64_otimizada(
-                caminho, 
-                max_size=CONFIG.max_imagem_size, 
-                quality=CONFIG.qualidade_imagem
-            )
-            if b64:
-                imagens[nome] = {"base64": b64, "mime": mime, "caminho": caminho}
-        else:
-            imagens[nome] = None
-    return imagens
-
-# ============================================================
 # CAMADA DE DADOS
 # ============================================================
 
@@ -310,7 +270,7 @@ def carregar_json(caminho: str) -> Dict[str, Any]:
         return {}
 
 def carregar_todos_dados() -> Dict[str, Dict[str, Any]]:
-    return {chave: carregar_json(caminho) for chave, caminho in ARQUIVOS.items()}
+    return {chave: carregar_json(str(caminho)) for chave, caminho in ARQUIVOS.items()}
 
 # ============================================================
 # MODELO DE DOMÍNIO
@@ -590,42 +550,6 @@ class SetupService:
         }
 
 # ============================================================
-# PROMPT PARA IA SMC/ICT (COM IMAGENS)
-# ============================================================
-
-def montar_prompt_ia_smc(dados: Dict[str, Any]) -> str:
-    """Prompt para análise SMC/ICT com DUAS imagens - VERSÃO ULTRA (ENXUTA)"""
-    
-    # 1. Lê o arquivo de prompt ultra da pasta PromptIA
-    caminho_prompt = os.path.join(PROMPT_DIR, "Prompt_Mestre_Visao_Ultra.txt")
-    
-    if os.path.exists(caminho_prompt):
-        with open(caminho_prompt, "r", encoding="utf-8") as f:
-            prompt_base = f.read()
-    else:
-        # Fallback: se o arquivo não existir, usa um prompt padrão
-        prompt_base = """⚠️ RESPONDA EM PORTUGUÊS. NÃO MOSTRE RACIOCÍNIO.
-ANALISTA SMC/ICT - SETUP WIN 09:00
-Analise as duas imagens (1min e 5min) e responda com estrutura, OBs, FVGs, liquidez e níveis operacionais."""
-    
-    # 2. Adiciona os dados do pipeline no final do prompt
-    dados_str = f"""
-📊 DADOS DO PIPELINE:
-SINAL: {dados['sinal']}
-INDICADOR: {dados['indicador']}
-ABERTURA: {dados['abertura']}
-PREÇO: {dados['preco_atual']}
-ESCORAS: {dados['escoras']}
-CORE: {dados['core']}
-TENDÊNCIA: {dados['tendencia_win']}
-CONFLUÊNCIA: {dados['confluencia']}
-RISCO: Loss {dados['loss']}pts | Alvo >{dados['alvo']}pts
-"""
-    
-    # 3. Retorna o prompt completo
-    return prompt_base + "\n\n" + dados_str
-
-# ============================================================
 # PROMPT PARA PRÉ-ABERTURA (SOMENTE TEXTO)
 # ============================================================
 
@@ -681,76 +605,22 @@ GESTÃO DE RISCO: Loss {dados['loss']}pts | Alvo >{dados['alvo']}pts
 """
 
 # ============================================================
-# CHAMADA GROQ COM VISÃO (IMAGENS) - FORMATO MARKDOWN
-# ============================================================
-
-def chamar_groq_com_visao(api_key: str, prompt: str, imagens: Dict, modelo: str) -> str:
-    """Chama o Groq com texto + DUAS imagens usando Markdown (formato string)."""
-    try:
-        from groq import Groq
-    except ImportError as exc:
-        raise RuntimeError("Biblioteca 'groq' não instalada. Rode: pip install groq") from exc
-
-    client = Groq(api_key=api_key)
-    
-    # 1. Monta o conteúdo do usuário como uma ÚNICA STRING com Markdown
-    conteudo_final = prompt + "\n\n"
-    
-    for nome in ["1min", "5min"]:
-        if imagens.get(nome) and imagens[nome].get("base64"):
-            url_imagem = f"data:{imagens[nome]['mime']};base64,{imagens[nome]['base64']}"
-            conteudo_final += f"![{nome}]({url_imagem})\n"
-    
-    messages = [
-        {
-            "role": "system",
-            "content": """VOCÊ É UM ANALISTA SMC/ICT BRASILEIRO.
-
-REGRAS:
-1. RESPONDA 100% EM PORTUGUÊS DO BRASIL.
-2. NÃO MOSTRE SEU RACIOCÍNIO.
-3. ANALISE AS DUAS IMAGENS.
-4. USE CONCEITOS SMC/ICT.
-
-SUA RESPOSTA DEVE SER 100% EM PORTUGUÊS."""
-        },
-        {
-            "role": "user",
-            "content": conteudo_final  # <-- AGORA É UMA STRING (A GROQ EXIGE ISSO)
-        }
-    ]
-    
-    # Tenta o modelo principal, depois o fallback
-    modelos_tentar = [modelo, CONFIG.modelo_groq_fallback]
-    
-    ultimo_erro = None
-    for modelo_atual in modelos_tentar:
-        try:
-            completion = client.chat.completions.create(
-                model=modelo_atual,
-                messages=messages,
-                temperature=CONFIG.temperatura_groq,
-                max_tokens=CONFIG.max_tokens_groq,
-            )
-            return completion.choices[0].message.content
-        except Exception as e:
-            ultimo_erro = e
-            continue
-    
-    raise RuntimeError(f"Todos os modelos falharam. Último erro: {ultimo_erro}")
-
-# ============================================================
-# CHAMADA GROQ (SOMENTE TEXTO)
+# CHAMADA GROQ (SOMENTE TEXTO) - COM ROTAÇÃO DE CHAVES
 # ============================================================
 
 def chamar_groq_texto(api_key: str, prompt: str, modelo: str) -> str:
-    """Chama o Groq apenas com texto (mais rápido e barato)."""
+    """Chama o Groq apenas com texto."""
     try:
         from groq import Groq
     except ImportError as exc:
         raise RuntimeError("Biblioteca 'groq' não instalada. Rode: pip install groq") from exc
 
-    client = Groq(api_key=api_key)
+    # USA O GERENCIADOR DE CHAVES PARA ROTAÇÃO
+    try:
+        client, key_utilizada = get_groq_client()
+        print(f"🔑 Usando chave: {key_utilizada[:20]}...")
+    except Exception as e:
+        return f"❌ Erro ao obter chave API: {str(e)}"
     
     messages = [
         {
@@ -769,14 +639,39 @@ SUA RESPOSTA DEVE SER 100% EM PORTUGUÊS."""
         {"role": "user", "content": prompt}
     ]
     
-    completion = client.chat.completions.create(
-        model=modelo,
-        messages=messages,
-        temperature=0.2,
-        max_tokens=1200,
-    )
-    
-    return completion.choices[0].message.content
+    try:
+        completion = client.chat.completions.create(
+            model=modelo,
+            messages=messages,
+            temperature=CONFIG.temperatura_groq,
+            max_tokens=CONFIG.max_tokens_groq,
+        )
+        
+        # Registra uso de tokens
+        if hasattr(completion, 'usage'):
+            tokens = completion.usage.total_tokens
+            key_manager.registrar_uso(key_utilizada, tokens)
+            print(f"📊 Tokens usados (texto): {tokens} (chave: {key_utilizada[:8]}...)")
+        
+        return completion.choices[0].message.content
+        
+    except Exception as e:
+        erro_msg = str(e).lower()
+        
+        # Rate limit detectado
+        if "429" in erro_msg or "rate_limit" in erro_msg:
+            print(f"⚠️ Rate limit detectado na chave {key_utilizada[:8]}...")
+            key_manager.marcar_rate_limit(key_utilizada)
+            
+            # Tenta com a próxima chave
+            try:
+                client, key_utilizada = get_groq_client()
+                print(f"🔑 Trocando para nova chave: {key_utilizada[:20]}...")
+                return chamar_groq_texto(api_key, prompt, modelo)
+            except:
+                return "❌ Todas as chaves em rate limit. Tente novamente em algumas horas."
+        
+        raise e
 
 # ============================================================
 # GARANTIR PORTUGUÊS - TRADUÇÃO FORÇADA
@@ -828,7 +723,6 @@ def forcar_portugues(resposta: str) -> str:
         palavras_traduzidas.append(traducao_palavra)
     
     return " ".join(palavras_traduzidas)
-
 
 def garantir_portugues(resposta: str) -> str:
     """Versão final - combina detecção + tradução forçada."""
@@ -898,47 +792,10 @@ def render_sidebar():
         st.sidebar.caption(f"{existe} {nome}")
     
     st.sidebar.markdown("---")
-    st.sidebar.markdown("### 📊 Imagens")
-    if os.path.exists(IMAGENS["1min"]):
-        st.sidebar.success("✅ WIN_1min.png")
-    else:
-        st.sidebar.warning("⚠️ WIN_1min.png ausente")
-    if os.path.exists(IMAGENS["5min"]):
-        st.sidebar.success("✅ WIN_5min.png")
-    else:
-        st.sidebar.warning("⚠️ WIN_5min.png ausente")
-    
-    st.sidebar.markdown("---")
-    if st.sidebar.button("🗑️ Limpar Histórico", use_container_width=True):
-        if "historico_ia_smc" in st.session_state:
-            st.session_state.historico_ia_smc = []
+    if st.sidebar.button("🗑️ Limpar Histórico", width="stretch"):
         if "historico_pre_abertura" in st.session_state:
             st.session_state.historico_pre_abertura = []
         st.rerun()
-
-# ============================================================
-# UI - BLOCO: INDICADORES
-# ============================================================
-
-def render_bloco_indicadores(service: SetupService):
-    st.subheader("📊 Indicadores Compostos + Filtro 09:00")
-    c1, c2, c3 = st.columns(3)
-
-    with c1:
-        st.metric("🌍 Mercado Externo", f"{service.ind_mercado_externo:+.2f}")
-    with c2:
-        st.metric("🇧🇷 ADRs", f"{service.ind_adrs:+.2f}")
-    with c3:
-        if service.tem_3estrelas:
-            st.metric("📰 Notícia 3★", "SIM", delta="Prioridade ADRs", delta_color="inverse")
-        else:
-            st.metric("📰 Notícia 3★", "NÃO", delta="Prioridade Mercado Ext.")
-
-    if service.tem_3estrelas and service.eventos_3e:
-        st.warning(service.alerta_texto)
-        for ev in service.eventos_3e:
-            st.write(f"• **{ev.get('hora', '')}** | {ev.get('evento', '')}")
-    st.markdown("---")
 
 # ============================================================
 # UI - BLOCO: SINAL
@@ -1134,13 +991,41 @@ def render_bloco_contexto(service: SetupService, dados: Dict):
 # ============================================================
 # UI - BLOCO: CONFLUÊNCIA
 # ============================================================
-
+###################
 def render_bloco_confluencia(service: SetupService):
-    """Bloco mostrando confluência com análise de tendência."""
+    """Bloco mostrando confluência com análise de tendência usando indicadores visuais (bolas coloridas)."""
     st.subheader("📈 Confluência com Análise de Tendência")
     
     arquivo_tendencias = ARQUIVOS["tendencias"]
     
+    # Função auxiliar para converter padrão em bola colorida
+    def padrao_para_bola(padrao: str) -> str:
+        """
+        Converte padrões como 'Alta_E_Alta', 'Baixa_E_Estavel' etc.
+        em bolas coloridas (🟢, 🔴, 🟠) com texto amigável.
+        """
+        # Mapeia cada parte do padrão para símbolo e cor
+        mapa = {
+            "Alta": ("🟢", "verde"),
+            "Baixa": ("🔴", "vermelho"),
+            "Estavel": ("🟡", "amarelo"),
+        }
+        
+        # Divide o padrão (ex: "Alta_E_Alta" -> ["Alta", "Alta"])
+        partes = padrao.split("_E_")
+        if len(partes) != 2:
+            # Fallback para padrões inesperados
+            return f"⚪ {padrao}"
+        
+        # Pega os símbolos de cada parte
+        simbolo1, cor1 = mapa.get(partes[0], ("⚪", "desconhecido"))
+        simbolo2, cor2 = mapa.get(partes[1], ("⚪", "desconhecido"))
+        
+        # Cria um texto curto com as duas bolas
+        # Exemplo: "🟢 → 🟢" para Alta_E_Alta
+        return f"{simbolo1} → {simbolo2}"
+    
+    # --- Início da função principal ---
     if os.path.exists(arquivo_tendencias):
         try:
             with open(arquivo_tendencias, "r", encoding="utf-8") as f:
@@ -1155,13 +1040,18 @@ def render_bloco_confluencia(service: SetupService):
                     cols = st.columns(min(4, len(tendencias)))
                     for i, (ativo, tend) in enumerate(tendencias.items()):
                         with cols[i % len(cols)]:
-                            emoji = "🟢" if tend.ultima_variacao > 0 else "🔴" if tend.ultima_variacao < 0 else "🟡"
+                            # Converte o padrão para bolas
+                            bolas = padrao_para_bola(tend.padrao)
+                            # Define a cor do delta (variação) com base no sinal
+                            delta_color = "normal" if tend.ultima_variacao > 0 else "inverse" if tend.ultima_variacao < 0 else "off"
                             st.metric(
-                                label=f"{emoji} {ativo}",
-                                value=tend.padrao,
-                                delta=f"{tend.ultima_variacao:+.2f}%"
+                                label=f"{ativo}",
+                                value=bolas,
+                                delta=f"{tend.ultima_variacao:+.2f}%",
+                                delta_color=delta_color
                             )
                     
+                    # Exibe a confluência (lógica original)
                     confluencia = service.confluencia_tendencia()
                     if confluencia["confluente"]:
                         st.success(f"✅ {confluencia['motivo']}")
@@ -1184,27 +1074,63 @@ def render_bloco_confluencia(service: SetupService):
             st.rerun()
         else:
             st.warning(f"⚠️ {mensagem}")
-
+#####
 # ============================================================
 # UI - BLOCO: CLASSIFICAÇÃO OPERACIONAL
 # ============================================================
-
 def render_bloco_classificacao(service: SetupService):
-    """Mostra a classificação do resultado operacional com explicação."""
-    st.subheader("🎯 Classificação Operacional")
+    """Mostra a classificação operacional + alerta de notícias 3★."""
     
-    with st.expander("📖 O que é?", expanded=False):
+    # ============================================================
+    # 1. SEÇÃO DE NOTÍCIAS (ANTES DAS MÉTRICAS)
+    # ============================================================
+    if service.tem_3estrelas:
+        st.markdown("### 📰 Alerta de Notícia 3★")
+        st.warning("🚨 **Notícia ⭐⭐⭐ detectada!**")
+        
+        if service.alerta_texto:
+            st.info(service.alerta_texto)
+        
+        if service.eventos_3e:
+            for ev in service.eventos_3e:
+                st.write(f"• **{ev.get('hora', '')}** | {ev.get('evento', '')} ({ev.get('pais', '')})")
+        
+        st.caption("⚠️ Notícias de alto impacto podem aumentar a volatilidade na abertura.")
+        st.markdown("---")
+    else:
+        st.success("✅ **Nenhuma notícia ⭐⭐⭐** para hoje. Mercado com menor risco de surpresa.")
+        st.markdown("---")
+    
+    # ============================================================
+    # 2. EXPLICAÇÃO (EXPANDER)
+    # ============================================================
+    with st.expander("📖 O que é a Classificação Operacional?", expanded=False):
         st.markdown("""
         <div class="explicacao">
         <b>Classificação gerada pelo pipeline:</b><br>
-        • <b>Mercado Externo:</b> VIX + Petróleo + Minério<br>
-        • <b>ADRs:</b> Média das ADRs brasileiras
+        • <b>Mercado Externo:</b> -VIX + Petróleo + Minério<br>
+        • <b>ADRs:</b> Soma das ADRs brasileiras<br><br>
+        <b>Legenda das classificações:</b><br>
+        • <b>MUITO_FORTE</b> → > 4.5%<br>
+        • <b>FORTE</b> → 2.5% a 4.5%<br>
+        • <b>MODERADA</b> → 1.5% a 2.5%<br>
+        • <b>FRACA</b> → 0.8% a 1.5%<br>
+        • <b>MUITO_FRACA</b> → 0.3% a 0.8%<br>
+        • <b>LATERAL</b> → < 0.3%<br>
+        • <b>Sinal:</b> COMPRA / VENDA / NEUTRO
         </div>
         """, unsafe_allow_html=True)
     
+    # ============================================================
+    # 3. MÉTRICAS DOS INDICADORES
+    # ============================================================
+    st.subheader("📊 Indicadores Compostos")
+    
+    # Busca os valores (já disponíveis no service)
     ind_mercado = service.ind_mercado_externo
     ind_adrs = service.ind_adrs
     
+    # Fallback: tenta buscar do resultado operacional se estiver zerado
     if ind_mercado == 0.0 and ind_adrs == 0.0:
         resultado_op = service.dados.get("resultado_operacional", {})
         indicadores_op = resultado_op.get("indicadores_compostos", {})
@@ -1244,8 +1170,6 @@ def render_bloco_classificacao(service: SetupService):
     mercado_class = classificar_valor(ind_mercado)
     adrs_class = classificar_valor(ind_adrs)
     
-    st.markdown('<div class="classificacao-container">', unsafe_allow_html=True)
-    
     col1, col2 = st.columns(2)
     
     with col1:
@@ -1280,7 +1204,10 @@ def render_bloco_classificacao(service: SetupService):
             delta_color=delta_color
         )
     
-    st.markdown('</div>', unsafe_allow_html=True)
+    # ============================================================
+    # 4. INTERPRETAÇÃO
+    # ============================================================
+    st.markdown("**Interpretação:**")
     
     def extrair_direcao(rotulo):
         if "COMPRA" in rotulo:
@@ -1292,153 +1219,26 @@ def render_bloco_classificacao(service: SetupService):
     dir_mercado = extrair_direcao(mercado_class.get("rotulo_completo", ""))
     dir_adrs = extrair_direcao(adrs_class.get("rotulo_completo", ""))
     
-    st.markdown("**Interpretação:**")
+    # Adiciona o filtro de notícias na interpretação
+    if service.tem_3estrelas:
+        st.warning("⚠️ **Filtro ativado:** Notícia 3★ → Prioridade dada às ADRs.")
+    
     if dir_mercado == "COMPRA" and dir_adrs == "COMPRA":
         st.success("✅ Ambos COMPRA - Confluência positiva!")
     elif dir_mercado == "VENDA" and dir_adrs == "VENDA":
         st.error("🔴 Ambos VENDA - Confluência negativa!")
     elif dir_mercado == "NEUTRO" and dir_adrs == "NEUTRO":
-        st.warning("🟡 Ambos neutros - Aguardar!")
+        st.warning("🟡 Ambos neutros - Aguardar definição!")
     elif dir_mercado != dir_adrs:
-        st.warning(f"⚠️ Divergência: {dir_mercado} vs {dir_adrs}")
+        st.warning(f"⚠️ Divergência: Mercado Externo ({dir_mercado}) vs ADRs ({dir_adrs})")
     else:
         st.info(f"ℹ️ Mercado: {dir_mercado} | ADRs: {dir_adrs}")
+    
+    # ============================================================
+    # 5. RESUMO DO FILTRO (exibição extra para clareza)
+    # ============================================================
+    st.caption(f"📌 Filtro aplicado: {'Notícia 3★ → ADRs' if service.tem_3estrelas else 'Sem notícia 3★ → Mercado Externo'}")
 
-# ============================================================
-# UI - BLOCO: ANÁLISE IA SMC/ICT (COM IMAGENS)
-# ============================================================
-
-def render_bloco_ia_smc(service: SetupService):
-    """Bloco de análise IA com SMC/ICT e imagens."""
-    st.subheader("🧠 Análise IA - SMC/ICT com Gráfico")
-    
-    # Carrega imagens
-    imagens = carregar_imagens_otimizadas()
-    tem_imagens = any(img is not None for img in imagens.values())
-    
-    # Exibe miniaturas das imagens
-    if tem_imagens:
-        col_img1, col_img2 = st.columns(2)
-        with col_img1:
-            if imagens.get("1min"):
-                st.image(imagens["1min"]["caminho"], caption="📊 WIN 1min (price action)", use_container_width=True)
-            else:
-                st.info("⏳ WIN_1min.png não encontrado")
-        with col_img2:
-            if imagens.get("5min"):
-                st.image(imagens["5min"]["caminho"], caption="📊 WIN 5min (estrutura)", use_container_width=True)
-            else:
-                st.info("⏳ WIN_5min.png não encontrado")
-        
-        st.caption("📸 Analisando AMBAS as imagens: 1min (entrada) + 5min (contexto)")
-    else:
-        st.warning("⚠️ Nenhuma imagem disponível.")
-        st.info("💡 Execute `Limpar_Imagens_TradingView.py` para baixar os gráficos")
-    
-    st.markdown("---")
-    
-    # Configuração da IA
-    groq_key = os.getenv("GROQ_API_KEY", "")
-    if not groq_key:
-        try:
-            from dotenv import load_dotenv
-            load_dotenv(os.path.join(BASE_DIR, ".env"))
-            groq_key = os.getenv("GROQ_API_KEY", "")
-        except Exception:
-            pass
-    
-    with st.expander("⚙️ Configurações SMC/ICT", expanded=not bool(groq_key)):
-        groq_key_input = st.text_input(
-            "Groq API Key",
-            type="password",
-            value=groq_key,
-            help="Obtenha em https://console.groq.com",
-            key="groq_key_smc"
-        )
-        modelo = st.selectbox(
-            "Modelo (com visão)",
-            ["llama-3.2-11b-vision-instruct", "llama-3.3-70b-versatile"],
-            index=0,
-            key="modelo_smc"
-        )
-        st.caption("💡 Modelos ativos e funcionais para visão na Groq.")
-        
-        if st.button("🔄 Recarregar Imagens", key="recarregar_imagens_smc"):
-            st.cache_data.clear()
-            st.rerun()
-    
-    if not service.dados_minimos_ok():
-        st.warning("⚠️ Dados insuficientes. Execute `rodar_pipeline_3x.bat`")
-        return
-    
-    if st.button("🚀 Analisar SMC/ICT (com imagens)", type="primary", key="btn_smc"):
-        key_final = groq_key_input or groq_key
-        
-        if not key_final:
-            st.error("⚠️ Informe a Groq API Key")
-            return
-        
-        if not tem_imagens:
-            st.warning("⚠️ Nenhuma imagem disponível")
-            return
-        
-        with st.spinner("🧠 Analisando dados e gráficos (1min + 5min) com SMC/ICT..."):
-            try:
-                dados_ia = service.dados_para_ia_resumido()
-                prompt = montar_prompt_ia_smc(dados_ia)
-                
-                resposta_original = chamar_groq_com_visao(
-                    key_final, prompt, imagens, modelo
-                )
-                
-                resposta_final = garantir_portugues(resposta_original)
-                resposta_limpa = re.sub(r'<think>.*?</think>', '', resposta_final, flags=re.DOTALL)
-                resposta_limpa = resposta_limpa.strip()
-                
-                st.markdown(
-                    f"""
-                    <div class="card-ai">
-                        <h4>🤖 Análise SMC/ICT - Opinião da IA</h4>
-                        <div style="color:#a78bfa; font-size:0.85rem; margin-bottom:8px;">
-                            ⚡ Analisado com DUAS imagens (1min + 5min)
-                            <span style="margin-left:12px; background:rgba(124,92,252,0.15); padding:2px 10px; border-radius:12px; font-size:0.7rem;">{modelo}</span>
-                            <span style="margin-left:12px; background:rgba(0,200,83,0.15); padding:2px 10px; border-radius:12px; font-size:0.7rem;">🇧🇷 Português</span>
-                            <span style="margin-left:12px; background:rgba(255,193,7,0.15); padding:2px 10px; border-radius:12px; font-size:0.7rem;">🖼️ 1min+5min</span>
-                        </div>
-                        <div class="analysis-content">
-                            {resposta_limpa.replace(chr(10), '<br>')}
-                        </div>
-                        <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
-                            <span class="smc-tag">🧠 SMC</span>
-                            <span class="smc-tag">📈 ICT</span>
-                            <span class="smc-tag">🔷 Order Blocks</span>
-                            <span class="smc-tag">🔶 FVG</span>
-                            <span class="smc-tag">🏦 Liquidez</span>
-                            <span class="smc-tag">🖼️ 1min+5min</span>
-                        </div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
-                
-                if "historico_ia_smc" not in st.session_state:
-                    st.session_state.historico_ia_smc = []
-                st.session_state.historico_ia_smc.append({
-                    "hora": datetime.now().strftime("%H:%M:%S"),
-                    "sinal": service.sinal().direcao,
-                    "modelo": modelo,
-                    "resposta": resposta_limpa,
-                })
-                
-            except Exception as e:
-                st.error(f"❌ Erro ao chamar IA: {e}")
-    
-    if st.session_state.get("historico_ia_smc"):
-        with st.expander("📜 Histórico de análises SMC/ICT", expanded=False):
-            for i, h in enumerate(reversed(st.session_state.historico_ia_smc), 1):
-                st.markdown(f"**#{i} • {h['hora']}** — Sinal: {h['sinal']} | Modelo: {h.get('modelo', 'N/A')}")
-                st.markdown(h["resposta"])
-                st.markdown("---")
 
 # ============================================================
 # UI - BLOCO: ANÁLISE IA - PRÉ-ABERTURA (SOMENTE TEXTO)
@@ -1454,7 +1254,7 @@ def render_bloco_ia_pre_abertura(service: SetupService):
     if not groq_key:
         try:
             from dotenv import load_dotenv
-            load_dotenv(os.path.join(BASE_DIR, ".env"))
+            load_dotenv(BASE_DIR / ".env")
             groq_key = os.getenv("GROQ_API_KEY", "")
         except Exception:
             pass
@@ -1496,6 +1296,7 @@ def render_bloco_ia_pre_abertura(service: SetupService):
                 dados_ia = service.dados_para_ia_resumido()
                 prompt = montar_prompt_pre_abertura(dados_ia)
                 
+                # USA A FUNÇÃO COM ROTAÇÃO DE CHAVES
                 resposta = chamar_groq_texto(key_final, prompt, modelo_texto)
                 
                 resposta_limpa = re.sub(r'<think>.*?</think>', '', resposta, flags=re.DOTALL)
@@ -1537,13 +1338,6 @@ def render_bloco_ia_pre_abertura(service: SetupService):
                 
             except Exception as e:
                 st.error(f"❌ Erro ao chamar IA: {e}")
-    
-    if st.session_state.get("historico_pre_abertura"):
-        with st.expander("📜 Histórico de análises de Pré-Abertura", expanded=False):
-            for i, h in enumerate(reversed(st.session_state.historico_pre_abertura), 1):
-                st.markdown(f"**#{i} • {h['hora']}** — Sinal: {h['sinal']} | Modelo: {h.get('modelo', 'N/A')}")
-                st.markdown(h["resposta"])
-                st.markdown("---")
 
 # ============================================================
 # UI - CHECKLIST
@@ -1605,18 +1399,18 @@ def main():
         st.warning(f"⏰ Fora da janela • {datetime.now().strftime('%H:%M:%S')}")
     st.markdown("---")
 
-    render_bloco_indicadores(service)
+    
+    render_bloco_classificacao(service)
     render_bloco_sinal(service)
     render_bloco_abertura(service)
     render_bloco_contexto(service, dados)
     render_bloco_confluencia(service)
-    render_bloco_classificacao(service)
-    render_bloco_ia_smc(service)
+    
     render_bloco_ia_pre_abertura(service)
     render_checklist()
 
     st.markdown("---")
-    st.caption("Setup Abertura 09:00 • v5.2 • Duas análises IA: SMC/ICT + Pré-Abertura")
+    st.caption("Setup Abertura 09:00 • v5.3 • Sem IA visual • Com rotação de chaves API")
 
 if __name__ == "__main__":
     main()

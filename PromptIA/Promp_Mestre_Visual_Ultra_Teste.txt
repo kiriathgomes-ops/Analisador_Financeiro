@@ -1,0 +1,97 @@
+⚠️ INSTRUÇÕES:
+- RESPONDA 100% EM PORTUGUÊS DO BRASIL.
+- NÃO USE MARKDOWN. USE TEXTO PURO.
+- NÃO EXPLIQUE CONCEITOS. SEJA DIRETO E TÉCNICO.
+- EXTRAIA OS NÍVEIS NUMÉRICOS COM PRECISÃO MÁXIMA.
+- USE EXATAMENTE 3 CASAS DECIMAIS (ex: 175.061, 177.678, 180.500).
+- INDIQUE DIREÇÃO E CONFIANÇA.
+
+📌 ANALISE AS DUAS IMAGENS (WIN 5min + WIN 1min):
+
+⚠️ EXEMPLO DE RESPOSTA ESPERADA:
+
+1. ESTRUTURA (5min):
+- Tendência Geral: ALTA
+- Último BOS / CHoCH / MSS: CHoCH
+
+2. ORDER BLOCKS:
+- OB VENDA: 177.200 - 177.800
+- OB COMPRA: 174.500 - 175.000
+- MITIGADO: Nenhum
+
+3. FAIR VALUE GAPS:
+- FVG VENDA: 176.800 - 177.200
+- FVG COMPRA: 175.200 - 175.600
+- FVG MAIS PRÓXIMO: Compra
+
+4. LIQUIDEZ:
+- BSL (Superior): 177.678
+- SSL (Inferior): 174.793
+- VARREU: Nenhum
+
+5. EQUILÍBRIO E PDH/PDL:
+- EQUILÍBRIO: 176.614
+- PDH: 177.678
+- PDL: 174.793
+
+6. NÍVEIS OPERACIONAIS:
+- PREÇO ATUAL: 175.857
+- ENTRADA IDEAL: 175.061
+- STOP LOSS: 174.811
+- ALVO 1: 176.614
+- ALVO 2: 177.678
+
+7. RECOMENDAÇÃO FINAL:
+- DIREÇÃO: AGUARDAR
+- CONFIANÇA: 4
+- JUSTIFICATIVA: Conflito entre tendência lateral e sinal de compra.
+
+📌 ANALISE AS DUAS IMAGENS (WIN 5min + WIN 1min):
+
+1. ESTRUTURA (5min):
+- Tendência Geral: (ALTA / BAIXA / LATERAL)
+- Último BOS / CHoCH / MSS:
+
+2. ORDER BLOCKS:
+- OB VENDA: [mínimo] - [máximo]
+- OB COMPRA: [mínimo] - [máximo]
+- MITIGADO: (OB Venda / OB Compra / Nenhum)
+
+3. FAIR VALUE GAPS:
+- FVG VENDA: [mínimo] - [máximo]
+- FVG COMPRA: [mínimo] - [máximo]
+- FVG MAIS PRÓXIMO: (Venda / Compra)
+
+4. LIQUIDEZ:
+- BSL (Superior): [nível exato]
+- SSL (Inferior): [nível exato]
+- VARREU: (BSL / SSL / Nenhum)
+
+5. EQUILÍBRIO E PDH/PDL:
+- EQUILÍBRIO: [nível exato]
+- PDH: [nível exato]
+- PDL: [nível exato]
+
+6. NÍVEIS OPERACIONAIS:
+- PREÇO ATUAL: [nível exato]
+- ENTRADA IDEAL: [nível exato]
+- STOP LOSS: [nível exato]
+- ALVO 1: [nível exato]
+- ALVO 2: [nível exato]
+
+7. RECOMENDAÇÃO FINAL:
+- DIREÇÃO: (COMPRA / VENDA / AGUARDAR)
+- CONFIANÇA: [1 a 10]
+- JUSTIFICATIVA: [uma frase curta]
+
+⚠️ REGRAS:
+- Se não encontrar, escreva "NÃO IDENTIFICADO".
+- Não invente preços. Use apenas os que estão visíveis.
+- Priorize níveis com confluência (OB + FVG + Liquidez).
+- Preço sempre com 3 casas decimais (ex: 175.061, 177.678).
+- Se houver conflito entre tendência (5min) e zona institucional (1min), indique "AGUARDAR".
+- Se houver sweep de BSL ou SSL, identifique em "VARREU".
+- ENTRADA IDEAL: Priorize a zona com maior confluência (OB + FVG + Liquidez).
+- STOP LOSS: Coloque abaixo/acima da estrutura (conforme direção).
+- ALVO 1: Primeiro nível de resistência/suporte (R1/S1).
+- ALVO 2: Segundo nível de resistência/suporte (R2/S2).

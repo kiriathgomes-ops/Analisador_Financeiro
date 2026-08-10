@@ -186,7 +186,7 @@ for nome, caminho in arquivos_status.items():
     st.sidebar.caption(f"{existe} {nome}")
 
 st.sidebar.markdown("---")
-if st.sidebar.button("🗑️ Limpar Histórico IA 10h", use_container_width=True):
+if st.sidebar.button("🗑️ Limpar Histórico IA 10h", width="stretch"):
     if "historico_ia_10h" in st.session_state:
         st.session_state.historico_ia_10h = []
     st.rerun()

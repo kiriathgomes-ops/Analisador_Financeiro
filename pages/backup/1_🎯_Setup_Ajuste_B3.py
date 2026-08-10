@@ -211,7 +211,7 @@ for nome, caminho in arquivos_status.items():
     st.sidebar.caption(f"{existe} {nome}")
 
 st.sidebar.markdown("---")
-if st.sidebar.button("🗑️ Limpar Histórico IA", use_container_width=True):
+if st.sidebar.button("🗑️ Limpar Histórico IA", width="stretch"):
     if "historico_ia_ajuste" in st.session_state:
         st.session_state.historico_ia_ajuste = []
     st.rerun()

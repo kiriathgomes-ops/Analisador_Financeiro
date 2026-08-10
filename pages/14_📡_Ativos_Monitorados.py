@@ -232,7 +232,7 @@ else:
 
 st.sidebar.markdown("---")
 
-if st.sidebar.button("🔄 Atualizar Dados", use_container_width=True):
+if st.sidebar.button("🔄 Atualizar Dados", width="stretch"):
     st.cache_data.clear()
     st.rerun()
 
@@ -394,7 +394,7 @@ if not df_filtrado.empty:
         xaxis_tickangle=-45,
     )
     fig.update_coloraxes(showscale=False)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 st.markdown("---")
 
@@ -478,7 +478,7 @@ for grupo in grupos_para_exibir:
 with st.expander("📊 Ver Tabela Completa"):
     st.dataframe(
         df_filtrado,
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
         column_config={
             "Ativo": "Ativo",

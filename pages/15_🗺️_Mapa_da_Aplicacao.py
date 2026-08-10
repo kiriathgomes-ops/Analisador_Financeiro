@@ -176,7 +176,7 @@ for nome, arquivo in arquivos_status.items():
     st.sidebar.caption(f"{existe} {nome}")
 
 st.sidebar.markdown("---")
-if st.sidebar.button("🔄 Atualizar", use_container_width=True):
+if st.sidebar.button("🔄 Atualizar", width="stretch"):
     st.cache_data.clear()
     st.rerun()
 
@@ -274,7 +274,7 @@ if pipeline:
         
         st.dataframe(
             df_etapas,
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
             column_config={
                 "Etapa": st.column_config.TextColumn("Etapa", width="small"),
@@ -303,7 +303,7 @@ if pipeline:
             height=200,
             yaxis_visible=False,
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
         
         # Resumo
         total_ok = sum(1 for s in etapas_status if s == "OK")

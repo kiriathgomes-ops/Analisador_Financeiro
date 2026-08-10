@@ -258,7 +258,7 @@ for nome, caminho in arquivos_status.items():
     st.sidebar.caption(f"{existe} {nome}")
 
 st.sidebar.markdown("---")
-if st.sidebar.button("🔄 Atualizar Dados", use_container_width=True):
+if st.sidebar.button("🔄 Atualizar Dados", width="stretch"):
     with st.spinner("Coletando dados..."):
         obter_noticias_hoje()
         analisar_noticias()
@@ -493,7 +493,7 @@ def renderizar_dashboard():
             df = pd.DataFrame(eventos_filtrados)
             df = df[["hora", "pais", "moeda", "evento", "importancia", "anterior", "previsao", "atual"]]
             df.columns = ["Hora", "País", "Moeda", "Evento", "★", "Anterior", "Previsão", "Atual"]
-            st.dataframe(df, use_container_width=True, hide_index=True)
+            st.dataframe(df, width="stretch", hide_index=True)
 
     # ============================================================
     # 6. ALERTAS DETALHADOS

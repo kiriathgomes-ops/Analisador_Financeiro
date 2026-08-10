@@ -13,7 +13,7 @@ import shutil
 import ssl
 import sys
 import urllib.request
-from datetime import datetime
+from datetime import datetime, time
 
 # ------------------------------------------------------------
 # CONFIGURAÇÃO DE DIRETÓRIOS E ARQUIVOS
@@ -178,10 +178,70 @@ def coletar_bacen_ptax():
         "dados_reais": None,
     }
 
-
+######
 def coletar_ajuste_oficial():
-    """Coleta os valores exatos de Ajuste/Fechamento dos contratos WIN1! e WDO1! separadamente."""
+    """
+    Coleta os valores de Ajuste Oficial APENAS entre 19:00 e 08:50.
+    Fora desse horário, busca o último valor salvo no cache (RAM/ROM) para não quebrar o sistema.
+    """
     timestamp = datetime.now().isoformat()
+    hora_atual = datetime.now().time()
+
+    # Define os limites de horário (Brasília)
+    hora_inicio = time(19, 0, 0)  # 19:00
+    hora_fim = time(8, 50, 0)     # 08:50
+
+    # --- LÓGICA DE HORÁRIO ---
+    # Se estiver entre 08:50 e 19:00, NÃO faz a coleta ao vivo
+    if hora_fim < hora_atual < hora_inicio:
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] ⏳ Fora da janela de ajuste (19:00 - 08:50). Buscando último cache...")
+        
+        # Tenta carregar o último ajuste salvo no arquivo de RAM (ou ROM0)
+        cache_encontrado = []
+        for arquivo_cache in [FILE_RAM, FILE_ROM0]:
+            if os.path.exists(arquivo_cache):
+                try:
+                    with open(arquivo_cache, 'r', encoding='utf-8') as f:
+                        dados_cache = json.load(f)
+                        itens = dados_cache.get("coletas", [])
+                        # Filtra os ajustes
+                        for item in itens:
+                            if item.get("ativo") in ["B3_AJUSTE_WIN", "B3_AJUSTE_WDO"]:
+                                cache_encontrado.append(item)
+                    if cache_encontrado:
+                        break
+                except:
+                    continue
+        
+        if cache_encontrado:
+            # Retorna os dados do cache, mas marca a fonte como "CACHE"
+            for item in cache_encontrado:
+                item["fonte"] = "CACHE_DISCO (Fora da janela)"
+                # Garante que o timestamp seja atualizado
+                item["timestamp"] = timestamp
+            return cache_encontrado
+        else:
+            # Se não encontrar cache, retorna erro para não corromper o JSON com zeros
+            print("   ⚠️ Nenhum cache de ajuste encontrado. Retornando dados vazios.")
+            return [
+                {
+                    "ativo": "B3_AJUSTE_WIN",
+                    "fonte": "NENHUM_DADO",
+                    "timestamp": timestamp,
+                    "status": "FORA_JANELA_SEM_CACHE",
+                    "dados_reais": None
+                },
+                {
+                    "ativo": "B3_AJUSTE_WDO",
+                    "fonte": "NENHUM_DADO",
+                    "timestamp": timestamp,
+                    "status": "FORA_JANELA_SEM_CACHE",
+                    "dados_reais": None
+                }
+            ]
+
+    # --- SE ESTIVER DENTRO DA JANELA (19:00 até 08:50) ---
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] ✅ Dentro da janela de ajuste. Coletando da API...")
     headers = {"User-Agent": "Mozilla/5.0"}
 
     simbolos = [
@@ -190,7 +250,6 @@ def coletar_ajuste_oficial():
     ]
 
     resultados = []
-
     for item in simbolos:
         url = f"https://scanner.tradingview.com/symbol?symbol={item['ticker']}&fields=close,change"
         try:
@@ -198,38 +257,32 @@ def coletar_ajuste_oficial():
             with urllib.request.urlopen(req, timeout=10) as response:
                 res = json.loads(response.read().decode("utf-8"))
                 close_val = res.get("close")
+                change_val = res.get("change", 0.0)
 
-                resultados.append(
-                    {
-                        "ativo": item["ativo"],
-                        "fonte": "TRADINGVIEW_DIRECT_SYMBOL",
-                        "timestamp": timestamp,
-                        "status": "OK" if close_val is not None else "ERRO",
-                        "dados_reais": {
-                            "close": (
-                                float(close_val)
-                                if close_val is not None
-                                else None
-                            ),
-                            "open": None,
-                            "high": None,
-                            "low": None,
-                            "change_percent": None,
-                            "volume": None,
-                        },
-                    }
-                )
-        except Exception:
-            resultados.append(
-                {
+                resultados.append({
                     "ativo": item["ativo"],
                     "fonte": "TRADINGVIEW_DIRECT_SYMBOL",
                     "timestamp": timestamp,
-                    "status": "ERRO",
-                    "dados_reais": None,
-                }
-            )
-
+                    "status": "OK" if close_val is not None else "ERRO",
+                    "dados_reais": {
+                        "close": float(close_val) if close_val is not None else None,
+                        "open": None,
+                        "high": None,
+                        "low": None,
+                        "change_percent": float(change_val) if change_val is not None else 0.0,
+                        "volume": None,
+                    },
+                })
+        except Exception as e:
+            print(f"   ❌ Erro ao coletar {item['ativo']}: {e}")
+            resultados.append({
+                "ativo": item["ativo"],
+                "fonte": "TRADINGVIEW_DIRECT_SYMBOL",
+                "timestamp": timestamp,
+                "status": "ERRO",
+                "dados_reais": None,
+            })
+    
     return resultados
 
 

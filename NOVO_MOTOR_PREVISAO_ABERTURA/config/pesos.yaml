@@ -1,0 +1,21 @@
+# NOVO_MOTOR_PREVISAO_ABERTURA/config/pesos.yaml
+pesos:
+  mercado_externo: 0.35
+  adrs_brasileiras: 0.25
+  vix: 0.10
+  tendencia: 0.15
+  gap_intensidade: 0.10
+  noticias_impacto: 0.05
+
+score_limiares:
+  muito_forte: 80
+  forte: 60
+  moderado: 40
+  fraco: 0
+
+gap_limiares:
+  micro: 20
+  pequeno: 50
+  moderado: 100
+  forte: 200
+  extremo: 999999

@@ -1,123 +1,12 @@
 {
   "metadata": {
     "fonte": "TradingView API",
-    "timestamp": "2026-08-05T07:42:10.056541",
-    "data_referencia": "2026-08-05",
+    "timestamp": "2026-08-09T20:54:02.820960",
+    "data_referencia": "2026-08-09",
     "filtros": "Brasil e EUA (2 e 3 Estrelas)"
   },
   "calendario_eventos": {
-    "quantidade_eventos": 11,
-    "eventos": [
-      {
-        "hora": "08:00",
-        "pais": "United States",
-        "moeda": "USD",
-        "evento": "MBA 30-Year Mortgage Rate",
-        "importancia": 2,
-        "anterior": "6.76",
-        "previsao": "",
-        "atual": ""
-      },
-      {
-        "hora": "09:15",
-        "pais": "United States",
-        "moeda": "USD",
-        "evento": "ADP Employment Change",
-        "importancia": 2,
-        "anterior": "98",
-        "previsao": "70",
-        "atual": ""
-      },
-      {
-        "hora": "10:00",
-        "pais": "Brazil",
-        "moeda": "BRL",
-        "evento": "S&P Global Composite PMI",
-        "importancia": 2,
-        "anterior": "50.7",
-        "previsao": "",
-        "atual": ""
-      },
-      {
-        "hora": "10:00",
-        "pais": "Brazil",
-        "moeda": "BRL",
-        "evento": "S&P Global Services PMI",
-        "importancia": 2,
-        "anterior": "51.3",
-        "previsao": "",
-        "atual": ""
-      },
-      {
-        "hora": "10:45",
-        "pais": "United States",
-        "moeda": "USD",
-        "evento": "S&P Global Services PMI Final",
-        "importancia": 2,
-        "anterior": "51.2",
-        "previsao": "53.6",
-        "atual": ""
-      },
-      {
-        "hora": "10:45",
-        "pais": "United States",
-        "moeda": "USD",
-        "evento": "S&P Global Composite PMI Final",
-        "importancia": 2,
-        "anterior": "51.9",
-        "previsao": "53.6",
-        "atual": ""
-      },
-      {
-        "hora": "11:00",
-        "pais": "United States",
-        "moeda": "USD",
-        "evento": "ISM Services PMI",
-        "importancia": 3,
-        "anterior": "54",
-        "previsao": "54.5",
-        "atual": ""
-      },
-      {
-        "hora": "11:30",
-        "pais": "United States",
-        "moeda": "USD",
-        "evento": "EIA Gasoline Stocks Change",
-        "importancia": 2,
-        "anterior": "0.007",
-        "previsao": "",
-        "atual": ""
-      },
-      {
-        "hora": "11:30",
-        "pais": "United States",
-        "moeda": "USD",
-        "evento": "EIA Crude Oil Stocks Change",
-        "importancia": 2,
-        "anterior": "-7.167",
-        "previsao": "-1.5",
-        "atual": ""
-      },
-      {
-        "hora": "17:05",
-        "pais": "United States",
-        "moeda": "USD",
-        "evento": "Fed Cook Speech",
-        "importancia": 2,
-        "anterior": "",
-        "previsao": "",
-        "atual": ""
-      },
-      {
-        "hora": "18:30",
-        "pais": "Brazil",
-        "moeda": "BRL",
-        "evento": "Interest Rate Decision",
-        "importancia": 3,
-        "anterior": "14.25",
-        "previsao": "14",
-        "atual": ""
-      }
-    ]
+    "quantidade_eventos": 0,
+    "eventos": []
   }
 }

@@ -1,0 +1,1 @@
+# NOVO_MOTOR_PREVISAO_ABERTURA/dados/__init__.py

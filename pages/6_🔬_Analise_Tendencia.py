@@ -150,7 +150,7 @@ else:
     st.sidebar.error("❌ Arquivo não encontrado")
 
 st.sidebar.markdown("---")
-if st.sidebar.button("🔄 Atualizar Dados", use_container_width=True):
+if st.sidebar.button("🔄 Atualizar Dados", width="stretch"):
     st.cache_data.clear()
     st.rerun()
 
@@ -308,7 +308,7 @@ def color_var(val):
 
 st.dataframe(
     df_view.sort_values("Var Último Movimento %", ascending=False),
-    use_container_width=True,
+    width="stretch",
     height=500,
     column_config={
         "Ativo": st.column_config.TextColumn("Ativo", width="medium"),
@@ -341,7 +341,7 @@ with colA:
     if not compra.empty:
         st.dataframe(
             compra.sort_values("Var Último Movimento %", ascending=False),
-            use_container_width=True,
+            width="stretch",
             column_config={
                 "Ativo": "Ativo",
                 "Var Último Movimento %": st.column_config.NumberColumn(
@@ -360,7 +360,7 @@ with colB:
     if not venda.empty:
         st.dataframe(
             venda.sort_values("Var Último Movimento %", ascending=True),
-            use_container_width=True,
+            width="stretch",
             column_config={
                 "Ativo": "Ativo",
                 "Var Último Movimento %": st.column_config.NumberColumn(
@@ -386,7 +386,7 @@ principais_df = df[df["Ativo"].str.contains("WIN|WDO|VIX|EWZ|SP500|NASDAQ", case
 if not principais_df.empty:
     st.dataframe(
         principais_df[["Ativo", "Padrão", "Var Último Movimento %", "Classificação"]],
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
         column_config={
             "Ativo": "Ativo",

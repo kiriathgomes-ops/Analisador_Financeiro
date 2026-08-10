@@ -1,0 +1,83 @@
+# diagnostico_mt5.py
+import sys
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(BASE_DIR))
+
+print("=" * 60)
+print("🔍 DIAGNÓSTICO MT5")
+print("=" * 60)
+
+# 1. Verifica se o MetaTrader5 está instalado
+try:
+    import MetaTrader5 as mt5
+    print("✅ MetaTrader5 instalado!")
+except ImportError:
+    print("❌ MetaTrader5 NÃO instalado!")
+    print("   Execute: pip install MetaTrader5")
+    sys.exit(1)
+
+# 2. Tenta inicializar
+print("\n🔄 Tentando inicializar MT5...")
+if mt5.initialize():
+    print("✅ MT5 inicializado com sucesso!")
+    
+    # 3. Mostra versão
+    print(f"   Versão: {mt5.version()}")
+    
+    # 4. Verifica se está logado
+    account_info = mt5.account_info()
+    if account_info:
+        print(f"   Conta: {account_info.login}")
+        print(f"   Servidor: {account_info.server}")
+        print(f"   Saldo: {account_info.balance:.2f}")
+    else:
+        print("⚠️ Nenhuma conta logada!")
+        print("   Abra o MT5 e faça login")
+    
+    # 5. Lista contratos disponíveis
+    print("\n📊 Contratos B3 disponíveis:")
+    symbols = mt5.symbols_get()
+    b3_symbols = [s.name for s in symbols if "WIN" in s.name or "WDO" in s.name or "DI1" in s.name]
+    
+    if b3_symbols:
+        for s in b3_symbols[:10]:  # Mostra os 10 primeiros
+            print(f"   • {s}")
+    else:
+        print("   ⚠️ Nenhum contrato B3 encontrado!")
+        print("   Verifique se o MT5 está conectado à B3")
+    
+    # 6. Tenta pegar tick de um contrato específico
+    print("\n🔄 Testando contrato WINQ26...")
+    if mt5.symbol_select("WINQ26", True):
+        tick = mt5.symbol_info_tick("WINQ26")
+        if tick:
+            print(f"   ✅ WINQ26 encontrado!")
+            print(f"   Last: {tick.last}")
+            print(f"   Bid: {tick.bid}")
+            print(f"   Ask: {tick.ask}")
+        else:
+            print("   ❌ WINQ26 existe mas sem tick")
+    else:
+        print("   ❌ WINQ26 não encontrado")
+    
+    # 7. Tenta outros contratos
+    print("\n🔄 Testando outros contratos...")
+    for contrato in ["WINV26", "WINZ26", "WIN", "WDO", "WDOQ26"]:
+        if mt5.symbol_select(contrato, True):
+            tick = mt5.symbol_info_tick(contrato)
+            if tick:
+                print(f"   ✅ {contrato}: Last {tick.last}")
+    
+    mt5.shutdown()
+    print("\n✅ Diagnóstico concluído!")
+    
+else:
+    print("❌ Falha ao inicializar MT5!")
+    print("   Motivos comuns:")
+    print("   1. MT5 não está aberto")
+    print("   2. MT5 não está logado")
+    print("   3. Caminho do MT5 está incorreto")
+
+print("=" * 60)

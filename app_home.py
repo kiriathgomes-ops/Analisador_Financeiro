@@ -1,6 +1,7 @@
 # ============================================================
 # ARQUIVO: app_home.py
 # MOTIVO: Home / Landing Page Institucional - Versão Profissional
+# VERSÃO CORRIGIDA - Sem deprecações (components.html, use_container_width)
 # ============================================================
 
 import os
@@ -10,7 +11,6 @@ from pathlib import Path
 from datetime import datetime
 
 import streamlit as st
-import streamlit.components.v1 as components
 
 # ------------------------------------------------------------
 # TRATAMENTO DE AVISOS
@@ -29,15 +29,15 @@ st.set_page_config(
 )
 
 # ------------------------------------------------------------
-# IDIOMA
+# IDIOMA (CORRIGIDO - sem components.html)
 # ------------------------------------------------------------
-components.html(
+st.markdown(
     """
 <script>
 document.documentElement.lang = "pt-BR";
 </script>
 """,
-    height=0,
+    unsafe_allow_html=True,
 )
 
 # ------------------------------------------------------------
@@ -330,14 +330,12 @@ def render_sidebar():
     # Status em tempo real
     st.sidebar.markdown("### 🟢 Status do Sistema")
     
-    # Verifica se os dados estão atualizados
     dados_recentes = False
     ultima_atualizacao = "N/A"
     
     if COLETAS_DIR.exists():
         arquivos = list(COLETAS_DIR.glob("*.json"))
         if arquivos:
-            # Pega o mais recente
             mais_recente = max(arquivos, key=lambda x: x.stat().st_mtime)
             ultima_atualizacao = datetime.fromtimestamp(
                 mais_recente.stat().st_mtime
@@ -354,7 +352,6 @@ def render_sidebar():
     
     st.sidebar.markdown("---")
     
-    # Arquitetura
     st.sidebar.markdown("### 🛠️ Arquitetura")
     st.sidebar.markdown(
         """
@@ -370,7 +367,6 @@ def render_sidebar():
     
     st.sidebar.markdown("---")
     
-    # Pipeline status
     st.sidebar.markdown("### 📊 Pipeline")
     pipeline_files = {
         "Coleta": COLETAS_DIR / "Coleta_rom-0.json",
@@ -428,7 +424,6 @@ def render_hero():
             unsafe_allow_html=True,
         )
         
-        # Tech Pills
         st.markdown(
             """
             <div style="margin-top:8px;">
@@ -446,7 +441,7 @@ def render_hero():
     
     with col_img:
         if CAMINHO_IMAGEM:
-            st.image(str(CAMINHO_IMAGEM), use_container_width=True)
+            st.image(str(CAMINHO_IMAGEM), width="stretch")
         else:
             st.markdown(
                 """
@@ -538,20 +533,20 @@ st.markdown("### 🚀 Módulos do Sistema")
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
-    if st.button("📊 Operacional", use_container_width=True, type="primary"):
-        st.switch_page("pages/1_📊_Operacional.py")
+    if st.button("📊 Operacional", width="stretch", type="primary"):
+        st.switch_page("pages/10_🎯_Setup_Abertura.py")
 
 with col2:
-    if st.button("🎯 Calculadora", use_container_width=True, type="primary"):
-        st.switch_page("pages/2_🎯_Calculadora.py")
+    if st.button("🎯 Calculadora", width="stretch", type="primary"):
+        st.switch_page("pages/4_🔢_Calculadora.py")
 
 with col3:
-    if st.button("⚙️ Core Engine", use_container_width=True, type="primary"):
-        st.switch_page("pages/3_⚙️_Core_Engine.py")
+    if st.button("⚙️ Core Engine", width="stretch", type="primary"):
+        st.switch_page("pages/5_⚙️_Core_Engine.py")
 
 with col4:
-    if st.button("📈 Tendências", use_container_width=True, type="primary"):
-        st.switch_page("pages/6_Analise_Tendencia.py")
+    if st.button("📈 Tendências", width="stretch", type="primary"):
+        st.switch_page("pages/6_🔬_Analise_Tendencia.py")
 
 st.markdown("---")
 
@@ -611,7 +606,6 @@ st.markdown("---")
 
 st.markdown("### ⭐ Diferenciais")
 
-# Organiza em grid de 4 colunas
 diferenciais = [
     "✅ Coleta automática de dados", "✅ Atualização contínua",
     "✅ Inteligência Artificial", "✅ Análise Institucional",
@@ -757,4 +751,4 @@ st.markdown(
     </div>
     """,
     unsafe_allow_html=True,
-) 
+)

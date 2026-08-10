@@ -668,11 +668,11 @@ with st.sidebar:
     
     st.divider()
     
-    if st.button("🔄 Limpar conversa", use_container_width=True):
+    if st.button("🔄 Limpar conversa", width="stretch"):
         st.session_state.messages = []
         st.rerun()
     
-    if st.button("🗑️ Resetar tudo", use_container_width=True):
+    if st.button("🗑️ Resetar tudo", width="stretch"):
         st.session_state.clear()
         st.rerun()
 
@@ -747,7 +747,7 @@ with col2:
     )
 
 with col3:
-    enviar = st.button("📤 Enviar", use_container_width=True, type="primary")
+    enviar = st.button("📤 Enviar", width="stretch", type="primary")
 
 # ============================================================
 # PROCESSAMENTO
@@ -811,7 +811,7 @@ if uploaded_file:
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-        if st.button("📊 Análise SMC Completa", use_container_width=True):
+        if st.button("📊 Análise SMC Completa", width="stretch"):
             with st.spinner("🧠 Analisando gráfico SMC com dados do pipeline..."):
                 try:
                     b64, mime = imagem_para_base64(uploaded_file)
@@ -828,7 +828,7 @@ if uploaded_file:
                     st.error(f"❌ Erro: {e}")
 
     with col2:
-        if st.button("🎯 Entrada e Saída", use_container_width=True):
+        if st.button("🎯 Entrada e Saída", width="stretch"):
             with st.spinner("🧠 Analisando pontos de entrada/saída..."):
                 try:
                     b64, mime = imagem_para_base64(uploaded_file)
@@ -845,7 +845,7 @@ if uploaded_file:
                     st.error(f"❌ Erro: {e}")
 
     with col3:
-        if st.button("📈 Níveis Chave", use_container_width=True):
+        if st.button("📈 Níveis Chave", width="stretch"):
             with st.spinner("🧠 Identificando níveis chave..."):
                 try:
                     b64, mime = imagem_para_base64(uploaded_file)
@@ -862,7 +862,7 @@ if uploaded_file:
                     st.error(f"❌ Erro: {e}")
 
     with col4:
-        if st.button("📝 Resumo Executivo", use_container_width=True):
+        if st.button("📝 Resumo Executivo", width="stretch"):
             with st.spinner("🧠 Resumindo..."):
                 try:
                     b64, mime = imagem_para_base64(uploaded_file)

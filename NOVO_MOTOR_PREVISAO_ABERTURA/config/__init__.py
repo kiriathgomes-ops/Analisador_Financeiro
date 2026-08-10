@@ -1,0 +1,1 @@
+# NOVO_MOTOR_PREVISAO_ABERTURA/config/__init__.py
