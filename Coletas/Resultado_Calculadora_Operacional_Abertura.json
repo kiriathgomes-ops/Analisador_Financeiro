@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "timestamp": "2026-08-09T22:04:02.833298",
+    "timestamp": "2026-08-11T05:12:18.899029",
     "origem": "Pipeline_Completo_V3",
     "versao": "3.0",
     "dados_carregados": {
@@ -13,25 +13,46 @@
     }
   },
   "alerta_calendario_0900": {
-    "tem_evento_3_estrelas": false,
-    "quantidade_eventos": 0,
-    "eventos": [],
+    "tem_evento_3_estrelas": true,
+    "quantidade_eventos": 2,
+    "eventos": [
+      {
+        "hora": "09:00",
+        "pais": "Brazil",
+        "moeda": "BRL",
+        "evento": "Inflation Rate MoM",
+        "importancia": 3,
+        "anterior": "0.16",
+        "previsao": "0.03",
+        "atual": ""
+      },
+      {
+        "hora": "09:00",
+        "pais": "Brazil",
+        "moeda": "BRL",
+        "evento": "Inflation Rate YoY",
+        "importancia": 3,
+        "anterior": "4.64",
+        "previsao": "4.4",
+        "atual": ""
+      }
+    ],
     "fonte": "Noticias_Calendario_0900.json"
   },
   "indicadores_compostos": {
     "indicador_mercado_externo": {
-      "valor_pct": 2.0651,
-      "classificacao": "MODERADA",
+      "valor_pct": 2.9021,
+      "classificacao": "FORTE",
       "sinal_operacional": "COMPRA",
-      "rotulo_completo": "MODERADA_COMPRA",
+      "rotulo_completo": "FORTE_COMPRA",
       "valido": true,
       "observacao": "OK"
     },
     "indicador_adrs_brasileiras": {
-      "valor_pct": -9.0834,
-      "classificacao": "MUITO_FORTE",
+      "valor_pct": -2.2453,
+      "classificacao": "MODERADA",
       "sinal_operacional": "VENDA",
-      "rotulo_completo": "MUITO_FORTE_VENDA",
+      "rotulo_completo": "MODERADA_VENDA",
       "valido": true,
       "observacao": "OK"
     }
@@ -39,55 +60,56 @@
   "analise_tendencias": {},
   "estimativas_abertura": {
     "WIN_INDICE": {
-      "variacao_teorica_pct": -0.9933,
-      "pontos_ajuste_base": 172608.0,
-      "abertura_teorica_pontos": 170893.0
+      "variacao_teorica_pct": 0.25,
+      "pontos_ajuste_base": 172422.0,
+      "abertura_teorica_pontos": 172853.0
     },
     "WDO_DOLAR": {
-      "variacao_teorica_pct": 0.0761,
-      "pontos_ajuste_base": 5112.252,
-      "abertura_teorica_pontos": 5116.144
+      "variacao_teorica_pct": 0.0607,
+      "pontos_ajuste_base": 5138.858,
+      "abertura_teorica_pontos": 5141.976
     }
   },
   "pivot_points": {
     "WIN_FUT": {
-      "PP": 173902.67,
-      "R1": 175530.33,
-      "R2": 178452.67,
-      "S1": 170980.33,
-      "S2": 169352.67
+      "PP": 172597.33,
+      "R1": 173524.67,
+      "R2": 174627.33,
+      "S1": 171494.67,
+      "S2": 170567.33
     },
     "WDO_FUT": {
-      "PP": 5115.75,
-      "R1": 5129.0,
-      "R2": 5145.75,
-      "S1": 5099.0,
-      "S2": 5085.75
+      "PP": 5131.79,
+      "R1": 5154.07,
+      "R2": 5169.29,
+      "S1": 5116.57,
+      "S2": 5094.29
     }
   },
   "resumo_macro": {
-    "vix": 14.89,
-    "di1_2027": 13.745,
-    "di1_2029": 14.035,
-    "iron_ore": 94.4,
-    "crude_oil": 78.75,
-    "gold": 4338.518
+    "vix": 15.45,
+    "di1_2027": 13.74,
+    "di1_2029": 14.1,
+    "iron_ore": 95.55,
+    "crude_oil": 84.04,
+    "gold": 4365.453
   },
   "decisao_core": {
     "win": {
-      "score_numeric": -3.0,
-      "vies_final": "MODERADO_VENDA",
+      "score_numeric": 0.0,
+      "vies_final": "NEUTRO",
       "fatores_relevantes": [
-        "Teórico WIN negativo (-0.99%)",
-        "ADRs fracas no exterior (-9.08%)",
-        "Commodities e Mercado Externo favoráveis (+2.07%)"
+        "ADRs fracas no exterior (-2.25%)",
+        "Commodities e Mercado Externo favoráveis (+1.13%)"
       ]
     },
     "wdo": {
-      "score_numeric": -2.0,
-      "vies_final": "MODERADO_VENDA",
+      "score_numeric": 3.5,
+      "vies_final": "MODERADO_COMPRA",
       "fatores_relevantes": [
-        "Spread WDO x PTAX esticado (+22.05 pts)"
+        "Teórico WDO em alta (+0.31%)",
+        "Spread WDO x PTAX esticado (+41.8 pts)",
+        "Curva de Juros (DI) abrindo (+36.0 bps)"
       ]
     }
   }

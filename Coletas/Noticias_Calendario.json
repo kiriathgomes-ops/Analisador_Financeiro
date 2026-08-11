@@ -1,12 +1,83 @@
 {
   "metadata": {
     "fonte": "TradingView API",
-    "timestamp": "2026-08-09T20:54:02.820960",
-    "data_referencia": "2026-08-09",
+    "timestamp": "2026-08-11T05:12:18.077975",
+    "data_referencia": "2026-08-11",
     "filtros": "Brasil e EUA (2 e 3 Estrelas)"
   },
   "calendario_eventos": {
-    "quantidade_eventos": 0,
-    "eventos": []
+    "quantidade_eventos": 7,
+    "eventos": [
+      {
+        "hora": "08:00",
+        "pais": "Brazil",
+        "moeda": "BRL",
+        "evento": "BCB Copom Meeting Minutes",
+        "importancia": 3,
+        "anterior": "",
+        "previsao": "",
+        "atual": ""
+      },
+      {
+        "hora": "09:00",
+        "pais": "Brazil",
+        "moeda": "BRL",
+        "evento": "Inflation Rate MoM",
+        "importancia": 3,
+        "anterior": "0.16",
+        "previsao": "0.03",
+        "atual": ""
+      },
+      {
+        "hora": "09:00",
+        "pais": "Brazil",
+        "moeda": "BRL",
+        "evento": "Inflation Rate YoY",
+        "importancia": 3,
+        "anterior": "4.64",
+        "previsao": "4.4",
+        "atual": ""
+      },
+      {
+        "hora": "09:15",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "ADP Employment Change Weekly",
+        "importancia": 2,
+        "anterior": "15",
+        "previsao": "",
+        "atual": ""
+      },
+      {
+        "hora": "11:00",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "Existing Home Sales",
+        "importancia": 3,
+        "anterior": "4.09",
+        "previsao": "4.04",
+        "atual": ""
+      },
+      {
+        "hora": "11:00",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "Existing Home Sales MoM",
+        "importancia": 2,
+        "anterior": "-2.4",
+        "previsao": "",
+        "atual": ""
+      },
+      {
+        "hora": "17:30",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "API Crude Oil Stock Change",
+        "importancia": 2,
+        "anterior": "2.69",
+        "previsao": "",
+        "atual": ""
+      }
+    ]
   }
 }

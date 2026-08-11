@@ -1,12 +1,33 @@
 {
   "metadata": {
     "fonte": "TradingView API",
-    "timestamp": "2026-08-09T20:54:02.820960",
-    "data_referencia": "2026-08-09"
+    "timestamp": "2026-08-11T05:12:18.077975",
+    "data_referencia": "2026-08-11"
   },
   "alerta_noticia_0900": {
-    "tem_evento_3_estrelas": false,
-    "quantidade_eventos": 0,
-    "eventos": []
+    "tem_evento_3_estrelas": true,
+    "quantidade_eventos": 2,
+    "eventos": [
+      {
+        "hora": "09:00",
+        "pais": "Brazil",
+        "moeda": "BRL",
+        "evento": "Inflation Rate MoM",
+        "importancia": 3,
+        "anterior": "0.16",
+        "previsao": "0.03",
+        "atual": ""
+      },
+      {
+        "hora": "09:00",
+        "pais": "Brazil",
+        "moeda": "BRL",
+        "evento": "Inflation Rate YoY",
+        "importancia": 3,
+        "anterior": "4.64",
+        "previsao": "4.4",
+        "atual": ""
+      }
+    ]
   }
 }

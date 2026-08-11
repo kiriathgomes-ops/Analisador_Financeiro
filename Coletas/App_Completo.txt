@@ -5,10 +5,10 @@
 # GERADO AUTOMATICAMENTE
 #
 # Data geração:
-# 2026-08-09 21:28:28
+# 2026-08-10 14:53:57
 #
 # Arquivos unificados:
-# 42
+# 55
 #
 # NÃO EDITAR MANUALMENTE
 # ============================================================
@@ -1009,7 +1009,7 @@ if __name__ == "__main__":
 # Coletor copy.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-02 15:09:24
+# 2026-08-10 10:47:02
 # ============================================================
 
 
@@ -1467,7 +1467,7 @@ if __name__ == "__main__":
 # Coletor.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-09 20:53:54
+# 2026-08-10 10:47:02
 # ============================================================
 
 
@@ -1978,7 +1978,7 @@ if __name__ == "__main__":
 # Coletor_MT5.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-06 21:29:06
+# 2026-08-10 10:47:02
 # ============================================================
 
 
@@ -4360,6 +4360,981 @@ if __name__ == "__main__":
 
 # ============================================================
 # ARQUIVO:
+# NOVO_MOTOR_PREVISAO_ABERTURA\__init__.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-10 10:47:02
+# ============================================================
+
+
+
+# NOVO_MOTOR_PREVISAO_ABERTURA/__init__.py
+"""
+Novo Motor de Previsão de Abertura - Independente do sistema legado.
+"""
+
+
+
+# ============================================================
+# ARQUIVO:
+# NOVO_MOTOR_PREVISAO_ABERTURA\config\__init__.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-10 10:47:02
+# ============================================================
+
+
+
+# NOVO_MOTOR_PREVISAO_ABERTURA/config/__init__.py
+
+
+
+# ============================================================
+# ARQUIVO:
+# NOVO_MOTOR_PREVISAO_ABERTURA\core\__init__.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-10 10:47:02
+# ============================================================
+
+
+
+# NOVO_MOTOR_PREVISAO_ABERTURA/core/__init__.py
+
+
+
+# ============================================================
+# ARQUIVO:
+# NOVO_MOTOR_PREVISAO_ABERTURA\core\motor_ajuste.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-10 10:47:02
+# ============================================================
+
+
+
+# NOVO_MOTOR_PREVISAO_ABERTURA/core/motor_ajuste.py
+from typing import Dict, Any
+from ..dados.schemas import AnaliseAjuste
+
+def analisar_ajuste(preco: float, ajuste: float, tolerancia: float = 0.5) -> AnaliseAjuste:
+    """
+    Analisa a posição do preço em relação ao ajuste.
+    
+    Args:
+        preco: preço atual ou projetado
+        ajuste: valor do ajuste oficial
+        tolerancia: pontos para considerar como "NEUTRO"
+    
+    Returns:
+        AnaliseAjuste com distância e posição
+    """
+    if ajuste == 0:
+        return AnaliseAjuste(
+            distancia_pontos=0.0,
+            distancia_percentual=0.0,
+            posicao="NEUTRO"
+        )
+    
+    distancia = preco - ajuste
+    percentual = (distancia / ajuste) * 100
+    
+    if distancia > tolerancia:
+        posicao = "ACIMA"
+    elif distancia < -tolerancia:
+        posicao = "ABAIXO"
+    else:
+        posicao = "NEUTRO"
+    
+    return AnaliseAjuste(
+        distancia_pontos=distancia,
+        distancia_percentual=round(percentual, 4),
+        posicao=posicao
+    )
+
+def atualizar_analise_pos_abertura(
+    ajuste: AnaliseAjuste,
+    preco_atual: float,
+    ajuste_ref: float,
+    preco_anterior: float = None
+) -> AnaliseAjuste:
+    """
+    Atualiza a análise após a abertura real, verificando se houve teste,
+    rejeição, aceitação, perda ou recuperação.
+    """
+    # Primeiro, refaz a análise básica
+    nova = analisar_ajuste(preco_atual, ajuste_ref)
+    
+    # Se não tivermos o preço anterior, não podemos detectar eventos
+    if preco_anterior is None:
+        return nova
+    
+    # Verifica teste: se o preço anterior estava do outro lado do ajuste
+    if (preco_anterior > ajuste_ref and preco_atual <= ajuste_ref) or \
+       (preco_anterior < ajuste_ref and preco_atual >= ajuste_ref):
+        nova.testou_ajuste = True
+        
+        # Verifica se houve rejeição ou aceitação
+        # Rejeição: preço volta para o lado original
+        if (preco_atual > ajuste_ref and preco_anterior > ajuste_ref) or \
+           (preco_atual < ajuste_ref and preco_anterior < ajuste_ref):
+            nova.rejeitou = True
+        else:
+            nova.aceitou = True
+    
+    # Verifica perda: se estava acima e agora está abaixo com folga
+    if preco_anterior > ajuste_ref + 0.5 and preco_atual < ajuste_ref - 0.5:
+        nova.perdeu = True
+    
+    # Verifica recuperação: se estava abaixo e agora está acima com folga
+    if preco_anterior < ajuste_ref - 0.5 and preco_atual > ajuste_ref + 0.5:
+        nova.recuperou = True
+    
+    return nova
+
+
+
+# ============================================================
+# ARQUIVO:
+# NOVO_MOTOR_PREVISAO_ABERTURA\core\motor_cenarios.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-10 10:47:02
+# ============================================================
+
+
+
+# NOVO_MOTOR_PREVISAO_ABERTURA/core/motor_cenarios.py
+from typing import Tuple
+from ..dados.schemas import Cenario, ClassificacaoGAP, AnaliseAjuste
+
+def gerar_cenarios(gap: ClassificacaoGAP, ajuste: AnaliseAjuste) -> Tuple[Cenario, Cenario]:
+    """
+    Gera cenários principal e alternativo com base no gap e na posição em relação ao ajuste.
+    """
+    # Caso 1: GAP extremo ou forte (prioridade máxima)
+    if gap.intensidade in ["EXTREMO", "FORTE"]:
+        if gap.gap_pontos > 0:
+            principal = Cenario(
+                nome="CONTINUACAO_COMPRA",
+                descricao="GAP positivo forte/extremo. Tendência compradora predominante.",
+                condicao="Abertura com gap significativo acima do ajuste.",
+                gatilho_entrada="Pullback com rejeição ou rompimento de topo.",
+                confirmacao="Fechamento acima do ajuste após 15min.",
+                invalidacao="Fechamento abaixo do ajuste ou perda total do gap."
+            )
+            alternativo = Cenario(
+                nome="TESTE_REJEICAO",
+                descricao="Preço testa o gap e rejeita, mantendo viés comprador.",
+                condicao="Retorno à zona do gap com candle de rejeição.",
+                gatilho_entrada="Rejeição confirmada no nível do gap.",
+                confirmacao="Fechamento acima do gap.",
+                invalidacao="Perda total do gap com aceitação abaixo."
+            )
+        else:
+            principal = Cenario(
+                nome="CONTINUACAO_VENDA",
+                descricao="GAP negativo forte/extremo. Tendência vendedora predominante.",
+                condicao="Abertura com gap significativo abaixo do ajuste.",
+                gatilho_entrada="Pullback com rejeição ou rompimento de fundo.",
+                confirmacao="Fechamento abaixo do ajuste após 15min.",
+                invalidacao="Fechamento acima do ajuste ou recuperação total do gap."
+            )
+            alternativo = Cenario(
+                nome="RECUPERACAO",
+                descricao="Preço testa o gap e o recupera, invertendo para compra.",
+                condicao="Retorno ao gap com rompimento e aceitação acima.",
+                gatilho_entrada="Romper o gap com volume.",
+                confirmacao="Fechamento acima do gap.",
+                invalidacao="Rejeição no gap e continuação da queda."
+            )
+        return principal, alternativo
+    
+    # Caso 2: GAP moderado ou pequeno – usar posição em relação ao ajuste
+    if ajuste.posicao == "ACIMA":
+        principal = Cenario(
+            nome="CONTINUACAO",
+            descricao="Preço acima do ajuste. Viés comprador.",
+            condicao="Abertura acima do ajuste e manutenção.",
+            gatilho_entrada="Pullback com rejeição ou rompimento de topo.",
+            confirmacao="Fechamento acima do ajuste após 15min.",
+            invalidacao="Perda do ajuste com aceitação abaixo."
+        )
+        alternativo = Cenario(
+            nome="TESTE_REJEICAO",
+            descricao="Testa o ajuste e rejeita, reforçando compra.",
+            condicao="Retorno ao ajuste com candle de rejeição.",
+            gatilho_entrada="Rejeição confirmada no ajuste.",
+            confirmacao="Fechamento acima do ajuste.",
+            invalidacao="Perda do ajuste com aceitação abaixo."
+        )
+    elif ajuste.posicao == "ABAIXO":
+        principal = Cenario(
+            nome="CONTINUACAO",
+            descricao="Preço abaixo do ajuste. Viés vendedor.",
+            condicao="Abertura abaixo do ajuste e manutenção.",
+            gatilho_entrada="Pullback com rejeição ou rompimento de fundo.",
+            confirmacao="Fechamento abaixo do ajuste após 15min.",
+            invalidacao="Recuperação do ajuste com aceitação acima."
+        )
+        alternativo = Cenario(
+            nome="RECUPERACAO",
+            descricao="Testa o ajuste e o recupera, invertendo para compra.",
+            condicao="Retorno ao ajuste com rompimento e aceitação acima.",
+            gatilho_entrada="Romper o ajuste com volume.",
+            confirmacao="Fechamento acima do ajuste.",
+            invalidacao="Rejeição no ajuste e volta para baixo."
+        )
+    else:  # NEUTRO
+        principal = Cenario(
+            nome="NEUTRO",
+            descricao="Preço próximo ao ajuste, aguardar definição.",
+            condicao="Preço dentro da faixa de tolerância (±0,5 ponto).",
+            gatilho_entrada="Aguardar rompimento de topo ou fundo.",
+            confirmacao="Fechamento fora da faixa com volume.",
+            invalidacao="Permanência na faixa por mais de 15min."
+        )
+        alternativo = principal
+    
+    return principal, alternativo
+
+
+
+# ============================================================
+# ARQUIVO:
+# NOVO_MOTOR_PREVISAO_ABERTURA\core\motor_gap.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-10 10:47:02
+# ============================================================
+
+
+
+# NOVO_MOTOR_PREVISAO_ABERTURA/core/motor_gap.py
+from typing import Dict, Any
+from ..dados.schemas import ClassificacaoGAP
+
+# Limiares para classificação de GAP (em pontos)
+LIMIARES = {
+    "MICRO": 20,
+    "PEQUENO": 50,
+    "MODERADO": 100,
+    "FORTE": 200,
+    "EXTREMO": 999999
+}
+
+def classificar_gap(
+    preco_abertura: float,
+    referencia_fechamento: float,
+    referencia_ajuste: float = None
+) -> ClassificacaoGAP:
+    """
+    Classifica o GAP com base no preço de abertura projetado/real.
+    
+    Args:
+        preco_abertura: preço de abertura (teórico ou real)
+        referencia_fechamento: fechamento anterior (ou ajuste)
+        referencia_ajuste: ajuste oficial (opcional, para gap contra ajuste)
+    
+    Returns:
+        ClassificacaoGAP com todos os campos preenchidos
+    """
+    if referencia_fechamento == 0:
+        referencia_fechamento = 1e-6  # evitar divisão por zero
+    
+    gap_pontos = preco_abertura - referencia_fechamento
+    gap_percentual = (gap_pontos / referencia_fechamento) * 100
+    
+    # Gap contra ajuste (se fornecido)
+    gap_ajuste = None
+    if referencia_ajuste is not None:
+        gap_ajuste = preco_abertura - referencia_ajuste
+    
+    abs_gap = abs(gap_pontos)
+    
+    # Determinar intensidade
+    if abs_gap < LIMIARES["MICRO"]:
+        intensidade = "MICRO"
+    elif abs_gap < LIMIARES["PEQUENO"]:
+        intensidade = "PEQUENO"
+    elif abs_gap < LIMIARES["MODERADO"]:
+        intensidade = "MODERADO"
+    elif abs_gap < LIMIARES["FORTE"]:
+        intensidade = "FORTE"
+    else:
+        intensidade = "EXTREMO"
+    
+    return ClassificacaoGAP(
+        gap_pontos=gap_pontos,
+        gap_percentual=round(gap_percentual, 4),
+        gap_contra_fechamento=gap_pontos,
+        gap_contra_ajuste=gap_ajuste if gap_ajuste is not None else 0.0,
+        intensidade=intensidade,
+        classificacao=f"GAP {intensidade}"
+    )
+
+
+
+# ============================================================
+# ARQUIVO:
+# NOVO_MOTOR_PREVISAO_ABERTURA\core\motor_previsao.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-10 10:47:02
+# ============================================================
+
+
+
+# NOVO_MOTOR_PREVISAO_ABERTURA/core/motor_previsao.py
+from datetime import datetime
+from typing import Optional, Dict, Any
+
+from ..dados.coletor_dados import coletar_dados_entrada
+from ..dados.schemas import (
+    DadosEntrada, ResultadoPrevisao, ClassificacaoGAP,
+    AnaliseAjuste, Cenario, ScorePrevisao
+)
+from .motor_gap import classificar_gap
+from .motor_ajuste import analisar_ajuste
+from .motor_cenarios import gerar_cenarios
+from .motor_score import calcular_score
+
+class PrevisaoAberturaOrquestrador:
+    def __init__(self):
+        self.entrada: Optional[DadosEntrada] = None
+        self.resultado: Optional[ResultadoPrevisao] = None
+
+    def carregar_dados(self) -> bool:
+        self.entrada = coletar_dados_entrada()
+        return self.entrada is not None
+
+    def executar_previsao(self) -> Optional[ResultadoPrevisao]:
+        if not self.entrada:
+            if not self.carregar_dados():
+                return None
+
+        # Dados de entrada
+        abertura_teorica = self.entrada.abertura_teorica.abertura_teorica_pontos
+        ajuste = self.entrada.ajuste_win or 0.0
+        fechamento_anterior = self.entrada.fechamento_anterior_win or ajuste
+        preco_atual = self.entrada.preco_atual_win or abertura_teorica
+        max_pre = self.entrada.maxima_pre_abertura
+        min_pre = self.entrada.minima_pre_abertura
+
+        # 1. Calcular GAP (usando abertura teórica)
+        gap = classificar_gap(abertura_teorica, fechamento_anterior, ajuste)
+
+        # 2. Analisar ajuste (usar preço atual real se disponível, senão abertura teórica)
+        preco_para_ajuste = preco_atual if preco_atual else abertura_teorica
+        ajuste_analise = analisar_ajuste(preco_para_ajuste, ajuste)
+
+        # 3. Gerar cenários
+        cenario_principal, cenario_alternativo = gerar_cenarios(gap, ajuste_analise)
+
+        # 4. Score
+        score = calcular_score(
+            contexto=self.entrada.contexto,
+            tendencia=self.entrada.tendencia_win,
+            noticias=self.entrada.noticias,
+            gap=gap,
+            ajuste=ajuste_analise
+        )
+
+        # 5. Faixa provável: usar máx/mín da pré-abertura se disponíveis, senão ±100
+        if max_pre is not None and min_pre is not None and max_pre > 0 and min_pre > 0:
+            faixa_inf = min_pre
+            faixa_sup = max_pre
+        else:
+            faixa_inf, faixa_sup = self._calcular_faixa(abertura_teorica)
+
+        # 6. Direção
+        direcao = self._determinar_direcao(gap, ajuste_analise)
+
+        # 7. Coletar dados do sistema antigo para comparação (legado)
+        legado = None
+        if self.entrada.core_win_vies:
+            legado = {
+                "vies": self.entrada.core_win_vies,
+                "score": self.entrada.core_win_score
+            }
+
+        self.resultado = ResultadoPrevisao(
+            timestamp=datetime.now(),
+            ativo="WIN",
+            abertura_projetada=abertura_teorica,
+            faixa_provavel_inferior=faixa_inf,
+            faixa_provavel_superior=faixa_sup,
+            gap=gap,
+            direcao_prevista=direcao,
+            analise_ajuste=ajuste_analise,
+            cenario_principal=cenario_principal,
+            cenario_alternativo=cenario_alternativo,
+            score=score,
+            metadados={
+                "fonte_dados": "Coletas/",
+                "versao_motor": "1.1.0",
+                "ajuste_utilizado": ajuste,
+                "fechamento_anterior": fechamento_anterior,
+                "preco_atual_utilizado": preco_para_ajuste,
+                "max_pre_abertura": max_pre,
+                "min_pre_abertura": min_pre,
+                "legado": legado  # para comparação na página
+            }
+        )
+        return self.resultado
+
+    def _calcular_faixa(self, abertura: float):
+        # ±100 pontos da abertura projetada (fallback)
+        return abertura - 100, abertura + 100
+
+    def _determinar_direcao(self, gap: ClassificacaoGAP, ajuste: AnaliseAjuste) -> str:
+        if gap.intensidade in ["EXTREMO", "FORTE"]:
+            return "COMPRA" if gap.gap_pontos > 0 else "VENDA"
+        elif gap.gap_pontos > 50 and ajuste.posicao == "ACIMA":
+            return "COMPRA"
+        elif gap.gap_pontos < -50 and ajuste.posicao == "ABAIXO":
+            return "VENDA"
+        elif gap.gap_pontos > 100:
+            return "COMPRA"
+        elif gap.gap_pontos < -100:
+            return "VENDA"
+        else:
+            return "NEUTRO"
+
+    def obter_resultado_json(self) -> Dict[str, Any]:
+        if not self.resultado:
+            return {"erro": "Nenhum resultado disponível"}
+
+        ajuste_analise = self.resultado.analise_ajuste
+        ajuste_dict = {
+            "distancia_pontos": ajuste_analise.distancia_pontos,
+            "distancia_percentual": ajuste_analise.distancia_percentual,
+            "posicao": ajuste_analise.posicao,
+            "testou_ajuste": ajuste_analise.testou_ajuste,
+            "rejeitou": ajuste_analise.rejeitou,
+            "aceitou": ajuste_analise.aceitou,
+            "perdeu": ajuste_analise.perdeu,
+            "recuperou": ajuste_analise.recuperou,
+        }
+
+        # Inclui dados de pré-abertura e legado nos metadados
+        metadados = self.resultado.metadados.copy()
+        pre_abertura = {
+            "maxima": metadados.pop("max_pre_abertura", None),
+            "minima": metadados.pop("min_pre_abertura", None),
+            "preco_atual": metadados.pop("preco_atual_utilizado", None),
+        }
+        legado = metadados.pop("legado", None)
+
+        return {
+            "timestamp": self.resultado.timestamp.isoformat(),
+            "ativo": self.resultado.ativo,
+            "abertura_projetada": self.resultado.abertura_projetada,
+            "faixa_provavel": [self.resultado.faixa_provavel_inferior, self.resultado.faixa_provavel_superior],
+            "gap": {
+                "pontos": self.resultado.gap.gap_pontos,
+                "percentual": self.resultado.gap.gap_percentual,
+                "intensidade": self.resultado.gap.intensidade,
+                "classificacao": self.resultado.gap.classificacao
+            },
+            "direcao_prevista": self.resultado.direcao_prevista,
+            "analise_ajuste": ajuste_dict,
+            "cenario_principal": {
+                "nome": self.resultado.cenario_principal.nome,
+                "descricao": self.resultado.cenario_principal.descricao,
+                "gatilho": self.resultado.cenario_principal.gatilho_entrada,
+                "confirmacao": self.resultado.cenario_principal.confirmacao,
+                "invalidacao": self.resultado.cenario_principal.invalidacao
+            },
+            "cenario_alternativo": {
+                "nome": self.resultado.cenario_alternativo.nome,
+                "descricao": self.resultado.cenario_alternativo.descricao
+            },
+            "score": {
+                "valor": self.resultado.score.valor,
+                "classificacao": self.resultado.score.classificacao,
+                "detalhes": self.resultado.score.detalhes
+            },
+            "pre_abertura": pre_abertura,
+            "legado": legado,
+            "metadados": metadados
+        }
+
+
+def executar_previsao() -> Optional[Dict[str, Any]]:
+    orquestrador = PrevisaoAberturaOrquestrador()
+    resultado = orquestrador.executar_previsao()
+    if resultado:
+        return orquestrador.obter_resultado_json()
+    return None
+
+
+
+# ============================================================
+# ARQUIVO:
+# NOVO_MOTOR_PREVISAO_ABERTURA\core\motor_score.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-10 10:47:02
+# ============================================================
+
+
+
+# NOVO_MOTOR_PREVISAO_ABERTURA/core/motor_score.py
+import yaml
+from pathlib import Path
+from typing import Dict, Any, Optional
+from ..dados.schemas import ScorePrevisao, DadosContexto, DadosTendencia, DadosNoticias
+from .motor_gap import classificar_gap
+from .motor_ajuste import analisar_ajuste
+
+# Carregar configuração de pesos
+CONFIG_DIR = Path(__file__).resolve().parent.parent / "config"
+PESOS_PATH = CONFIG_DIR / "pesos.yaml"
+
+def carregar_pesos() -> Dict[str, Any]:
+    if not PESOS_PATH.exists():
+        # Fallback com pesos padrão
+        return {
+            "pesos": {
+                "mercado_externo": 0.35,
+                "adrs_brasileiras": 0.25,
+                "vix": 0.10,
+                "tendencia": 0.15,
+                "gap_intensidade": 0.10,
+                "noticias_impacto": 0.05
+            },
+            "score_limiares": {"muito_forte": 80, "forte": 60, "moderado": 40, "fraco": 0}
+        }
+    with open(PESOS_PATH, "r", encoding="utf-8") as f:
+        return yaml.safe_load(f)
+
+CONFIG = carregar_pesos()
+PESOS = CONFIG.get("pesos", {})
+LIMIARES = CONFIG.get("score_limiares", {})
+
+def calcular_score(
+    contexto: Optional[DadosContexto],
+    tendencia: Optional[DadosTendencia],
+    noticias: Optional[DadosNoticias],
+    gap: Optional[ClassificacaoGAP] = None,
+    ajuste: Optional[AnaliseAjuste] = None
+) -> ScorePrevisao:
+    """
+    Calcula o score de confiança com base nos fatores e pesos configurados.
+    """
+    score_base = 50.0
+    detalhes = {}
+    
+    # 1. Mercado Externo
+    if contexto and contexto.indicador_mercado_externo is not None:
+        me = contexto.indicador_mercado_externo
+        peso = PESOS.get("mercado_externo", 0.35)
+        contrib = me * peso * 10  # escalonamento para impacto no score
+        score_base += contrib
+        detalhes["mercado_externo"] = round(contrib, 2)
+    
+    # 2. ADRs Brasileiras
+    if contexto and contexto.indicador_adrs_brasileiras is not None:
+        adrs = contexto.indicador_adrs_brasileiras
+        peso = PESOS.get("adrs_brasileiras", 0.25)
+        contrib = adrs * peso * 10
+        score_base += contrib
+        detalhes["adrs"] = round(contrib, 2)
+    
+    # 3. VIX (risco)
+    if contexto and contexto.vix_var is not None:
+        vix_var = contexto.vix_var
+        peso = PESOS.get("vix", 0.10)
+        # VIX em alta é negativo
+        contrib = -vix_var * peso * 5
+        score_base += contrib
+        detalhes["vix"] = round(contrib, 2)
+    
+    # 4. Tendência
+    if tendencia and tendencia.tendencia != "N/A":
+        peso = PESOS.get("tendencia", 0.15)
+        if tendencia.tendencia == "SUBIU":
+            contrib = 5 * peso * 10
+            score_base += contrib
+            detalhes["tendencia"] = round(contrib, 2)
+        elif tendencia.tendencia == "DESCEU":
+            contrib = -5 * peso * 10
+            score_base += contrib
+            detalhes["tendencia"] = round(contrib, 2)
+    
+    # 5. GAP Intensidade
+    if gap:
+        peso = PESOS.get("gap_intensidade", 0.10)
+        # Mapeamento de intensidade para bônus/penalidade
+        mapa_intensidade = {
+            "MICRO": 0,
+            "PEQUENO": 2,
+            "MODERADO": 5,
+            "FORTE": 10,
+            "EXTREMO": 15
+        }
+        bonus = mapa_intensidade.get(gap.intensidade, 0)
+        # Sinal: se gap positivo, bônus; se negativo, penalidade
+        if gap.gap_pontos > 0:
+            contrib = bonus * peso * 5
+            score_base += contrib
+            detalhes["gap"] = round(contrib, 2)
+        else:
+            contrib = -bonus * peso * 5
+            score_base += contrib
+            detalhes["gap"] = round(contrib, 2)
+    
+    # 6. Notícias de impacto
+    if noticias:
+        peso = PESOS.get("noticias_impacto", 0.05)
+        if noticias.tem_3_estrelas_brasil_0900:
+            contrib = -15 * peso * 10
+            score_base += contrib
+            detalhes["noticia_3_estrelas"] = round(contrib, 2)
+        elif noticias.classificacao_impacto == "EXTREMO":
+            contrib = -10 * peso * 10
+            score_base += contrib
+            detalhes["noticia_extrema"] = round(contrib, 2)
+    
+    # Normalizar entre 0 e 100
+    score_final = max(0, min(100, score_base))
+    
+    # Classificação
+    if score_final >= LIMIARES.get("muito_forte", 80):
+        classificacao = "MUITO FORTE"
+    elif score_final >= LIMIARES.get("forte", 60):
+        classificacao = "FORTE"
+    elif score_final >= LIMIARES.get("moderado", 40):
+        classificacao = "MODERADO"
+    else:
+        classificacao = "FRACO"
+    
+    return ScorePrevisao(
+        valor=round(score_final, 1),
+        classificacao=classificacao,
+        detalhes=detalhes
+    )
+
+
+
+# ============================================================
+# ARQUIVO:
+# NOVO_MOTOR_PREVISAO_ABERTURA\dados\__init__.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-10 10:47:02
+# ============================================================
+
+
+
+# NOVO_MOTOR_PREVISAO_ABERTURA/dados/__init__.py
+
+
+
+# ============================================================
+# ARQUIVO:
+# NOVO_MOTOR_PREVISAO_ABERTURA\dados\coletor_dados.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-10 10:47:02
+# ============================================================
+
+
+
+# NOVO_MOTOR_PREVISAO_ABERTURA/dados/coletor_dados.py
+import json
+from pathlib import Path
+from typing import Optional, Dict, Any
+from datetime import datetime
+
+from .schemas import (
+    DadosEntrada, DadosAberturaTeorica, DadosPivot,
+    DadosContexto, DadosTendencia, DadosNoticias
+)
+
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+COLETAS_DIR = BASE_DIR / "Coletas"
+
+def carregar_json(nome: str) -> Dict[str, Any]:
+    caminho = COLETAS_DIR / nome
+    if not caminho.exists():
+        return {}
+    try:
+        with open(caminho, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+def coletar_dados_entrada() -> Optional[DadosEntrada]:
+    ativos = carregar_json("DadosAtivosUnificados.json").get("ativos", {})
+    estimativa = carregar_json("EstimativaAbertura.json")
+    est_win = estimativa.get("estimativas_abertura", {}).get("WIN_INDICE", {})
+    pivots = estimativa.get("pivot_points", {}).get("WIN_FUT", {})
+    metricas = carregar_json("Metricas_Calculadas.json")
+    indicadores = metricas.get("indicadores_compostos", {})
+    macro = metricas.get("indicadores_macro", {})
+    adrs_data = metricas.get("performance_relativa", {}).get("adrs_brasileiras", {})
+    decisao = carregar_json("Decisao_Core.json")
+    win_core = decisao.get("analise_operacional", {}).get("WIN_INDICE", {})
+    tendencias_raw = carregar_json("Analise_Tendencias.json")
+    tendencia_win_data = None
+    for chave in ["WIN_FUT", "BMFBOVESPA:WIN1!"]:
+        if chave in tendencias_raw:
+            tendencia_win_data = tendencias_raw[chave]
+            break
+    noticias = carregar_json("Noticias_Impacto_Dia.json")
+    alertas = noticias.get("alertas", {})
+    resumo_noticias = noticias.get("resumo", {})
+
+    win_ativo = ativos.get("WIN_FUT", {})
+    win_atual = win_ativo.get("preco")
+    win_high = win_ativo.get("high")   # máxima da pré-abertura (se disponível)
+    win_low = win_ativo.get("low")     # mínima da pré-abertura (se disponível)
+    ajuste_win = ativos.get("WIN_AJUSTE", {}).get("preco")
+    abertura_teorica_val = est_win.get("abertura_teorica_pontos", 0.0)
+    if win_atual is None:
+        win_atual = abertura_teorica_val
+    fechamento_anterior = ajuste_win
+
+    abertura_teorica = DadosAberturaTeorica(
+        variacao_teorica_pct=est_win.get("variacao_teorica_pct", 0.0),
+        abertura_teorica_pontos=abertura_teorica_val,
+        pontos_ajuste_base=est_win.get("pontos_ajuste_base", 0.0)
+    )
+
+    pivot = DadosPivot(
+        pp=pivots.get("PP", 0.0),
+        r1=pivots.get("R1", 0.0),
+        r2=pivots.get("R2", 0.0),
+        s1=pivots.get("S1", 0.0),
+        s2=pivots.get("S2", 0.0)
+    )
+
+    contexto = DadosContexto(
+        vix=macro.get("vix"),
+        vix_var=macro.get("vix_change_pct"),
+        sp500=ativos.get("SP500_FUT", {}).get("preco"),
+        sp500_var=ativos.get("SP500_FUT", {}).get("variacao_pct"),
+        nasdaq=ativos.get("NASDAQ_FUT", {}).get("preco"),
+        nasdaq_var=ativos.get("NASDAQ_FUT", {}).get("variacao_pct"),
+        ewz=ativos.get("EWZ", {}).get("preco"),
+        ewz_var=ativos.get("EWZ", {}).get("variacao_pct"),
+        dxy=ativos.get("DXY", {}).get("preco"),
+        dxy_var=ativos.get("DXY", {}).get("variacao_pct"),
+        iron_ore=ativos.get("IRON_ORE", {}).get("preco"),
+        iron_var=ativos.get("IRON_ORE", {}).get("variacao_pct"),
+        crude_oil=ativos.get("CRUDE_OIL", {}).get("preco"),
+        crude_var=ativos.get("CRUDE_OIL", {}).get("variacao_pct"),
+        adrs={ticker: {"close": data.get("close"), "change_percent": data.get("change_percent")}
+              for ticker, data in adrs_data.items()},
+        indicador_mercado_externo=indicadores.get("indicador_mercado_externo"),
+        indicador_adrs_brasileiras=indicadores.get("indicador_adrs_brasileiras")
+    )
+
+    tendencia = DadosTendencia()
+    if tendencia_win_data:
+        tendencia.padrao = tendencia_win_data.get("padrao_comportamento", "N/A")
+        tendencia.variacao_pct = tendencia_win_data.get("intervalo_5_para_0", {}).get("variacao_pct", 0.0)
+        tendencia.tendencia = tendencia_win_data.get("intervalo_5_para_0", {}).get("tendencia", "N/A")
+
+    noticias_obj = DadosNoticias(
+        tem_3_estrelas_brasil_0900=alertas.get("tem_3_estrelas_brasil_0900", False),
+        tem_3_estrelas_outros=alertas.get("tem_3_estrelas_outros_horarios", False),
+        tem_multiplas_2_estrelas=alertas.get("tem_multiplas_2_estrelas_mesmo_horario", False),
+        classificacao_impacto=resumo_noticias.get("classificacao", "BAIXO"),
+        risco_abertura_win=alertas.get("risco_abertura_WIN", False)
+    )
+
+    core_vies = win_core.get("vies_final")
+    core_score = win_core.get("score_numeric")
+
+    return DadosEntrada(
+        timestamp=datetime.now().isoformat(),
+        fechamento_anterior_win=fechamento_anterior,
+        ajuste_win=ajuste_win,
+        preco_atual_win=win_atual,
+        maxima_pre_abertura=win_high,   # nova
+        minima_pre_abertura=win_low,    # nova
+        abertura_teorica=abertura_teorica,
+        pivot_win=pivot,
+        contexto=contexto,
+        tendencia_win=tendencia,
+        noticias=noticias_obj,
+        core_win_vies=core_vies,
+        core_win_score=core_score
+    )
+
+
+
+# ============================================================
+# ARQUIVO:
+# NOVO_MOTOR_PREVISAO_ABERTURA\dados\schemas.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-10 10:47:02
+# ============================================================
+
+
+
+# NOVO_MOTOR_PREVISAO_ABERTURA/dados/schemas.py
+from dataclasses import dataclass, field
+from typing import Optional, List, Dict, Any
+from datetime import datetime
+
+
+@dataclass
+class DadosAtivo:
+    """Representa um ativo com preço e variação."""
+    preco: float
+    variacao_pct: float
+
+
+@dataclass
+class DadosContexto:
+    """Contexto externo (mercados, ADRs, commodities, etc.)."""
+    vix: Optional[float] = None
+    vix_var: Optional[float] = None
+    sp500: Optional[float] = None
+    sp500_var: Optional[float] = None
+    nasdaq: Optional[float] = None
+    nasdaq_var: Optional[float] = None
+    ewz: Optional[float] = None
+    ewz_var: Optional[float] = None
+    dxy: Optional[float] = None
+    dxy_var: Optional[float] = None
+    iron_ore: Optional[float] = None
+    iron_var: Optional[float] = None
+    crude_oil: Optional[float] = None
+    crude_var: Optional[float] = None
+    adrs: Dict[str, Dict[str, float]] = field(default_factory=dict)
+    indicador_mercado_externo: Optional[float] = None
+    indicador_adrs_brasileiras: Optional[float] = None
+
+
+@dataclass
+class DadosAberturaTeorica:
+    """Estimativa de abertura calculada pelo sistema legado."""
+    variacao_teorica_pct: float
+    abertura_teorica_pontos: float
+    pontos_ajuste_base: float
+    gap_teorico: float = 0.0  # calculado posteriormente
+
+
+@dataclass
+class DadosPivot:
+    pp: float = 0.0
+    r1: float = 0.0
+    r2: float = 0.0
+    s1: float = 0.0
+    s2: float = 0.0
+
+
+@dataclass
+class DadosTendencia:
+    """Tendência de 15min (padrão, variação, direção)."""
+    padrao: str = "N/A"
+    variacao_pct: float = 0.0
+    tendencia: str = "N/A"
+
+
+@dataclass
+class DadosNoticias:
+    """Alertas de notícias de alto impacto."""
+    tem_3_estrelas_brasil_0900: bool = False
+    tem_3_estrelas_outros: bool = False
+    tem_multiplas_2_estrelas: bool = False
+    classificacao_impacto: str = "BAIXO"
+    risco_abertura_win: bool = False
+
+
+@dataclass
+class DadosEntrada:
+    """Todos os dados necessários para a previsão."""
+    timestamp: str
+    fechamento_anterior_win: Optional[float] = None
+    ajuste_win: Optional[float] = None
+    preco_atual_win: Optional[float] = None
+    maxima_pre_abertura: Optional[float] = None
+    minima_pre_abertura: Optional[float] = None
+    abertura_teorica: Optional[DadosAberturaTeorica] = None
+    pivot_win: Optional[DadosPivot] = None
+    contexto: Optional[DadosContexto] = None
+    tendencia_win: Optional[DadosTendencia] = None
+    noticias: Optional[DadosNoticias] = None
+    core_win_vies: Optional[str] = None
+    core_win_score: Optional[float] = None
+
+
+# ============================================================
+# SAÍDAS DO NOVO MOTOR
+# ============================================================
+
+@dataclass
+class ClassificacaoGAP:
+    """Resultado da análise do GAP."""
+    gap_pontos: float
+    gap_percentual: float
+    gap_contra_fechamento: float
+    gap_contra_ajuste: float
+    intensidade: str  # MICRO, PEQUENO, MODERADO, FORTE, EXTREMO
+    classificacao: str  # descrição textual
+
+
+@dataclass
+class AnaliseAjuste:
+    """Posição relativa ao ajuste."""
+    distancia_pontos: float
+    distancia_percentual: float
+    posicao: str  # "ACIMA", "ABAIXO", "NEUTRO"
+    # Para pós-abertura:
+    testou_ajuste: bool = False
+    rejeitou: bool = False
+    aceitou: bool = False
+    perdeu: bool = False
+    recuperou: bool = False
+
+
+@dataclass
+class Cenario:
+    """Cenário principal ou alternativo."""
+    nome: str  # "CONTINUACAO", "TESTE_REJEICAO", "PERDA_RECUPERACAO"
+    descricao: str
+    condicao: str
+    gatilho_entrada: str
+    confirmacao: str
+    invalidacao: str
+    probabilidade_estimada: float = 0.0  # futuramente calibrada
+
+
+@dataclass
+class ScorePrevisao:
+    """Score de confiança normalizado (0-100)."""
+    valor: float
+    classificacao: str  # FRACO, MODERADO, FORTE, MUITO FORTE
+    detalhes: Dict[str, float] = field(default_factory=dict)
+
+
+@dataclass
+class ResultadoPrevisao:
+    """Saída final do motor."""
+    timestamp: datetime
+    ativo: str  # "WIN"
+    abertura_projetada: float
+    faixa_provavel_inferior: float
+    faixa_provavel_superior: float
+    gap: ClassificacaoGAP
+    direcao_prevista: str  # "COMPRA", "VENDA", "NEUTRO"
+    analise_ajuste: AnaliseAjuste
+    cenario_principal: Cenario
+    cenario_alternativo: Cenario
+    score: ScorePrevisao
+    metadados: Dict[str, Any] = field(default_factory=dict)
+
+
+
+# ============================================================
+# ARQUIVO:
 # Validador.py
 #
 # ÚLTIMA ALTERAÇÃO:
@@ -4508,7 +5483,7 @@ if __name__ == "__main__":
 # app_home.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-09 21:05:52
+# 2026-08-10 10:47:02
 # ============================================================
 
 
@@ -5275,7 +6250,7 @@ st.markdown(
 # config.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-06 16:19:09
+# 2026-08-10 10:47:02
 # ============================================================
 
 
@@ -5298,7 +6273,7 @@ from utils.KeyManager import get_groq_client, key_manager
 # diagnostico_env.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-06 19:43:04
+# 2026-08-10 10:47:02
 # ============================================================
 
 
@@ -5385,93 +6360,6 @@ for key, value in os.environ.items():
 print("\n" + "=" * 60)
 print("✅ DIAGNÓSTICO CONCLUÍDO")
 print("=" * 60)
-
-
-
-# ============================================================
-# ARQUIVO:
-# fix.py
-#
-# ÚLTIMA ALTERAÇÃO:
-# 2026-08-09 21:05:52
-# ============================================================
-
-
-
-import os
-import re
-from pathlib import Path
-
-BASE_DIR = Path(__file__).resolve().parent
-
-IGNORAR = {
-    "__pycache__", ".git", "venv", "env", ".venv", "Coletas", "PromptIA",
-    "Imagens", "pages/__pycache__", "utils/__pycache__"
-}
-
-def substituir_no_arquivo(caminho):
-    try:
-        with open(caminho, "r", encoding="utf-8") as f:
-            conteudo = f.read()
-        
-        original = conteudo
-        modificado = False
-
-        # Substituir width="stretch" por width="stretch"
-        conteudo = re.sub(
-            r'use_container_width\s*=\s*True',
-            'width="stretch"',
-            conteudo
-        )
-
-        # Substituir width="content" por width="content"
-        conteudo = re.sub(
-            r'use_container_width\s*=\s*False',
-            'width="content"',
-            conteudo
-        )
-
-        if conteudo != original:
-            with open(caminho, "w", encoding="utf-8") as f:
-                f.write(conteudo)
-            return True
-        return False
-
-    except Exception as e:
-        print(f"❌ Erro ao processar {caminho}: {e}")
-        return False
-
-def main():
-    print("=" * 60)
-    print("🔄 CORREÇÃO DE use_container_width")
-    print("=" * 60)
-    print()
-
-    arquivos_modificados = []
-    arquivos_processados = 0
-
-    for raiz, pastas, arquivos in os.walk(BASE_DIR):
-        pastas[:] = [p for p in pastas if p not in IGNORAR]
-        for arquivo in arquivos:
-            if not arquivo.endswith(".py"):
-                continue
-            caminho = Path(raiz) / arquivo
-            if caminho.name in ["fix_width.py", "fix_streamlit_deprecations.py"]:
-                continue
-            arquivos_processados += 1
-            if substituir_no_arquivo(caminho):
-                arquivos_modificados.append(str(caminho))
-                print(f"✅ {caminho.relative_to(BASE_DIR)}")
-
-    print()
-    print("=" * 60)
-    print(f"📊 Processados: {arquivos_processados} arquivos")
-    print(f"📝 Modificados: {len(arquivos_modificados)} arquivos")
-    print("=" * 60)
-
-if __name__ == "__main__":
-    main()
-
 
 
 
@@ -5720,7 +6608,7 @@ if __name__ == "__main__":
 # pages\13_📅_Noticias.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-09 20:59:04
+# 2026-08-10 10:47:02
 # ============================================================
 
 
@@ -6262,7 +7150,7 @@ renderizar_dashboard()
 # pages\14_📡_Ativos_Monitorados.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-09 20:59:04
+# 2026-08-10 10:47:02
 # ============================================================
 
 
@@ -6771,7 +7659,7 @@ st.caption("Analisador Financeiro | Monitor de Ativos Quantitativo v2.0")
 # pages\15_🗺️_Mapa_da_Aplicacao.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-09 20:59:04
+# 2026-08-10 10:47:02
 # ============================================================
 
 
@@ -7194,7 +8082,7 @@ st.caption(
 # pages\16_📊_Dados_MT5.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-09 20:59:04
+# 2026-08-10 10:47:02
 # ============================================================
 
 
@@ -7325,7 +8213,7 @@ with st.expander("📄 Ver Dados Brutos (JSON)"):
 # pages\16_🔑_Status_Chaves.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-09 20:59:04
+# 2026-08-10 10:47:02
 # ============================================================
 
 
@@ -7398,7 +8286,7 @@ else:
 # pages\1_🎯_Setup_Abertura.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-09 20:59:04
+# 2026-08-10 10:47:02
 # ============================================================
 
 
@@ -9206,7 +10094,7 @@ if __name__ == "__main__":
 # pages\3_🎯_Setup_Abertura_10h.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-09 20:59:04
+# 2026-08-10 10:47:02
 # ============================================================
 
 
@@ -9976,7 +10864,7 @@ st.caption("Setup Abertura 10:00 - Mercado à Vista • Analisador Financeiro Qu
 # pages\4_🔢_Calculadora.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-09 20:59:04
+# 2026-08-10 10:47:02
 # ============================================================
 
 
@@ -10435,7 +11323,7 @@ st.caption("Analisador Financeiro - Terminal Quant v2.0")
 # pages\5_⚙️_Core_Engine.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-09 20:59:04
+# 2026-08-10 10:47:02
 # ============================================================
 
 
@@ -10861,7 +11749,7 @@ st.caption("Analisador Financeiro - Core Engine Quant v2.0")
 # pages\6_🔬_Analise_Tendencia.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-09 20:59:04
+# 2026-08-10 10:47:02
 # ============================================================
 
 
@@ -11281,7 +12169,7 @@ st.caption("Análise de Tendência - Analisador Financeiro Quant v2.0")
 # pages\7_🤖_IA_Imagem.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-09 20:59:04
+# 2026-08-10 10:47:02
 # ============================================================
 
 
@@ -12180,7 +13068,7 @@ st.caption("🐶 Spike - Analisador de Gráficos com IA • v3.1 • Com dados d
 # pages\7_🤖_IA_Imagem_Hibrido.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-09 20:59:04
+# 2026-08-10 10:47:02
 # ============================================================
 
 
@@ -13421,7 +14309,7 @@ st.caption("🐶 Spike Híbrido - Analisador de Gráficos com IA • PT-BR Forç
 # pages\8_📥_Gerador_Profit_Pro copy.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-09 20:59:04
+# 2026-08-10 10:47:02
 # ============================================================
 
 
@@ -13706,7 +14594,7 @@ st.caption("Gerador de Script Profit Pro • Versão 1.0 • Integrado ao Analis
 # pages\8_📥_Gerador_Profit_Pro.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-09 20:59:04
+# 2026-08-10 10:47:02
 # ============================================================
 
 
@@ -14043,7 +14931,7 @@ st.caption("Gerador de Script Profit Pro • Versão 2.0 • Integrado ao Analis
 # pages\backup\1_🎯_Setup_Abertura.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-09 20:59:04
+# 2026-08-10 10:47:02
 # ============================================================
 
 
@@ -15472,7 +16360,7 @@ if __name__ == "__main__":
 # pages\backup\1_🎯_Setup_Ajuste_B3.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-09 20:59:04
+# 2026-08-10 10:47:02
 # ============================================================
 
 
@@ -16248,10 +17136,768 @@ st.caption("Setup Ajuste B3 - módulo quantitativo do Analisador Financeiro")
 
 # ============================================================
 # ARQUIVO:
+# pages\🔮_Previsao_Inteligente_Abertura.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-10 10:47:02
+# ============================================================
+
+
+
+# NOVO_MOTOR_PREVISAO_ABERTURA/pages/🔮_Previsao_Inteligente_Abertura.py
+import sys
+import json
+from pathlib import Path
+from datetime import datetime
+
+import streamlit as st
+import pandas as pd
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+
+# Adiciona a raiz do projeto ao path
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(BASE_DIR))
+
+from NOVO_MOTOR_PREVISAO_ABERTURA.core.motor_previsao import executar_previsao
+
+# ============================================================
+# CONFIGURAÇÃO DA PÁGINA
+# ============================================================
+st.set_page_config(
+    page_title="Previsão Inteligente de Abertura",
+    page_icon="🔮",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+# ============================================================
+# CSS PERSONALIZADO
+# ============================================================
+st.markdown("""
+<style>
+    .stApp {
+        background: linear-gradient(180deg, #0a0e17 0%, #0e1117 50%, #121620 100%);
+    }
+    .card-previsao {
+        background: #161b22;
+        border-radius: 12px;
+        padding: 20px;
+        border: 1px solid #2a2d4a;
+        margin-bottom: 16px;
+    }
+    .card-previsao h3 {
+        color: #58a6ff;
+        margin-top: 0;
+    }
+    .card-previsao .valor {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #e6edf3;
+    }
+    .card-previsao .rotulo {
+        color: #8b949e;
+        font-size: 0.85rem;
+    }
+    .card-cenario {
+        background: #1a1c2a;
+        border-radius: 10px;
+        padding: 16px 20px;
+        border-left: 4px solid #58a6ff;
+        margin-bottom: 10px;
+    }
+    .card-cenario .titulo {
+        font-weight: 700;
+        font-size: 1.05rem;
+        color: #e6edf3;
+    }
+    .card-cenario .descricao {
+        color: #c9d1d9;
+        font-size: 0.9rem;
+        margin: 6px 0;
+    }
+    .card-cenario .detalhe {
+        color: #8b949e;
+        font-size: 0.8rem;
+    }
+    .badge-compra {
+        background: #0d381e;
+        color: #00c853;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-weight: 600;
+        border: 1px solid #00c853;
+    }
+    .badge-venda {
+        background: #380d0d;
+        color: #ff3d00;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-weight: 600;
+        border: 1px solid #ff3d00;
+    }
+    .badge-neutro {
+        background: #1a1c23;
+        color: #ffc107;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-weight: 600;
+        border: 1px solid #ffc107;
+    }
+    .score-bar {
+        height: 12px;
+        background: #2a2d4a;
+        border-radius: 6px;
+        overflow: hidden;
+        margin-top: 6px;
+    }
+    .score-bar .fill {
+        height: 100%;
+        border-radius: 6px;
+        transition: width 0.6s ease;
+    }
+    .score-bar .fill.forte {
+        background: linear-gradient(90deg, #00c853, #00ff88);
+    }
+    .score-bar .fill.moderado {
+        background: linear-gradient(90deg, #ffc107, #ffdd57);
+    }
+    .score-bar .fill.fraco {
+        background: linear-gradient(90deg, #ff3d00, #ff6d00);
+    }
+    .footer {
+        text-align: center;
+        padding: 20px 0;
+        border-top: 1px solid #1e2a3a;
+        margin-top: 24px;
+        color: #8b949e;
+        font-size: 0.8rem;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# ============================================================
+# SIDEBAR
+# ============================================================
+st.sidebar.title("🔮 Previsão de Abertura")
+st.sidebar.caption("Motor Inteligente v1.0")
+
+st.sidebar.markdown("---")
+st.sidebar.markdown("### Status")
+status_container = st.sidebar.empty()
+
+st.sidebar.markdown("---")
+if st.sidebar.button("🔄 Atualizar Previsão", width="stretch"):
+    st.cache_data.clear()
+    st.rerun()
+
+st.sidebar.markdown("---")
+st.sidebar.markdown("### Sobre")
+st.sidebar.info(
+    """
+    **Motor de Previsão de Abertura**
+    
+    - GAP classificado (MICRO a EXTREMO)
+    - Análise de posição em relação ao ajuste
+    - Cenários condicionais (Continuação, Teste/Rejeição, Recuperação)
+    - Score de confiança (0–100)
+    - Preparado para backtest futuro
+    
+    Dados provenientes do pipeline legado.
+    """
+)
+
+# ============================================================
+# FUNÇÕES AUXILIARES
+# ============================================================
+@st.cache_data(ttl=60, show_spinner=False)
+def obter_previsao():
+    """Obtém a previsão do motor com cache."""
+    return executar_previsao()
+
+def get_badge(direcao):
+    if direcao == "COMPRA":
+        return '<span class="badge-compra">🟢 COMPRA</span>'
+    elif direcao == "VENDA":
+        return '<span class="badge-venda">🔴 VENDA</span>'
+    else:
+        return '<span class="badge-neutro">🟡 NEUTRO</span>'
+
+def get_score_class(score):
+    if score >= 60:
+        return "forte"
+    elif score >= 40:
+        return "moderado"
+    else:
+        return "fraco"
+
+# ============================================================
+# CARREGAR PREVISÃO
+# ============================================================
+dados = obter_previsao()
+
+if not dados:
+    st.error("⚠️ Não foi possível carregar a previsão. Certifique-se de que o pipeline foi executado e os JSONs estão em 'Coletas/'.")
+    st.stop()
+
+# ============================================================
+# TÍTULO
+# ============================================================
+st.title("🔮 Previsão Inteligente de Abertura")
+st.caption("Baseado em dados do pipeline e análise de gap, ajuste e cenários condicionais")
+
+# Timestamp
+ts = dados.get("timestamp", "")
+if ts:
+    dt = datetime.fromisoformat(ts)
+    st.info(f"⏱ Última atualização: {dt.strftime('%d/%m/%Y %H:%M:%S')}")
+
+# ============================================================
+# PAINEL PRINCIPAL
+# ============================================================
+st.markdown("---")
+st.subheader("📊 Resumo da Previsão")
+
+col1, col2, col3, col4 = st.columns(4)
+
+with col1:
+    st.metric(
+        "🎯 Abertura Projetada",
+        f"{dados['abertura_projetada']:,.0f} pts"
+    )
+
+with col2:
+    gap = dados['gap']
+    delta_gap = f"{gap['pontos']:+,.0f} pts"
+    st.metric(
+        "📉 GAP",
+        f"{gap['pontos']:+,.0f} pts",
+        delta=delta_gap,
+        delta_color="inverse" if gap['pontos'] < 0 else "normal"
+    )
+
+with col3:
+    direcao = dados['direcao_prevista']
+    st.markdown(f"""
+    <div style="background:#161b22; padding:16px; border-radius:10px; border:1px solid #2a2d4a; text-align:center;">
+        <div style="font-size:0.8rem; color:#8b949e;">DIREÇÃO PREVISTA</div>
+        <div style="font-size:1.8rem; font-weight:700; margin-top:4px;">
+            {get_badge(direcao)}
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col4:
+    score = dados['score']
+    st.markdown(f"""
+    <div style="background:#161b22; padding:16px; border-radius:10px; border:1px solid #2a2d4a; text-align:center;">
+        <div style="font-size:0.8rem; color:#8b949e;">CONFIANÇA</div>
+        <div style="font-size:1.8rem; font-weight:700; color:#e6edf3;">
+            {score['valor']:.0f}%
+        </div>
+        <div style="font-size:0.9rem; color:{'#00c853' if score['classificacao'] in ['FORTE','MUITO FORTE'] else '#ffc107' if score['classificacao'] == 'MODERADO' else '#ff3d00'};">
+            {score['classificacao']}
+        </div>
+        <div class="score-bar">
+            <div class="fill {get_score_class(score['valor'])}" style="width:{score['valor']}%;"></div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+# ============================================================
+# LINHA DO TEMPO: GAP E AJUSTE
+# ============================================================
+st.markdown("---")
+st.subheader("📍 Posição em relação ao Ajuste")
+
+abertura = dados['abertura_projetada']
+ajuste = dados['metadados']['ajuste_utilizado']
+faixa_inf, faixa_sup = dados['faixa_provavel']
+
+# Gráfico de barras comparando ajuste e abertura
+fig = go.Figure()
+
+# Barra do Ajuste
+fig.add_trace(go.Bar(
+    x=["Ajuste B3"],
+    y=[ajuste],
+    name="Ajuste",
+    marker_color="#2a3a4a",
+    text=f"{ajuste:,.0f}",
+    textposition="outside",
+))
+
+# Barra da Abertura Projetada
+fig.add_trace(go.Bar(
+    x=["Abertura Projetada"],
+    y=[abertura],
+    name="Abertura Projetada",
+    marker_color="#58a6ff" if abertura > ajuste else "#ff3d00",
+    text=f"{abertura:,.0f}",
+    textposition="outside",
+))
+
+# Faixa provável como área sombreada
+fig.add_hrect(
+    y0=faixa_inf, y1=faixa_sup,
+    fillcolor="rgba(88,166,255,0.15)",
+    line_width=0,
+    annotation_text=f"Faixa Provável: {faixa_inf:,.0f} – {faixa_sup:,.0f}",
+    annotation_position="inside",
+    annotation_font_color="#8b949e",
+)
+
+fig.update_layout(
+    plot_bgcolor="#0e1117",
+    paper_bgcolor="#0e1117",
+    font_color="#e6edf3",
+    height=300,
+    margin=dict(l=40, r=40, t=40, b=40),
+    xaxis_title="",
+    yaxis_title="Pontos",
+    yaxis_tickformat=",.0f",
+)
+
+st.plotly_chart(fig, width="stretch")
+
+# ============================================================
+# ANÁLISE DO AJUSTE
+# ============================================================
+st.markdown("---")
+st.subheader("📊 Análise do Ajuste")
+
+col1, col2 = st.columns(2)
+
+with col1:
+    ajuste_analise = dados['analise_ajuste']
+    st.markdown(f"""
+    <div class="card-previsao">
+        <h3>🎯 Posição</h3>
+        <div style="font-size:2rem; font-weight:700;">
+            {ajuste_analise['posicao']}
+        </div>
+        <div style="color:#8b949e;">
+            Distância: {ajuste_analise['distancia_pontos']:+,.0f} pts
+            ({ajuste_analise['distancia_percentual']:+.2f}%)
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col2:
+    # Resumo do gap
+    gap = dados['gap']
+    st.markdown(f"""
+    <div class="card-previsao">
+        <h3>📉 Classificação do GAP</h3>
+        <div style="font-size:2rem; font-weight:700; color:{'#ff3d00' if gap['pontos'] < 0 else '#00c853'};">
+            {gap['intensidade']}
+        </div>
+        <div style="color:#8b949e;">
+            {gap['classificacao']}<br>
+            Percentual: {gap['percentual']:.2f}%
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+# ============================================================
+# CENÁRIOS
+# ============================================================
+st.markdown("---")
+st.subheader("🎯 Cenários Operacionais")
+
+col_princ, col_alt = st.columns(2)
+
+with col_princ:
+    cenario = dados['cenario_principal']
+    cor_borda = "#00c853" if "COMPRA" in cenario['nome'] else "#ff3d00" if "VENDA" in cenario['nome'] else "#ffc107"
+    st.markdown(f"""
+    <div class="card-cenario" style="border-left-color: {cor_borda};">
+        <div class="titulo">🎯 Principal: {cenario['nome']}</div>
+        <div class="descricao">{cenario['descricao']}</div>
+        <div class="detalhe">✅ Gatilho: {cenario['gatilho']}</div>
+        <div class="detalhe">✅ Confirmação: {cenario['confirmacao']}</div>
+        <div class="detalhe">❌ Invalidação: {cenario['invalidacao']}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col_alt:
+    cenario = dados['cenario_alternativo']
+    cor_borda = "#ffc107"
+    st.markdown(f"""
+    <div class="card-cenario" style="border-left-color: {cor_borda};">
+        <div class="titulo">🔄 Alternativo: {cenario['nome']}</div>
+        <div class="descricao">{cenario['descricao']}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+# ============================================================
+# SCORE – DETALHES
+# ============================================================
+st.markdown("---")
+st.subheader("🧮 Score de Confiança – Detalhes")
+
+score = dados['score']
+detalhes = score['detalhes']
+
+# Cria tabela de contribuições
+df_detalhes = pd.DataFrame(list(detalhes.items()), columns=["Fator", "Contribuição"])
+df_detalhes["Contribuição"] = df_detalhes["Contribuição"].round(2)
+
+# Ordena por contribuição absoluta
+df_detalhes = df_detalhes.iloc[df_detalhes["Contribuição"].abs().argsort()[::-1]]
+
+col1, col2 = st.columns([2, 1])
+
+with col1:
+    st.dataframe(
+        df_detalhes,
+        width="stretch",
+        hide_index=True,
+        column_config={
+            "Fator": "Fator",
+            "Contribuição": st.column_config.NumberColumn("Contribuição", format="%+.2f")
+        }
+    )
+
+with col2:
+    st.metric(
+        "Score Total",
+        f"{score['valor']:.1f}%",
+        f"{score['classificacao']}"
+    )
+
+# ============================================================
+# METADADOS
+# ============================================================
+with st.expander("📄 Metadados e Versão"):
+    st.json(dados.get("metadados", {}))
+
+# ============================================================
+# RODAPÉ
+# ============================================================
+st.markdown("---")
+st.markdown(
+    """
+    <div class="footer">
+        🔮 Previsão Inteligente de Abertura • Motor v1.0.1 • Dados do pipeline legado
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+
+
+# ============================================================
+# ARQUIVO:
+# pages\🔮_Previsao_Inteligente_Abertura_Comparador.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-10 10:47:02
+# ============================================================
+
+
+
+# NOVO_MOTOR_PREVISAO_ABERTURA/pages/🔮_Previsao_Inteligente_Abertura.py
+import sys
+import json
+from pathlib import Path
+from datetime import datetime
+
+import streamlit as st
+import pandas as pd
+import plotly.graph_objects as go
+
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(BASE_DIR))
+
+from NOVO_MOTOR_PREVISAO_ABERTURA.core.motor_previsao import executar_previsao
+
+st.set_page_config(
+    page_title="Previsão Inteligente de Abertura",
+    page_icon="🔮",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+# CSS (mesmo de antes, mantido)
+st.markdown("""
+<style>
+    .stApp { background: linear-gradient(180deg, #0a0e17 0%, #0e1117 50%, #121620 100%); }
+    .card-previsao { background: #161b22; border-radius: 12px; padding: 20px; border: 1px solid #2a2d4a; margin-bottom: 16px; }
+    .card-previsao h3 { color: #58a6ff; margin-top: 0; }
+    .card-previsao .valor { font-size: 2rem; font-weight: 700; color: #e6edf3; }
+    .card-previsao .rotulo { color: #8b949e; font-size: 0.85rem; }
+    .card-cenario { background: #1a1c2a; border-radius: 10px; padding: 16px 20px; border-left: 4px solid #58a6ff; margin-bottom: 10px; }
+    .card-cenario .titulo { font-weight: 700; font-size: 1.05rem; color: #e6edf3; }
+    .card-cenario .descricao { color: #c9d1d9; font-size: 0.9rem; margin: 6px 0; }
+    .card-cenario .detalhe { color: #8b949e; font-size: 0.8rem; }
+    .badge-compra { background: #0d381e; color: #00c853; padding: 4px 12px; border-radius: 12px; font-weight: 600; border: 1px solid #00c853; }
+    .badge-venda { background: #380d0d; color: #ff3d00; padding: 4px 12px; border-radius: 12px; font-weight: 600; border: 1px solid #ff3d00; }
+    .badge-neutro { background: #1a1c23; color: #ffc107; padding: 4px 12px; border-radius: 12px; font-weight: 600; border: 1px solid #ffc107; }
+    .badge-concordancia { background: #0d381e; color: #00c853; padding: 4px 12px; border-radius: 12px; font-weight: 600; border: 1px solid #00c853; }
+    .badge-divergencia { background: #380d0d; color: #ff3d00; padding: 4px 12px; border-radius: 12px; font-weight: 600; border: 1px solid #ff3d00; }
+    .score-bar { height: 12px; background: #2a2d4a; border-radius: 6px; overflow: hidden; margin-top: 6px; }
+    .score-bar .fill { height: 100%; border-radius: 6px; transition: width 0.6s ease; }
+    .score-bar .fill.forte { background: linear-gradient(90deg, #00c853, #00ff88); }
+    .score-bar .fill.moderado { background: linear-gradient(90deg, #ffc107, #ffdd57); }
+    .score-bar .fill.fraco { background: linear-gradient(90deg, #ff3d00, #ff6d00); }
+    .footer { text-align: center; padding: 20px 0; border-top: 1px solid #1e2a3a; margin-top: 24px; color: #8b949e; font-size: 0.8rem; }
+</style>
+""", unsafe_allow_html=True)
+
+st.sidebar.title("🔮 Previsão de Abertura")
+st.sidebar.caption("Motor Inteligente v1.1")
+st.sidebar.markdown("---")
+st.sidebar.markdown("### Status")
+status_container = st.sidebar.empty()
+st.sidebar.markdown("---")
+if st.sidebar.button("🔄 Atualizar Previsão", width="stretch"):
+    st.cache_data.clear()
+    st.rerun()
+st.sidebar.markdown("---")
+st.sidebar.markdown("### Sobre")
+st.sidebar.info(
+    """
+    **Motor de Previsão de Abertura v1.1**
+    - GAP classificado (MICRO a EXTREMO)
+    - Análise de posição em relação ao ajuste
+    - Cenários condicionais
+    - Score de confiança (0–100)
+    - Comparação com sistema legado
+    - Dados de pré-abertura (máx/mín)
+    """
+)
+
+@st.cache_data(ttl=60, show_spinner=False)
+def obter_previsao():
+    return executar_previsao()
+
+def get_badge(direcao):
+    if direcao == "COMPRA":
+        return '<span class="badge-compra">🟢 COMPRA</span>'
+    elif direcao == "VENDA":
+        return '<span class="badge-venda">🔴 VENDA</span>'
+    else:
+        return '<span class="badge-neutro">🟡 NEUTRO</span>'
+
+def get_score_class(score):
+    if score >= 60:
+        return "forte"
+    elif score >= 40:
+        return "moderado"
+    else:
+        return "fraco"
+
+dados = obter_previsao()
+if not dados:
+    st.error("⚠️ Não foi possível carregar a previsão.")
+    st.stop()
+
+st.title("🔮 Previsão Inteligente de Abertura")
+st.caption("Baseado em dados do pipeline, gap, ajuste, cenários e comparativo com legado")
+
+ts = dados.get("timestamp", "")
+if ts:
+    dt = datetime.fromisoformat(ts)
+    st.info(f"⏱ Última atualização: {dt.strftime('%d/%m/%Y %H:%M:%S')}")
+
+# === PAINEL PRINCIPAL ===
+st.markdown("---")
+st.subheader("📊 Resumo da Previsão")
+col1, col2, col3, col4 = st.columns(4)
+with col1:
+    st.metric("🎯 Abertura Projetada", f"{dados['abertura_projetada']:,.0f} pts")
+with col2:
+    gap = dados['gap']
+    st.metric("📉 GAP", f"{gap['pontos']:+,.0f} pts", delta=f"{gap['pontos']:+,.0f} pts", delta_color="inverse" if gap['pontos'] < 0 else "normal")
+with col3:
+    direcao = dados['direcao_prevista']
+    st.markdown(f"""
+    <div style="background:#161b22; padding:16px; border-radius:10px; border:1px solid #2a2d4a; text-align:center;">
+        <div style="font-size:0.8rem; color:#8b949e;">DIREÇÃO PREVISTA</div>
+        <div style="font-size:1.8rem; font-weight:700; margin-top:4px;">{get_badge(direcao)}</div>
+    </div>
+    """, unsafe_allow_html=True)
+with col4:
+    score = dados['score']
+    st.markdown(f"""
+    <div style="background:#161b22; padding:16px; border-radius:10px; border:1px solid #2a2d4a; text-align:center;">
+        <div style="font-size:0.8rem; color:#8b949e;">CONFIANÇA</div>
+        <div style="font-size:1.8rem; font-weight:700; color:#e6edf3;">{score['valor']:.0f}%</div>
+        <div style="font-size:0.9rem; color:{'#00c853' if score['classificacao'] in ['FORTE','MUITO FORTE'] else '#ffc107' if score['classificacao'] == 'MODERADO' else '#ff3d00'};">
+            {score['classificacao']}
+        </div>
+        <div class="score-bar"><div class="fill {get_score_class(score['valor'])}" style="width:{score['valor']}%;"></div></div>
+    </div>
+    """, unsafe_allow_html=True)
+
+# === DADOS DE PRÉ-ABERTURA ===
+pre = dados.get('pre_abertura', {})
+if pre.get('maxima') is not None or pre.get('minima') is not None:
+    st.markdown("---")
+    st.subheader("📡 Dados de Pré-Abertura (Tempo Real)")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("📈 Máxima Pré-Abertura", f"{pre.get('maxima', 0):,.0f}" if pre.get('maxima') else "N/A")
+    with col2:
+        st.metric("📉 Mínima Pré-Abertura", f"{pre.get('minima', 0):,.0f}" if pre.get('minima') else "N/A")
+    with col3:
+        st.metric("💰 Preço Atual", f"{pre.get('preco_atual', 0):,.0f}" if pre.get('preco_atual') else "N/A")
+    if pre.get('maxima') and pre.get('minima'):
+        faixa = dados['faixa_provavel']
+        st.caption(f"📊 Faixa provável ajustada: {faixa[0]:,.0f} – {faixa[1]:,.0f} (baseada na pré-abertura)")
+
+# === GRÁFICO AJUSTE vs ABERTURA ===
+st.markdown("---")
+st.subheader("📍 Posição em relação ao Ajuste")
+abertura = dados['abertura_projetada']
+ajuste = dados['metadados']['ajuste_utilizado']
+faixa_inf, faixa_sup = dados['faixa_provavel']
+
+fig = go.Figure()
+fig.add_trace(go.Bar(x=["Ajuste B3"], y=[ajuste], name="Ajuste", marker_color="#2a3a4a", text=f"{ajuste:,.0f}", textposition="outside"))
+fig.add_trace(go.Bar(x=["Abertura Projetada"], y=[abertura], name="Abertura Projetada", marker_color="#58a6ff" if abertura > ajuste else "#ff3d00", text=f"{abertura:,.0f}", textposition="outside"))
+fig.add_hrect(y0=faixa_inf, y1=faixa_sup, fillcolor="rgba(88,166,255,0.15)", line_width=0, annotation_text=f"Faixa Provável: {faixa_inf:,.0f} – {faixa_sup:,.0f}", annotation_position="inside", annotation_font_color="#8b949e")
+fig.update_layout(plot_bgcolor="#0e1117", paper_bgcolor="#0e1117", font_color="#e6edf3", height=300, margin=dict(l=40, r=40, t=40, b=40), xaxis_title="", yaxis_title="Pontos", yaxis_tickformat=",.0f")
+st.plotly_chart(fig, width="stretch")
+
+# === ANÁLISE DO AJUSTE ===
+st.markdown("---")
+st.subheader("📊 Análise do Ajuste")
+col1, col2 = st.columns(2)
+with col1:
+    ajuste_analise = dados['analise_ajuste']
+    st.markdown(f"""
+    <div class="card-previsao">
+        <h3>🎯 Posição</h3>
+        <div style="font-size:2rem; font-weight:700;">{ajuste_analise['posicao']}</div>
+        <div style="color:#8b949e;">Distância: {ajuste_analise['distancia_pontos']:+,.0f} pts ({ajuste_analise.get('distancia_percentual', 0):+.2f}%)</div>
+    </div>
+    """, unsafe_allow_html=True)
+with col2:
+    gap = dados['gap']
+    st.markdown(f"""
+    <div class="card-previsao">
+        <h3>📉 Classificação do GAP</h3>
+        <div style="font-size:2rem; font-weight:700; color:{'#ff3d00' if gap['pontos'] < 0 else '#00c853'};">{gap['intensidade']}</div>
+        <div style="color:#8b949e;">{gap['classificacao']}<br>Percentual: {gap['percentual']:.2f}%</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+# === CENÁRIOS ===
+st.markdown("---")
+st.subheader("🎯 Cenários Operacionais")
+col_princ, col_alt = st.columns(2)
+with col_princ:
+    cenario = dados['cenario_principal']
+    cor_borda = "#00c853" if "COMPRA" in cenario['nome'] else "#ff3d00" if "VENDA" in cenario['nome'] else "#ffc107"
+    st.markdown(f"""
+    <div class="card-cenario" style="border-left-color: {cor_borda};">
+        <div class="titulo">🎯 Principal: {cenario['nome']}</div>
+        <div class="descricao">{cenario['descricao']}</div>
+        <div class="detalhe">✅ Gatilho: {cenario['gatilho']}</div>
+        <div class="detalhe">✅ Confirmação: {cenario['confirmacao']}</div>
+        <div class="detalhe">❌ Invalidação: {cenario['invalidacao']}</div>
+    </div>
+    """, unsafe_allow_html=True)
+with col_alt:
+    cenario = dados['cenario_alternativo']
+    cor_borda = "#ffc107"
+    st.markdown(f"""
+    <div class="card-cenario" style="border-left-color: {cor_borda};">
+        <div class="titulo">🔄 Alternativo: {cenario['nome']}</div>
+        <div class="descricao">{cenario['descricao']}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+# === COMPARADOR COM SISTEMA LEGADO ===
+legado = dados.get('legado')
+if legado:
+    st.markdown("---")
+    st.subheader("⚖️ Comparador com Sistema Legado (Core Engine)")
+
+    # Mapeamento de direções para comparação
+    dir_novo = dados['direcao_prevista']
+    dir_legado = legado.get('vies', 'NEUTRO')
+    # Normaliza o viés do legado (pode vir como "FORTE_COMPRA", "MODERADO_VENDA", etc.)
+    if "COMPRA" in dir_legado.upper():
+        dir_legado_simples = "COMPRA"
+    elif "VENDA" in dir_legado.upper():
+        dir_legado_simples = "VENDA"
+    else:
+        dir_legado_simples = "NEUTRO"
+
+    concordancia = dir_novo == dir_legado_simples
+    badge_comp = '<span class="badge-concordancia">✅ CONCORDÂNCIA</span>' if concordancia else '<span class="badge-divergencia">⚠️ DIVERGÊNCIA</span>'
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.markdown(f"""
+        <div style="background:#161b22; padding:16px; border-radius:10px; border:1px solid #2a2d4a; text-align:center;">
+            <div style="font-size:0.8rem; color:#8b949e;">NOVO MOTOR</div>
+            <div style="font-size:1.5rem; font-weight:700; margin-top:4px;">{get_badge(dir_novo)}</div>
+            <div style="color:#8b949e;">Score: {dados['score']['valor']:.0f}%</div>
+        </div>
+        """, unsafe_allow_html=True)
+    with col2:
+        st.markdown(f"""
+        <div style="background:#161b22; padding:16px; border-radius:10px; border:1px solid #2a2d4a; text-align:center;">
+            <div style="font-size:0.8rem; color:#8b949e;">SISTEMA LEGADO</div>
+            <div style="font-size:1.5rem; font-weight:700; margin-top:4px;">{get_badge(dir_legado_simples)}</div>
+            <div style="color:#8b949e;">Score: {legado.get('score', 0):.2f}</div>
+        </div>
+        """, unsafe_allow_html=True)
+    with col3:
+        st.markdown(f"""
+        <div style="background:#161b22; padding:16px; border-radius:10px; border:1px solid #2a2d4a; text-align:center;">
+            <div style="font-size:0.8rem; color:#8b949e;">STATUS</div>
+            <div style="font-size:1.5rem; font-weight:700; margin-top:4px;">{badge_comp}</div>
+            <div style="color:#8b949e;">{'Ambos alinhados' if concordancia else 'Visões diferentes'}</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # Detalhes do legado (fatores, se disponíveis)
+    if legado.get('fatores'):
+        with st.expander("📋 Fatores considerados pelo legado"):
+            for f in legado['fatores']:
+                st.write(f"• {f}")
+
+# === SCORE DETALHADO ===
+st.markdown("---")
+st.subheader("🧮 Score de Confiança – Detalhes")
+score = dados['score']
+detalhes = score['detalhes']
+df_detalhes = pd.DataFrame(list(detalhes.items()), columns=["Fator", "Contribuição"])
+df_detalhes["Contribuição"] = df_detalhes["Contribuição"].round(2)
+df_detalhes = df_detalhes.iloc[df_detalhes["Contribuição"].abs().argsort()[::-1]]
+col1, col2 = st.columns([2, 1])
+with col1:
+    st.dataframe(df_detalhes, width="stretch", hide_index=True, column_config={"Fator": "Fator", "Contribuição": st.column_config.NumberColumn("Contribuição", format="%+.2f")})
+with col2:
+    st.metric("Score Total", f"{score['valor']:.1f}%", f"{score['classificacao']}")
+
+# === METADADOS ===
+with st.expander("📄 Metadados e Versão"):
+    st.json(dados.get("metadados", {}))
+
+st.markdown("---")
+st.markdown(
+    """
+    <div class="footer">
+        🔮 Previsão Inteligente de Abertura • Motor v1.1.0 • Comparador com legado • Pré-abertura integrada
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+
+
+# ============================================================
+# ARQUIVO:
 # test_import.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-06 19:45:11
+# 2026-08-10 10:47:02
 # ============================================================
 
 
@@ -16291,10 +17937,43 @@ except Exception as e:
 
 # ============================================================
 # ARQUIVO:
+# teste_motor.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-10 10:47:02
+# ============================================================
+
+
+
+# teste_motor.py
+import sys
+import json
+from pathlib import Path
+
+# Adiciona a raiz do projeto ao path para importar o novo motor
+BASE_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(BASE_DIR))
+
+from NOVO_MOTOR_PREVISAO_ABERTURA.core.motor_previsao import executar_previsao
+
+if __name__ == "__main__":
+    print("🚀 Executando Novo Motor de Previsão...")
+    resultado = executar_previsao()
+    
+    if resultado:
+        print("\n✅ Previsão gerada com sucesso!\n")
+        print(json.dumps(resultado, indent=2, ensure_ascii=False))
+    else:
+        print("\n❌ Falha ao carregar dados. Certifique-se de que o pipeline foi executado e os JSONs estão em 'Coletas/'.")
+
+
+
+# ============================================================
+# ARQUIVO:
 # utils\KeyManager.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-06 16:14:02
+# 2026-08-10 10:47:02
 # ============================================================
 
 
