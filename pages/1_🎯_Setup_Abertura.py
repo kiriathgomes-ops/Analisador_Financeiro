@@ -1198,9 +1198,9 @@ def render_bloco_6_checklist():
 # ============================================================
 # RENDERIZAÇÃO DO SETUP AJUSTE B3 (extraído do arquivo original)
 # ============================================================
-def render_ajuste_metricas(ativos: Dict):
+def render_ajuste_metricas(ativos):
     st.markdown("---")
-    st.subheader("📌 1. Ajuste Oficial x Preço Atual")
+    st.subheader("📌 1. Ajuste Oficial x Preço Atual x Last (Candle Anterior)")
 
     def obter_preco(nome):
         ativo = ativos.get(nome, {})
@@ -1217,24 +1217,57 @@ def render_ajuste_metricas(ativos: Dict):
 
     win_ajuste = obter_preco("WIN_AJUSTE")
     win_atual = obter_preco("WIN_FUT")
+    win_last = obter_preco("WIN_LAST_TICK")
     wdo_ajuste = obter_preco("WDO_AJUSTE")
     wdo_atual = obter_preco("WDO_FUT")
+    wdo_last = obter_preco("WDO_LAST_TICK")
     ptax = obter_preco("USD_PTAX")
 
     dist_win_pts, dist_win_pct = calcular_distancia(win_atual, win_ajuste)
     dist_wdo_pts, dist_wdo_pct = calcular_distancia(wdo_atual, wdo_ajuste)
 
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        st.metric("🎯 Ajuste WIN", f"{win_ajuste:,.0f} pts", f"Atual {win_atual:,.0f}")
-        st.write(f"Distância: **{dist_win_pts:+,.0f} pts**  **{dist_win_pct:+.2f}%**")
-    with c2:
-        st.metric("🎯 Ajuste WDO", f"{wdo_ajuste:,.2f}", f"Atual {wdo_atual:,.2f}")
-        st.write(f"Distância: **{dist_wdo_pts:+,.2f} pts**  **{dist_wdo_pct:+.2f}%**")
-    with c3:
-        st.metric("💵 PTAX BACEN", f"R$ {ptax:,.4f}" if ptax else "N/A")
+    spread_win_last = win_ajuste - win_last if win_last and win_ajuste else None
+    spread_wdo_last = wdo_ajuste - wdo_last if wdo_last and wdo_ajuste else None
 
-def render_ajuste_macro(ativos: Dict):
+    st.write("**📍 Mini Índice WIN**")
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("🎯 Ajuste", f"{win_ajuste:,.0f} pts")
+    with col2:
+        st.metric("📊 Futuro (Close)", f"{win_atual:,.0f} pts", f"{dist_win_pct:+.2f}%")
+    with col3:
+        if win_last:
+            st.metric("🕯️ Last (Candle)", f"{win_last:,.0f} pts")
+        else:
+            st.metric("🕯️ Last (Candle)", "N/A")
+    with col4:
+        if spread_win_last is not None:
+            cor_spread = "inverse" if spread_win_last > 0 else "normal"
+            st.metric("📏 Spread (Ajuste - Last)", f"{spread_win_last:+,.0f} pts", delta_color=cor_spread)
+        else:
+            st.metric("📏 Spread", "N/A")
+
+    st.write("**📍 Mini Dólar WDO**")
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("🎯 Ajuste", f"{wdo_ajuste:,.2f}")
+    with col2:
+        st.metric("📊 Futuro (Close)", f"{wdo_atual:,.2f}", f"{dist_wdo_pct:+.2f}%")
+    with col3:
+        if wdo_last:
+            st.metric("🕯️ Last (Candle)", f"{wdo_last:,.2f}")
+        else:
+            st.metric("🕯️ Last (Candle)", "N/A")
+    with col4:
+        if spread_wdo_last is not None:
+            cor_spread = "inverse" if spread_wdo_last > 0 else "normal"
+            st.metric("📏 Spread (Ajuste - Last)", f"{spread_wdo_last:+,.2f} pts", delta_color=cor_spread)
+        else:
+            st.metric("📏 Spread", "N/A")
+
+    st.caption("💡 O 'Last' é o último tick negociado no pregão anterior (capturado via MT5).")
+
+def render_ajuste_macro(ativos):
     st.markdown("---")
     st.subheader("🌐 2. Termômetro Macro (com %)")
 
@@ -1265,7 +1298,7 @@ def render_ajuste_macro(ativos: Dict):
     with m6:
         st.metric("⛏️ Minério", f"${iron.get('preco', 0):,.2f}", f"{variacao(iron):+.2f}%")
 
-def render_ajuste_tendencia(ativos: Dict, dados_tendencias: Dict):
+def render_ajuste_tendencia(ativos, dados_tendencias):
     st.markdown("---")
     st.subheader("📈 3. Confluência com Tendência")
 
@@ -1313,7 +1346,7 @@ def render_ajuste_tendencia(ativos: Dict, dados_tendencias: Dict):
     else:
         st.info("📊 Dados de tendência não disponíveis. Execute `MapearTendencia15Min.py`")
 
-def render_ajuste_score_win(ativos: Dict, dados_tendencias: Dict):
+def render_ajuste_score_win(ativos, dados_tendencias):
     st.markdown("---")
     st.subheader("📊 4. Score Quantitativo WIN")
 
@@ -1401,7 +1434,7 @@ def render_ajuste_score_win(ativos: Dict, dados_tendencias: Dict):
         for item in criterios_win:
             st.write(item)
 
-def render_ajuste_score_wdo(ativos: Dict):
+def render_ajuste_score_wdo(ativos):
     st.markdown("---")
     st.subheader("💵 5. Score Quantitativo WDO")
 
@@ -1464,7 +1497,7 @@ def render_ajuste_checklist():
     check_wdo_total = sum([check_wdo_dist, check_wdo_fluxo, check_wdo_noticia])
     return check_win_total, check_wdo_total
 
-def render_ajuste_semaforo(score_win: int, check_win_total: int, score_wdo: int, check_wdo_total: int):
+def render_ajuste_semaforo(score_win, check_win_total, score_wdo, check_wdo_total):
     st.markdown("---")
     st.subheader("🚦 7. Semáforo Operacional")
 

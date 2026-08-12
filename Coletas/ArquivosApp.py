@@ -4,10 +4,10 @@
 # GERADO AUTOMATICAMENTE
 #
 # Data geração:
-# 2026-08-10 14:53:58
+# 2026-08-11 17:30:02
 #
 # Arquivos catalogados:
-# 104
+# 101
 #
 # NÃO EDITAR MANUALMENTE
 # ============================================================
@@ -21,31 +21,28 @@ ARQUIVOS_PROJETO = [
 {'arquivo': 'Calculadora.py', 'categoria': 'CORE', 'local': 'Calculadora.py', 'tipo': 'PY', 'tamanho_kb': 6.32, 'ultima_alteracao': '2026-07-30 21:13:50'},
 {'arquivo': 'CalculadoraEstimativaAbertura.py', 'categoria': 'CORE', 'local': 'CalculadoraEstimativaAbertura.py', 'tipo': 'PY', 'tamanho_kb': 5.21, 'ultima_alteracao': '2026-08-04 16:59:07'},
 {'arquivo': 'Coleta_Noticias_Calendario.py', 'categoria': 'CORE', 'local': 'Coleta_Noticias_Calendario.py', 'tipo': 'PY', 'tamanho_kb': 9.54, 'ultima_alteracao': '2026-08-02 15:36:31'},
-{'arquivo': 'Analise_Tendencias.json', 'categoria': 'DADOS', 'local': 'Coletas\\Analise_Tendencias.json', 'tipo': 'JSON', 'tamanho_kb': 11.63, 'ultima_alteracao': '2026-08-10 14:49:01'},
-{'arquivo': 'App_Completo.txt', 'categoria': 'DADOS', 'local': 'Coletas\\App_Completo.txt', 'tipo': 'TXT', 'tamanho_kb': 601.82, 'ultima_alteracao': '2026-08-10 14:53:58'},
-{'arquivo': 'Coleta_ram.json', 'categoria': 'DADOS', 'local': 'Coletas\\Coleta_ram.json', 'tipo': 'JSON', 'tamanho_kb': 8.73, 'ultima_alteracao': '2026-08-10 14:49:01'},
-{'arquivo': 'Coleta_rom-0.json', 'categoria': 'DADOS', 'local': 'Coletas\\Coleta_rom-0.json', 'tipo': 'JSON', 'tamanho_kb': 8.73, 'ultima_alteracao': '2026-08-10 14:49:01'},
-{'arquivo': 'Coleta_rom-10.json', 'categoria': 'DADOS', 'local': 'Coletas\\Coleta_rom-10.json', 'tipo': 'JSON', 'tamanho_kb': 8.73, 'ultima_alteracao': '2026-08-10 14:49:00'},
-{'arquivo': 'Coleta_rom-5.json', 'categoria': 'DADOS', 'local': 'Coletas\\Coleta_rom-5.json', 'tipo': 'JSON', 'tamanho_kb': 8.73, 'ultima_alteracao': '2026-08-10 14:49:00'},
-{'arquivo': 'DadosAtivosUnificados.json', 'categoria': 'DADOS', 'local': 'Coletas\\DadosAtivosUnificados.json', 'tipo': 'JSON', 'tamanho_kb': 4.54, 'ultima_alteracao': '2026-08-10 14:49:01'},
-{'arquivo': 'Dados_Validados.json', 'categoria': 'DADOS', 'local': 'Coletas\\Dados_Validados.json', 'tipo': 'JSON', 'tamanho_kb': 8.3, 'ultima_alteracao': '2026-08-10 14:49:01'},
-{'arquivo': 'Decisao_Core.json', 'categoria': 'DADOS', 'local': 'Coletas\\Decisao_Core.json', 'tipo': 'JSON', 'tamanho_kb': 0.64, 'ultima_alteracao': '2026-08-10 14:49:02'},
-{'arquivo': 'EstimativaAbertura.json', 'categoria': 'DADOS', 'local': 'Coletas\\EstimativaAbertura.json', 'tipo': 'JSON', 'tamanho_kb': 0.91, 'ultima_alteracao': '2026-08-10 14:49:02'},
-{'arquivo': 'Mapa_Fluxo.json', 'categoria': 'DADOS', 'local': 'Coletas\\Mapa_Fluxo.json', 'tipo': 'JSON', 'tamanho_kb': 2.98, 'ultima_alteracao': '2026-08-10 10:47:02'},
-{'arquivo': 'Mapa_Projeto.json', 'categoria': 'DADOS', 'local': 'Coletas\\Mapa_Projeto.json', 'tipo': 'JSON', 'tamanho_kb': 23.44, 'ultima_alteracao': '2026-08-10 10:47:02'},
-{'arquivo': 'Metricas_Calculadas.json', 'categoria': 'DADOS', 'local': 'Coletas\\Metricas_Calculadas.json', 'tipo': 'JSON', 'tamanho_kb': 1.59, 'ultima_alteracao': '2026-08-10 14:49:01'},
-{'arquivo': 'Noticias_Calendario.json', 'categoria': 'DADOS', 'local': 'Coletas\\Noticias_Calendario.json', 'tipo': 'JSON', 'tamanho_kb': 0.75, 'ultima_alteracao': '2026-08-10 12:16:55'},
-{'arquivo': 'Noticias_Calendario_0900.json', 'categoria': 'DADOS', 'local': 'Coletas\\Noticias_Calendario_0900.json', 'tipo': 'JSON', 'tamanho_kb': 0.26, 'ultima_alteracao': '2026-08-10 12:16:55'},
-{'arquivo': 'Noticias_Impacto_Dia.json', 'categoria': 'DADOS', 'local': 'Coletas\\Noticias_Impacto_Dia.json', 'tipo': 'JSON', 'tamanho_kb': 0.54, 'ultima_alteracao': '2026-08-10 14:49:01'},
-{'arquivo': 'Pipeline_Log.json', 'categoria': 'DADOS', 'local': 'Coletas\\Pipeline_Log.json', 'tipo': 'JSON', 'tamanho_kb': 2.73, 'ultima_alteracao': '2026-08-10 14:49:02'},
-{'arquivo': 'Relatorio_Executivo.md', 'categoria': 'DADOS', 'local': 'Coletas\\Relatorio_Executivo.md', 'tipo': 'MD', 'tamanho_kb': 1.63, 'ultima_alteracao': '2026-08-10 10:47:02'},
-{'arquivo': 'Resultado_Calculadora_Operacional_Abertura.json', 'categoria': 'DADOS', 'local': 'Coletas\\Resultado_Calculadora_Operacional_Abertura.json', 'tipo': 'JSON', 'tamanho_kb': 2.3, 'ultima_alteracao': '2026-08-10 14:49:02'},
-{'arquivo': 'WIN_1min.png', 'categoria': 'DADOS', 'local': 'Coletas\\WIN_1min.png', 'tipo': 'PNG', 'tamanho_kb': 276.08, 'ultima_alteracao': '2026-08-10 08:36:35'},
-{'arquivo': 'WIN_5min.png', 'categoria': 'DADOS', 'local': 'Coletas\\WIN_5min.png', 'tipo': 'PNG', 'tamanho_kb': 268.21, 'ultima_alteracao': '2026-08-10 08:36:22'},
-{'arquivo': 'Coletor copy.py', 'categoria': 'CORE', 'local': 'Coletor copy.py', 'tipo': 'PY', 'tamanho_kb': 15.28, 'ultima_alteracao': '2026-08-10 10:47:02'},
-{'arquivo': 'Coletor.py', 'categoria': 'CORE', 'local': 'Coletor.py', 'tipo': 'PY', 'tamanho_kb': 17.78, 'ultima_alteracao': '2026-08-10 10:47:02'},
+{'arquivo': 'Analise_Tendencias.json', 'categoria': 'DADOS', 'local': 'Coletas\\Analise_Tendencias.json', 'tipo': 'JSON', 'tamanho_kb': 11.6, 'ultima_alteracao': '2026-08-11 17:29:01'},
+{'arquivo': 'App_Completo.txt', 'categoria': 'DADOS', 'local': 'Coletas\\App_Completo.txt', 'tipo': 'TXT', 'tamanho_kb': 594.47, 'ultima_alteracao': '2026-08-11 17:30:01'},
+{'arquivo': 'Coleta_ram.json', 'categoria': 'DADOS', 'local': 'Coletas\\Coleta_ram.json', 'tipo': 'JSON', 'tamanho_kb': 8.73, 'ultima_alteracao': '2026-08-11 17:29:01'},
+{'arquivo': 'Coleta_rom-0.json', 'categoria': 'DADOS', 'local': 'Coletas\\Coleta_rom-0.json', 'tipo': 'JSON', 'tamanho_kb': 8.73, 'ultima_alteracao': '2026-08-11 17:29:01'},
+{'arquivo': 'Coleta_rom-10.json', 'categoria': 'DADOS', 'local': 'Coletas\\Coleta_rom-10.json', 'tipo': 'JSON', 'tamanho_kb': 8.73, 'ultima_alteracao': '2026-08-11 17:29:00'},
+{'arquivo': 'Coleta_rom-5.json', 'categoria': 'DADOS', 'local': 'Coletas\\Coleta_rom-5.json', 'tipo': 'JSON', 'tamanho_kb': 8.73, 'ultima_alteracao': '2026-08-11 17:29:00'},
+{'arquivo': 'DadosAtivosUnificados.json', 'categoria': 'DADOS', 'local': 'Coletas\\DadosAtivosUnificados.json', 'tipo': 'JSON', 'tamanho_kb': 4.53, 'ultima_alteracao': '2026-08-11 17:29:01'},
+{'arquivo': 'Dados_MT5.json', 'categoria': 'DADOS', 'local': 'Coletas\\Dados_MT5.json', 'tipo': 'JSON', 'tamanho_kb': 1.36, 'ultima_alteracao': '2026-08-11 08:49:07'},
+{'arquivo': 'Dados_Validados.json', 'categoria': 'DADOS', 'local': 'Coletas\\Dados_Validados.json', 'tipo': 'JSON', 'tamanho_kb': 8.3, 'ultima_alteracao': '2026-08-11 17:29:01'},
+{'arquivo': 'Decisao_Core.json', 'categoria': 'DADOS', 'local': 'Coletas\\Decisao_Core.json', 'tipo': 'JSON', 'tamanho_kb': 0.69, 'ultima_alteracao': '2026-08-11 17:29:02'},
+{'arquivo': 'EstimativaAbertura.json', 'categoria': 'DADOS', 'local': 'Coletas\\EstimativaAbertura.json', 'tipo': 'JSON', 'tamanho_kb': 0.9, 'ultima_alteracao': '2026-08-11 17:29:02'},
+{'arquivo': 'Metricas_Calculadas.json', 'categoria': 'DADOS', 'local': 'Coletas\\Metricas_Calculadas.json', 'tipo': 'JSON', 'tamanho_kb': 1.59, 'ultima_alteracao': '2026-08-11 17:29:02'},
+{'arquivo': 'Noticias_Calendario.json', 'categoria': 'DADOS', 'local': 'Coletas\\Noticias_Calendario.json', 'tipo': 'JSON', 'tamanho_kb': 1.98, 'ultima_alteracao': '2026-08-11 08:45:25'},
+{'arquivo': 'Noticias_Calendario_0900.json', 'categoria': 'DADOS', 'local': 'Coletas\\Noticias_Calendario_0900.json', 'tipo': 'JSON', 'tamanho_kb': 0.74, 'ultima_alteracao': '2026-08-11 08:45:25'},
+{'arquivo': 'Noticias_Impacto_Dia.json', 'categoria': 'DADOS', 'local': 'Coletas\\Noticias_Impacto_Dia.json', 'tipo': 'JSON', 'tamanho_kb': 0.54, 'ultima_alteracao': '2026-08-11 17:29:01'},
+{'arquivo': 'Pipeline_Log.json', 'categoria': 'DADOS', 'local': 'Coletas\\Pipeline_Log.json', 'tipo': 'JSON', 'tamanho_kb': 2.73, 'ultima_alteracao': '2026-08-11 17:29:02'},
+{'arquivo': 'Resultado_Calculadora_Operacional_Abertura.json', 'categoria': 'DADOS', 'local': 'Coletas\\Resultado_Calculadora_Operacional_Abertura.json', 'tipo': 'JSON', 'tamanho_kb': 2.84, 'ultima_alteracao': '2026-08-11 17:29:02'},
+{'arquivo': 'WIN_1min.png', 'categoria': 'DADOS', 'local': 'Coletas\\WIN_1min.png', 'tipo': 'PNG', 'tamanho_kb': 225.99, 'ultima_alteracao': '2026-08-11 08:51:33'},
+{'arquivo': 'WIN_5min.png', 'categoria': 'DADOS', 'local': 'Coletas\\WIN_5min.png', 'tipo': 'PNG', 'tamanho_kb': 217.68, 'ultima_alteracao': '2026-08-11 08:50:55'},
+{'arquivo': 'Coletor.py', 'categoria': 'CORE', 'local': 'Coletor.py', 'tipo': 'PY', 'tamanho_kb': 22.17, 'ultima_alteracao': '2026-08-11 08:36:28'},
 {'arquivo': 'Coletor_MT5.py', 'categoria': 'CORE', 'local': 'Coletor_MT5.py', 'tipo': 'PY', 'tamanho_kb': 7.01, 'ultima_alteracao': '2026-08-10 10:47:02'},
-{'arquivo': 'Engine_Vies.py', 'categoria': 'CORE', 'local': 'Engine_Vies.py', 'tipo': 'PY', 'tamanho_kb': 8.89, 'ultima_alteracao': '2026-07-31 17:26:10'},
+{'arquivo': 'Engine_Vies.py', 'categoria': 'CORE', 'local': 'Engine_Vies.py', 'tipo': 'PY', 'tamanho_kb': 11.36, 'ultima_alteracao': '2026-08-11 08:41:52'},
 {'arquivo': 'Gerar_App_Completo.py', 'categoria': 'CORE', 'local': 'Gerar_App_Completo.py', 'tipo': 'PY', 'tamanho_kb': 3.31, 'ultima_alteracao': '2026-08-01 13:26:44'},
 {'arquivo': 'Gerar_ColetasArquivosApp.py', 'categoria': 'DADOS', 'local': 'Gerar_ColetasArquivosApp.py', 'tipo': 'PY', 'tamanho_kb': 0.71, 'ultima_alteracao': '2026-07-31 12:11:56'},
 {'arquivo': 'Gerar_Mapa_Fluxo.py', 'categoria': 'CORE', 'local': 'Gerar_Mapa_Fluxo.py', 'tipo': 'PY', 'tamanho_kb': 5.12, 'ultima_alteracao': '2026-07-31 11:32:40'},
@@ -97,7 +94,7 @@ ARQUIVOS_PROJETO = [
 {'arquivo': '15_🗺️_Mapa_da_Aplicacao.py', 'categoria': 'INTERFACE', 'local': 'pages\\15_🗺️_Mapa_da_Aplicacao.py', 'tipo': 'PY', 'tamanho_kb': 12.63, 'ultima_alteracao': '2026-08-10 10:47:02'},
 {'arquivo': '16_📊_Dados_MT5.py', 'categoria': 'INTERFACE', 'local': 'pages\\16_📊_Dados_MT5.py', 'tipo': 'PY', 'tamanho_kb': 3.6, 'ultima_alteracao': '2026-08-10 10:47:02'},
 {'arquivo': '16_🔑_Status_Chaves.py', 'categoria': 'INTERFACE', 'local': 'pages\\16_🔑_Status_Chaves.py', 'tipo': 'PY', 'tamanho_kb': 1.8, 'ultima_alteracao': '2026-08-10 10:47:02'},
-{'arquivo': '1_🎯_Setup_Abertura.py', 'categoria': 'INTERFACE', 'local': 'pages\\1_🎯_Setup_Abertura.py', 'tipo': 'PY', 'tamanho_kb': 71.33, 'ultima_alteracao': '2026-08-10 10:47:02'},
+{'arquivo': '1_🎯_Setup_Abertura.py', 'categoria': 'INTERFACE', 'local': 'pages\\1_🎯_Setup_Abertura.py', 'tipo': 'PY', 'tamanho_kb': 72.61, 'ultima_alteracao': '2026-08-11 08:43:45'},
 {'arquivo': '3_🎯_Setup_Abertura_10h.py', 'categoria': 'INTERFACE', 'local': 'pages\\3_🎯_Setup_Abertura_10h.py', 'tipo': 'PY', 'tamanho_kb': 23.0, 'ultima_alteracao': '2026-08-10 10:47:02'},
 {'arquivo': '4_🔢_Calculadora.py', 'categoria': 'INTERFACE', 'local': 'pages\\4_🔢_Calculadora.py', 'tipo': 'PY', 'tamanho_kb': 13.12, 'ultima_alteracao': '2026-08-10 10:47:02'},
 {'arquivo': '5_⚙️_Core_Engine.py', 'categoria': 'INTERFACE', 'local': 'pages\\5_⚙️_Core_Engine.py', 'tipo': 'PY', 'tamanho_kb': 11.66, 'ultima_alteracao': '2026-08-10 10:47:02'},
@@ -122,7 +119,7 @@ ARQUIVOS_PROJETO = [
 ]
 
 
-RESUMO_PROJETO = {'': 3, 'PY': 56, 'JSON': 19, 'TXT': 14, 'MD': 2, 'PNG': 3, 'JPG': 1, 'YAML': 1, 'BAT': 5}
+RESUMO_PROJETO = {'': 3, 'PY': 55, 'JSON': 18, 'TXT': 14, 'PNG': 3, 'JPG': 1, 'YAML': 1, 'MD': 1, 'BAT': 5}
 
 
 def listar_arquivos():

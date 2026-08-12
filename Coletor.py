@@ -5,6 +5,8 @@
 # MOTIVO: Ingestão de Dados (BACEN SGS 10813 + TV + B3 WIN/WDO Separados)
 #         Engine de Rotação Temporal de Memória e
 #         Geração do Arquivo Unificado dos 24 Ativos Mapeados.
+# MODIFICAÇÃO FINAL: Integração com MT5 para capturar o LAST TICK (WIN/WDO)
+#                    apenas dentro da janela de ajuste (19:00 - 08:50).
 # ============================================================
 
 import json
@@ -14,6 +16,7 @@ import ssl
 import sys
 import urllib.request
 from datetime import datetime, time
+from pathlib import Path
 
 # ------------------------------------------------------------
 # CONFIGURAÇÃO DE DIRETÓRIOS E ARQUIVOS
@@ -30,6 +33,9 @@ FILE_ROM5 = os.path.join(COLETAS_DIR, "Coleta_rom-5.json")
 FILE_ROM10 = os.path.join(COLETAS_DIR, "Coleta_rom-10.json")
 FILE_RAM = os.path.join(COLETAS_DIR, "Coleta_ram.json")
 FILE_UNIFICADO = os.path.join(COLETAS_DIR, "DadosAtivosUnificados.json")
+
+# Arquivo gerado pelo Coletor_MT5
+FILE_MT5 = os.path.join(COLETAS_DIR, "Dados_MT5.json")
 
 # Dynamic Ticker Generation para Minério de Ferro (FEF2 - 2º Mês)
 ANO_ATUAL = datetime.now().year
@@ -86,13 +92,83 @@ MAPEAMENTO_TICKERS = {
     "FX_IDC:USDMXN": "USD_MXN",
     "TVC:GOLD": "GOLD",
     "FX_IDC:USDBRL": "USD_BRL",
+    # NOVOS ATIVOS PARA O LAST TICK (serão adicionados via MT5)
+    "WIN_LAST_TICK": "WIN_LAST_TICK",
+    "WDO_LAST_TICK": "WDO_LAST_TICK",
 }
+
+
+# ------------------------------------------------------------
+# FUNÇÃO AUXILIAR: VERIFICAÇÃO DA JANELA DE AJUSTE (19:00 - 08:50)
+# ------------------------------------------------------------
+def esta_na_janela_ajuste() -> bool:
+    """
+    Retorna True se o horário atual estiver dentro da janela de ajuste oficial.
+    Janela: das 19:00 até as 08:50 do dia seguinte (considerando virada de dia).
+    """
+    agora = datetime.now().time()
+    hora_inicio = time(19, 0, 0)
+    hora_fim = time(8, 50, 0)
+    return agora >= hora_inicio or agora <= hora_fim
+
+
+# ------------------------------------------------------------
+# FUNÇÃO PARA CAPTURAR LAST DO MT5
+# ------------------------------------------------------------
+def capturar_last_do_mt5() -> dict:
+    """
+    Lê o arquivo Dados_MT5.json (gerado pelo Coletor_MT5.py) e extrai
+    o 'last' dos contratos mais líquidos: WINQ26 e WDOQ26 (ou outros se disponíveis).
+    Retorna um dicionário com os valores encontrados.
+    """
+    resultado = {}
+    if not os.path.exists(FILE_MT5):
+        print("[AVISO] Dados_MT5.json não encontrado. Não será possível capturar o last via MT5.")
+        return resultado
+
+    try:
+        with open(FILE_MT5, "r", encoding="utf-8") as f:
+            dados = json.load(f)
+
+        contratos = dados.get("contratos", {})
+        timestamp = dados.get("timestamp", datetime.now().isoformat())
+
+        # Mapeamento dos contratos mais líquidos (pode ajustar conforme sua necessidade)
+        # Prioridade: Q26 (Agosto/2026) ou o mais recente.
+        # Você pode ajustar a lógica para pegar o contrato com maior volume, ou fixo.
+        mapeamento_contratos = {
+            "WIN": ["WINQ26", "WINV26", "WINZ26"],
+            "WDO": ["WDOQ26", "WDOV26", "WDOZ26"],
+        }
+
+        for ativo, lista in mapeamento_contratos.items():
+            for contrato in lista:
+                if contrato in contratos:
+                    info = contratos[contrato]
+                    last = info.get("last")
+                    if last is not None and last > 0:
+                        resultado[ativo] = {
+                            "contrato": contrato,
+                            "last": last,
+                            "timestamp": timestamp,
+                        }
+                        break  # usa o primeiro encontrado
+
+        if "WIN" in resultado:
+            print(f"   ✅ Last WIN via MT5: {resultado['WIN']['last']} ({resultado['WIN']['contrato']})")
+        if "WDO" in resultado:
+            print(f"   ✅ Last WDO via MT5: {resultado['WDO']['last']} ({resultado['WDO']['contrato']})")
+
+        return resultado
+
+    except Exception as e:
+        print(f"[ERRO] Falha ao ler Dados_MT5.json: {e}")
+        return {}
 
 
 # ------------------------------------------------------------
 # FUNÇÕES DE COLETA DE DADOS (FASE 1)
 # ------------------------------------------------------------
-
 
 def coletar_bacen_ptax():
     """Coleta a PTAX oficial no Bacen via API SGS (Série 10813) com fallback via TradingView."""
@@ -178,7 +254,7 @@ def coletar_bacen_ptax():
         "dados_reais": None,
     }
 
-######
+
 def coletar_ajuste_oficial():
     """
     Coleta os valores de Ajuste Oficial APENAS entre 19:00 e 08:50.
@@ -217,11 +293,9 @@ def coletar_ajuste_oficial():
             # Retorna os dados do cache, mas marca a fonte como "CACHE"
             for item in cache_encontrado:
                 item["fonte"] = "CACHE_DISCO (Fora da janela)"
-                # Garante que o timestamp seja atualizado
                 item["timestamp"] = timestamp
             return cache_encontrado
         else:
-            # Se não encontrar cache, retorna erro para não corromper o JSON com zeros
             print("   ⚠️ Nenhum cache de ajuste encontrado. Retornando dados vazios.")
             return [
                 {
@@ -287,7 +361,10 @@ def coletar_ajuste_oficial():
 
 
 def coletar_tradingview():
-    """Coleta os ativos mapeados via Scanner API Oculta do TradingView."""
+    """
+    Coleta os ativos mapeados via Scanner API Oculta do TradingView.
+    Não tenta mais capturar 'last' porque a API não retorna esse campo fora do pregão.
+    """
     url = "https://scanner.tradingview.com/global/scan"
     timestamp = datetime.now().isoformat()
 
@@ -317,9 +394,7 @@ def coletar_tradingview():
 
                 if len(vals) >= 5 and vals[0] is not None:
                     close = float(vals[0])
-                    change_pct = (
-                        float(vals[4]) if vals[4] is not None else 0.0
-                    )
+                    change_pct = float(vals[4]) if vals[4] is not None else 0.0
 
                     resultados.append(
                         {
@@ -329,40 +404,15 @@ def coletar_tradingview():
                             "status": "OK",
                             "dados_reais": {
                                 "close": close,
-                                "open": (
-                                    float(vals[1])
-                                    if vals[1] is not None
-                                    else None
-                                ),
-                                "high": (
-                                    float(vals[2])
-                                    if vals[2] is not None
-                                    else None
-                                ),
-                                "low": (
-                                    float(vals[3])
-                                    if vals[3] is not None
-                                    else None
-                                ),
+                                "open": float(vals[1]) if vals[1] is not None else None,
+                                "high": float(vals[2]) if vals[2] is not None else None,
+                                "low": float(vals[3]) if vals[3] is not None else None,
                                 "change_percent": change_pct,
-                                "volume": (
-                                    float(vals[5])
-                                    if len(vals) > 5 and vals[5] is not None
-                                    else None
-                                ),
+                                "volume": float(vals[5]) if len(vals) > 5 and vals[5] is not None else None,
                             },
                         }
                     )
-                else:
-                    resultados.append(
-                        {
-                            "ativo": ticker_chave,
-                            "fonte": "TRADINGVIEW_SCANNER",
-                            "timestamp": timestamp,
-                            "status": "DADOS_INCOMPLETOS",
-                            "dados_reais": None,
-                        }
-                    )
+
             return resultados
     except Exception as e:
         print(f"[ERRO] Falha na coleta TradingView: {e}")
@@ -372,7 +422,6 @@ def coletar_tradingview():
 # ------------------------------------------------------------
 # ENGINE DE ROTAÇÃO E FORMATADOR UNIFICADO
 # ------------------------------------------------------------
-
 
 def executar_rotacao_memoria(is_ram_mode=False):
     """Executa a rotação temporal (rom-0 -> rom-5 -> rom-10) ou grava em RAM."""
@@ -398,14 +447,13 @@ def executar_rotacao_memoria(is_ram_mode=False):
 
 
 def gerar_arquivo_unificado(coletas):
-    """Gera o arquivo DadosAtivosUnificados.json com as chaves tratadas dos 24 ativos."""
+    """Gera o arquivo DadosAtivosUnificados.json com as chaves tratadas dos ativos."""
     ativos_map = {}
 
     for item in coletas:
         ativo_raw = item.get("ativo")
         dados_reais = item.get("dados_reais") or {}
 
-        # Mapeia para o nome limpo do ativo
         nome_limpo = MAPEAMENTO_TICKERS.get(ativo_raw, ativo_raw)
 
         preco = dados_reais.get("close", 0.0) or 0.0
@@ -429,13 +477,12 @@ def gerar_arquivo_unificado(coletas):
     with open(FILE_UNIFICADO, "w", encoding="utf-8") as f:
         json.dump(estrutura_unificada, f, indent=4, ensure_ascii=False)
 
-    print(f"✅ Arquivo unificado dos 24 ativos salvo em: {FILE_UNIFICADO}")
+    print(f"✅ Arquivo unificado salvo em: {FILE_UNIFICADO}")
 
 
 # ------------------------------------------------------------
 # EXECUÇÃO PRINCIPAL
 # ------------------------------------------------------------
-
 
 def executar_pipeline_coleta():
     is_ram = "--ram" in sys.argv
@@ -455,9 +502,66 @@ def executar_pipeline_coleta():
     ajustes = coletar_ajuste_oficial()
     coletas.extend(ajustes)
 
-    # 3. Extração TradingView Scanner
+    # 3. Extração TradingView Scanner (sem last)
     tv_dados = coletar_tradingview()
     coletas.extend(tv_dados)
+
+    # ------------------------------------------------------------
+    # 4. Se estiver na janela de ajuste, capturar LAST via MT5
+    # ------------------------------------------------------------
+    if esta_na_janela_ajuste():
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Capturando LAST TICK via MT5...")
+        
+        # Executa o Coletor_MT5 para gerar o Dados_MT5.json atualizado
+        try:
+            # Importa a função do Coletor_MT5 (assumindo que o arquivo está na mesma pasta)
+            from Coletor_MT5 import executar_coleta_mt5
+            dados_mt5 = executar_coleta_mt5()
+            if dados_mt5 and dados_mt5.get("status") == "OK":
+                print("   ✅ MT5 coletado com sucesso.")
+            else:
+                print("   ⚠️ Falha na coleta MT5, tentando ler arquivo existente.")
+        except ImportError:
+            print("   ⚠️ Módulo Coletor_MT5 não encontrado. Tentando ler arquivo existente.")
+        except Exception as e:
+            print(f"   ⚠️ Erro ao executar Coletor_MT5: {e}")
+
+        # Agora lê o arquivo gerado (ou existente) para extrair os lasts
+        lasts = capturar_last_do_mt5()
+        if lasts:
+            timestamp_atual = datetime.now().isoformat()
+            if "WIN" in lasts:
+                coletas.append({
+                    "ativo": "WIN_LAST_TICK",
+                    "fonte": "MT5",
+                    "timestamp": timestamp_atual,
+                    "status": "OK",
+                    "dados_reais": {
+                        "close": lasts["WIN"]["last"],
+                        "open": None,
+                        "high": None,
+                        "low": None,
+                        "change_percent": None,
+                        "volume": None,
+                    },
+                })
+            if "WDO" in lasts:
+                coletas.append({
+                    "ativo": "WDO_LAST_TICK",
+                    "fonte": "MT5",
+                    "timestamp": timestamp_atual,
+                    "status": "OK",
+                    "dados_reais": {
+                        "close": lasts["WDO"]["last"],
+                        "open": None,
+                        "high": None,
+                        "low": None,
+                        "change_percent": None,
+                        "volume": None,
+                    },
+                })
+    else:
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Fora da janela de ajuste. LAST TICK NÃO coletado.")
 
     # Monta estrutura da coleta bruta
     conteudo_saida = {
@@ -470,17 +574,17 @@ def executar_pipeline_coleta():
         "coletas": coletas,
     }
 
-    # Grava Coleta de Rotação (ex: Coleta_rom-0.json)
+    # Grava Coleta de Rotação
     with open(arquivo_destino, "w", encoding="utf-8") as f:
         json.dump(conteudo_saida, f, indent=2, ensure_ascii=False)
 
-    # Grava TAMBÉM a saída em Coleta_ram.json (fora do rotacionamento)
+    # Grava RAM
     if not is_ram:
         with open(FILE_RAM, "w", encoding="utf-8") as f:
             json.dump(conteudo_saida, f, indent=2, ensure_ascii=False)
         print(f"✅ Cópia independente gerada em: {FILE_RAM}")
 
-    # Gera o arquivo DadosAtivosUnificados.json com dados reais
+    # Gera unificado
     gerar_arquivo_unificado(coletas)
 
     print(

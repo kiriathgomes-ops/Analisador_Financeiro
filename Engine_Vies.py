@@ -1,7 +1,7 @@
 # ============================================================
 # ARQUIVO: Engine_Vies.py
 # MOTIVO: Core Engine - Processamento de Viés de Abertura (WIN/WDO)
-# INTEGRADO COM: Noticias_Impacto_Dia.json
+# INTEGRADO COM: Noticias_Impacto_Dia.json + DadosAtivosUnificados.json (Last)
 # ============================================================
 
 import json
@@ -14,6 +14,7 @@ COLETAS_DIR = os.path.join(BASE_DIR, "Coletas")
 FILE_ESTIMATIVA = os.path.join(COLETAS_DIR, "EstimativaAbertura.json")
 FILE_METRICAS = os.path.join(COLETAS_DIR, "Metricas_Calculadas.json")
 FILE_NOTICIAS = os.path.join(COLETAS_DIR, "Noticias_Impacto_Dia.json")
+FILE_ATIVOS = os.path.join(COLETAS_DIR, "DadosAtivosUnificados.json")  # NOVO
 FILE_OUTPUT = os.path.join(COLETAS_DIR, "Decisao_Core.json")
 
 
@@ -25,7 +26,7 @@ def carregar_json(caminho):
         return json.load(f)
 
 
-def calcular_vies_win(estimativa, metricas, noticias):
+def calcular_vies_win(estimativa, metricas, noticias, spread_win_last_ajuste=0.0):
     """Calcula o Score do WIN de -10.0 (Forte Venda) a +10.0 (Forte Compra) com Trava de Volatilidade de Notícias."""
     score = 0.0
     fatos = []
@@ -84,6 +85,20 @@ def calcular_vies_win(estimativa, metricas, noticias):
             )
 
     # ============================================================
+    # NOVA REGRA: Spread entre Last (Candle Anterior) e Ajuste Oficial
+    # ============================================================
+    LIMIAR_SPREAD_WIN = 100  # 100 pontos de diferença já é relevante
+    if spread_win_last_ajuste != 0.0:
+        if spread_win_last_ajuste > LIMIAR_SPREAD_WIN:
+            score += 2.0
+            fatos.append(f"🔺 Last acima do ajuste em {spread_win_last_ajuste:.0f} pts (viés comprador)")
+        elif spread_win_last_ajuste < -LIMIAR_SPREAD_WIN:
+            score -= 2.0
+            fatos.append(f"🔻 Last abaixo do ajuste em {abs(spread_win_last_ajuste):.0f} pts (viés vendedor)")
+        else:
+            fatos.append(f"⚖️ Spread Last vs Ajuste dentro da normalidade ({spread_win_last_ajuste:+.0f} pts)")
+
+    # ============================================================
     # REGRA DE IMPACTO DAS NOTÍCIAS NO WIN
     # ============================================================
     alertas_noticias = noticias.get("alertas", {})
@@ -91,7 +106,6 @@ def calcular_vies_win(estimativa, metricas, noticias):
     # Trava 1: Notícia 3 Estrelas no Brasil às 09:00 (Abertura WIN)
     if alertas_noticias.get("tem_3_estrelas_brasil_0900"):
         fatos.append("🚨 TRAVA CRÍTICA: Notícia ⭐⭐⭐ no Brasil às 09:00! Alta Volatilidade na abertura.")
-        # Reduz pela metade a confiança do score de tendência para evitar surpresa no leilão
         score *= 0.5
 
     # Trava 2: Risco Total do Dia Extremo
@@ -117,7 +131,6 @@ def calcular_vies_win(estimativa, metricas, noticias):
     else:
         vies = "NEUTRO"
 
-    # Se houver trava de abertura das 09:00, ajusta a recomendação
     if alertas_noticias.get("tem_3_estrelas_brasil_0900") and vies != "NEUTRO":
         vies += " (ALTA VOLATILIDADE 09:00)"
 
@@ -128,7 +141,7 @@ def calcular_vies_win(estimativa, metricas, noticias):
     }
 
 
-def calcular_vies_wdo(estimativa, metricas, noticias):
+def calcular_vies_wdo(estimativa, metricas, noticias, spread_wdo_last_ajuste=0.0):
     """Calcula o Score do WDO de -10.0 (Forte Venda) a +10.0 (Forte Compra) considerando Notícias."""
     score = 0.0
     fatos = []
@@ -150,7 +163,7 @@ def calcular_vies_wdo(estimativa, metricas, noticias):
     )
     if spread_pts is not None:
         if spread_pts > 15.0:
-            score -= 2.0  # Dólar Futuro muito esticado em relação à PTAX -> Pressão vendedora
+            score -= 2.0
             fatos.append(f"Spread WDO x PTAX esticado (+{spread_pts} pts)")
         elif spread_pts < -15.0:
             score += 2.0
@@ -162,11 +175,25 @@ def calcular_vies_wdo(estimativa, metricas, noticias):
     )
     if inclinacao_di is not None:
         if inclinacao_di > 30.0:
-            score += 2.0  # Curva inclinando puxa dólar
+            score += 2.0
             fatos.append(f"Curva de Juros (DI) abrindo (+{inclinacao_di} bps)")
         elif inclinacao_di < -10.0:
             score -= 1.5
             fatos.append(f"Curva de Juros (DI) fechando ({inclinacao_di} bps)")
+
+    # ============================================================
+    # NOVA REGRA: Spread entre Last (Candle Anterior) e Ajuste Oficial
+    # ============================================================
+    LIMIAR_SPREAD_WDO = 10  # 10 pontos de diferença já é relevante para o dólar
+    if spread_wdo_last_ajuste != 0.0:
+        if spread_wdo_last_ajuste > LIMIAR_SPREAD_WDO:
+            score += 1.5
+            fatos.append(f"🔺 Last acima do ajuste em {spread_wdo_last_ajuste:.1f} pts (viés comprador dólar)")
+        elif spread_wdo_last_ajuste < -LIMIAR_SPREAD_WDO:
+            score -= 1.5
+            fatos.append(f"🔻 Last abaixo do ajuste em {abs(spread_wdo_last_ajuste):.1f} pts (viés vendedor dólar)")
+        else:
+            fatos.append(f"⚖️ Spread Last vs Ajuste dentro da normalidade ({spread_wdo_last_ajuste:+.1f} pts)")
 
     # ============================================================
     # REGRA DE IMPACTO DAS NOTÍCIAS NO WDO
@@ -204,12 +231,33 @@ def executar_core():
     estimativas = carregar_json(FILE_ESTIMATIVA)
     metricas = carregar_json(FILE_METRICAS)
     noticias = carregar_json(FILE_NOTICIAS)
+    
+    # ============================================================
+    # NOVO: Carrega DadosAtivosUnificados para pegar WIN_LAST_TICK e WDO_LAST_TICK
+    # ============================================================
+    ativos_data = carregar_json(FILE_ATIVOS)
+    ativos = ativos_data.get("ativos", {}) if ativos_data else {}
+    
+    win_last = ativos.get("WIN_LAST_TICK", {}).get("preco", 0.0)
+    wdo_last = ativos.get("WDO_LAST_TICK", {}).get("preco", 0.0)
+    win_ajuste = ativos.get("WIN_AJUSTE", {}).get("preco", 0.0)
+    wdo_ajuste = ativos.get("WDO_AJUSTE", {}).get("preco", 0.0)
+
+    # Calcula os spreads
+    spread_win_last_ajuste = win_last - win_ajuste if win_last and win_ajuste else 0.0
+    spread_wdo_last_ajuste = wdo_last - wdo_ajuste if wdo_last and wdo_ajuste else 0.0
 
     vies_win = calcular_vies_win(
-        estimativas.get("estimativas_abertura", {}), metricas, noticias
+        estimativas.get("estimativas_abertura", {}), 
+        metricas, 
+        noticias,
+        spread_win_last_ajuste
     )
     vies_wdo = calcular_vies_wdo(
-        estimativas.get("estimativas_abertura", {}), metricas, noticias
+        estimativas.get("estimativas_abertura", {}), 
+        metricas, 
+        noticias,
+        spread_wdo_last_ajuste
     )
 
     decisao_final = {
