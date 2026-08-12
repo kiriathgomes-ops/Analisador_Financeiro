@@ -5,10 +5,10 @@
 # GERADO AUTOMATICAMENTE
 #
 # Data geração:
-# 2026-08-11 17:30:01
+# 2026-08-12 08:11:32
 #
 # Arquivos unificados:
-# 54
+# 84
 #
 # NÃO EDITAR MANUALMENTE
 # ============================================================
@@ -5964,6 +5964,981 @@ from utils.KeyManager import get_groq_client, key_manager
 
 # ============================================================
 # ARQUIVO:
+# criar_v2.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-11 21:55:43
+# ============================================================
+
+
+
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Criador da estrutura V2 do Analisador Financeiro.
+Execute uma vez para gerar a nova arquitetura isolada.
+"""
+
+import os
+import sys
+from pathlib import Path
+
+# ============================================================
+# CONTEÚDO DOS ARQUIVOS
+# ============================================================
+
+CONTRATO_MARKET = '''# core/contracts/market_context.py
+"""
+MarketContext: estado consolidado do mercado.
+"""
+from dataclasses import dataclass, field
+from typing import Optional, Dict
+from datetime import datetime
+
+
+@dataclass
+class AtivoSnapshot:
+    """Snapshot de um ativo financeiro."""
+    preco: float
+    variacao_pct: float
+    high: Optional[float] = None
+    low: Optional[float] = None
+    volume: Optional[float] = None
+
+    def __post_init__(self):
+        self.variacao_pct = float(self.variacao_pct)
+
+
+@dataclass
+class MarketContext:
+    """
+    Contexto completo do mercado no momento da análise.
+    """
+    timestamp: datetime
+
+    # Ativos principais
+    win_fut: AtivoSnapshot
+    wdo_fut: AtivoSnapshot
+    win_ajuste: float
+    wdo_ajuste: float
+    ptax: float
+
+    # Exterior
+    sp500: AtivoSnapshot
+    nasdaq: AtivoSnapshot
+    vix: AtivoSnapshot
+    dxy: AtivoSnapshot
+    ewz: AtivoSnapshot
+
+    # Commodities
+    iron_ore: AtivoSnapshot
+    crude_oil: AtivoSnapshot
+    gold: AtivoSnapshot
+
+    # ADRs Brasileiras
+    adrs: Dict[str, AtivoSnapshot] = field(default_factory=dict)
+
+    # Indicadores calculados
+    indicador_mercado_externo: Optional[float] = None
+    indicador_adrs_brasileiras: Optional[float] = None
+    spread_wdo_ptax_pontos: Optional[float] = None
+    inclinacao_di_bps: Optional[float] = None
+
+    # Tendência de 15 minutos
+    tendencia_win: Optional[str] = None
+    tendencia_win_padrao: Optional[str] = None
+
+    metadados: Dict = field(default_factory=dict)
+'''
+
+CONTRATO_PREDICTION = '''# core/contracts/prediction_context.py
+"""
+PredictionContext: saída do motor de previsão (Novo Motor).
+"""
+from dataclasses import dataclass, field
+from typing import Dict, Optional
+from datetime import datetime
+
+
+@dataclass
+class PredictionContext:
+    """
+    Resultado da previsão de abertura gerada pelo Novo Motor.
+    """
+    timestamp: datetime
+    ativo: str
+    abertura_projetada: float
+    faixa_provavel_inferior: float
+    faixa_provavel_superior: float
+
+    gap_pontos: float
+    gap_percentual: float
+    gap_intensidade: str
+    classificacao_gap: str
+
+    direcao_prevista: str
+    score: float
+    score_classificacao: str
+    score_detalhes: Dict[str, float] = field(default_factory=dict)
+
+    analise_ajuste: Dict = field(default_factory=dict)
+    cenario_principal: Dict = field(default_factory=dict)
+    cenario_alternativo: Dict = field(default_factory=dict)
+
+    metadados: Dict = field(default_factory=dict)
+'''
+
+CONTRATO_NEWS = '''# core/contracts/news_context.py
+"""
+NewsContext: impacto de notícias econômicas.
+"""
+from dataclasses import dataclass, field
+from typing import List, Dict
+from datetime import datetime
+
+
+@dataclass
+class NewsContext:
+    timestamp: datetime
+    impacto_total: int
+    classificacao_risco: str
+    tem_3_estrelas_brasil_0900: bool
+    tem_3_estrelas_outros_horarios: bool
+    tem_multiplas_2_estrelas_mesmo_horario: bool
+    risco_abertura_win: bool
+
+    eventos_3_estrelas: List[Dict] = field(default_factory=list)
+    horarios_multiplas_2_estrelas: List[Dict] = field(default_factory=list)
+    metadados: Dict = field(default_factory=dict)
+'''
+
+CONTRATO_VISION = '''# core/contracts/vision_context.py
+"""
+VisionContext: análise estrutural SMC/ICT (futuro).
+"""
+from dataclasses import dataclass, field
+from typing import List, Dict, Optional
+from datetime import datetime
+
+
+@dataclass
+class VisionContext:
+    timestamp: datetime
+    ativo: str
+    direcao_estrutura: str
+    bos: bool
+    choch: bool
+    liquidity_zones: List[float] = field(default_factory=list)
+    order_blocks: List[Dict[str, float]] = field(default_factory=list)
+    fair_value_gaps: List[Dict[str, float]] = field(default_factory=list)
+    suportes: List[float] = field(default_factory=list)
+    resistencias: List[float] = field(default_factory=list)
+    entrada_sugerida: Optional[float] = None
+    stop_sugerido: Optional[float] = None
+    alvos: List[float] = field(default_factory=list)
+    confianca_visual: int = 0
+    metadados: Dict = field(default_factory=dict)
+'''
+
+CONTRATO_DECISION = '''# core/contracts/decision_context.py
+"""
+DecisionContext: decisão operacional final.
+"""
+from dataclasses import dataclass, field
+from typing import List, Optional, Dict
+from datetime import datetime
+
+
+@dataclass
+class DecisionContext:
+    timestamp: datetime
+    ativo: str
+    vies_final: str
+    confianca: int
+
+    entrada: Optional[float] = None
+    stop_loss: Optional[float] = None
+    alvo_1: Optional[float] = None
+    alvo_2: Optional[float] = None
+    invalidacao: Optional[str] = None
+
+    motivos: List[str] = field(default_factory=list)
+    riscos: List[str] = field(default_factory=list)
+
+    market_referencia: Optional[Dict] = None
+    prediction_referencia: Optional[Dict] = None
+    vision_referencia: Optional[Dict] = None
+    news_referencia: Optional[Dict] = None
+
+    metadados: Dict = field(default_factory=dict)
+'''
+
+CONTRACTS_INIT = '''# core/contracts/__init__.py
+from .market_context import MarketContext, AtivoSnapshot
+from .prediction_context import PredictionContext
+from .news_context import NewsContext
+from .vision_context import VisionContext
+from .decision_context import DecisionContext
+
+__all__ = [
+    "MarketContext",
+    "AtivoSnapshot",
+    "PredictionContext",
+    "NewsContext",
+    "VisionContext",
+    "DecisionContext",
+]
+'''
+
+SERVICE_MARKET = '''# core/services/market_service.py
+"""
+MarketService: constrói o MarketContext a partir dos JSONs.
+"""
+import json
+import os
+from pathlib import Path
+from datetime import datetime
+from typing import Optional, Dict, Any
+
+from ..contracts import MarketContext, AtivoSnapshot
+
+
+class MarketService:
+    """
+    Serviço que lê os dados brutos (JSONs) e monta o MarketContext.
+    """
+
+    def __init__(self, coletas_dir: Optional[Path] = None):
+        if coletas_dir is None:
+            # Assume que a pasta Coletas está na raiz do projeto
+            self.coletas_dir = Path(__file__).resolve().parent.parent.parent / "Coletas"
+        else:
+            self.coletas_dir = coletas_dir
+
+        self._ativos_data = None
+        self._metricas_data = None
+        self._tendencias_data = None
+
+    def _carregar_json(self, nome: str) -> Dict[str, Any]:
+        caminho = self.coletas_dir / nome
+        if not caminho.exists():
+            return {}
+        try:
+            with open(caminho, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except:
+            return {}
+
+    def _carregar_dados(self):
+        if self._ativos_data is None:
+            self._ativos_data = self._carregar_json("DadosAtivosUnificados.json")
+        if self._metricas_data is None:
+            self._metricas_data = self._carregar_json("Metricas_Calculadas.json")
+        if self._tendencias_data is None:
+            self._tendencias_data = self._carregar_json("Analise_Tendencias.json")
+
+    def _snapshot_from_dict(self, ativo_dict: Dict) -> AtivoSnapshot:
+        if not ativo_dict:
+            return AtivoSnapshot(preco=0.0, variacao_pct=0.0)
+        return AtivoSnapshot(
+            preco=float(ativo_dict.get("preco", 0.0)),
+            variacao_pct=float(ativo_dict.get("variacao_pct", 0.0)),
+            high=ativo_dict.get("high"),
+            low=ativo_dict.get("low"),
+            volume=ativo_dict.get("volume"),
+        )
+
+    def build(self) -> Optional[MarketContext]:
+        """
+        Constrói e retorna o MarketContext.
+        Retorna None se não for possível ler os dados.
+        """
+        self._carregar_dados()
+
+        if not self._ativos_data:
+            print("❌ MarketService: DadosAtivosUnificados.json não encontrado.")
+            return None
+
+        ativos = self._ativos_data.get("ativos", {})
+
+        # Função auxiliar para pegar um ativo
+        def get_ativo(nome):
+            return ativos.get(nome, {})
+
+        # Construir snapshots
+        win_fut = self._snapshot_from_dict(get_ativo("WIN_FUT"))
+        wdo_fut = self._snapshot_from_dict(get_ativo("WDO_FUT"))
+        sp500 = self._snapshot_from_dict(get_ativo("SP500_FUT"))
+        nasdaq = self._snapshot_from_dict(get_ativo("NASDAQ_FUT"))
+        vix = self._snapshot_from_dict(get_ativo("VIX"))
+        dxy = self._snapshot_from_dict(get_ativo("DXY"))
+        ewz = self._snapshot_from_dict(get_ativo("EWZ"))
+        iron_ore = self._snapshot_from_dict(get_ativo("IRON_ORE"))
+        crude_oil = self._snapshot_from_dict(get_ativo("CRUDE_OIL"))
+        gold = self._snapshot_from_dict(get_ativo("GOLD"))
+
+        win_ajuste = float(get_ativo("WIN_AJUSTE").get("preco", 0.0))
+        wdo_ajuste = float(get_ativo("WDO_AJUSTE").get("preco", 0.0))
+        ptax = float(get_ativo("USD_PTAX").get("preco", 0.0))
+
+        # ADRs
+        adrs = {}
+        for ticker in ["VALE_ADR", "PETR_ADR", "ITUB_ADR", "BBAS_ADR", "BBD_ADR", "B3_ADR"]:
+            data = get_ativo(ticker)
+            if data:
+                adrs[ticker] = self._snapshot_from_dict(data)
+
+        # Métricas
+        metricas = self._metricas_data
+        indicadores = metricas.get("indicadores_compostos", {})
+        cambio = metricas.get("cambio_e_arbitragem", {})
+        curva = metricas.get("curva_juros_b3", {})
+
+        # Tendências
+        tendencias = self._tendencias_data
+        tendencia_win = None
+        tendencia_win_padrao = None
+        if tendencias:
+            win_tend = tendencias.get("WIN_FUT") or tendencias.get("BMFBOVESPA:WIN1!")
+            if win_tend:
+                tendencia_win = win_tend.get("intervalo_5_para_0", {}).get("tendencia")
+                tendencia_win_padrao = win_tend.get("padrao_comportamento")
+
+        return MarketContext(
+            timestamp=datetime.now(),
+            win_fut=win_fut,
+            wdo_fut=wdo_fut,
+            win_ajuste=win_ajuste,
+            wdo_ajuste=wdo_ajuste,
+            ptax=ptax,
+            sp500=sp500,
+            nasdaq=nasdaq,
+            vix=vix,
+            dxy=dxy,
+            ewz=ewz,
+            iron_ore=iron_ore,
+            crude_oil=crude_oil,
+            gold=gold,
+            adrs=adrs,
+            indicador_mercado_externo=indicadores.get("indicador_mercado_externo"),
+            indicador_adrs_brasileiras=indicadores.get("indicador_adrs_brasileiras"),
+            spread_wdo_ptax_pontos=cambio.get("spread_wdo_ptax_pontos"),
+            inclinacao_di_bps=curva.get("inclinacao_29_27_bps"),
+            tendencia_win=tendencia_win,
+            tendencia_win_padrao=tendencia_win_padrao,
+            metadados={"fonte_ativos": "DadosAtivosUnificados.json",
+                       "fonte_metricas": "Metricas_Calculadas.json"}
+        )
+'''
+
+SERVICE_PREDICTION = '''# core/services/prediction_service.py
+"""
+PredictionService: integração com o Novo Motor.
+"""
+import sys
+from pathlib import Path
+from datetime import datetime
+from typing import Optional, Dict, Any
+
+# Adiciona a raiz do projeto ao path para importar o Novo Motor
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+
+from NOVO_MOTOR_PREVISAO_ABERTURA.core.motor_previsao import executar_previsao
+from ..contracts import PredictionContext
+
+
+class PredictionService:
+    """
+    Serviço que invoca o Novo Motor e retorna PredictionContext.
+    """
+
+    def get_prediction(self) -> Optional[PredictionContext]:
+        try:
+            dados = executar_previsao()
+            if not dados:
+                return None
+
+            # Mapear os campos para o contrato
+            return PredictionContext(
+                timestamp=datetime.fromisoformat(dados.get("timestamp", datetime.now().isoformat())),
+                ativo=dados.get("ativo", "WIN"),
+                abertura_projetada=dados.get("abertura_projetada", 0.0),
+                faixa_provavel_inferior=dados["faixa_provavel"][0] if dados.get("faixa_provavel") else 0.0,
+                faixa_provavel_superior=dados["faixa_provavel"][1] if dados.get("faixa_provavel") else 0.0,
+                gap_pontos=dados.get("gap", {}).get("pontos", 0.0),
+                gap_percentual=dados.get("gap", {}).get("percentual", 0.0),
+                gap_intensidade=dados.get("gap", {}).get("intensidade", "N/A"),
+                classificacao_gap=dados.get("gap", {}).get("classificacao", "N/A"),
+                direcao_prevista=dados.get("direcao_prevista", "NEUTRO"),
+                score=dados.get("score", {}).get("valor", 0.0),
+                score_classificacao=dados.get("score", {}).get("classificacao", "N/A"),
+                score_detalhes=dados.get("score", {}).get("detalhes", {}),
+                analise_ajuste=dados.get("analise_ajuste", {}),
+                cenario_principal=dados.get("cenario_principal", {}),
+                cenario_alternativo=dados.get("cenario_alternativo", {}),
+                metadados=dados.get("metadados", {})
+            )
+        except Exception as e:
+            print(f"❌ PredictionService: erro ao obter previsão: {e}")
+            return None
+'''
+
+SERVICE_NEWS = '''# core/services/news_service.py
+"""
+NewsService: constrói NewsContext a partir de Noticias_Impacto_Dia.json.
+"""
+import json
+from pathlib import Path
+from datetime import datetime
+from typing import Optional, Dict, Any
+
+from ..contracts import NewsContext
+
+
+class NewsService:
+    def __init__(self, coletas_dir: Optional[Path] = None):
+        if coletas_dir is None:
+            self.coletas_dir = Path(__file__).resolve().parent.parent.parent / "Coletas"
+        else:
+            self.coletas_dir = coletas_dir
+
+    def _carregar_json(self, nome: str) -> Dict[str, Any]:
+        caminho = self.coletas_dir / nome
+        if not caminho.exists():
+            return {}
+        try:
+            with open(caminho, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except:
+            return {}
+
+    def get_news(self) -> Optional[NewsContext]:
+        dados = self._carregar_json("Noticias_Impacto_Dia.json")
+        if not dados:
+            return None
+
+        resumo = dados.get("resumo", {})
+        alertas = dados.get("alertas", {})
+
+        return NewsContext(
+            timestamp=datetime.now(),
+            impacto_total=resumo.get("impacto_total", 0),
+            classificacao_risco=resumo.get("classificacao", "BAIXO"),
+            tem_3_estrelas_brasil_0900=alertas.get("tem_3_estrelas_brasil_0900", False),
+            tem_3_estrelas_outros_horarios=alertas.get("tem_3_estrelas_outros_horarios", False),
+            tem_multiplas_2_estrelas_mesmo_horario=alertas.get("tem_multiplas_2_estrelas_mesmo_horario", False),
+            risco_abertura_win=alertas.get("risco_abertura_WIN", False),
+            eventos_3_estrelas=alertas.get("noticias_3_estrelas_outros_horarios", []),
+            horarios_multiplas_2_estrelas=alertas.get("horarios_multiplas_2_estrelas", []),
+            metadados={"fonte": "Noticias_Impacto_Dia.json"}
+        )
+'''
+
+ENGINE_CONFLUENCE = '''# core/engines/confluence_engine.py
+"""
+ConfluenceEngine: combina os contextos e gera um viés consolidado.
+"""
+from typing import Dict, Any, Optional
+from ..contracts import MarketContext, PredictionContext, NewsContext, VisionContext
+
+
+class ConfluenceEngine:
+    """
+    Combina evidências de diferentes fontes e gera um score de confluência.
+    """
+
+    def __init__(self, pesos: Optional[Dict[str, float]] = None):
+        self.pesos = pesos or {
+            "market": 1.0,
+            "prediction": 1.5,
+            "news": 0.8,
+            "vision": 1.2  # futuro
+        }
+
+    def _normalizar_direcao(self, direcao: str) -> int:
+        if direcao.upper() == "COMPRA":
+            return 1
+        elif direcao.upper() == "VENDA":
+            return -1
+        return 0
+
+    def _peso_do_score(self, score: float) -> float:
+        if score >= 80:
+            return 2.0
+        elif score >= 60:
+            return 1.5
+        elif score >= 40:
+            return 1.0
+        elif score >= 20:
+            return 0.5
+        return 0.0
+
+    def processar(
+        self,
+        market: MarketContext,
+        prediction: Optional[PredictionContext] = None,
+        news: Optional[NewsContext] = None,
+        vision: Optional[VisionContext] = None
+    ) -> Dict[str, Any]:
+        """
+        Retorna um dicionário com:
+            - vies: "COMPRA" / "VENDA" / "NEUTRO"
+            - confianca: int (0-100)
+            - motivos: List[str]
+            - riscos: List[str]
+        """
+        motivos = []
+        riscos = []
+        votos = {"COMPRA": 0.0, "VENDA": 0.0}
+        confianca_total = 0.0
+        peso_total = 0.0
+
+        # 1. MarketContext
+        if market:
+            # Analisa indicadores
+            if market.indicador_mercado_externo is not None:
+                valor = market.indicador_mercado_externo
+                if valor > 0.5:
+                    votos["COMPRA"] += 1.0 * self.pesos["market"]
+                    motivos.append(f"Mercado Externo: {valor:+.2f}% (COMPRA)")
+                elif valor < -0.5:
+                    votos["VENDA"] += 1.0 * self.pesos["market"]
+                    motivos.append(f"Mercado Externo: {valor:+.2f}% (VENDA)")
+                else:
+                    motivos.append(f"Mercado Externo: {valor:+.2f}% (NEUTRO)")
+                confianca_total += 0.5 * self.pesos["market"]
+                peso_total += self.pesos["market"]
+
+            if market.indicador_adrs_brasileiras is not None:
+                valor = market.indicador_adrs_brasileiras
+                if valor > 0.5:
+                    votos["COMPRA"] += 0.8 * self.pesos["market"]
+                    motivos.append(f"ADRs Brasileiras: {valor:+.2f}% (COMPRA)")
+                elif valor < -0.5:
+                    votos["VENDA"] += 0.8 * self.pesos["market"]
+                    motivos.append(f"ADRs Brasileiras: {valor:+.2f}% (VENDA)")
+                else:
+                    motivos.append(f"ADRs Brasileiras: {valor:+.2f}% (NEUTRO)")
+                confianca_total += 0.4 * self.pesos["market"]
+                peso_total += self.pesos["market"]
+
+            # Tendência
+            if market.tendencia_win:
+                if market.tendencia_win == "SUBIU":
+                    votos["COMPRA"] += 0.6 * self.pesos["market"]
+                    motivos.append(f"Tendência WIN: {market.tendencia_win}")
+                elif market.tendencia_win == "DESCEU":
+                    votos["VENDA"] += 0.6 * self.pesos["market"]
+                    motivos.append(f"Tendência WIN: {market.tendencia_win}")
+                confianca_total += 0.3 * self.pesos["market"]
+                peso_total += self.pesos["market"]
+
+            # Risco (VIX)
+            if market.vix and market.vix.variacao_pct:
+                if market.vix.variacao_pct > 3.0:
+                    riscos.append(f"VIX em alta: {market.vix.variacao_pct:+.2f}%")
+                    # Penaliza levemente
+                    votos["COMPRA"] -= 0.3
+                    votos["VENDA"] -= 0.3
+
+        # 2. PredictionContext
+        if prediction:
+            peso = self.pesos["prediction"]
+            direcao = self._normalizar_direcao(prediction.direcao_prevista)
+            if direcao == 1:
+                votos["COMPRA"] += 1.0 * peso
+                motivos.append(f"Predição: {prediction.direcao_prevista} (score {prediction.score:.1f})")
+            elif direcao == -1:
+                votos["VENDA"] += 1.0 * peso
+                motivos.append(f"Predição: {prediction.direcao_prevista} (score {prediction.score:.1f})")
+            else:
+                motivos.append(f"Predição: NEUTRO (score {prediction.score:.1f})")
+            # Confiança baseada no score
+            fator = self._peso_do_score(prediction.score)
+            confianca_total += fator * peso
+            peso_total += peso
+
+            # GAP intensidade
+            if prediction.gap_intensidade in ("FORTE", "EXTREMO"):
+                riscos.append(f"GAP {prediction.gap_intensidade} detectado ({prediction.gap_pontos:+.0f} pts)")
+
+        # 3. NewsContext
+        if news:
+            if news.classificacao_risco in ("EXTREMO", "ALTO"):
+                riscos.append(f"Risco de notícias: {news.classificacao_risco}")
+                if news.tem_3_estrelas_brasil_0900:
+                    riscos.append("Notícia 3★ Brasil 09:00 – alta volatilidade")
+                    # Reduz confiança geral
+                    confianca_total *= 0.7
+            if news.tem_multiplas_2_estrelas_mesmo_horario:
+                riscos.append("Múltiplas notícias ⭐⭐ no mesmo horário")
+
+        # 4. (Futuro) VisionContext
+
+        # Decisão final
+        total_compra = votos["COMPRA"]
+        total_venda = votos["VENDA"]
+
+        if total_compra > total_venda + 0.5:
+            vies = "COMPRA"
+        elif total_venda > total_compra + 0.5:
+            vies = "VENDA"
+        else:
+            vies = "NEUTRO"
+
+        # Confiança final (0-100)
+        if peso_total > 0:
+            confianca_bruta = (confianca_total / peso_total) * 100
+        else:
+            confianca_bruta = 0.0
+        confianca = min(100, max(0, int(confianca_bruta)))
+
+        # Ajuste por riscos
+        if riscos:
+            confianca = max(0, confianca - len(riscos) * 5)
+
+        return {
+            "vies": vies,
+            "confianca": confianca,
+            "motivos": motivos,
+            "riscos": riscos,
+            "votos": votos
+        }
+'''
+
+ENGINE_DECISION = '''# core/engines/decision_engine.py
+"""
+DecisionEngine: transforma a confluência em uma operação concreta.
+"""
+from typing import Dict, Any, Optional
+from ..contracts import MarketContext, DecisionContext
+
+
+class DecisionEngine:
+    """
+    Define entrada, stop, alvos e invalidação com base no viés e nos níveis.
+    """
+
+    def __init__(self, ativo: str = "WIN"):
+        self.ativo = ativo
+
+    def gerar_decisao(
+        self,
+        confluence_result: Dict[str, Any],
+        market: MarketContext
+    ) -> DecisionContext:
+        """
+        Gera um DecisionContext a partir da confluência e do mercado.
+        """
+        vies = confluence_result["vies"]
+        confianca = confluence_result["confianca"]
+        motivos = confluence_result["motivos"]
+        riscos = confluence_result["riscos"]
+
+        # Se confiança baixa, não define entrada
+        if confianca < 40:
+            return DecisionContext(
+                timestamp=datetime.now(),
+                ativo=self.ativo,
+                vies_final=vies,
+                confianca=confianca,
+                entrada=None,
+                stop_loss=None,
+                alvo_1=None,
+                alvo_2=None,
+                invalidacao="Confiança insuficiente (< 40%)",
+                motivos=motivos,
+                riscos=riscos
+            )
+
+        # Define níveis baseados no ativo
+        if self.ativo == "WIN":
+            ajuste = market.win_ajuste
+            pp = market.win_fut.preco  # aqui poderíamos usar pivots, mas é um placeholder
+            # Simplificação: usar preço atual +/-
+            preco_atual = market.win_fut.preco
+        else:
+            ajuste = market.wdo_ajuste
+            preco_atual = market.wdo_fut.preco
+            pp = preco_atual
+
+        entrada = None
+        stop = None
+        alvo1 = None
+        alvo2 = None
+        invalidacao = None
+
+        if vies == "COMPRA" and confianca >= 60:
+            entrada = preco_atual + 50  # placeholder
+            stop = preco_atual - 150
+            alvo1 = preco_atual + 250
+            alvo2 = preco_atual + 500
+            invalidacao = f"Fechamento abaixo de {ajuste}"
+        elif vies == "VENDA" and confianca >= 60:
+            entrada = preco_atual - 50
+            stop = preco_atual + 150
+            alvo1 = preco_atual - 250
+            alvo2 = preco_atual - 500
+            invalidacao = f"Fechamento acima de {ajuste}"
+        else:
+            invalidacao = "Aguardar definição"
+
+        return DecisionContext(
+            timestamp=datetime.now(),
+            ativo=self.ativo,
+            vies_final=vies,
+            confianca=confianca,
+            entrada=entrada,
+            stop_loss=stop,
+            alvo_1=alvo1,
+            alvo_2=alvo2,
+            invalidacao=invalidacao,
+            motivos=motivos,
+            riscos=riscos,
+            market_referencia={"ajuste": ajuste, "preco_atual": preco_atual}
+        )
+'''
+
+MAIN_PY = '''#!/usr/bin/env python3
+# v2/main.py - Entrypoint para testar a nova arquitetura
+import sys
+from pathlib import Path
+from datetime import datetime
+
+# Adiciona a raiz ao path
+BASE_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(BASE_DIR))
+
+from v2.core.services.market_service import MarketService
+from v2.core.services.prediction_service import PredictionService
+from v2.core.services.news_service import NewsService
+from v2.core.engines.confluence_engine import ConfluenceEngine
+from v2.core.engines.decision_engine import DecisionEngine
+
+
+def main():
+    print("=" * 60)
+    print("🚀 ANALISADOR FINANCEIRO V2 - TESTE")
+    print("=" * 60)
+
+    # 1. MarketContext
+    print("\n📊 Carregando MarketContext...")
+    market_service = MarketService()
+    market = market_service.build()
+    if not market:
+        print("❌ Falha ao carregar MarketContext")
+        return
+    print(f"✅ WIN: {market.win_fut.preco:.0f} ({market.win_fut.variacao_pct:+.2f}%)")
+    print(f"✅ VIX: {market.vix.preco:.2f} ({market.vix.variacao_pct:+.2f}%)")
+
+    # 2. PredictionContext
+    print("\n🔮 Carregando PredictionContext...")
+    pred_service = PredictionService()
+    prediction = pred_service.get_prediction()
+    if prediction:
+        print(f"✅ Direção: {prediction.direcao_prevista} (score: {prediction.score:.1f})")
+    else:
+        print("⚠️ Prediction não disponível")
+
+    # 3. NewsContext
+    print("\n📰 Carregando NewsContext...")
+    news_service = NewsService()
+    news = news_service.get_news()
+    if news:
+        print(f"✅ Risco: {news.classificacao_risco} (impacto: {news.impacto_total})")
+    else:
+        print("⚠️ News não disponível")
+
+    # 4. Confluência
+    print("\n⚖️ Executando ConfluenceEngine...")
+    engine = ConfluenceEngine()
+    resultado = engine.processar(market, prediction, news)
+    print(f"✅ Viés: {resultado['vies']} | Confiança: {resultado['confianca']}%")
+
+    # 5. Decisão
+    print("\n🎯 Gerando Decisão...")
+    dec_engine = DecisionEngine(ativo="WIN")
+    decisao = dec_engine.gerar_decisao(resultado, market)
+    print(f"✅ Decisão: {decisao.vies_final} (confiança: {decisao.confianca}%)")
+    if decisao.entrada:
+        print(f"   Entrada: {decisao.entrada:.0f} | Stop: {decisao.stop_loss:.0f} | Alvo1: {decisao.alvo_1:.0f} | Alvo2: {decisao.alvo_2:.0f}")
+    else:
+        print("   ⏳ Aguardando confirmação")
+
+    print("\n" + "=" * 60)
+    print("✅ Teste concluído!")
+
+
+if __name__ == "__main__":
+    main()
+'''
+
+DASHBOARD_V2 = '''# v2/pages/dashboard_v2.py
+import streamlit as st
+import sys
+from pathlib import Path
+from datetime import datetime
+
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(BASE_DIR))
+
+from v2.core.services.market_service import MarketService
+from v2.core.services.prediction_service import PredictionService
+from v2.core.services.news_service import NewsService
+from v2.core.engines.confluence_engine import ConfluenceEngine
+from v2.core.engines.decision_engine import DecisionEngine
+
+st.set_page_config(page_title="Dashboard V2", layout="wide")
+st.title("🚀 Dashboard V2 - Analisador Financeiro")
+
+# Carregar dados
+market = MarketService().build()
+prediction = PredictionService().get_prediction()
+news = NewsService().get_news()
+
+if not market:
+    st.error("❌ MarketContext não disponível. Execute o pipeline primeiro.")
+    st.stop()
+
+# Exibir resumo
+col1, col2, col3 = st.columns(3)
+with col1:
+    st.metric("WIN", f"{market.win_fut.preco:.0f}", f"{market.win_fut.variacao_pct:+.2f}%")
+with col2:
+    st.metric("WDO", f"{market.wdo_fut.preco:.2f}", f"{market.wdo_fut.variacao_pct:+.2f}%")
+with col3:
+    st.metric("VIX", f"{market.vix.preco:.2f}", f"{market.vix.variacao_pct:+.2f}%")
+
+# Confluência
+engine = ConfluenceEngine()
+resultado = engine.processar(market, prediction, news)
+
+col1, col2 = st.columns(2)
+with col1:
+    st.metric("Viés Consolidado", resultado["vies"], f"Confiança: {resultado['confianca']}%")
+with col2:
+    if prediction:
+        st.metric("Predição (Novo Motor)", prediction.direcao_prevista, f"Score: {prediction.score:.0f}")
+
+# Decisão
+dec_engine = DecisionEngine()
+decisao = dec_engine.gerar_decisao(resultado, market)
+
+st.subheader("🎯 Decisão Operacional")
+col1, col2 = st.columns(2)
+with col1:
+    st.metric("Decisão", decisao.vies_final)
+    st.write(f"**Confiança:** {decisao.confianca}%")
+with col2:
+    if decisao.entrada:
+        st.metric("Entrada", f"{decisao.entrada:.0f}")
+        st.metric("Stop", f"{decisao.stop_loss:.0f}", delta="Loss")
+        st.metric("Alvo 1", f"{decisao.alvo_1:.0f}", delta="Alvo")
+        st.metric("Alvo 2", f"{decisao.alvo_2:.0f}", delta="Alvo")
+    else:
+        st.info(decisao.invalidacao)
+
+# Motivos e riscos
+with st.expander("📋 Motivos e Riscos"):
+    st.write("**Motivos:**")
+    for m in resultado["motivos"]:
+        st.write(f"- {m}")
+    st.write("**Riscos:**")
+    for r in resultado["riscos"]:
+        st.write(f"- {r}")
+'''
+
+TEST_CONTRACTS = '''# v2/tests/test_contracts.py
+import unittest
+from datetime import datetime
+from v2.core.contracts import MarketContext, AtivoSnapshot
+
+
+class TestContracts(unittest.TestCase):
+    def test_ativo_snapshot(self):
+        snap = AtivoSnapshot(preco=100.5, variacao_pct=1.2)
+        self.assertEqual(snap.preco, 100.5)
+        self.assertEqual(snap.variacao_pct, 1.2)
+
+    def test_market_context(self):
+        snap = AtivoSnapshot(100, 0.5)
+        context = MarketContext(
+            timestamp=datetime.now(),
+            win_fut=snap,
+            wdo_fut=snap,
+            win_ajuste=100,
+            wdo_ajuste=100,
+            ptax=5.0,
+            sp500=snap,
+            nasdaq=snap,
+            vix=snap,
+            dxy=snap,
+            ewz=snap,
+            iron_ore=snap,
+            crude_oil=snap,
+            gold=snap
+        )
+        self.assertIsNotNone(context.win_fut)
+
+
+if __name__ == "__main__":
+    unittest.main()
+'''
+
+# ============================================================
+# ESTRUTURA DE DIRETÓRIOS E ARQUIVOS
+# ============================================================
+
+ESTRUTURA = {
+    "v2/__init__.py": "",
+    "v2/main.py": MAIN_PY,
+    "v2/core/__init__.py": "",
+    "v2/core/contracts/__init__.py": CONTRACTS_INIT,
+    "v2/core/contracts/market_context.py": CONTRATO_MARKET,
+    "v2/core/contracts/prediction_context.py": CONTRATO_PREDICTION,
+    "v2/core/contracts/news_context.py": CONTRATO_NEWS,
+    "v2/core/contracts/vision_context.py": CONTRATO_VISION,
+    "v2/core/contracts/decision_context.py": CONTRATO_DECISION,
+    "v2/core/services/__init__.py": "",
+    "v2/core/services/market_service.py": SERVICE_MARKET,
+    "v2/core/services/prediction_service.py": SERVICE_PREDICTION,
+    "v2/core/services/news_service.py": SERVICE_NEWS,
+    "v2/core/engines/__init__.py": "",
+    "v2/core/engines/confluence_engine.py": ENGINE_CONFLUENCE,
+    "v2/core/engines/decision_engine.py": ENGINE_DECISION,
+    "v2/pages/__init__.py": "",
+    "v2/pages/dashboard_v2.py": DASHBOARD_V2,
+    "v2/tests/__init__.py": "",
+    "v2/tests/test_contracts.py": TEST_CONTRACTS,
+}
+
+
+def criar_estrutura():
+    base = Path(".")
+    for caminho_relativo, conteudo in ESTRUTURA.items():
+        caminho = base / caminho_relativo
+        # Cria diretório pai se não existir
+        caminho.parent.mkdir(parents=True, exist_ok=True)
+        # Escreve o arquivo
+        with open(caminho, "w", encoding="utf-8") as f:
+            f.write(conteudo)
+        print(f"✅ Criado: {caminho}")
+
+    print("\n🎉 Estrutura V2 criada com sucesso!")
+    print("Para testar, execute:")
+    print("  python v2/main.py")
+    print("  streamlit run v2/pages/dashboard_v2.py")
+
+
+if __name__ == "__main__":
+    criar_estrutura()
+
+
+
+# ============================================================
+# ARQUIVO:
 # diagnostico_env.py
 #
 # ÚLTIMA ALTERAÇÃO:
@@ -6054,6 +7029,393 @@ for key, value in os.environ.items():
 print("\n" + "=" * 60)
 print("✅ DIAGNÓSTICO CONCLUÍDO")
 print("=" * 60)
+
+
+
+# ============================================================
+# ARQUIVO:
+# gerar_ia.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-11 23:32:27
+# ============================================================
+
+
+
+import base64
+import os
+from pathlib import Path
+
+BASE = Path(__file__).resolve().parent
+
+# Conteúdo do vision_ai_service.py (codificado em base64)
+VISION_AI_CONTENT = """
+IyB2Mi9jb3JlL3NlcnZpY2VzL3Zpc2lvbl9haV9zZXJ2aWNlLnB5CiIiIgpWaXNpb25BSVNlcnZp
+Y2U6IEFuYWxpc2EgaW1hZ2VucyBkZSBncmFmaWNvcyB1c2FuZG8gR3JvcSBWaXNpb24uCiIiIgpp
+bXBvcnQgb3MKaW1wb3J0IHN5cwppbXBvcnQganNvbgppbXBvcnQgYmFzZTY0CmltcG9ydCByZQpm
+cm9tIHBhdGhsYWIgaW1wb3J0IFBhdGgKZnJvbSBkYXRldGltZSBpbXBvcnQgZGF0ZXRpbWUKZnJv
+bSB0eXBpbmcgaW1wb3J0IE9wdGlvbmFsLCBEaWN0LCBBbnkKCkJBU0VfRElSID0gUGF0aChfX2Zp
+bGVfXykucmVzb2x2ZSgpLnBhcmVudC5wYXJlbnQucGFyZW50LnBhcmVudAppZiBzdHIoQkFTRV9E
+SVIpIG5vdCBpbiBzeXMucGF0aDoKICAgIHN5cy5wYXRoLmluc2VydCgwLCBzdHIoQkFTRV9ESVIp
+KQoKZnJvbSB1dGlscy5LZXlNYW5hZ2VyIGltcG9ydCBnZXRfZ3JvcV9jbGllbnQsIGtleV9tYW5h
+Z2VyCgoKY2xhc3MgVmlzaW9uQUlTZXJ2aWNlOgogICAgZGVmIF9faW5pdF9fKHNlbGYsIGltYWdl
+bnNfZGlyOiBPcHRpb25hbFtQYXRoXSA9IE5vbmUpOgogICAgICAgIGlmIGltYWdlbnNfZGlyIGlz
+IE5vbmU6CiAgICAgICAgICAgIHNlbGYuaW1hZ2Vuc19kaXIgPSBCQVNFX0RJUiAvICJDb2xldGFz
+IgogICAgICAgIGVsc2U6CiAgICAgICAgICAgIHNlbGYuaW1hZ2Vuc19kaXIgPSBpbWFnZW5zX2Rp
+cgoKICAgICAgICBzZWxmLm1vZGVsb3NfdmlzdWFpcyA9IFsKICAgICAgICAgICAgImxsYW1hLTMu
+Mi0xMWItdmlzaW9uLXByZXZpZXciLAogICAgICAgICAgICAibWV0YS1sbGFtYS9sbGFtYS00LW1h
+dmVyaWNrLTE3Yi0xMjhlLWluc3RydWN0IiwKICAgICAgICAgICAgInF3ZW4vcXdlbjMuNi0yN2Ii
+CiAgICAgICAgXQoKICAgIGRlZiBfY2FycmVnYXJfaW1hZ2VtX2Jhc2U2NChzZWxmLCBub21lX2Fy
+cXVpdm86IHN0cikgLT4gT3B0aW9uYWxbc3RyXToKICAgICAgICBjYW1pbmhvID0gc2VsZi5pbWFn
+ZW5zX2RpciAvIG5vbWVfYXJxdWl2bwogICAgICAgIGlmIG5vdCBjYW1pbmhvLmV4aXN0cygpOgog
+ICAgICAgICAgICByZXR1cm4gTm9uZQogICAgICAgIHRyeToKICAgICAgICAgICAgd2l0aCBvcGVu
+KGNhbWluaG8sICJyYiIpIGFzIGY6CiAgICAgICAgICAgICAgICByZXR1cm4gYmFzZTY0LmI2NGVu
+Y29kZShmLnJlYWQoKSkuZGVjb2RlKCJ1dGYtOCIpCiAgICAgICAgZXhjZXB0IEV4Y2VwdGlvbiBh
+cyBlOgogICAgICAgICAgICBwcmludChmIkVycm8gYW8gY2FycmVnYXIge25vbWVfYXJxdWl2b306
+IHtlfSIpCiAgICAgICAgICAgIHJldHVybiBOb25lCgogICAgZGVmIF9tb250YXJfcHJvbXB0KHNl
+bGYpIC0+IHN0cjoKICAgICAgICBwcm9tcHQgPSAiIiIKdm9jZSBlIHVtIGVzcGVjaWFsaXN0YSBl
+bSBzbWFydCBtb25leSBjb25jZXB0cyAoc21jKSBlIGljdC4KCmFuYWxpc2UgbyBncmFmaWNvIGFu
+ZXhhZG8gZSBlc3RyYWlhIGFzIHNlZ3VpbnRlcyBpbmZvcm1hY29lcy4gcmVzcG9uZGEgYXBlbmFz
+IGVtIGZvcm1hdG8ganNvbiB2YWxpZG8sIHNlbSB0ZXh0byBhZGljaW9uYWwuIHVzZSBvcyBjYW1w
+b3MgZXhhdGFtZW50ZSBjb21vIGVzcGVjaWZpY2Fkb3MuCgpgYGBqc29uCnsKICAgICJkaXJlY2Fv
+X2VzdHJ1dHVyYSI6ICJhbHRhIiBvdSAiYmFpeGEiIG91ICJsYXRlcmFsIiwKICAgICJib3MiOiB0
+cnVlIG91IGZhbHNlLAogICAgImNob2NoIjogdHJ1ZSBvdSBmYWxzZSwKICAgICJsaXF1aWRpdHlf
+em9uZXMiOiBbcHJlY29zXSwKICAgICJvcmRlcl9ibG9ja3MiOiBbCiAgICAgICAgeyJ0aXBvIjog
+ImNvbXByYSIsICJwcmVjbyI6IDEyMzQ1Nn0sCiAgICAgICAgeyJ0aXBvIjogInZlbmRhIiwgInBy
+ZWNvIjogMTIzMDAwfQogICAgXSwKICAgICJmYWlyX3ZhbHVlX2dhcHMiOiBbCiAgICAgICAgeyJ0
+aXBvIjogImNvbXByYSIsICJzdXBlcmlvciI6IDEyMzUwMCwgImluZmVyaW9yIjogMTIzMjAwfSwK
+ICAgICAgICB7InRpcG8iOiAidmVuZGEiLCAic3VwZXJpb3IiOiAxMjI4MDAsICJpbmZlcmlvciI6
+IDEyMjUwMH0KICAgIF0sCiAgICAic3Vwb3J0ZXMiOiBbMTIyMDAwLCAxMjE1MDBdLAogICAgInJl
+c2lzdGVuY2lhcyI6IFsxMjQwMDAsIDEyNDUwMF0sCiAgICAiZW50cmFkYV9zdWdlcmlkYSI6IDEy
+MzQ1MCwKICAgICJzdG9wX3N1Z2VyaWRvIjogMTIyODAwLAogICAgImFsdm9zIjogWzEyNDIwMCwg
+MTI0ODAwXSwKICAgICJjb25maWFuY2FfdmlzdWFsIjogNzUKfQpgYGAKCnVzZSBudW1lcm9zIGlu
+dGVpcm9zIHBhcmEgcHJlY29zLiBzZSBuYW8gY29uc2VndWlyIGlkZW50aWZpY2FyIGFsZ3VtIGNh
+bXBvLCB1c2UgbnVsbCBvdSBsaXN0YSB2YXppYS4KYXBlbmFzIGpzb24uCiIiIgogICAgICAgIHJl
+dHVybiBwcm9tcHQKCiAgICBkZWYgYW5hbGlzYXJfaW1hZ2VtKHNlbGYsIGltYWdlbV9iYXNlNjQ6
+IHN0ciwgbW9kZWxvOiBzdHIpIC0+IE9wdGlvbmFsW0RpY3Rbc3RyLCBBbnldXToKICAgICAgICB0
+cnk6CiAgICAgICAgICAgIGNsaWVudCwga2V5X3V0aWxpemFkYSA9IGdldF9ncm9xX2NsaWVudCgp
+CiAgICAgICAgICAgIHByaW50KGYiQW5hbGlzYW5kbyBjb20ge21vZGVsb30gKGNoYXZlOiB7a2V5
+X3V0aWxpemFkYVs6OF19Li4uKSIpCgogICAgICAgICAgICByZXNwb25zZSA9IGNsaWVudC5jaGF0
+LmNvbXBsZXRpb25zLmNyZWF0ZSgKICAgICAgICAgICAgICAgIG1vZGVsPW1vZGVsbywKICAgICAg
+ICAgICAgICAgIG1lc3NhZ2VzPVsKICAgICAgICAgICAgICAgICAgICB7InJvbGUiOiAic3lzdGVt
+IiwgImNvbnRlbnQiOiAiVm9jZSBlIHVtIGVzcGVjaWFsaXN0YSBlbSBzbWMvaWN0LiBSZXNwb25k
+YSBhcGVuYXMgZW0ganNvbi4ifSwKICAgICAgICAgICAgICAgICAgICB7CiAgICAgICAgICAgICAg
+ICAgICAgICAgICJyb2xlIjogInVzZXIiLAogICAgICAgICAgICAgICAgICAgICAgICAiY29udGVu
+dCI6IFsKICAgICAgICAgICAgICAgICAgICAgICAgICAgIHsidHlwZSI6ICJ0ZXh0IiwgInRleHQi
+OiBzZWxmLl9tb250YXJfcHJvbXB0KCl9LAogICAgICAgICAgICAgICAgICAgICAgICAgICAgeyJ0
+eXBlIjogImltYWdlX3VybCIsICJpbWFnZV91cmwiOiB7InVybCI6IGYiZGF0YTppbWFnZS9wbmc7
+YmFzZTY0LHtpbWFnZW1fYmFzZTY0fSJ9fQogICAgICAgICAgICAgICAgICAgICAgICBdCiAgICAg
+ICAgICAgICAgICAgICAgfQogICAgICAgICAgICAgICAgXSwKICAgICAgICAgICAgICAgIHRlbXBl
+cmF0dXJlPTAuMSwKICAgICAgICAgICAgICAgIG1heF90b2tlbnM9MTUwMCwKICAgICAgICAgICAg
+KQoKICAgICAgICAgICAgaWYgaGFzYXR0cihyZXNwb25zZSwgJ3VzYWdlJyk6CiAgICAgICAgICAg
+ICAgICB0b2tlbnMgPSByZXNwb25zZS51c2FnZS50b3RhbF90b2tlbnMKICAgICAgICAgICAgICAg
+IGtleV9tYW5hZ2VyLnJlZ2lzdHJhcl91c28oa2V5X3V0aWxpemFkYSwgdG9rZW5zKQogICAgICAg
+ICAgICAgICAgcHJpbnQoZiJUb2tlbnMgdXNhZG9zOiB7dG9rZW5zfSIpCgogICAgICAgICAgICBy
+ZXNwb3N0YV90ZXh0byA9IHJlc3BvbnNlLmNob2ljZXNbMF0ubWVzc2FnZS5jb250ZW50CgogICAg
+ICAgICAgICAjIEV4dHJhaSBKU09OCiAgICAgICAgICAgIGpzb25fbWF0Y2ggPSByZS5zZWFyY2go
+cidgYGBqc29uXFxzKihcXC57LipcXH0pXFxzKmBgYCcsIHJlc3Bvc3RhX3RleHRvLCByZS5ET1RB
+TCkKICAgICAgICAgICAgaWYganNvbl9tYXRjaDoKICAgICAgICAgICAgICAgIHJlc3Bvc3RhX3Rl
+eHRvID0ganNvbl9tYXRjaC5ncm91cCgxKQogICAgICAgICAgICBlbHNlOgogICAgICAgICAgICAg
+ICAganNvbl9tYXRjaCA9IHJlLnNlYXJjaChyJyhcXC57KlxcfSknLCByZXNwb3N0YV90ZXh0bywg
+cmUuRE9UQUwpCiAgICAgICAgICAgICAgICBpZiBqc29uX21hdGNoOgogICAgICAgICAgICAgICAg
+ICAgIHJlc3Bvc3RhX3RleHRvID0ganNvbl9tYXRjaC5ncm91cCgxKQoKICAgICAgICAgICAgcmV0
+dXJuIGpzb24ubG9hZHMocmVzcG9zdGFfdGV4dG8pCgogICAgICAgIGV4Y2VwdCBFeGNlcHRpb24g
+YXMgZToKICAgICAgICAgICAgcHJpbnQoZiJFcnJvIG5hIGFuYWxpc2UgY29tIHttb2RlbG99OiB7
+ZX0iKQogICAgICAgICAgICByZXR1cm4gTm9uZQoKICAgIGRlZiBhbmFsaXNhcihzZWxmLCBub21l
+X2ltYWdlbTogc3RyID0gIldJTl8xbWluLnBuZyIpIC0+IE9wdGlvbmFsW0RpY3Rbc3RyLCBBbnld
+XToKICAgICAgICBiNjQgPSBzZWxmLl9jYXJyZWdhcl9pbWFnZW1fYmFzZTY0KG5vbWVfaW1hZ2Vt
+KQogICAgICAgIGlmIG5vdCBiNjQ6CiAgICAgICAgICAgIHByaW50KGYiSW1hZ2VtIHtub21lX2lt
+YWdlbX0gbmFvIGVuY29udHJhZGEgZW0ge3NlbGYuaW1hZ2Vuc19kaXJ9IikKICAgICAgICAgICAg
+cmV0dXJuIE5vbmUKCiAgICAgICAgZm9yIG1vZGVsbyBpbiBzZWxmLm1vZGVsb3NfdmlzdWFpczoK
+ICAgICAgICAgICAgcmVzdWx0YWRvID0gc2VsZi5hbmFsaXNhcl9pbWFnZW0oYjY0LCBtb2RlbG8p
+CiAgICAgICAgICAgIGlmIHJlc3VsdGFkbzoKICAgICAgICAgICAgICAgIHJldHVybiByZXN1bHRh
+ZG8KCiAgICAgICAgcHJpbnQoIk5lbmh1bSBtb2RlbG8gY29uc2VndWkgYW5hbGlzYXIgaW1hZ2Vt
+LiIpCiAgICAgICAgcmV0dXJuIE5vbmUK"""
+
+# Conteúdo do testar_ia_visual.py
+TESTAR_IA_CONTENT = """
+IyB0ZXN0YXJfaWFfdmlzdWFsLnB5CiIiIgpTY3JpcHQgcGFyYSB0ZXN0YXIgYSBhbmFsaXNlIHZp
+c3VhbCBjb20gSUEgKEdyb3EgVmlzaW9uKS4KIiIiCmltcG9ydCBqc29uCmltcG9ydCBzeXMKZnJv
+bSBwYXRobGliIGltcG9ydCBQYXRoCgpCQVNFX0RJUiA9IFBhdGgoX19maWxlX18pLnJlc29sdmUo
+KS5wYXJlbnQKc3lzLnBhdGguaW5zZXJ0KDAsIHN0cihCQVNFX0RJUikpCgpmcm9tIHYyLmNvcmUu
+c2VydmljZXMudmlzaW9uX2FpX3NlcnZpY2UgaW1wb3J0IFZpc2lvbkFJU2VydmljZQoKZGVmIG1h
+aW4oKToKICAgIHByaW50KCI9IiAqIDYwKQogICAgcHJpbnQoIlRFU1RFIERFIElBIFZJU1VBTCAt
+IEdyb3EgVmlzaW9uIikKICAgIHByaW50KCI9IiAqIDYwKQoKICAgIGNhbWluaG9faW1hZ2VtID0g
+QkFTRV9ESVIgLyAiQ29sZXRhcyIgLyAiV0lOXzFtaW4ucG5nIgogICAgaWYgbm90IGNhbWluaG9f
+aW1hZ2VtLmV4aXN0cygpOgogICAgICAgIHByaW50KGYiSW1hZ2VtIG5hbyBlbmNvbnRyYWRhOiB7
+Y2FtaW5ob19pbWFnZW19IikKICAgICAgICBwcmludCgiICAgQ2VydGlmaXF1ZS1zZSBkZSBxdWUg
+V0lOXzFtaW4ucG5nIGVzdGEgbmEgcGFzdGEgQ29sZXRhcy8iKQogICAgICAgIHJldHVybgoKICAg
+IHByaW50KGYiSW1hZ2VtIGVuY29udHJhZGE6IHtjYW1pbmhvX2ltYWdlbX0iKQoKICAgIHNlcnZp
+Y2UgPSBWaXNpb25BSVNlcnZpY2UoKQogICAgcmVzdWx0YWRvID0gc2VydmljZS5hbmFsaXNhcigi
+V0lOXzFtaW4ucG5nIikKCiAgICBpZiByZXN1bHRhZG86CiAgICAgICAgcHJpbnQoIlxuQU5BTElT
+RSBDT05DTFVJREEhXG4iKQogICAgICAgIHByaW50KGpzb24uZHVtcHMocmVzdWx0YWRvLCBpbmRl
+bnQ9MiwgZW5zdXJlX2FzY2lpPUZhbHNlKSkKICAgICAgICBwcmludCgiXG4iICsgIj0iICogNjAp
+CgogICAgICAgIHByaW50KCJcblJFU1VNTyBEQSBBTkFMSVNFOiIpCiAgICAgICAgcHJpbnQoZiIg
+IEVzdHJ1dHVyYToge3Jlc3VsdGFkby5nZXQoJ2RpcmVjYW9fZXN0cnV0dXJhJywgJ04vQScpfSIp
+CiAgICAgICAgcHJpbnQoZiIgIEJPUzoge3Jlc3VsdGFkby5nZXQoJ2JvcycsIEZhbHNlKX0iKQog
+ICAgICAgIHByaW50KGYiICBDSE9DSDoge3Jlc3VsdGFkby5nZXQoJ2Nob2NoJywgRmFsc2UpfSIp
+CiAgICAgICAgcHJpbnQoZiIgIENvbmZpYW5jYToge3Jlc3VsdGFkby5nZXQoJ2NvbmZpYW5jYV92
+aXN1YWwnLCAwfSUpIikKICAgICAgICBwcmludChmIiAgU3Vwb3J0ZXM6IHtyZXN1bHRhZG8uZ2V0
+KCdzdXBvcnRlcycsIFtdKX0iKQogICAgICAgIHByaW50KGYiICBSZXNpc3RlbmNpYXM6IHtyZXN1
+bHRhZG8uZ2V0KCdyZXNpc3RlbmNpYXMnLCBbXSl9IikKICAgICAgICBwcmludChmIiAgRW50cmFk
+YSBzdWdlcmlkYToge3Jlc3VsdGFkby5nZXQoJ2VudHJhZGFfc3VnZXJpZGEnLCAnTi9BJyl9IikK
+ICAgICAgICBwcmludChmIiAgU3RvcCBzdWdlcmlkbzoge3Jlc3VsdGFkby5nZXQoJ3N0b3Bfc3Vn
+ZXJpZG8nLCAnTi9BJyl9IikKICAgICAgICBwcmludChmIiAgQWx2b3M6IHtyZXN1bHRhZG8uZ2V0
+KCdhbHZvcycsIFtdKX0iKQogICAgZWxzZToKICAgICAgICBwcmludCgiXG5GYWxoYSBuYSBhbmFs
+aXNlLiBWZXJpcXVlLXNlIGEgY2hhdmUgQVBJIGUgYSBjb25leGFvLiIpCgppZiBfX25hbWVfXyA9
+PSAiX19tYWluX18iOgogICAgbWFpbigpCg=="""
+
+
+def criar_arquivos():
+    # Cria diretório se não existir
+    (BASE / "v2" / "core" / "services").mkdir(parents=True, exist_ok=True)
+
+    # Decodifica vision_ai_service.py
+    caminho = BASE / "v2" / "core" / "services" / "vision_ai_service.py"
+    conteudo = base64.b64decode(VISION_AI_CONTENT).decode("utf-8")
+    caminho.write_text(conteudo, encoding="utf-8")
+    print(f"✅ Criado: {caminho}")
+
+    # Decodifica testar_ia_visual.py
+    caminho = BASE / "testar_ia_visual.py"
+    conteudo = base64.b64decode(TESTAR_IA_CONTENT).decode("utf-8")
+    caminho.write_text(conteudo, encoding="utf-8")
+    print(f"✅ Criado: {caminho}")
+
+    print("\n🎉 Arquivos criados com sucesso!")
+    print("Execute: python testar_ia_visual.py")
+
+if __name__ == "__main__":
+    criar_arquivos()
+
+
+
+# ============================================================
+# ARQUIVO:
+# gerar_tudo.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-11 23:44:33
+# ============================================================
+
+
+
+# gerar_tudo.py
+"""
+Script que gera os arquivos necessários para a IA visual.
+Execute uma vez para criar todos os arquivos.
+"""
+import base64
+import os
+from pathlib import Path
+
+BASE = Path(__file__).resolve().parent
+
+# ============================================================
+# CONTEÚDO DOS ARQUIVOS (codificado em Base64 para evitar corrupção)
+# ============================================================
+
+# 1. testar_ia_simples.py
+TESTAR_IA_SIMPLES = """
+IyB0ZXN0YXJfaWFfc2ltcGxlcy5weQoiIiIKU2NyaXB0IGlzb2xhZG8gcGFyYSB0ZXN0YXIgYSBHcm9x
+IFZpc2lvbi4KTGVpdGEgYSBjaGF2ZSBkaXJldGFtZW50ZSBkbyAuZW52LCBzZW0gZGVwZW5kZXIgZG8g
+S2V5TWFuYWdlci4KIiIiCmltcG9ydCBvcyBpbXBvcnQgc3lzIGltcG9ydCBqc29uIGltcG9ydCBiYXNl
+NjQgZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCgojID09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09CiMgMS4gTEVSIEEgQ0hBVkUgRE8gLkVOViBNQU5V
+QUxNRU5URQojID09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09CmRlZiBsZXJfY2hhdmVfZG9fZW52KCk6CiAgICBlbnZfcGF0aCA9IFBhdGgoIi5lbnYi
+KQogICAgaWYgbm90IGVudl9wYXRoLmV4aXN0cygpOgogICAgICAgIHByaW50KCLinIUgQXJxdWl2byAu
+ZW52IG7Do28gZW5jb250cmFkbyEiKQogICAgICAgIHJldHVybiBOb25lCiAgICB3aXRoIG9wZW4oZW52
+X3BhdGgsICJyIiwgZW5jb2Rpbmc9InV0Zi04IikgYXMgZjoKICAgICAgICBmb3IgbGluIGluIGY6CiAg
+ICAgICAgICAgIGxpbiA9IGxpbi5zdHJpcCgpCiAgICAgICAgICAgIGlmIGxpbi5zdGFydHN3aXRoKCJH
+Uk9RX0FQSV9LRVkiKSBhbmQgIj0iIGluIGxpbjoKICAgICAgICAgICAgICAgIGNoYXZlID0gbGluLnNw
+bGl0KCI9IiwgMSlbMV0uc3RyaXAoKS5zdHJpcCgnIicpLnN0cmlwKCInIikKICAgICAgICAgICAgICAg
+IGlmIGNoYXZlIGFuZCBsZW4oY2hhdmUpID4gMTA6CiAgICAgICAgICAgICAgICAgICAgcmV0dXJuIGNo
+YXZlCiAgICBwcmludCgi4pyFIE5lbmh1bWEgY2hhdmUgR1JPUV9BUElfS0VZIGVuY29udHJhZGEgbm8g
+LmVudiIpCiAgICByZXR1cm4gTm9uZQoKQVBJX0tFWSA9IGxlcl9jaGF2ZV9kb19lbnYoKQppZiBub3Qg
+QVBJX0tFWToKICAgIHByaW50KCJcbiUyMCBBZGljaW9uZSBhIGNoYXZlIG5vIGFycXVpdm8gLmVudjog
+IikKICAgIHByaW50KCcgICBHUk9RX0FQSV9LRVk9Imdza19fIikKICAgIHN5cy5leGl0KDEpCgpwcmlu
+dChmIuKUnSBDaGF2ZSBjYXJyZWdhZGE6IHtBUElfS0VZWzowXX0uLi4iKQoKIyA9PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09CiMgMi4gQ0FSUkVHQVIg
+SU1BR0VNCiMgPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT0KaW1hZ2VtX3BhdGggPSBQYXRoKCJDb2xldGFzL1dJTl8xbWluLnBuZyIpCmlmIG5vdCBp
+bWFnZW1fcGF0aC5leGlzdHMoKToKICAgIHByaW50KGYi4pyFIGltYWdlbSBuw6NvIGVuY29udHJhZGE6
+IHtpbWFnZW1fcGF0aH0iKQogICAgc3lzLmV4aXQoMSkKCnByaW50KGYiXG7wn4y3IEltYWdlbSBlbmNv
+bnRyYWRhOiB7aW1hZ2VtX3BhdGh9IikKCndpdGggb3BlbihpbWFnZW1fcGF0aCwgInJiIikgYXMgZjoK
+ICAgIGltYWdlbV9iYXNlNjQgPSBiYXNlNjQuYjY0ZW5jb2RlKGYucmVhZCgpKS5kZWNvZGUoInV0Zi04
+IikKCiMgPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT0KIyAzLiBNT05UQVIgUFJPTVBUCiMgPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PQpQUk9NUFQgPSAiIiIKVk9DRSBFIFVNIEVTUEVDSUFMSVNU
+QSBBRSBTTUFSVCBNT05FWSBDT05DRVBUUyAoU01DKSBFIElDVC4KCkFuYWxpc2UgbyBncmFmaWNvIGFu
+ZXhhZG8gZSBlc3RyYWlhIGFzIHNlZ3VpbnRlcyBpbmZvcm1hY29lcy4gUmVzcG9uZGEgQVBFbmFzIGVt
+IGZvcm1hdG8gSlNPTiB2YWxpZG8sIHNlbSB0ZXh0byBhZGljaW9uYWwuCgpgYGBqc29uCnsKICAgICJk
+aXJlY2FvX2VzdHJ1dHVyYSI6ICJBTFRBIiBvdSAiQkFJWEEiIG91ICJMQVRFUkFMIiwKICAgICJib3Mi
+OiB0cnVlIG91IGZhbHNlLAogICAgImNob2NoIjogdHJ1ZSBvdSBmYWxzZSwKICAgICJsaXF1aWRpdHlf
+em9uZXMiOiBbXSwKICAgICJvcmRlcl9ibG9ja3MiOiBbXSwKICAgICJmYWlyX3ZhbHVlX2dhcHMiOiBb
+XSwKICAgICJzdXBvcnRlcyI6IFtdLAogICAgInJlc2lzdGVuY2lhcyI6IFtdLAogICAgImVudHJhZGFf
+c3VnZXJpZGEiOiBudWxsLAogICAgInN0b3Bfc3VnZXJpZG8iOiBudWxsLAogICAgImFsdm9zIjogW10s
+CiAgICAiY29uZmlhbmNhX3Zpc3VhbCI6IDAKfQpgYGAKCnVzZSBudW1lcm9zIGludGVpcm9zIHBhcmEg
+cHJlY29zLiBTZSBuw6NvIGNvbnNlZ3VpciBpZGVudGlmaWNhciBhbGd1bSBjYW1wbywgdXNlIG51bGwg
+b3UgbGlzdGEgdmF6aWEuCkFwZW5hcyBKU09OLgoiIiIKCiMgPT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PQojIDQuIENIQU1BUiBHUk9RIFZJU0lPTgoj
+ID09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+CnByaW50KCJcbvCfjIkgQ2hhbWFuZG8gR3JvcSBWaXNpb24uLi4iKQoKdHJ5OgogICAgZnJvbSBncm9x
+IGltcG9ydCBHcm9xCmV4Y2VwdCBJbXBvcnRFcnJvcjoKICAgIHByaW50KCLinIUgQmlibGlvdGVjYSAn
+Z3JvcScgbsOjbyBpbnN0YWxhZGEuIEV4ZWN1dGU6IHBpcCBpbnN0YWxsIGdyb3EiKQogICAgc3lzLmV4
+aXQoMSkKCmNsaWVudCA9IEdyb3EoYXBpX2tleT1BUElfS0VZKQoKbW9kZWxvcyA9IFsKICAgICJsbGFt
+YS0zLjItMTFiLXZpc2lvbi1wcmV2aWV3IiwKICAgICJtZXRhLWxsYW1hL2xsYW1hLTQtbWF2ZXJpY2st
+MTdiLTEyOGUtaW5zdHJ1Y3QiLAogICAgInF3ZW4vcXdlbjMuNi0yN2IiCl0KCnJlc3VsdGFkbyA9IE5v
+bmUKCmZvciBtb2RlbG8gaW4gbW9kZWxvczoKICAgIHRyeToKICAgICAgICBwcmludChmIiAgIOKXriBU
+ZW50YW5kbyB7bW9kZWxvfS4uLiIpCiAgICAgICAgcmVzcG9uc2UgPSBjbGllbnQuY2hhdC5jb21wbGV0
+aW9ucy5jcmVhdGUoCiAgICAgICAgICAgIG1vZGVsPW1vZGVsbywKICAgICAgICAgICAgbWVzc2FnZXM9
+WwogICAgICAgICAgICAgICAgeyJyb2xlIjogInN5c3RlbSIsICJjb250ZW50IjogIlZvY2UgZSB1bSBl
+c3BlY2lhbGlzdGEgZW0gU01DL0lDVC4gUmVzcG9uZGEgYXBlbmFzIGVtIEpTT04uIn0sCiAgICAgICAg
+ICAgICAgICB7CiAgICAgICAgICAgICAgICAgICAgInJvbGUiOiAidXNlciIsCiAgICAgICAgICAgICAg
+ICAgICAgImNvbnRlbnQiOiBbCiAgICAgICAgICAgICAgICAgICAgICAgIHsidHlwZSI6ICJ0ZXh0Iiwg
+InRleHQiOiBQUk9NUFR9LAogICAgICAgICAgICAgICAgICAgICAgICB7InR5cGUiOiAiaW1hZ2VfdXJs
+IiwgImltYWdlX3VybCI6IHsidXJsIjogZiJkYXRhOmltYWdlL3BuZztiYXNlNjQse2ltYWdlbV9iYXNl
+NjR9In19CiAgICAgICAgICAgICAgICAgICAgXQogICAgICAgICAgICAgICAgfQogICAgICAgICAgICBd
+LAogICAgICAgICAgICB0ZW1wZXJhdHVyZT0wLjEsCiAgICAgICAgICAgIG1heF90b2tlbnM9MTUwMCwK
+ICAgICAgICApCiAgICAgICAgCiAgICAgICAgaWYgaGFzYXR0cihyZXNwb25zZSwgJ3VzYWdlJyk6CiAg
+ICAgICAgICAgIHByaW50KGYiICAgICAgVG9rZW5zOiB7cmVzcG9uc2UudXNhZ2UudG90YWxfdG9rZW5z
+fSIpCiAgICAgICAgCiAgICAgICAgcmVzcG9zdGFfdGV4dG8gPSByZXNwb25zZS5jaG9pY2VzWzBdLm1l
+c3NhZ2UuY29udGVudAogICAgICAgIAogICAgICAgICMgRXh0cmFpIEpTT04KICAgICAgICBpbXBvcnQg
+cmUKICAgICAgICBqc29uX21hdGNoID0gcmUuc2VhcmNoKHInYGBganNvblxzKihcXC57LipcXH0pXFxz
+KmBgYCcsIHJlc3Bvc3RhX3RleHRvLCByZS5ET1RBTCkKICAgICAgICBpZiBqc29uX21hdGNoOgogICAg
+ICAgICAgICByZXNwb3N0YV90ZXh0byA9IGpzb25fbWF0Y2guZ3JvdXAoMSkKICAgICAgICBlbHNlOgog
+ICAgICAgICAgICBqc29uX21hdGNoID0gcmUuc2VhcmNoKHIoJ1xcLnsqXFx9KScsIHJlc3Bvc3RhX3Rl
+eHRvLCByZS5ET1RBTCkKICAgICAgICAgICAgaWYganNvbl9tYXRjaDoKICAgICAgICAgICAgICAgIHJl
+c3Bvc3RhX3RleHRvID0ganNvbl9tYXRjaC5ncm91cCgxKQogICAgICAgIAogICAgICAgIHJlc3VsdGFk
+byA9IGpzb24ubG9hZHMocmVzcG9zdGFfdGV4dG8pCiAgICAgICAgcHJpbnQoZiIgICDinIUgU3VjZXNz
+byBjb20ge21vZGVsb30hIikKICAgICAgICBicmVhawogICAgICAgIAogICAgZXhjZXB0IEV4Y2VwdGlv
+biBhcyBlOgogICAgICAgIHByaW50KGYiICAgIOKInCBFcnJvOiB7ZX0iKQogICAgICAgIGNvbnRpbnVl
+CgppZiByZXN1bHRhZG86CiAgICBwcmludCgiXG4iICsgIj0iICogNjApCiAgICBwcmludCgi8J+PhSBB
+TkFMSVNFIENPTkNMVUlEQSEiKQogICAgcHJpbnQoIj0iICogNjApCiAgICBwcmludChqc29uLmR1bXBz
+KHJlc3VsdGFkbywgaW5kZW50PTIsIGVuc3VyZV9hc2NpaT1GYWxzZSkpCiAgICBwcmludCgiXG4iICsg
+Ij0iICogNjApCiAgICBwcmludCgiXG7wn5GIIFJFU1VNTzoiKQogICAgcHJpbnQoZiIgIEVzdHJ1dHVy
+YToge3Jlc3VsdGFkby5nZXQoJ2RpcmVjYW9fZXN0cnV0dXJhJywgJ04vQScpfSIpCiAgICBwcmludChm
+IiAgQk9TOiB7cmVzdWx0YWRvLmdldCgnYm9zJywgRmFsc2UpfSIpCiAgICBwcmludChmIiAgQ0hPQ0g6
+IHtyZXN1bHRhZG8uZ2V0KCdjaG9jaCcsIEZhbHNlKX0iKQogICAgcHJpbnQoZiIgIENvbmZpYW5jYTog
+e3Jlc3VsdGFkby5nZXQoJ2NvbmZpYW5jYV92aXN1YWwnLCAwfSUpIikKICAgIGlmIHJlc3VsdGFkby5n
+ZXQoJ3N1cG9ydGVzJyk6CiAgICAgICAgcHJpbnQoZiIgIFN1cG9ydGVzOiB7cmVzdWx0YWRvLmdldCgn
+c3Vwb3J0ZXMnLCBbXSl9IikKICAgIGlmIHJlc3VsdGFkby5nZXQoJ3Jlc2lzdGVuY2lhcycpOgogICAg
+ICAgIHByaW50KGYiICBSZXNpc3Tigq1uY2lhczoge3Jlc3VsdGFkby5nZXQoJ3Jlc2lzdGVuY2lhcycs
+IFtdKX0iKQogICAgaWYgcmVzdWx0YWRvLmdldCgnb3JkZXJfYmxvY2tzJyk6CiAgICAgICAgcHJpbnQo
+ZiIgIE9yZGVyIEJsb2Nrczoge2xlbihyZXN1bHRhZG8uZ2V0KCdvcmRlcl9ibG9ja3MnLCBbXSkpfSBl
+bmNvbnRyYWRvcyIpCiAgICBpZiByZXN1bHRhZG8uZ2V0KCdmYWlyX3ZhbHVlX2dhcHMnKToKICAgICAg
+ICBwcmludChmIiAgRlZHczoge2xlbihyZXN1bHRhZG8uZ2V0KCdmYWlyX3ZhbHVlX2dhcHMnLCBbXSkp
+fSBlbmNvbnRyYWRvcyIpCgplbHNlOgogICAgcHJpbnQoIlxu4pyFIGZhbGhhIG5hIGFuYWxpc2UuIFZl
+cmlmcXVlIGEgY2hhdmUgQVBJIGUgbGEgY29uZXjDo28uIikK"""
+
+# 2. vision_ai_service.py (corrigido)
+VISION_AI_SERVICE = """
+IyB2Mi9jb3JlL3NlcnZpY2VzL3Zpc2lvbl9haV9zZXJ2aWNlLnB5CiIiIgpWaXNpb25BSVNlcnZp
+Y2U6IEFuYWxpc2EgaW1hZ2VucyBkZSBncmFmaWNvcyB1c2FuZG8gR3JvcSBWaXNpb24uCiIiIgpp
+bXBvcnQgb3MKaW1wb3J0IHN5cwppbXBvcnQganNvbgppbXBvcnQgYmFzZTY0CmltcG9ydCByZQpm
+cm9tIHBhdGhsYWIgaW1wb3J0IFBhdGgKZnJvbSBkYXRldGltZSBpbXBvcnQgZGF0ZXRpbWUKZnJv
+bSB0eXBpbmcgaW1wb3J0IE9wdGlvbmFsLCBEaWN0LCBBbnkKCkJBU0VfRElSID0gUGF0aChfX2Zp
+bGVfXykucmVzb2x2ZSgpLnBhcmVudC5wYXJlbnQucGFyZW50LnBhcmVudAppZiBzdHIoQkFTRV9E
+SVIpIG5vdCBpbiBzeXMucGF0aDoKICAgIHN5cy5wYXRoLmluc2VydCgwLCBzdHIoQkFTRV9ESVIp
+KQoKZnJvbSB1dGlscy5LZXlNYW5hZ2VyIGltcG9ydCBnZXRfZ3JvcV9jbGllbnQsIGtleV9tYW5h
+Z2VyCgoKY2xhc3MgVmlzaW9uQUlTZXJ2aWNlOgogICAgZGVmIF9faW5pdF9fKHNlbGYsIGltYWdl
+bnNfZGlyOiBPcHRpb25hbFtQYXRoXSA9IE5vbmUpOgogICAgICAgIGlmIGltYWdlbnNfZGlyIGlz
+IE5vbmU6CiAgICAgICAgICAgIHNlbGYuaW1hZ2Vuc19kaXIgPSBCQVNFX0RJUiAvICJDb2xldGFz
+IgogICAgICAgIGVsc2U6CiAgICAgICAgICAgIHNlbGYuaW1hZ2Vuc19kaXIgPSBpbWFnZW5zX2Rp
+cgoKICAgICAgICBzZWxmLm1vZGVsb3NfdmlzdWFpcyA9IFsKICAgICAgICAgICAgImxsYW1hLTMu
+Mi0xMWItdmlzaW9uLXByZXZpZXciLAogICAgICAgICAgICAibWV0YS1sbGFtYS9sbGFtYS00LW1h
+dmVyaWNrLTE3Yi0xMjhlLWluc3RydWN0IiwKICAgICAgICAgICAgInF3ZW4vcXdlbjMuNi0yN2Ii
+CiAgICAgICAgXQoKICAgIGRlZiBfY2FycmVnYXJfaW1hZ2VtX2Jhc2U2NChzZWxmLCBub21lX2Fy
+cXVpdm86IHN0cikgLT4gT3B0aW9uYWxbc3RyXToKICAgICAgICBjYW1pbmhvID0gc2VsZi5pbWFn
+ZW5zX2RpciAvIG5vbWVfYXJxdWl2bwogICAgICAgIGlmIG5vdCBjYW1pbmhvLmV4aXN0cygpOgog
+ICAgICAgICAgICByZXR1cm4gTm9uZQogICAgICAgIHRyeToKICAgICAgICAgICAgd2l0aCBvcGVu
+KGNhbWluaG8sICJyYiIpIGFzIGY6CiAgICAgICAgICAgICAgICByZXR1cm4gYmFzZTY0LmI2NGVu
+Y29kZShmLnJlYWQoKSkuZGVjb2RlKCJ1dGYtOCIpCiAgICAgICAgZXhjZXB0IEV4Y2VwdGlvbiBh
+cyBlOgogICAgICAgICAgICBwcmludChmIkVycm8gYW8gY2FycmVnYXIge25vbWVfYXJxdWl2b306
+IHtlfSIpCiAgICAgICAgICAgIHJldHVybiBOb25lCgogICAgZGVmIF9tb250YXJfcHJvbXB0KHNl
+bGYpIC0+IHN0cjoKICAgICAgICBwcm9tcHQgPSAiIiIKdm9jZSBlIHVtIGVzcGVjaWFsaXN0YSBl
+bSBzbWFydCBtb25leSBjb25jZXB0cyAoc21jKSBlIGljdC4KCmFuYWxpc2UgbyBncmFmaWNvIGFu
+ZXhhZG8gZSBlc3RyYWlhIGFzIHNlZ3VpbnRlcyBpbmZvcm1hY29lcy4gcmVzcG9uZGEgYXBlbmFz
+IGVtIGZvcm1hdG8ganNvbiB2YWxpZG8sIHNlbSB0ZXh0byBhZGljaW9uYWwuIHVzZSBvcyBjYW1w
+b3MgZXhhdGFtZW50ZSBjb21vIGVzcGVjaWZpY2Fkb3MuCgpgYGBqc29uCnsKICAgICJkaXJlY2Fv
+X2VzdHJ1dHVyYSI6ICJhbHRhIiBvdSAiYmFpeGEiIG91ICJsYXRlcmFsIiwKICAgICJib3MiOiB0
+cnVlIG91IGZhbHNlLAogICAgImNob2NoIjogdHJ1ZSBvdSBmYWxzZSwKICAgICJsaXF1aWRpdHlf
+em9uZXMiOiBbcHJlY29zXSwKICAgICJvcmRlcl9ibG9ja3MiOiBbCiAgICAgICAgeyJ0aXBvIjog
+ImNvbXByYSIsICJwcmVjbyI6IDEyMzQ1Nn0sCiAgICAgICAgeyJ0aXBvIjogInZlbmRhIiwgInBy
+ZWNvIjogMTIzMDAwfQogICAgXSwKICAgICJmYWlyX3ZhbHVlX2dhcHMiOiBbCiAgICAgICAgeyJ0
+aXBvIjogImNvbXByYSIsICJzdXBlcmlvciI6IDEyMzUwMCwgImluZmVyaW9yIjogMTIzMjAwfSwK
+ICAgICAgICB7InRpcG8iOiAidmVuZGEiLCAic3VwZXJpb3IiOiAxMjI4MDAsICJpbmZlcmlvciI6
+IDEyMjUwMH0KICAgIF0sCiAgICAic3Vwb3J0ZXMiOiBbMTIyMDAwLCAxMjE1MDBdLAogICAgInJl
+c2lzdGVuY2lhcyI6IFsxMjQwMDAsIDEyNDUwMF0sCiAgICAiZW50cmFkYV9zdWdlcmlkYSI6IDEy
+MzQ1MCwKICAgICJzdG9wX3N1Z2VyaWRvIjogMTIyODAwLAogICAgImFsdm9zIjogWzEyNDIwMCwg
+MTI0ODAwXSwKICAgICJjb25maWFuY2FfdmlzdWFsIjogNzUKfQpgYGAKCnVzZSBudW1lcm9zIGlu
+dGVpcm9zIHBhcmEgcHJlY29zLiBzZSBuYW8gY29uc2VndWlyIGlkZW50aWZpY2FyIGFsZ3VtIGNh
+bXBvLCB1c2UgbnVsbCBvdSBsaXN0YSB2YXppYS4KYXBlbmFzIGpzb24uCiIiIgogICAgICAgIHJl
+dHVybiBwcm9tcHQKCiAgICBkZWYgYW5hbGlzYXJfaW1hZ2VtKHNlbGYsIGltYWdlbV9iYXNlNjQ6
+IHN0ciwgbW9kZWxvOiBzdHIpIC0+IE9wdGlvbmFsW0RpY3Rbc3RyLCBBbnldXToKICAgICAgICB0
+cnk6CiAgICAgICAgICAgIGNsaWVudCwga2V5X3V0aWxpemFkYSA9IGdldF9ncm9xX2NsaWVudCgp
+CiAgICAgICAgICAgIHByaW50KGYiQW5hbGlzYW5kbyBjb20ge21vZGVsb30gKGNoYXZlOiB7a2V5
+X3V0aWxpemFkYVs6OF19Li4uKSIpCgogICAgICAgICAgICByZXNwb25zZSA9IGNsaWVudC5jaGF0
+LmNvbXBsZXRpb25zLmNyZWF0ZSgKICAgICAgICAgICAgICAgIG1vZGVsPW1vZGVsbywKICAgICAg
+ICAgICAgICAgIG1lc3NhZ2VzPVsKICAgICAgICAgICAgICAgICAgICB7InJvbGUiOiAic3lzdGVt
+IiwgImNvbnRlbnQiOiAiVm9jZSBlIHVtIGVzcGVjaWFsaXN0YSBlbSBzbWMvaWN0LiBSZXNwb25k
+YSBhcGVuYXMgZW0ganNvbi4ifSwKICAgICAgICAgICAgICAgICAgICB7CiAgICAgICAgICAgICAg
+ICAgICAgICAgICJyb2xlIjogInVzZXIiLAogICAgICAgICAgICAgICAgICAgICAgICAiY29udGVu
+dCI6IFsKICAgICAgICAgICAgICAgICAgICAgICAgICAgIHsidHlwZSI6ICJ0ZXh0IiwgInRleHQi
+OiBzZWxmLl9tb250YXJfcHJvbXB0KCl9LAogICAgICAgICAgICAgICAgICAgICAgICAgICAgeyJ0
+eXBlIjogImltYWdlX3VybCIsICJpbWFnZV91cmwiOiB7InVybCI6IGYiZGF0YTppbWFnZS9wbmc7
+YmFzZTY0LHtpbWFnZW1fYmFzZTY0fSJ9fQogICAgICAgICAgICAgICAgICAgICAgICBdCiAgICAg
+ICAgICAgICAgICAgICAgfQogICAgICAgICAgICAgICAgXSwKICAgICAgICAgICAgICAgIHRlbXBl
+cmF0dXJlPTAuMSwKICAgICAgICAgICAgICAgIG1heF90b2tlbnM9MTUwMCwKICAgICAgICAgICAg
+KQoKICAgICAgICAgICAgaWYgaGFzYXR0cihyZXNwb25zZSwgJ3VzYWdlJyk6CiAgICAgICAgICAg
+ICAgICB0b2tlbnMgPSByZXNwb25zZS51c2FnZS50b3RhbF90b2tlbnMKICAgICAgICAgICAgICAg
+IGtleV9tYW5hZ2VyLnJlZ2lzdHJhcl91c28oa2V5X3V0aWxpemFkYSwgdG9rZW5zKQogICAgICAg
+ICAgICAgICAgICAgICAgICBwcmludChmIlRva2VucyB1c2Fkb3M6IHt0b2tlbnN9IikKCgogICAg
+ICAgICAgICByZXNwb3N0YV90ZXh0byA9IHJlc3BvbnNlLmNob2ljZXNbMF0ubWVzc2FnZS5jb250
+ZW50CgogICAgICAgICAgICAjIEV4dHJhaSBKU09OCiAgICAgICAgICAgIGpzb25fbWF0Y2ggPSBy
+ZS5zZWFyY2gocidgYGBqc29uXFxzKihcXC57LipcXH0pXFxzKmBgYCcsIHJlc3Bvc3RhX3RleHRv
+LCByZS5ET1RBTCkKICAgICAgICAgICAgaWYganNvbl9tYXRjaDoKICAgICAgICAgICAgICAgIHJl
+c3Bvc3RhX3RleHRvID0ganNvbl9tYXRjaC5ncm91cCgxKQogICAgICAgICAgICBlbHNlOgogICAg
+ICAgICAgICAgICAganNvbl9tYXRjaCA9IHJlLnNlYXJjaChyJyhcXC57KlxcfSknLCByZXNwb3N0
+YV90ZXh0bywgcmUuRE9UQUwpCiAgICAgICAgICAgICAgICBpZiBqc29uX21hdGNoOgogICAgICAg
+ICAgICAgICAgICAgICByZXNwb3N0YV90ZXh0byA9IGpzb25fbWF0Y2guZ3JvdXAoMSkKCiAgICAg
+ICAgICAgIHJldHVybiBqc29uLmxvYWRzKHJlc3Bvc3RhX3RleHRvKQoKICAgICAgICBleGNlcHQg
+RXhjZXB0aW9uIGFzIGU6CiAgICAgICAgICAgIHByaW50KGYiRXJybyBuYSBhbmFsaXNlIGNvbSB7
+bW9kZWxvfToge2V9IikKICAgICAgICAgICAgcmV0dXJuIE5vbmUKCiAgICBkZWYgYW5hbGlzYXIo
+c2VsZiwgbm9tZV9pbWFnZW06IHN0ciA9ICJXSU5fMW1pbi5wbmciKSAtPiBPcHRpb25hbFtEaWN0
+W3N0ciwgQW55XV06CiAgICAgICAgYjY0ID0gc2VsZi5fY2FycmVnYXJfaW1hZ2VtX2Jhc2U2NChu
+b21lX2ltYWdlbSkKICAgICAgICBpZiBub3QgYjY0OgogICAgICAgICAgICBwcmludChmIkltYWdl
+bSB7bm9tZV9pbWFnZW19IG5hbyBlbmNvbnRyYWRhIGVtIHtzZWxmLmltYWdlbnNfZGlyfSIpCiAg
+ICAgICAgICAgIHJldHVybiBOb25lCgogICAgICAgIGZvciBtb2RlbG8gaW4gc2VsZi5tb2RlbG9z
+X3Zpc3VhaXM6CiAgICAgICAgICAgIHJlc3VsdGFkbyA9IHNlbGYuYW5hbGlzYXJfaW1hZ2VtKGI2
+NCwgbW9kZWxvKQogICAgICAgICAgICBpZiByZXN1bHRhZG86CiAgICAgICAgICAgICAgICByZXR1
+cm4gcmVzdWx0YWRvCgogICAgICAgIHByaW50KCJOZW5odW0gbW9kZWxvIGNvbnNlZ3VpIGFuYWxp
+c2FyIGltYWdlbS4iKQogICAgICAgIHJldHVybiBOb25lCg=="""
+
+
+def criar_arquivos():
+    print("📦 Gerando arquivos...")
+    
+    # 1. testar_ia_simples.py
+    caminho = BASE / "testar_ia_simples.py"
+    conteudo = base64.b64decode(TESTAR_IA_SIMPLES).decode("utf-8")
+    caminho.write_text(conteudo, encoding="utf-8")
+    print(f"   ✅ {caminho}")
+    
+    # 2. v2/core/services/vision_ai_service.py
+    caminho = BASE / "v2" / "core" / "services" / "vision_ai_service.py"
+    caminho.parent.mkdir(parents=True, exist_ok=True)
+    conteudo = base64.b64decode(VISION_AI_SERVICE).decode("utf-8")
+    caminho.write_text(conteudo, encoding="utf-8")
+    print(f"   ✅ {caminho}")
+    
+    print("\n🎉 Arquivos criados com sucesso!")
+    print("\nAgora execute:")
+    print("   python testar_ia_simples.py")
+    print("\nIsso vai testar a IA visual diretamente, sem depender do KeyManager.")
+
+
+if __name__ == "__main__":
+    criar_arquivos()
 
 
 
@@ -14033,291 +15395,6 @@ st.caption("🐶 Spike Híbrido - Analisador de Gráficos com IA • PT-BR Forç
 
 # ============================================================
 # ARQUIVO:
-# pages\8_📥_Gerador_Profit_Pro copy.py
-#
-# ÚLTIMA ALTERAÇÃO:
-# 2026-08-10 10:47:02
-# ============================================================
-
-
-
-# ============================================================
-# ARQUIVO: pages/8_📥_Gerador_Profit_Pro.py
-# MOTIVO: Análise SMC + Gerador de Script .txt para Profit Pro
-# CORES FIXAS: OB (Vermelho/Verde), FVG (Amarelo), Liquidez (Azul), etc.
-# ============================================================
-
-import json
-import os
-import re
-from datetime import datetime
-from typing import List, Dict, Any
-
-import streamlit as st
-from dotenv import load_dotenv
-
-# ============================================================
-# CARREGAR VARIÁVEIS DE AMBIENTE
-# ============================================================
-load_dotenv()
-
-# ============================================================
-# CONFIGURAÇÃO DA PÁGINA
-# ============================================================
-st.set_page_config(
-    page_title="Gerador Profit Pro - Spike",
-    page_icon="📥",
-    layout="wide"
-)
-
-# ============================================================
-# CSS PERSONALIZADO
-# ============================================================
-st.markdown("""
-<style>
-.stApp {
-    background: linear-gradient(180deg, #0a0e17 0%, #0e1117 50%, #121620 100%);
-}
-.card-gerador {
-    background: #161b22;
-    border-radius: 12px;
-    padding: 20px;
-    border: 1px solid #2a2d4a;
-    margin-top: 12px;
-}
-.card-gerador h4 {
-    color: #00d4ff;
-    margin-top: 0;
-}
-.card-nivel {
-    background: #1a1c2a;
-    border-left: 4px solid #58a6ff;
-    padding: 10px 16px;
-    margin: 6px 0;
-    border-radius: 6px;
-    font-size: 0.9rem;
-}
-</style>
-""", unsafe_allow_html=True)
-
-# ============================================================
-# CAMINHOS
-# ============================================================
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-COLETAS_DIR = os.path.join(BASE_DIR, "Coletas")
-
-# ============================================================
-# MAPEAMENTO DE CORES FIXAS PARA PROFIT PRO
-# ============================================================
-MAPEAMENTO_CORES = {
-    "OB_VENDA": "clRed",
-    "OB_COMPRA": "clGreen",
-    "FVG": "clYellow",
-    "LIQUIDEZ_SUPERIOR": "clBlue",
-    "LIQUIDEZ_INFERIOR": "clBlue",
-    "ENTRADA": "clLime",
-    "STOP_LOSS": "clRed",
-    "ALVO_1": "clGreen",
-    "ALVO_2": "clGreen",
-    "SUPORTE": "clBlue",
-    "RESISTENCIA": "clRed",
-    "PDH": "clFuchsia",
-    "PDL": "clFuchsia",
-    "PWH": "clAqua",
-    "PWL": "clAqua",
-    "DEFAULT": "clSilver"
-}
-
-# ============================================================
-# FUNÇÃO: EXTRAIR NÍVEIS DA RESPOSTA DA IA
-# ============================================================
-def extrair_niveis_do_texto(resposta_ia: str) -> List[Dict[str, Any]]:
-    """
-    Extrai os níveis do texto da IA usando regex e palavras-chave.
-    Retorna uma lista de dicionários: [{"tipo": "OB_VENDA", "preco": 180500, "descricao": "OB Venda"}]
-    """
-    niveis = []
-    
-    # Dicionário de padrões de busca
-    padroes = {
-        "OB_VENDA": r"(OB\s*Venda|Order\s*Block\s*Venda|OB\s*de\s*Venda).*?(\d{1,3}\.\d{3})",
-        "OB_COMPRA": r"(OB\s*Compra|Order\s*Block\s*Compra|OB\s*de\s*Compra).*?(\d{1,3}\.\d{3})",
-        "FVG": r"(FVG|Fair\s*Value\s*Gap).*?(\d{1,3}\.\d{3})",
-        "LIQUIDEZ_SUPERIOR": r"(Liquidez\s*Superior|BSL).*?(\d{1,3}\.\d{3})",
-        "LIQUIDEZ_INFERIOR": r"(Liquidez\s*Inferior|SSL).*?(\d{1,3}\.\d{3})",
-        "ENTRADA": r"(Entrada|Entry).*?(\d{1,3}\.\d{3})",
-        "STOP_LOSS": r"(Stop|Stop\s*Loss).*?(\d{1,3}\.\d{3})",
-        "ALVO_1": r"(Alvo\s*1|Target\s*1).*?(\d{1,3}\.\d{3})",
-        "ALVO_2": r"(Alvo\s*2|Target\s*2).*?(\d{1,3}\.\d{3})",
-        "SUPORTE": r"(Suporte|Support).*?(\d{1,3}\.\d{3})",
-        "RESISTENCIA": r"(Resistência|Resistance).*?(\d{1,3}\.\d{3})",
-        "PDH": r"(PDH|High\s*of\s*Day).*?(\d{1,3}\.\d{3})",
-        "PDL": r"(PDL|Low\s*of\s*Day).*?(\d{1,3}\.\d{3})",
-        "PWH": r"(PWH|High\s*of\s*Week).*?(\d{1,3}\.\d{3})",
-        "PWL": r"(PWL|Low\s*of\s*Week).*?(\d{1,3}\.\d{3})",
-    }
-    
-    # Busca cada padrão no texto
-    for tipo, padrao in padroes.items():
-        matches = re.findall(padrao, resposta_ia, re.IGNORECASE)
-        for match in matches:
-            # match pode ser uma tupla: (texto, preco) ou só preco
-            if isinstance(match, tuple):
-                preco_str = match[-1]  # Pega o último grupo (preço)
-            else:
-                preco_str = match
-            
-            try:
-                preco = int(preco_str.replace(".", ""))
-                niveis.append({
-                    "tipo": tipo,
-                    "preco": preco,
-                    "descricao": tipo.replace("_", " ").title(),
-                    "cor": MAPEAMENTO_CORES.get(tipo, "clSilver")
-                })
-            except:
-                continue
-    
-    # Remove duplicatas (mesmo preço e tipo)
-    vistos = set()
-    niveis_unicos = []
-    for n in niveis:
-        chave = (n["tipo"], n["preco"])
-        if chave not in vistos:
-            vistos.add(chave)
-            niveis_unicos.append(n)
-    
-    return niveis_unicos
-
-# ============================================================
-# FUNÇÃO: GERAR SCRIPT PROFIT PRO
-# ============================================================
-def gerar_script_profit_pro(niveis: List[Dict[str, Any]]) -> str:
-    """
-    Gera um arquivo .txt no formato exato do Profit Pro
-    baseado nos níveis identificados pela IA.
-    """
-    linhas = []
-    
-    # Cabeçalho
-    linhas.append("// ==========================================")
-    linhas.append("// SCRIPT GERADO PELA IA SPIKE - NÍVEIS SMC")
-    linhas.append(f"// DATA: {datetime.now().strftime('%d/%m/%Y %H:%M')}")
-    linhas.append("// ==========================================")
-    linhas.append("")
-    linhas.append("var")
-    
-    # Gera as variáveis (Linha1, Linha2...)
-    for i in range(1, len(niveis) + 1):
-        linhas.append(f"  Linha{i} : float;")
-    
-    linhas.append("  //")
-    linhas.append("inicio")
-    linhas.append("  // VARIAVEIS  ////////////////////////////////////////////////////////////////////////////////")
-    
-    # Atribui os valores
-    for i, nivel in enumerate(niveis, start=1):
-        preco = nivel["preco"]
-        linhas.append(f"  Linha{i} := {preco:.0f};")
-    
-    linhas.append("  // Cada Descrição e referente a linha 'ex.: OB, FVG, Sweep etc'")
-    linhas.append("  // PLOTAGEM")
-    
-    # Gera as HorizontalLineCustom
-    for i, nivel in enumerate(niveis, start=1):
-        preco = nivel["preco"]
-        cor = nivel["cor"]
-        descricao = nivel["descricao"]
-        linhas.append(f"  HorizontalLineCustom(Linha{i}, {cor}, 1, 0, \"{descricao}\", 10, tpTopRight, Date, 0, MinPriceIncrement);")
-    
-    linhas.append("fim;")
-    
-    return "\n".join(linhas)
-
-# ============================================================
-# INTERFACE STREAMLIT
-# ============================================================
-
-st.title("📥 Gerador de Script para Profit Pro")
-st.caption("Extraia os níveis da análise SMC/ICT da IA e gere um arquivo .txt pronto para copiar no Profit Pro")
-
-# ============================================================
-# INPUT DA IA
-# ============================================================
-st.markdown("### 1. Cole a resposta da IA (análise SMC)")
-st.info("Cole o texto da análise feita pela IA no chat. O sistema vai extrair automaticamente os níveis de preço e tipos (OB, FVG, Entrada, Stop, Alvo...).")
-
-resposta_ia = st.text_area(
-    "📝 Resposta da IA",
-    placeholder="Cole aqui o texto gerado pela IA no chat (ex: análise SMC/ICT)...",
-    height=250
-)
-
-# ============================================================
-# BOTÃO DE EXTRAÇÃO
-# ============================================================
-if st.button("🔍 Extrair Níveis e Gerar Script", type="primary", width="stretch"):
-    if not resposta_ia.strip():
-        st.error("⚠️ Por favor, cole a resposta da IA primeiro.")
-    else:
-        with st.spinner("🧠 Extraindo níveis do texto da IA..."):
-            niveis = extrair_niveis_do_texto(resposta_ia)
-            
-            if not niveis:
-                st.warning("⚠️ Nenhum nível de preço foi encontrado no texto fornecido. Verifique se a resposta da IA contém preços numéricos (ex: 180500, 179200).")
-            else:
-                st.success(f"✅ {len(niveis)} níveis extraídos com sucesso!")
-                
-                # ============================================================
-                # EXIBIÇÃO DOS NÍVEIS
-                # ============================================================
-                st.markdown("### 📊 Níveis Extraídos")
-                
-                for nivel in niveis:
-                    cor_hex = {
-                        "clRed": "#ff3d00",
-                        "clGreen": "#00c853",
-                        "clYellow": "#ffc107",
-                        "clBlue": "#58a6ff",
-                        "clLime": "#00ff88",
-                        "clFuchsia": "#ff00ff",
-                        "clAqua": "#00ffff",
-                        "clSilver": "#c0c0c0"
-                    }.get(nivel["cor"], "#ffffff")
-                    
-                    st.markdown(f"""
-                    <div class="card-nivel" style="border-left-color: {cor_hex};">
-                        <b>{nivel['descricao']}</b> — <span style="color:{cor_hex}; font-weight:bold;">{nivel['preco']:,.0f}</span>
-                        <span style="color:#8b949e; font-size:0.8rem; margin-left:12px;">Cor: {nivel['cor']}</span>
-                    </div>
-                    """, unsafe_allow_html=True)
-                
-                # ============================================================
-                # GERAR E BAIXAR O SCRIPT
-                # ============================================================
-                codigo_profit = gerar_script_profit_pro(niveis)
-                
-                st.markdown("### 📄 Script Gerado (Pronto para o Profit Pro)")
-                st.code(codigo_profit, language="pascal")
-                
-                st.download_button(
-                    label="⬇️ Baixar Script .txt (Profit Pro)",
-                    data=codigo_profit,
-                    file_name=f"Spike_SMC_Levels_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
-                    mime="text/plain",
-                    width="stretch"
-                )
-
-# ============================================================
-# RODAPÉ
-# ============================================================
-st.markdown("---")
-st.caption("Gerador de Script Profit Pro • Versão 1.0 • Integrado ao Analisador Financeiro")
-
-
-
-# ============================================================
-# ARQUIVO:
 # pages\8_📥_Gerador_Profit_Pro.py
 #
 # ÚLTIMA ALTERAÇÃO:
@@ -17664,6 +18741,263 @@ except Exception as e:
 
 # ============================================================
 # ARQUIVO:
+# testar_ia_simples.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-11 23:55:47
+# ============================================================
+
+
+
+# testar_ia_simples.py
+"""
+Script isolado para testar a Groq Vision.
+Le a chave diretamente do .env, sem depender do KeyManager.
+"""
+
+import sys
+import json
+import base64
+from pathlib import Path
+
+
+def ler_chave_do_env():
+    env_path = Path(".env")
+    if not env_path.exists():
+        print("Arquivo .env nao encontrado!")
+        return None
+
+    with open(env_path, "r", encoding="utf-8") as f:
+        for linha in f:
+            linha = linha.strip()
+            if linha.startswith("GROQ_API_KEY") and "=" in linha:
+                chave = linha.split("=", 1)[1].strip().strip('"').strip("'")
+                if chave and len(chave) > 10:
+                    return chave
+
+    print("Nenhuma chave GROQ_API_KEY encontrada no .env")
+    return None
+
+
+API_KEY = ler_chave_do_env()
+if not API_KEY:
+    print("\nAdicione a chave no arquivo .env:")
+    print('   GROQ_API_KEY="gsk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"')
+    sys.exit(1)
+
+print(f"Chave carregada: {API_KEY[:10]}...")
+
+imagem_path = Path("Coletas/WIN_1min.png")
+if not imagem_path.exists():
+    print(f"Imagem nao encontrada: {imagem_path}")
+    sys.exit(1)
+
+print(f"Imagem encontrada: {imagem_path}")
+
+with open(imagem_path, "rb") as f:
+    imagem_base64 = base64.b64encode(f.read()).decode("utf-8")
+
+PROMPT = '''
+VOCE E UM ESPECIALISTA EM SMART MONEY CONCEPTS (SMC) E ICT.
+
+Analise o grafico anexado e extraia as seguintes informacoes. Responda APENAS em formato JSON valido, sem texto adicional.
+
+{
+    "direcao_estrutura": "ALTA" ou "BAIXA" ou "LATERAL",
+    "bos": true ou false,
+    "choch": true ou false,
+    "liquidity_zones": [],
+    "order_blocks": [],
+    "fair_value_gaps": [],
+    "suportes": [],
+    "resistencias": [],
+    "entrada_sugerida": null,
+    "stop_sugerido": null,
+    "alvos": [],
+    "confianca_visual": 0
+}
+
+Use numeros inteiros para precos. Se nao conseguir identificar algum campo, use null ou lista vazia.
+Apenas JSON.
+'''
+
+print("\nChamando Groq Vision...")
+
+try:
+    from groq import Groq
+except ImportError:
+    print("Biblioteca 'groq' nao instalada. Execute: pip install groq")
+    sys.exit(1)
+
+client = Groq(api_key=API_KEY)
+
+modelos = [
+    "llama-3.2-11b-vision-preview",
+    "meta-llama/llama-4-maverick-17b-128e-instruct",
+    "qwen/qwen3.6-27b"
+]
+
+
+resultado = None
+
+for modelo in modelos:
+    try:
+        print(f" Tentando {modelo}...")
+        response = client.chat.completions.create(
+            model=modelo,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "Voce e um especialista em SMC/ICT. Responda apenas em JSON."
+                },
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": PROMPT},
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/png;base64,{imagem_base64}"
+                            }
+                        }
+                    ]
+                }
+            ],
+            temperature=0.1,
+            max_tokens=1500,
+        )
+
+        if hasattr(response, "usage"):
+            print(f" Tokens: {response.usage.total_tokens}")
+
+        resposta_texto = response.choices[0].message.content
+
+        import re
+
+        json_match = re.search(
+            r"```json\s*(\{.*?\})\s*```",
+            resposta_texto,
+            re.DOTALL
+        )
+        if json_match:
+            resposta_texto = json_match.group(1)
+        else:
+            json_match = re.search(r"(\{.*\})", resposta_texto, re.DOTALL)
+            if json_match:
+                resposta_texto = json_match.group(1)
+
+        resultado = json.loads(resposta_texto)
+        print(f" Sucesso com {modelo}!")
+        break
+
+    except Exception as e:
+        print(f" Erro: {e}")
+        continue
+
+if resultado:
+    print("\n" + "=" * 60)
+    print("ANALISE CONCLUIDA!")
+    print("=" * 60)
+    print(json.dumps(resultado, indent=2, ensure_ascii=False))
+    print("\n" + "=" * 60)
+
+    print("\nRESUMO:")
+    print(f" Estrutura: {resultado.get('direcao_estrutura', 'N/A')}")
+    print(f" BOS: {resultado.get('bos', False)}")
+    print(f" CHOCH: {resultado.get('choch', False)}")
+    print(f" Confianca: {resultado.get('confianca_visual', 0)}%")
+
+    if resultado.get("suportes"):
+        print(f" Suportes: {resultado.get('suportes')}")
+    if resultado.get("resistencias"):
+        print(f" Resistencias: {resultado.get('resistencias')}")
+    if resultado.get("order_blocks"):
+        print(f" Order Blocks: {len(resultado.get('order_blocks'))} encontrados")
+    if resultado.get("fair_value_gaps"):
+        print(f" FVGs: {len(resultado.get('fair_value_gaps'))} encontrados")
+else:
+    print("\nFalha na analise. Verifique a chave API e a conexao.")
+
+
+
+# ============================================================
+# ARQUIVO:
+# testar_ia_visual.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-11 23:34:11
+# ============================================================
+
+
+
+# testar_ia_visual.py
+"""
+Script para testar a analise visual com IA (Groq Vision).
+"""
+import json
+import sys
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(BASE_DIR))
+
+from v2.core.services.vision_ai_service import VisionAIService
+
+def main():
+    print("=" * 60)
+    print("TESTE DE IA VISUAL - Groq Vision")
+    print("=" * 60)
+
+    caminho_imagem = BASE_DIR / "Coletas" / "WIN_1min.png"
+    if not caminho_imagem.exists():
+        print(f"Imagem nao encontrada: {caminho_imagem}")
+        print("   Certifique-se de que WIN_1min.png esta na pasta Coletas/")
+        return
+
+    print(f"Imagem encontrada: {caminho_imagem}")
+
+    service = VisionAIService()
+    resultado = service.analisar("WIN_1min.png")
+
+    if resultado:
+        print("\nANALISE CONCLUIDA!\n")
+        print(json.dumps(resultado, indent=2, ensure_ascii=False))
+        print("\n" + "=" * 60)
+
+        print("\nRESUMO DA ANALISE:")
+        print(f"  Estrutura: {resultado.get('direcao_estrutura', 'N/A')}")
+        print(f"  BOS: {resultado.get('bos', False)}")
+        print(f"  CHOCH: {resultado.get('choch', False)}")
+        print(f"  Confianca: {resultado.get('confianca_visual', 0)}%")
+        print(f"  Suportes: {resultado.get('suportes', [])}")
+        print(f"  Resistencias: {resultado.get('resistencias', [])}")
+        print(f"  Entrada sugerida: {resultado.get('entrada_sugerida', 'N/A')}")
+        print(f"  Stop sugerido: {resultado.get('stop_sugerido', 'N/A')}")
+        print(f"  Alvos: {resultado.get('alvos', [])}")
+    else:
+        print("\nFalha na analise. Verifique a chave API e a conexao.")
+
+if __name__ == "__main__":
+    main()
+
+
+
+# ============================================================
+# ARQUIVO:
+# testar_keys.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-11 23:38:01
+# ============================================================
+
+
+
+
+
+
+
+# ============================================================
+# ARQUIVO:
 # teste_motor.py
 #
 # ÚLTIMA ALTERAÇÃO:
@@ -17829,3 +19163,1926 @@ def get_groq_client():
         raise Exception("❌ Nenhuma chave API disponível no momento!")
     
     return Groq(api_key=key), key
+
+
+
+# ============================================================
+# ARQUIVO:
+# v2\__init__.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-11 21:55:50
+# ============================================================
+
+
+
+
+
+
+
+# ============================================================
+# ARQUIVO:
+# v2\core\__init__.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-11 22:31:43
+# ============================================================
+
+
+
+# v2/core/__init__.py
+
+
+
+# ============================================================
+# ARQUIVO:
+# v2\core\contracts\__init__.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-11 22:32:08
+# ============================================================
+
+
+
+from .market_context import MarketContext, AtivoSnapshot
+from .prediction_context import PredictionContext
+from .news_context import NewsContext
+from .vision_context import VisionContext
+from .decision_context import DecisionContext
+
+__all__ = [
+    "MarketContext",
+    "AtivoSnapshot",
+    "PredictionContext",
+    "NewsContext",
+    "VisionContext",
+    "DecisionContext",
+]
+
+
+
+# ============================================================
+# ARQUIVO:
+# v2\core\contracts\decision_context.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-11 22:33:20
+# ============================================================
+
+
+
+from dataclasses import dataclass, field
+from typing import List, Optional, Dict
+from datetime import datetime
+
+@dataclass
+class DecisionContext:
+    timestamp: datetime
+    ativo: str
+    vies_final: str
+    confianca: int
+    entrada: Optional[float] = None
+    stop_loss: Optional[float] = None
+    alvo_1: Optional[float] = None
+    alvo_2: Optional[float] = None
+    invalidacao: Optional[str] = None
+    motivos: List[str] = field(default_factory=list)
+    riscos: List[str] = field(default_factory=list)
+    market_referencia: Optional[Dict] = None
+    prediction_referencia: Optional[Dict] = None
+    vision_referencia: Optional[Dict] = None
+    news_referencia: Optional[Dict] = None
+    metadados: Dict = field(default_factory=dict)
+
+
+
+# ============================================================
+# ARQUIVO:
+# v2\core\contracts\market_context.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-11 22:32:29
+# ============================================================
+
+
+
+from dataclasses import dataclass, field
+from typing import Optional, Dict
+from datetime import datetime
+
+@dataclass
+class AtivoSnapshot:
+    preco: float
+    variacao_pct: float
+    high: Optional[float] = None
+    low: Optional[float] = None
+    volume: Optional[float] = None
+
+    def __post_init__(self):
+        self.variacao_pct = float(self.variacao_pct)
+
+@dataclass
+class MarketContext:
+    timestamp: datetime
+    win_fut: AtivoSnapshot
+    wdo_fut: AtivoSnapshot
+    win_ajuste: float
+    wdo_ajuste: float
+    ptax: float
+    sp500: AtivoSnapshot
+    nasdaq: AtivoSnapshot
+    vix: AtivoSnapshot
+    dxy: AtivoSnapshot
+    ewz: AtivoSnapshot
+    iron_ore: AtivoSnapshot
+    crude_oil: AtivoSnapshot
+    gold: AtivoSnapshot
+    adrs: Dict[str, AtivoSnapshot] = field(default_factory=dict)
+    indicador_mercado_externo: Optional[float] = None
+    indicador_adrs_brasileiras: Optional[float] = None
+    spread_wdo_ptax_pontos: Optional[float] = None
+    inclinacao_di_bps: Optional[float] = None
+    tendencia_win: Optional[str] = None
+    tendencia_win_padrao: Optional[str] = None
+    metadados: Dict = field(default_factory=dict)
+
+
+
+# ============================================================
+# ARQUIVO:
+# v2\core\contracts\news_context.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-11 22:32:56
+# ============================================================
+
+
+
+from dataclasses import dataclass, field
+from typing import List, Dict
+from datetime import datetime
+
+@dataclass
+class NewsContext:
+    timestamp: datetime
+    impacto_total: int
+    classificacao_risco: str
+    tem_3_estrelas_brasil_0900: bool
+    tem_3_estrelas_outros_horarios: bool
+    tem_multiplas_2_estrelas_mesmo_horario: bool
+    risco_abertura_win: bool
+    eventos_3_estrelas: List[Dict] = field(default_factory=list)
+    horarios_multiplas_2_estrelas: List[Dict] = field(default_factory=list)
+    metadados: Dict = field(default_factory=dict)
+
+
+
+# ============================================================
+# ARQUIVO:
+# v2\core\contracts\prediction_context.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-11 22:32:45
+# ============================================================
+
+
+
+from dataclasses import dataclass, field
+from typing import Dict, Optional
+from datetime import datetime
+
+@dataclass
+class PredictionContext:
+    timestamp: datetime
+    ativo: str
+    abertura_projetada: float
+    faixa_provavel_inferior: float
+    faixa_provavel_superior: float
+    gap_pontos: float
+    gap_percentual: float
+    gap_intensidade: str
+    classificacao_gap: str
+    direcao_prevista: str
+    score: float
+    score_classificacao: str
+    score_detalhes: Dict[str, float] = field(default_factory=dict)
+    analise_ajuste: Dict = field(default_factory=dict)
+    cenario_principal: Dict = field(default_factory=dict)
+    cenario_alternativo: Dict = field(default_factory=dict)
+    metadados: Dict = field(default_factory=dict)
+
+
+
+# ============================================================
+# ARQUIVO:
+# v2\core\contracts\vision_context.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-11 22:33:07
+# ============================================================
+
+
+
+from dataclasses import dataclass, field
+from typing import List, Dict, Optional
+from datetime import datetime
+
+@dataclass
+class VisionContext:
+    timestamp: datetime
+    ativo: str
+    direcao_estrutura: str
+    bos: bool
+    choch: bool
+    liquidity_zones: List[float] = field(default_factory=list)
+    order_blocks: List[Dict[str, float]] = field(default_factory=list)
+    fair_value_gaps: List[Dict[str, float]] = field(default_factory=list)
+    suportes: List[float] = field(default_factory=list)
+    resistencias: List[float] = field(default_factory=list)
+    entrada_sugerida: Optional[float] = None
+    stop_sugerido: Optional[float] = None
+    alvos: List[float] = field(default_factory=list)
+    confianca_visual: int = 0
+    metadados: Dict = field(default_factory=dict)
+
+
+
+# ============================================================
+# ARQUIVO:
+# v2\core\engines\__init__.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-11 22:35:15
+# ============================================================
+
+
+
+# v2/core/engines/__init__.py
+
+
+
+# ============================================================
+# ARQUIVO:
+# v2\core\engines\confluence_engine.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-11 22:35:24
+# ============================================================
+
+
+
+from typing import Dict, Any, Optional
+from ..contracts import MarketContext, PredictionContext, NewsContext, VisionContext
+
+class ConfluenceEngine:
+    def __init__(self, pesos: Optional[Dict[str, float]] = None):
+        self.pesos = pesos or {
+            "market_externo": 1.0,
+            "adrs": 0.8,
+            "tendencia": 2.0,
+            "prediction": 2.5,
+            "gap": 0.5,
+            "news": 0.6,
+            "vision": 1.8,
+        }
+
+    def _normalizar_direcao(self, direcao: str) -> int:
+        return 1 if direcao.upper() == "COMPRA" else -1 if direcao.upper() == "VENDA" else 0
+
+    def _peso_do_score(self, score: float) -> float:
+        if score >= 80: return 2.0
+        elif score >= 60: return 1.5
+        elif score >= 40: return 1.0
+        elif score >= 20: return 0.5
+        return 0.0
+
+    def processar(self, market: MarketContext, prediction: Optional[PredictionContext] = None,
+                  news: Optional[NewsContext] = None, vision: Optional[VisionContext] = None) -> Dict[str, Any]:
+        motivos, riscos, votos = [], [], {"COMPRA": 0.0, "VENDA": 0.0}
+        confianca_total, peso_total = 0.0, 0.0
+
+        # Market Externo
+        if market.indicador_mercado_externo is not None:
+            v = market.indicador_mercado_externo
+            p = self.pesos["market_externo"]
+            if v > 0.5:
+                votos["COMPRA"] += 1.0 * p; motivos.append(f"Mercado Externo: {v:+.2f}% (COMPRA)")
+            elif v < -0.5:
+                votos["VENDA"] += 1.0 * p; motivos.append(f"Mercado Externo: {v:+.2f}% (VENDA)")
+            else:
+                motivos.append(f"Mercado Externo: {v:+.2f}% (NEUTRO)")
+            confianca_total += 0.5 * p; peso_total += p
+
+        # ADRs
+        if market.indicador_adrs_brasileiras is not None:
+            v = market.indicador_adrs_brasileiras
+            p = self.pesos["adrs"]
+            if v > 0.5:
+                votos["COMPRA"] += 0.8 * p; motivos.append(f"ADRs: {v:+.2f}% (COMPRA)")
+            elif v < -0.5:
+                votos["VENDA"] += 0.8 * p; motivos.append(f"ADRs: {v:+.2f}% (VENDA)")
+            else:
+                motivos.append(f"ADRs: {v:+.2f}% (NEUTRO)")
+            confianca_total += 0.4 * p; peso_total += p
+
+        # Tendência
+        if market.tendencia_win:
+            p = self.pesos["tendencia"]
+            if market.tendencia_win == "SUBIU":
+                votos["COMPRA"] += 1.2 * p; motivos.append(f"Tendência: {market.tendencia_win_padrao} (COMPRA)")
+            elif market.tendencia_win == "DESCEU":
+                votos["VENDA"] += 1.2 * p; motivos.append(f"Tendência: {market.tendencia_win_padrao} (VENDA)")
+            else:
+                motivos.append(f"Tendência: {market.tendencia_win_padrao} (NEUTRO)")
+            confianca_total += 0.6 * p; peso_total += p
+
+        # VIX (risco)
+        if market.vix and market.vix.variacao_pct and market.vix.variacao_pct > 3.0:
+            riscos.append(f"VIX em alta: {market.vix.variacao_pct:+.2f}%")
+            votos["COMPRA"] -= 0.3; votos["VENDA"] -= 0.3
+
+        # Prediction
+        if prediction:
+            p = self.pesos["prediction"]
+            direcao = self._normalizar_direcao(prediction.direcao_prevista)
+            fator = self._peso_do_score(prediction.score)
+            if direcao == 1 and fator > 0.5:
+                votos["COMPRA"] += fator * p; motivos.append(f"Predição: COMPRA (score {prediction.score:.1f})")
+            elif direcao == -1 and fator > 0.5:
+                votos["VENDA"] += fator * p; motivos.append(f"Predição: VENDA (score {prediction.score:.1f})")
+            else:
+                motivos.append(f"Predição: NEUTRO/baixa confiança (score {prediction.score:.1f})")
+            confianca_total += fator * p; peso_total += p
+            if prediction.gap_intensidade in ("FORTE", "EXTREMO"):
+                riscos.append(f"GAP {prediction.gap_intensidade} ({prediction.gap_pontos:+.0f} pts)")
+                if prediction.gap_pontos > 0:
+                    votos["COMPRA"] += 0.5 * self.pesos["gap"]
+                elif prediction.gap_pontos < 0:
+                    votos["VENDA"] += 0.5 * self.pesos["gap"]
+
+        # News
+        if news:
+            if news.classificacao_risco in ("EXTREMO", "ALTO"):
+                riscos.append(f"Risco de notícias: {news.classificacao_risco}")
+                if news.tem_3_estrelas_brasil_0900:
+                    riscos.append("Notícia 3★ Brasil 09:00")
+                    confianca_total *= 0.7
+            if news.tem_multiplas_2_estrelas_mesmo_horario:
+                riscos.append("Múltiplas notícias ⭐⭐ no mesmo horário")
+
+        # Vision
+        if vision and vision.direcao_estrutura != "NEUTRO":
+            p = self.pesos["vision"]
+            if vision.direcao_estrutura == "COMPRA":
+                votos["COMPRA"] += 1.0 * p; motivos.append(f"Visão SMC: Estrutura de COMPRA (conf. {vision.confianca_visual}%)")
+            elif vision.direcao_estrutura == "VENDA":
+                votos["VENDA"] += 1.0 * p; motivos.append(f"Visão SMC: Estrutura de VENDA (conf. {vision.confianca_visual}%)")
+            confianca_total += 0.5 * p; peso_total += p
+
+        # Decisão final
+        total_c = votos["COMPRA"]; total_v = votos["VENDA"]
+        vies = "COMPRA" if total_c > total_v + 0.5 else "VENDA" if total_v > total_c + 0.5 else "NEUTRO"
+        confianca = 0 if peso_total == 0 else min(100, max(0, int((confianca_total / peso_total) * 100)))
+        if riscos:
+            confianca = max(0, confianca - len(riscos) * 5)
+
+        return {"vies": vies, "confianca": confianca, "motivos": motivos, "riscos": riscos, "votos": votos}
+
+
+
+# ============================================================
+# ARQUIVO:
+# v2\core\engines\decision_engine.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-11 22:35:34
+# ============================================================
+
+
+
+from typing import Dict, Any
+from datetime import datetime
+from ..contracts import MarketContext, DecisionContext
+
+class DecisionEngine:
+    def __init__(self, ativo: str = "WIN"):
+        self.ativo = ativo
+
+    def _obter_pivots(self, market: MarketContext) -> Dict[str, float]:
+        pivots = market.metadados.get("pivots", {})
+        if pivots and any(pivots.values()):
+            return pivots
+        preco = market.win_fut.preco if self.ativo == "WIN" else market.wdo_fut.preco
+        ajuste = market.win_ajuste if self.ativo == "WIN" else market.wdo_ajuste
+        return {"r2": preco + 300, "r1": preco + 150, "pp": ajuste, "s1": preco - 150, "s2": preco - 300}
+
+    def gerar_decisao(self, confluence_result: Dict[str, Any], market: MarketContext) -> DecisionContext:
+        vies = confluence_result["vies"]
+        confianca = confluence_result["confianca"]
+        motivos = confluence_result["motivos"]
+        riscos = confluence_result["riscos"]
+        pivots = self._obter_pivots(market)
+
+        if confianca < 40:
+            return DecisionContext(
+                timestamp=datetime.now(),
+                ativo=self.ativo,
+                vies_final=vies,
+                confianca=confianca,
+                entrada=None,
+                stop_loss=None,
+                alvo_1=None,
+                alvo_2=None,
+                invalidacao="Confiança insuficiente (< 40%)",
+                motivos=motivos,
+                riscos=riscos,
+                metadados={"pivots": pivots}
+            )
+
+        entrada, stop, alvo1, alvo2, invalidacao = None, None, None, None, None
+        if vies == "COMPRA" and confianca >= 60:
+            entrada = max(pivots["pp"], pivots["r1"] * 0.99) if pivots["r1"] else pivots["pp"] + 50
+            stop = pivots["s1"] or entrada - 150
+            alvo1 = pivots["r2"] or entrada + 250
+            alvo2 = alvo1 + 250
+            invalidacao = f"Fechamento abaixo de {pivots['s1']:.0f}" if pivots["s1"] else "Fechamento abaixo do PP"
+        elif vies == "VENDA" and confianca >= 60:
+            entrada = min(pivots["pp"], pivots["s1"] * 1.01) if pivots["s1"] else pivots["pp"] - 50
+            stop = pivots["r1"] or entrada + 150
+            alvo1 = pivots["s2"] or entrada - 250
+            alvo2 = alvo1 - 250
+            invalidacao = f"Fechamento acima de {pivots['r1']:.0f}" if pivots["r1"] else "Fechamento acima do PP"
+        else:
+            invalidacao = "Aguardar definição ou confiança baixa"
+
+        return DecisionContext(
+            timestamp=datetime.now(),
+            ativo=self.ativo,
+            vies_final=vies,
+            confianca=confianca,
+            entrada=round(entrada) if entrada else None,
+            stop_loss=round(stop) if stop else None,
+            alvo_1=round(alvo1) if alvo1 else None,
+            alvo_2=round(alvo2) if alvo2 else None,
+            invalidacao=invalidacao,
+            motivos=motivos,
+            riscos=riscos,
+            metadados={"pivots": pivots}
+        )
+
+
+
+# ============================================================
+# ARQUIVO:
+# v2\core\services\__init__.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-11 22:33:37
+# ============================================================
+
+
+
+# v2/core/services/__init__.py
+
+
+
+# ============================================================
+# ARQUIVO:
+# v2\core\services\market_service.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-11 22:33:49
+# ============================================================
+
+
+
+import json
+from pathlib import Path
+from datetime import datetime
+from typing import Optional, Dict, Any
+
+from ..contracts import MarketContext, AtivoSnapshot
+
+class MarketService:
+    def __init__(self, coletas_dir: Optional[Path] = None):
+        if coletas_dir is None:
+            self.coletas_dir = Path(__file__).resolve().parent.parent.parent.parent / "Coletas"
+        else:
+            self.coletas_dir = coletas_dir
+        self._ativos_data = None
+        self._metricas_data = None
+        self._tendencias_data = None
+        self._estimativa_data = None
+
+    def _carregar_json(self, nome: str) -> Dict[str, Any]:
+        caminho = self.coletas_dir / nome
+        if not caminho.exists():
+            return {}
+        try:
+            with open(caminho, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+
+    def _carregar_dados(self):
+        if self._ativos_data is None:
+            self._ativos_data = self._carregar_json("DadosAtivosUnificados.json")
+        if self._metricas_data is None:
+            self._metricas_data = self._carregar_json("Metricas_Calculadas.json")
+        if self._tendencias_data is None:
+            self._tendencias_data = self._carregar_json("Analise_Tendencias.json")
+        if self._estimativa_data is None:
+            self._estimativa_data = self._carregar_json("EstimativaAbertura.json")
+
+    def _snapshot_from_dict(self, ativo_dict: Dict) -> AtivoSnapshot:
+        if not ativo_dict:
+            return AtivoSnapshot(preco=0.0, variacao_pct=0.0)
+        return AtivoSnapshot(
+            preco=float(ativo_dict.get("preco", 0.0)),
+            variacao_pct=float(ativo_dict.get("variacao_pct", 0.0)),
+            high=ativo_dict.get("high"),
+            low=ativo_dict.get("low"),
+            volume=ativo_dict.get("volume"),
+        )
+
+    def build(self) -> Optional[MarketContext]:
+        self._carregar_dados()
+        if not self._ativos_data:
+            return None
+
+        ativos = self._ativos_data.get("ativos", {})
+        def get_ativo(nome): return ativos.get(nome, {})
+
+        win_fut = self._snapshot_from_dict(get_ativo("WIN_FUT"))
+        wdo_fut = self._snapshot_from_dict(get_ativo("WDO_FUT"))
+        sp500 = self._snapshot_from_dict(get_ativo("SP500_FUT"))
+        nasdaq = self._snapshot_from_dict(get_ativo("NASDAQ_FUT"))
+        vix = self._snapshot_from_dict(get_ativo("VIX"))
+        dxy = self._snapshot_from_dict(get_ativo("DXY"))
+        ewz = self._snapshot_from_dict(get_ativo("EWZ"))
+        iron_ore = self._snapshot_from_dict(get_ativo("IRON_ORE"))
+        crude_oil = self._snapshot_from_dict(get_ativo("CRUDE_OIL"))
+        gold = self._snapshot_from_dict(get_ativo("GOLD"))
+
+        win_ajuste = float(get_ativo("WIN_AJUSTE").get("preco", 0.0))
+        wdo_ajuste = float(get_ativo("WDO_AJUSTE").get("preco", 0.0))
+        ptax = float(get_ativo("USD_PTAX").get("preco", 0.0))
+
+        adrs = {}
+        for ticker in ["VALE_ADR", "PETR_ADR", "ITUB_ADR", "BBAS_ADR", "BBD_ADR", "B3_ADR"]:
+            data = get_ativo(ticker)
+            if data:
+                adrs[ticker] = self._snapshot_from_dict(data)
+
+        metricas = self._metricas_data
+        indicadores = metricas.get("indicadores_compostos", {})
+        cambio = metricas.get("cambio_e_arbitragem", {})
+        curva = metricas.get("curva_juros_b3", {})
+
+        tendencias = self._tendencias_data
+        tendencia_win = None
+        tendencia_win_padrao = None
+        if tendencias:
+            win_tend = tendencias.get("WIN_FUT") or tendencias.get("BMFBOVESPA:WIN1!")
+            if win_tend:
+                tendencia_win = win_tend.get("intervalo_5_para_0", {}).get("tendencia")
+                tendencia_win_padrao = win_tend.get("padrao_comportamento")
+
+        # Pivots do EstimativaAbertura.json
+        pivots = {}
+        if self._estimativa_data:
+            p = self._estimativa_data.get("pivot_points", {}).get("WIN_FUT", {})
+            pivots = {"r2": p.get("R2", 0), "r1": p.get("R1", 0), "pp": p.get("PP", 0),
+                      "s1": p.get("S1", 0), "s2": p.get("S2", 0)}
+        if not any(pivots.values()):
+            preco = win_fut.preco
+            pivots = {"r2": preco + 300, "r1": preco + 150, "pp": win_ajuste,
+                      "s1": preco - 150, "s2": preco - 300}
+
+        return MarketContext(
+            timestamp=datetime.now(),
+            win_fut=win_fut,
+            wdo_fut=wdo_fut,
+            win_ajuste=win_ajuste,
+            wdo_ajuste=wdo_ajuste,
+            ptax=ptax,
+            sp500=sp500,
+            nasdaq=nasdaq,
+            vix=vix,
+            dxy=dxy,
+            ewz=ewz,
+            iron_ore=iron_ore,
+            crude_oil=crude_oil,
+            gold=gold,
+            adrs=adrs,
+            indicador_mercado_externo=indicadores.get("indicador_mercado_externo"),
+            indicador_adrs_brasileiras=indicadores.get("indicador_adrs_brasileiras"),
+            spread_wdo_ptax_pontos=cambio.get("spread_wdo_ptax_pontos"),
+            inclinacao_di_bps=curva.get("inclinacao_29_27_bps"),
+            tendencia_win=tendencia_win,
+            tendencia_win_padrao=tendencia_win_padrao,
+            metadados={"pivots": pivots, "fonte_ativos": "DadosAtivosUnificados.json"}
+        )
+
+
+
+# ============================================================
+# ARQUIVO:
+# v2\core\services\news_service.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-11 22:34:15
+# ============================================================
+
+
+
+import json
+from pathlib import Path
+from datetime import datetime
+from typing import Optional, Dict, Any
+
+from ..contracts import NewsContext
+
+class NewsService:
+    def __init__(self, coletas_dir: Optional[Path] = None):
+        if coletas_dir is None:
+            self.coletas_dir = Path(__file__).resolve().parent.parent.parent.parent / "Coletas"
+        else:
+            self.coletas_dir = coletas_dir
+
+    def _carregar_json(self, nome: str) -> Dict[str, Any]:
+        caminho = self.coletas_dir / nome
+        if not caminho.exists():
+            return {}
+        try:
+            with open(caminho, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except:
+            return {}
+
+    def get_news(self) -> Optional[NewsContext]:
+        dados = self._carregar_json("Noticias_Impacto_Dia.json")
+        if not dados:
+            return None
+        resumo = dados.get("resumo", {})
+        alertas = dados.get("alertas", {})
+        return NewsContext(
+            timestamp=datetime.now(),
+            impacto_total=resumo.get("impacto_total", 0),
+            classificacao_risco=resumo.get("classificacao", "BAIXO"),
+            tem_3_estrelas_brasil_0900=alertas.get("tem_3_estrelas_brasil_0900", False),
+            tem_3_estrelas_outros_horarios=alertas.get("tem_3_estrelas_outros_horarios", False),
+            tem_multiplas_2_estrelas_mesmo_horario=alertas.get("tem_multiplas_2_estrelas_mesmo_horario", False),
+            risco_abertura_win=alertas.get("risco_abertura_WIN", False),
+            eventos_3_estrelas=alertas.get("noticias_3_estrelas_outros_horarios", []),
+            horarios_multiplas_2_estrelas=alertas.get("horarios_multiplas_2_estrelas", []),
+            metadados={"fonte": "Noticias_Impacto_Dia.json"}
+        )
+
+
+
+# ============================================================
+# ARQUIVO:
+# v2\core\services\prediction_service.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-11 22:34:02
+# ============================================================
+
+
+
+import sys
+from pathlib import Path
+from datetime import datetime
+from typing import Optional, Dict
+
+BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+
+try:
+    from NOVO_MOTOR_PREVISAO_ABERTURA.core.motor_previsao import executar_previsao
+    NOVO_MOTOR_DISPONIVEL = True
+except ImportError:
+    NOVO_MOTOR_DISPONIVEL = False
+
+try:
+    from Engine_Vies import executar_core
+    LEGADO_DISPONIVEL = True
+except ImportError:
+    LEGADO_DISPONIVEL = False
+
+from ..contracts import PredictionContext
+
+class PredictionService:
+    def get_prediction(self) -> Optional[PredictionContext]:
+        # Novo Motor
+        if NOVO_MOTOR_DISPONIVEL:
+            try:
+                dados = executar_previsao()
+                if dados and dados.get("score", {}).get("valor", 0) > 20:
+                    return self._criar_contexto_novo_motor(dados)
+                else:
+                    print("⚠️ PredictionService: Novo Motor retornou score baixo ou vazio.")
+            except Exception as e:
+                print(f"⚠️ PredictionService: erro no Novo Motor: {e}")
+
+        # Fallback Engine_Vies
+        if LEGADO_DISPONIVEL:
+            try:
+                dados_legado = executar_core()
+                if dados_legado:
+                    win = dados_legado.get("analise_operacional", {}).get("WIN_INDICE", {})
+                    vies = win.get("vies_final", "NEUTRO")
+                    score = win.get("score_numeric", 0)
+                    if "COMPRA" in vies.upper() and score > 1.0:
+                        direcao = "COMPRA"
+                    elif "VENDA" in vies.upper() and score < -1.0:
+                        direcao = "VENDA"
+                    else:
+                        print("⚠️ PredictionService: Fallback retornou NEUTRO ou score baixo.")
+                        return None
+                    score_norm = min(100, max(30, abs(score) * 20))
+                    return PredictionContext(
+                        timestamp=datetime.now(),
+                        ativo="WIN",
+                        abertura_projetada=0.0,
+                        faixa_provavel_inferior=0.0,
+                        faixa_provavel_superior=0.0,
+                        gap_pontos=0.0,
+                        gap_percentual=0.0,
+                        gap_intensidade="N/A",
+                        classificacao_gap="N/A",
+                        direcao_prevista=direcao,
+                        score=score_norm,
+                        score_classificacao="FORTE" if score_norm > 70 else "MODERADO",
+                        score_detalhes={"legado_score": score},
+                        analise_ajuste={},
+                        cenario_principal={},
+                        cenario_alternativo={},
+                        metadados={"fonte": "Engine_Vies (fallback)"}
+                    )
+            except Exception as e:
+                print(f"⚠️ PredictionService: erro no fallback: {e}")
+
+        return None
+
+    def _criar_contexto_novo_motor(self, dados: Dict) -> PredictionContext:
+        return PredictionContext(
+            timestamp=datetime.fromisoformat(dados.get("timestamp", datetime.now().isoformat())),
+            ativo=dados.get("ativo", "WIN"),
+            abertura_projetada=dados.get("abertura_projetada", 0.0),
+            faixa_provavel_inferior=dados["faixa_provavel"][0] if dados.get("faixa_provavel") else 0.0,
+            faixa_provavel_superior=dados["faixa_provavel"][1] if dados.get("faixa_provavel") else 0.0,
+            gap_pontos=dados.get("gap", {}).get("pontos", 0.0),
+            gap_percentual=dados.get("gap", {}).get("percentual", 0.0),
+            gap_intensidade=dados.get("gap", {}).get("intensidade", "N/A"),
+            classificacao_gap=dados.get("gap", {}).get("classificacao", "N/A"),
+            direcao_prevista=dados.get("direcao_prevista", "NEUTRO"),
+            score=dados.get("score", {}).get("valor", 0.0),
+            score_classificacao=dados.get("score", {}).get("classificacao", "N/A"),
+            score_detalhes=dados.get("score", {}).get("detalhes", {}),
+            analise_ajuste=dados.get("analise_ajuste", {}),
+            cenario_principal=dados.get("cenario_principal", {}),
+            cenario_alternativo=dados.get("cenario_alternativo", {}),
+            metadados=dados.get("metadados", {})
+        )
+
+
+
+# ============================================================
+# ARQUIVO:
+# v2\core\services\vision_ai_service.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-11 23:49:51
+# ============================================================
+
+
+
+# v2/core/services/vision_ai_service.py
+"""
+VisionAIService: Analisa imagens de graficos usando Groq Vision.
+"""
+
+import sys
+import json
+import base64
+import re
+from pathlib import Path
+from typing import Optional, Dict, Any
+
+BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+
+from utils.KeyManager import get_groq_client, key_manager
+
+
+class VisionAIService:
+    def __init__(self, imagens_dir: Optional[Path] = None):
+        if imagens_dir is None:
+            self.imagens_dir = BASE_DIR / "Coletas"
+        else:
+            self.imagens_dir = imagens_dir
+
+        self.modelos_visuais = [
+            "llama-3.2-11b-vision-preview",
+            "meta-llama/llama-4-maverick-17b-128e-instruct",
+            "qwen/qwen3.6-27b"
+        ]
+
+    def _carregar_imagem_base64(self, nome_arquivo: str) -> Optional[str]:
+        caminho = self.imagens_dir / nome_arquivo
+        if not caminho.exists():
+            return None
+
+        try:
+            with open(caminho, "rb") as f:
+                return base64.b64encode(f.read()).decode("utf-8")
+        except Exception as e:
+            print(f"Erro ao carregar {nome_arquivo}: {e}")
+            return None
+
+    def _montar_prompt(self) -> str:
+        prompt = '''
+VOCE E UM ESPECIALISTA EM SMART MONEY CONCEPTS (SMC) E ICT.
+
+Analise o grafico anexado e extraia as seguintes informacoes. Responda APENAS em formato JSON valido, sem texto adicional. Use os campos exatamente como especificados.
+
+{
+    "direcao_estrutura": "ALTA" ou "BAIXA" ou "LATERAL",
+    "bos": true ou false,
+    "choch": true ou false,
+    "liquidity_zones": [precos],
+    "order_blocks": [
+        {"tipo": "COMPRA", "preco": 123456},
+        {"tipo": "VENDA", "preco": 123000}
+    ],
+    "fair_value_gaps": [
+        {"tipo": "COMPRA", "superior": 123500, "inferior": 123200},
+        {"tipo": "VENDA", "superior": 122800, "inferior": 122500}
+    ],
+    "suportes": [122000, 121500],
+    "resistencias": [124000, 124500],
+    "entrada_sugerida": 123450,
+    "stop_sugerido": 122800,
+    "alvos": [124200, 124800],
+    "confianca_visual": 75
+}
+
+Use numeros inteiros para precos. Se nao conseguir identificar algum campo, use null ou lista vazia.
+Apenas JSON.
+'''
+        return prompt
+
+    def analisar_imagem(
+        self,
+        imagem_base64: str,
+        modelo: str
+    ) -> Optional[Dict[str, Any]]:
+        try:
+            client, key_utilizada = get_groq_client()
+            print(f"Analisando com {modelo} (chave: {key_utilizada[:8]}...)")
+
+            response = client.chat.completions.create(
+                model=modelo,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "Voce e um especialista em SMC/ICT. Responda apenas em JSON."
+                    },
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": self._montar_prompt()
+                            },
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/png;base64,{imagem_base64}"
+                                }
+                            }
+                        ]
+                    }
+                ],
+                temperature=0.1,
+                max_tokens=1500,
+            )
+
+            if hasattr(response, "usage"):
+                tokens = response.usage.total_tokens
+                key_manager.registrar_uso(key_utilizada, tokens)
+                print(f"Tokens usados: {tokens}")
+
+            resposta_texto = response.choices[0].message.content
+
+            json_match = re.search(
+                r"```json\s*(\{.*?\})\s*```",
+                resposta_texto,
+                re.DOTALL
+            )
+            if json_match:
+                resposta_texto = json_match.group(1)
+            else:
+                json_match = re.search(
+                    r"(\{.*\})",
+                    resposta_texto,
+                    re.DOTALL
+                )
+                if json_match:
+                    resposta_texto = json_match.group(1)
+
+            return json.loads(resposta_texto)
+
+        except Exception as e:
+            print(f"Erro na analise com {modelo}: {e}")
+            return None
+
+    def analisar(
+        self,
+        nome_imagem: str = "WIN_1min.png"
+    ) -> Optional[Dict[str, Any]]:
+        b64 = self._carregar_imagem_base64(nome_imagem)
+        if not b64:
+            print(f"Imagem {nome_imagem} nao encontrada em {self.imagens_dir}")
+            return None
+
+        for modelo in self.modelos_visuais:
+            resultado = self.analisar_imagem(b64, modelo)
+            if resultado:
+                return resultado
+
+        print("Nenhum modelo conseguiu analisar a imagem.")
+        return None
+
+
+
+# ============================================================
+# ARQUIVO:
+# v2\core\services\vision_service.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-11 22:34:50
+# ============================================================
+
+
+
+from pathlib import Path
+from datetime import datetime
+from typing import Optional
+
+from ..contracts import VisionContext
+
+class VisionService:
+    def __init__(self, market_context=None):
+        self.market = market_context
+
+    def get_vision(self, ativo: str = "WIN") -> Optional[VisionContext]:
+        if not self.market or not self.market.tendencia_win_padrao:
+            return VisionContext(
+                timestamp=datetime.now(),
+                ativo=ativo,
+                direcao_estrutura="NEUTRO",
+                bos=False,
+                choch=False,
+                liquidity_zones=[],
+                order_blocks=[],
+                fair_value_gaps=[],
+                suportes=[],
+                resistencias=[],
+                entrada_sugerida=None,
+                stop_sugerido=None,
+                alvos=[],
+                confianca_visual=0,
+                metadados={"fonte": "sem_dados"}
+            )
+
+        padrao = self.market.tendencia_win_padrao
+        if padrao == "Alta_E_Alta":
+            direcao, bos, choch, conf = "COMPRA", True, False, 80
+        elif padrao == "Baixa_E_Baixa":
+            direcao, bos, choch, conf = "VENDA", True, False, 80
+        elif padrao in ["Alta_E_Estavel", "Estavel_E_Alta"]:
+            direcao, bos, choch, conf = "COMPRA", False, False, 50
+        elif padrao in ["Baixa_E_Estavel", "Estavel_E_Baixa"]:
+            direcao, bos, choch, conf = "VENDA", False, False, 50
+        elif "Alta_E_Baixa" in padrao or "Baixa_E_Alta" in padrao:
+            direcao, bos, choch, conf = "NEUTRO", False, True, 30
+        else:
+            direcao, bos, choch, conf = "NEUTRO", False, False, 20
+
+        ajuste = self.market.win_ajuste if ativo == "WIN" else self.market.wdo_ajuste
+        suportes = [ajuste - 150, ajuste - 300] if ajuste else []
+        resistencias = [ajuste + 150, ajuste + 300] if ajuste else []
+
+        return VisionContext(
+            timestamp=datetime.now(),
+            ativo=ativo,
+            direcao_estrutura=direcao,
+            bos=bos,
+            choch=choch,
+            liquidity_zones=[],
+            order_blocks=[],
+            fair_value_gaps=[],
+            suportes=suportes,
+            resistencias=resistencias,
+            entrada_sugerida=None,
+            stop_sugerido=None,
+            alvos=[],
+            confianca_visual=conf,
+            metadados={"fonte": "tendencia_15min", "padrao": padrao}
+        )
+
+
+
+# ============================================================
+# ARQUIVO:
+# v2\main.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-11 22:29:59
+# ============================================================
+
+
+
+# v2/main.py
+import sys
+from pathlib import Path
+from datetime import datetime
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(BASE_DIR))
+
+from v2.core.services.market_service import MarketService
+from v2.core.services.prediction_service import PredictionService
+from v2.core.services.news_service import NewsService
+from v2.core.services.vision_service import VisionService
+from v2.core.engines.confluence_engine import ConfluenceEngine
+from v2.core.engines.decision_engine import DecisionEngine
+
+def main():
+    print("=" * 60)
+    print("🚀 ANALISADOR FINANCEIRO V2 - TESTE")
+    print("=" * 60)
+
+    # 1. MarketContext
+    print("\n📊 Carregando MarketContext...")
+    market_service = MarketService()
+    market = market_service.build()
+    if not market:
+        print("❌ Falha ao carregar MarketContext")
+        return
+    print(f"✅ WIN: {market.win_fut.preco:.0f} ({market.win_fut.variacao_pct:+.2f}%)")
+    print(f"✅ VIX: {market.vix.preco:.2f} ({market.vix.variacao_pct:+.2f}%)")
+
+    # 2. PredictionContext
+    print("\n🔮 Carregando PredictionContext...")
+    pred_service = PredictionService()
+    prediction = pred_service.get_prediction()
+    if prediction:
+        print(f"✅ Direção: {prediction.direcao_prevista} (score: {prediction.score:.1f})")
+    else:
+        print("⚠️ Prediction não disponível")
+
+    # 3. NewsContext
+    print("\n📰 Carregando NewsContext...")
+    news_service = NewsService()
+    news = news_service.get_news()
+    if news:
+        print(f"✅ Risco: {news.classificacao_risco} (impacto: {news.impacto_total})")
+    else:
+        print("⚠️ News não disponível")
+
+    # 4. VisionContext
+    print("\n📈 Carregando VisionContext...")
+    vision_service = VisionService(market_context=market)
+    vision = vision_service.get_vision()
+    if vision:
+        print(f"✅ Estrutura: {vision.direcao_estrutura} (conf. {vision.confianca_visual}%)")
+    else:
+        print("⚠️ Vision não disponível")
+
+    # 5. Confluência
+    print("\n⚖️ Executando ConfluenceEngine...")
+    engine = ConfluenceEngine()
+    resultado = engine.processar(market, prediction, news, vision)
+    print(f"✅ Viés: {resultado['vies']} | Confiança: {resultado['confianca']}%")
+
+    # 6. Decisão
+    print("\n🎯 Gerando Decisão...")
+    dec_engine = DecisionEngine(ativo="WIN")
+    decisao = dec_engine.gerar_decisao(resultado, market)
+    print(f"✅ Decisão: {decisao.vies_final} (confiança: {decisao.confianca}%)")
+    if decisao.entrada:
+        print(f"   Entrada: {decisao.entrada:.0f} | Stop: {decisao.stop_loss:.0f} | Alvo1: {decisao.alvo_1:.0f} | Alvo2: {decisao.alvo_2:.0f}")
+    else:
+        print("   ⏳ Aguardando confirmação")
+
+    print("\n" + "=" * 60)
+    print("✅ Teste concluído!")
+
+if __name__ == "__main__":
+    main()
+
+
+
+# ============================================================
+# ARQUIVO:
+# v2\pages\__init__.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-11 22:35:49
+# ============================================================
+
+
+
+# v2/pages/__init__.py
+
+
+
+# ============================================================
+# ARQUIVO:
+# v2\pages\analise_detalhada.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-11 22:38:43
+# ============================================================
+
+
+
+import streamlit as st
+import sys
+import plotly.graph_objects as go
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(BASE_DIR))
+
+from v2.core.services.market_service import MarketService
+from v2.core.services.prediction_service import PredictionService
+from v2.core.services.news_service import NewsService
+from v2.core.services.vision_service import VisionService
+from v2.core.engines.confluence_engine import ConfluenceEngine
+from v2.core.engines.decision_engine import DecisionEngine
+
+st.set_page_config(page_title="Análise Detalhada", layout="wide")
+st.title("📊 Análise Detalhada da Decisão")
+
+# Carrega dados
+market = MarketService().build()
+prediction = PredictionService().get_prediction()
+news = NewsService().get_news()
+vision = VisionService(market_context=market).get_vision()
+
+if not market:
+    st.error("❌ MarketContext não disponível.")
+    st.stop()
+
+engine = ConfluenceEngine()
+resultado = engine.processar(market, prediction, news, vision)
+decisao = DecisionEngine().gerar_decisao(resultado, market)
+
+col1, col2, col3 = st.columns(3)
+with col1: st.metric("Viés Consolidado", resultado["vies"], f"Confiança: {resultado['confianca']}%")
+with col2: st.metric("Decisão", decisao.vies_final, f"Confiança: {decisao.confianca}%")
+with col3: st.metric("Entrada", f"{decisao.entrada:.0f}" if decisao.entrada else "Aguardar")
+
+# Gráfico de votos
+votos = resultado["votos"]
+fig = go.Figure()
+fig.add_trace(go.Bar(x=["COMPRA", "VENDA"], y=[votos["COMPRA"], votos["VENDA"]],
+                     marker_color=["#00c853", "#ff3d00"]))
+fig.update_layout(title="Votos por Direção", plot_bgcolor="#0e1117", paper_bgcolor="#0e1117",
+                  font_color="#e6edf3", height=300)
+st.plotly_chart(fig, width="stretch")
+
+# Motivos e riscos
+col1, col2 = st.columns(2)
+with col1:
+    st.subheader("✅ Motivos")
+    for m in resultado["motivos"]:
+        st.write(f"- {m}")
+with col2:
+    st.subheader("⚠️ Riscos")
+    for r in resultado["riscos"]:
+        st.write(f"- {r}")
+
+# Níveis (pivôs)
+st.subheader("📍 Níveis de Preço")
+pivots = decisao.metadados.get("pivots", {})
+if pivots:
+    cols = st.columns(5)
+    with cols[0]: st.metric("R2", f"{pivots.get('r2', 0):.0f}")
+    with cols[1]: st.metric("R1", f"{pivots.get('r1', 0):.0f}")
+    with cols[2]: st.metric("PP", f"{pivots.get('pp', 0):.0f}")
+    with cols[3]: st.metric("S1", f"{pivots.get('s1', 0):.0f}")
+    with cols[4]: st.metric("S2", f"{pivots.get('s2', 0):.0f}")
+
+# Tabela de contribuição dos fatores (simulada)
+st.subheader("🧮 Contribuição dos Fatores")
+fatores = [
+    {"Fator": "Mercado Externo", "Contribuição": market.indicador_mercado_externo or 0},
+    {"Fator": "ADRs", "Contribuição": market.indicador_adrs_brasileiras or 0},
+    {"Fator": "Tendência", "Contribuição": 1 if market.tendencia_win == "SUBIU" else -1 if market.tendencia_win == "DESCEU" else 0},
+    {"Fator": "Predição", "Contribuição": 1 if prediction and prediction.direcao_prevista == "COMPRA" else -1 if prediction and prediction.direcao_prevista == "VENDA" else 0},
+    {"Fator": "Visão SMC", "Contribuição": 1 if vision and vision.direcao_estrutura == "COMPRA" else -1 if vision and vision.direcao_estrutura == "VENDA" else 0},
+]
+st.dataframe(fatores, hide_index=True)
+
+st.caption("Análise gerada pelo motor V2")
+
+
+
+# ============================================================
+# ARQUIVO:
+# v2\pages\comparador.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-11 22:36:12
+# ============================================================
+
+
+
+import streamlit as st
+import sys
+import json
+from pathlib import Path
+from datetime import datetime
+import pandas as pd
+
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(BASE_DIR))
+
+from v2.core.services.market_service import MarketService
+from v2.core.services.prediction_service import PredictionService
+from v2.core.services.news_service import NewsService
+from v2.core.services.vision_service import VisionService
+from v2.core.engines.confluence_engine import ConfluenceEngine
+from v2.core.engines.decision_engine import DecisionEngine
+
+st.set_page_config(page_title="Comparador V1 × V2", layout="wide")
+st.title("⚖️ Comparador de Decisões – V1 (Legado) vs V2")
+
+market = MarketService().build()
+prediction = PredictionService().get_prediction()
+news = NewsService().get_news()
+vision = VisionService(market_context=market).get_vision()
+
+if not market:
+    st.error("❌ MarketContext não disponível.")
+    st.stop()
+
+engine = ConfluenceEngine()
+resultado = engine.processar(market, prediction, news, vision)
+decisao = DecisionEngine().gerar_decisao(resultado, market)
+
+vies_v1, score_v1 = "N/A", 0
+try:
+    with open(BASE_DIR / "Coletas" / "Decisao_Core.json", "r") as f:
+        raw = json.load(f)
+        win = raw.get("analise_operacional", {}).get("WIN_INDICE", {})
+        vies_v1 = win.get("vies_final", "N/A")
+        score_v1 = win.get("score_numeric", 0)
+except: pass
+
+col1, col2 = st.columns(2)
+with col1:
+    st.subheader("📟 V1 (Legado)")
+    st.metric("Viés", vies_v1); st.metric("Score", f"{score_v1:.2f}")
+with col2:
+    st.subheader("🚀 V2")
+    st.metric("Viés", decisao.vies_final)
+    st.metric("Confiança", f"{decisao.confianca}%")
+    if decisao.entrada:
+        st.metric("Entrada", f"{decisao.entrada:.0f}")
+        st.metric("Stop", f"{decisao.stop_loss:.0f}")
+
+df = pd.DataFrame({
+    "Critério": ["Viés", "Score/Confiança", "Entrada", "Stop"],
+    "V1": [vies_v1, f"{score_v1:.2f}", "—", "—"],
+    "V2": [decisao.vies_final, f"{decisao.confianca}%", f"{decisao.entrada:.0f}" if decisao.entrada else "—", f"{decisao.stop_loss:.0f}" if decisao.stop_loss else "—"]
+})
+st.dataframe(df, hide_index=True)
+
+with st.expander("📋 Motivos e Riscos (V2)"):
+    st.write("**Motivos:**"); [st.write(f"- {m}") for m in resultado["motivos"]]
+    st.write("**Riscos:**"); [st.write(f"- {r}") for r in resultado["riscos"]]
+
+
+
+# ============================================================
+# ARQUIVO:
+# v2\pages\dashboard_v2 copy.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-11 22:50:59
+# ============================================================
+
+
+
+# v2/pages/dashboard_v2.py
+import streamlit as st
+import sys
+import pandas as pd
+from pathlib import Path
+from datetime import datetime
+
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(BASE_DIR))
+
+from v2.core.services.market_service import MarketService
+from v2.core.services.prediction_service import PredictionService
+from v2.core.services.news_service import NewsService
+from v2.core.services.vision_service import VisionService
+from v2.core.engines.confluence_engine import ConfluenceEngine
+from v2.core.engines.decision_engine import DecisionEngine
+
+st.set_page_config(page_title="Dashboard V2 - Análise Detalhada", layout="wide")
+
+# ============================================================
+# CSS PERSONALIZADO
+# ============================================================
+st.markdown("""
+<style>
+    .card-bull {
+        border-left: 6px solid #00c853;
+        background: #0d381e;
+        padding: 12px 20px;
+        border-radius: 8px;
+        margin: 8px 0;
+    }
+    .card-bear {
+        border-left: 6px solid #ff3d00;
+        background: #380d0d;
+        padding: 12px 20px;
+        border-radius: 8px;
+        margin: 8px 0;
+    }
+    .card-neutral {
+        border-left: 6px solid #ffc107;
+        background: #1a1c23;
+        padding: 12px 20px;
+        border-radius: 8px;
+        margin: 8px 0;
+    }
+    .badge-bull {
+        background: #00c853;
+        color: #fff;
+        padding: 4px 14px;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        display: inline-block;
+    }
+    .badge-bear {
+        background: #ff3d00;
+        color: #fff;
+        padding: 4px 14px;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        display: inline-block;
+    }
+    .badge-neutral {
+        background: #ffc107;
+        color: #000;
+        padding: 4px 14px;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        display: inline-block;
+    }
+    .progress-bar-bull {
+        background: linear-gradient(90deg, #00c853, #00ff88);
+        height: 12px;
+        border-radius: 6px;
+        transition: width 0.6s ease;
+    }
+    .progress-bar-bear {
+        background: linear-gradient(90deg, #ff3d00, #ff6d00);
+        height: 12px;
+        border-radius: 6px;
+        transition: width 0.6s ease;
+    }
+    .progress-bar-neutral {
+        background: #ffc107;
+        height: 12px;
+        border-radius: 6px;
+        transition: width 0.6s ease;
+    }
+    .fator-item {
+        padding: 6px 0;
+        border-bottom: 1px solid #2a2d4a;
+    }
+    .fator-item:last-child {
+        border-bottom: none;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+st.title("🚀 Dashboard V2 - Analisador Financeiro")
+st.caption("Decisão com análise de contribuição dos fatores")
+
+# Carregar dados
+market = MarketService().build()
+prediction = PredictionService().get_prediction()
+news = NewsService().get_news()
+vision = VisionService(market_context=market).get_vision()
+
+if not market:
+    st.error("❌ MarketContext não disponível.")
+    st.stop()
+
+# Executar Motores
+engine = ConfluenceEngine()
+resultado = engine.processar(market, prediction, news, vision)
+decisao = DecisionEngine().gerar_decisao(resultado, market)
+
+# ============================================================
+# 1. PAINEL SUPERIOR (Cotações)
+# ============================================================
+st.subheader("📊 Cotações em Tempo Real")
+col1, col2, col3, col4 = st.columns(4)
+with col1:
+    var = market.win_fut.variacao_pct
+    delta_color = "normal" if var > 0 else "inverse"
+    st.metric("**WIN**", f"{market.win_fut.preco:.0f}", f"{var:+.2f}%", delta_color=delta_color)
+with col2:
+    var = market.wdo_fut.variacao_pct
+    delta_color = "normal" if var > 0 else "inverse"
+    st.metric("**WDO**", f"{market.wdo_fut.preco:.2f}", f"{var:+.2f}%", delta_color=delta_color)
+with col3:
+    var = market.vix.variacao_pct
+    st.metric("**VIX**", f"{market.vix.preco:.2f}", f"{var:+.2f}%", delta_color="inverse")
+with col4:
+    st.metric("**Tendência**", market.tendencia_win_padrao or "N/A")
+
+st.divider()
+
+# ============================================================
+# 2. DECISÃO E VIÉS COM CORES
+# ============================================================
+col1, col2 = st.columns(2)
+
+with col1:
+    st.subheader("🎯 Decisão Final")
+    vies = resultado["vies"]
+    conf = resultado["confianca"]
+
+    # Define classe CSS e badge
+    if vies == "COMPRA":
+        card_class = "card-bull"
+        badge_class = "badge-bull"
+        emoji = "🟢"
+    elif vies == "VENDA":
+        card_class = "card-bear"
+        badge_class = "badge-bear"
+        emoji = "🔴"
+    else:
+        card_class = "card-neutral"
+        badge_class = "badge-neutral"
+        emoji = "🟡"
+
+    # Barra de progresso da confiança
+    if vies == "COMPRA":
+        bar_class = "progress-bar-bull"
+    elif vies == "VENDA":
+        bar_class = "progress-bar-bear"
+    else:
+        bar_class = "progress-bar-neutral"
+
+    st.markdown(f"""
+    <div class="{card_class}">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:1.8rem; font-weight:700;">{emoji} {vies}</span>
+            <span class="{badge_class}">{conf}% confiança</span>
+        </div>
+        <div style="margin-top:8px;">
+            <div style="width:100%; background:#2a2d4a; border-radius:6px; overflow:hidden;">
+                <div class="{bar_class}" style="width:{conf}%;"></div>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col2:
+    st.subheader("📋 Status Operacional")
+    if decisao.entrada:
+        st.success(f"✅ **Entrada em {decisao.entrada:.0f}**")
+        m1, m2, m3 = st.columns(3)
+        with m1: st.metric("Stop", f"{decisao.stop_loss:.0f}", delta="Loss", delta_color="inverse")
+        with m2: st.metric("Alvo 1", f"{decisao.alvo_1:.0f}", delta="Alvo")
+        with m3: st.metric("Alvo 2", f"{decisao.alvo_2:.0f}", delta="Alvo")
+    else:
+        st.warning(f"⏳ {decisao.invalidacao}")
+
+st.divider()
+
+# ============================================================
+# 3. ANÁLISE DE CONTRIBUIÇÃO DOS FATORES
+# ============================================================
+st.subheader("🧮 Análise de Contribuição dos Fatores")
+
+# Gráfico de barras com cores personalizadas
+votos = resultado["votos"]
+df_votos = pd.DataFrame({
+    "Direção": ["COMPRA", "VENDA"],
+    "Pontuação": [votos["COMPRA"], votos["VENDA"]]
+})
+
+# Use st.bar_chart com color_map (mas não suporta cores diretas)
+# Então usamos st.altair_chart para ter mais controle
+import altair as alt
+
+chart = alt.Chart(df_votos).mark_bar().encode(
+    x=alt.X("Direção", axis=alt.Axis(labelAngle=0)),
+    y=alt.Y("Pontuação", title="Pontuação"),
+    color=alt.Color("Direção", scale=alt.Scale(domain=["COMPRA", "VENDA"], range=["#00c853", "#ff3d00"])),
+    tooltip=["Direção", "Pontuação"]
+).properties(
+    height=250,
+    width="container"
+)
+st.altair_chart(chart, use_container_width=True)
+
+# Diagnóstico textual
+st.markdown("### 📝 Diagnóstico da Decisão")
+
+motivos = resultado["motivos"]
+fatores_compra = [m for m in motivos if "COMPRA" in m]
+fatores_venda = [m for m in motivos if "VENDA" in m]
+fatores_neutros = [m for m in motivos if "NEUTRO" in m or "neutro" in m.lower()]
+
+diagnostico = []
+
+if fatores_compra and fatores_venda:
+    diagnostico.append("⚖️ **Disputa de forças:**")
+    if votos["COMPRA"] > votos["VENDA"]:
+        diagnostico.append(f"   - 🟢 A **COMPRA** está predominando com **{votos['COMPRA']:.2f}** votos.")
+        diagnostico.append(f"   - 📈 Fatores de COMPRA: {', '.join(fatores_compra)}")
+        diagnostico.append(f"   - 📉 Fatores de VENDA (com {votos['VENDA']:.2f} votos): {', '.join(fatores_venda)}")
+    else:
+        diagnostico.append(f"   - 🔴 A **VENDA** está predominando com **{votos['VENDA']:.2f}** votos.")
+        diagnostico.append(f"   - 📉 Fatores de VENDA: {', '.join(fatores_venda)}")
+        diagnostico.append(f"   - 📈 Fatores de COMPRA (com {votos['COMPRA']:.2f} votos): {', '.join(fatores_compra)}")
+
+if fatores_neutros:
+    diagnostico.append(f"🟡 **Fatores Neutros:** {', '.join(fatores_neutros)}")
+
+if resultado["vies"] == "COMPRA":
+    diagnostico.append(f"✅ **Veredito:** A **COMPRA** venceu com **{resultado['confianca']}%** de confiança.")
+elif resultado["vies"] == "VENDA":
+    diagnostico.append(f"✅ **Veredito:** A **VENDA** venceu com **{resultado['confianca']}%** de confiança.")
+else:
+    diagnostico.append(f"🟡 **Veredito:** **NEUTRO** com **{resultado['confianca']}%** de confiança. Aguardando definição.")
+
+for linha in diagnostico:
+    st.markdown(linha)
+
+st.caption("💡 A pontuação é calculada com base nos pesos de cada fator (Mercado, ADRs, Tendência, Predição, Visão SMC).")
+
+st.divider()
+
+# ============================================================
+# 4. DETALHES DOS MOTIVOS E RISCOS
+# ============================================================
+with st.expander("📋 Ver lista completa de Motivos e Riscos"):
+    st.write("**Motivos:**")
+    for m in resultado["motivos"]:
+        st.write(f"- {m}")
+    st.write("**Riscos:**")
+    for r in resultado["riscos"]:
+        st.write(f"- {r}")
+
+# ============================================================
+# 5. NÍVEIS DE PREÇO (PIVOTS)
+# ============================================================
+if "pivots" in decisao.metadados:
+    st.subheader("📍 Níveis de Preço (Pivots)")
+    p = decisao.metadados["pivots"]
+    col1, col2, col3, col4, col5 = st.columns(5)
+    with col1: st.metric("R2", f"{p.get('r2', 0):.0f}")
+    with col2: st.metric("R1", f"{p.get('r1', 0):.0f}")
+    with col3: st.metric("PP", f"{p.get('pp', 0):.0f}")
+    with col4: st.metric("S1", f"{p.get('s1', 0):.0f}")
+    with col5: st.metric("S2", f"{p.get('s2', 0):.0f}")
+
+st.caption(f"Última atualização: {datetime.now().strftime('%H:%M:%S')}")
+
+
+
+# ============================================================
+# ARQUIVO:
+# v2\pages\dashboard_v2.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-11 22:54:50
+# ============================================================
+
+
+
+# v2/pages/dashboard_v2.py
+import streamlit as st
+import sys
+import pandas as pd
+from pathlib import Path
+from datetime import datetime
+
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(BASE_DIR))
+
+from v2.core.services.market_service import MarketService
+from v2.core.services.prediction_service import PredictionService
+from v2.core.services.news_service import NewsService
+from v2.core.services.vision_service import VisionService
+from v2.core.engines.confluence_engine import ConfluenceEngine
+from v2.core.engines.decision_engine import DecisionEngine
+
+st.set_page_config(page_title="Dashboard V2 - Análise Detalhada", layout="wide")
+st.title("🚀 Dashboard V2 - Analisador Financeiro")
+st.caption("Decisão com análise de contribuição dos fatores")
+
+# CSS personalizado para cores e cards
+st.markdown("""
+<style>
+    .card-compra {
+        background: linear-gradient(135deg, #0d381e, #1a5a2e);
+        border-left: 5px solid #00c853;
+        border-radius: 10px;
+        padding: 16px;
+        margin: 8px 0;
+    }
+    .card-venda {
+        background: linear-gradient(135deg, #3d0d0d, #5a1a1a);
+        border-left: 5px solid #ff3d00;
+        border-radius: 10px;
+        padding: 16px;
+        margin: 8px 0;
+    }
+    .card-neutro {
+        background: linear-gradient(135deg, #1a1c23, #2a2d3a);
+        border-left: 5px solid #ffc107;
+        border-radius: 10px;
+        padding: 16px;
+        margin: 8px 0;
+    }
+    .badge-compra {
+        background: #00c853;
+        color: #000;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-weight: 700;
+        font-size: 0.8rem;
+    }
+    .badge-venda {
+        background: #ff3d00;
+        color: #fff;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-weight: 700;
+        font-size: 0.8rem;
+    }
+    .badge-neutro {
+        background: #ffc107;
+        color: #000;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-weight: 700;
+        font-size: 0.8rem;
+    }
+    .progress-bar {
+        height: 10px;
+        border-radius: 10px;
+        background: #2a2d4a;
+        margin: 6px 0;
+    }
+    .progress-bar .fill-compra {
+        background: linear-gradient(90deg, #00c853, #00ff88);
+        height: 100%;
+        border-radius: 10px;
+        transition: width 0.5s ease;
+    }
+    .progress-bar .fill-venda {
+        background: linear-gradient(90deg, #ff3d00, #ff6d00);
+        height: 100%;
+        border-radius: 10px;
+        transition: width 0.5s ease;
+    }
+    .progress-bar .fill-neutro {
+        background: linear-gradient(90deg, #ffc107, #ffdd57);
+        height: 100%;
+        border-radius: 10px;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# Carregar dados
+market = MarketService().build()
+prediction = PredictionService().get_prediction()
+news = NewsService().get_news()
+vision = VisionService(market_context=market).get_vision()
+
+if not market:
+    st.error("❌ MarketContext não disponível.")
+    st.stop()
+
+# Executar Motores
+engine = ConfluenceEngine()
+resultado = engine.processar(market, prediction, news, vision)
+decisao = DecisionEngine().gerar_decisao(resultado, market)
+
+# ============================================================
+# 1. PAINEL SUPERIOR (Cotações)
+# ============================================================
+st.subheader("📊 Cotações em Tempo Real")
+col1, col2, col3, col4 = st.columns(4)
+
+with col1:
+    cor_win = "green" if market.win_fut.variacao_pct > 0 else "red"
+    st.metric("WIN", f"{market.win_fut.preco:.0f}", f"{market.win_fut.variacao_pct:+.2f}%", delta_color="normal")
+with col2:
+    cor_wdo = "green" if market.wdo_fut.variacao_pct > 0 else "red"
+    st.metric("WDO", f"{market.wdo_fut.preco:.2f}", f"{market.wdo_fut.variacao_pct:+.2f}%", delta_color="normal")
+with col3:
+    st.metric("VIX", f"{market.vix.preco:.2f}", f"{market.vix.variacao_pct:+.2f}%", delta_color="inverse")
+with col4:
+    st.metric("Tendência", market.tendencia_win_padrao or "N/A")
+
+st.divider()
+
+# ============================================================
+# 2. DECISÃO E VIÉS (com cards coloridos)
+# ============================================================
+st.subheader("🎯 Decisão Final")
+
+col1, col2 = st.columns([1, 1])
+
+with col1:
+    vies = resultado["vies"]
+    if vies == "COMPRA":
+        card_class = "card-compra"
+        badge = '<span class="badge-compra">🟢 COMPRA</span>'
+    elif vies == "VENDA":
+        card_class = "card-venda"
+        badge = '<span class="badge-venda">🔴 VENDA</span>'
+    else:
+        card_class = "card-neutro"
+        badge = '<span class="badge-neutro">🟡 NEUTRO</span>'
+
+    st.markdown(f"""
+    <div class="{card_class}">
+        <h3 style="margin:0;">Viés Consolidado</h3>
+        <div style="font-size:2rem; font-weight:700;">{badge}</div>
+        <div style="font-size:1.2rem;">Confiança: {resultado['confianca']}%</div>
+        <div class="progress-bar">
+            <div class="fill-{vies.lower() if vies in ['COMPRA','VENDA'] else 'neutro'}" style="width:{resultado['confianca']}%;"></div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col2:
+    if decisao.entrada:
+        st.success(f"✅ **Entrada autorizada** em {decisao.entrada:.0f}")
+        st.metric("Stop Loss", f"{decisao.stop_loss:.0f}", delta="Loss")
+        st.metric("Alvo 1", f"{decisao.alvo_1:.0f}", delta="Alvo")
+        st.metric("Alvo 2", f"{decisao.alvo_2:.0f}", delta="Alvo")
+    else:
+        st.warning(f"⏳ {decisao.invalidacao}")
+
+st.divider()
+
+# ============================================================
+# 3. ANÁLISE DE CONTRIBUIÇÃO DOS FATORES
+# ============================================================
+st.subheader("🧮 Análise de Contribuição dos Fatores")
+
+col1, col2 = st.columns([2, 1])
+
+with col1:
+    # Gráfico de barras com cores
+    votos = resultado["votos"]
+    df_votos = pd.DataFrame({
+        "Direção": ["COMPRA", "VENDA"],
+        "Pontuação": [votos["COMPRA"], votos["VENDA"]]
+    })
+    # Usar cores condicionais
+    import plotly.express as px
+    fig = px.bar(df_votos, x="Direção", y="Pontuação", 
+                 color="Direção",
+                 color_discrete_map={"COMPRA": "#00c853", "VENDA": "#ff3d00"},
+                 title="Votos por Direção",
+                 text_auto=True)
+    fig.update_layout(plot_bgcolor="#0e1117", paper_bgcolor="#0e1117", font_color="#e6edf3")
+    st.plotly_chart(fig, use_container_width=True)
+
+with col2:
+    st.markdown("### 📊 Resumo dos Votos")
+    st.metric("COMPRA", f"{votos['COMPRA']:.2f}", delta="Votos")
+    st.metric("VENDA", f"{votos['VENDA']:.2f}", delta="Votos")
+    st.caption(f"Diferença: {votos['COMPRA'] - votos['VENDA']:+.2f}")
+
+# Diagnóstico textual dinâmico
+st.markdown("### 📝 Diagnóstico da Decisão")
+
+motivos = resultado["motivos"]
+fatores_compra = [m for m in motivos if "COMPRA" in m]
+fatores_venda = [m for m in motivos if "VENDA" in m]
+fatores_neutros = [m for m in motivos if "NEUTRO" in m or "neutro" in m.lower()]
+
+diagnostico = []
+
+if fatores_compra and fatores_venda:
+    diagnostico.append("⚖️ **Disputa de forças:**")
+    if votos["COMPRA"] > votos["VENDA"]:
+        diagnostico.append(f"   - A **COMPRA** está predominando com **{votos['COMPRA']:.2f}** votos.")
+        diagnostico.append(f"   - Principais fatores de COMPRA: {', '.join(fatores_compra)}")
+        diagnostico.append(f"   - Fatores de VENDA (com **{votos['VENDA']:.2f}** votos) estão perdendo: {', '.join(fatores_venda)}")
+    else:
+        diagnostico.append(f"   - A **VENDA** está predominando com **{votos['VENDA']:.2f}** votos.")
+        diagnostico.append(f"   - Principais fatores de VENDA: {', '.join(fatores_venda)}")
+        diagnostico.append(f"   - Fatores de COMPRA (com **{votos['COMPRA']:.2f}** votos) estão perdendo: {', '.join(fatores_compra)}")
+
+if fatores_neutros:
+    diagnostico.append(f"🟡 **Fatores Neutros/Divergentes:** {', '.join(fatores_neutros)}")
+
+if resultado["vies"] == "COMPRA":
+    diagnostico.append(f"✅ **Veredito:** A **COMPRA** venceu com **{resultado['confianca']}%** de confiança.")
+elif resultado["vies"] == "VENDA":
+    diagnostico.append(f"✅ **Veredito:** A **VENDA** venceu com **{resultado['confianca']}%** de confiança.")
+else:
+    diagnostico.append(f"🟡 **Veredito:** **NEUTRO** com **{resultado['confianca']}%** de confiança. Aguardando definição.")
+
+for linha in diagnostico:
+    st.markdown(linha)
+
+st.caption("💡 A pontuação é calculada com base nos pesos de cada fator (Mercado, ADRs, Tendência, Predição, Visão SMC).")
+
+st.divider()
+
+# ============================================================
+# 4. DETALHES DOS MOTIVOS E RISCOS
+# ============================================================
+with st.expander("📋 Ver lista completa de Motivos e Riscos"):
+    st.write("**Motivos:**")
+    for m in resultado["motivos"]:
+        st.write(f"- {m}")
+    st.write("**Riscos:**")
+    for r in resultado["riscos"]:
+        st.write(f"- {r}")
+
+# ============================================================
+# 5. NÍVEIS DE PREÇO (PIVOTS)
+# ============================================================
+if "pivots" in decisao.metadados:
+    st.subheader("📍 Níveis de Preço (Pivots)")
+    p = decisao.metadados["pivots"]
+    col1, col2, col3, col4, col5 = st.columns(5)
+    with col1: st.metric("R2", f"{p.get('r2', 0):.0f}")
+    with col2: st.metric("R1", f"{p.get('r1', 0):.0f}")
+    with col3: st.metric("PP", f"{p.get('pp', 0):.0f}")
+    with col4: st.metric("S1", f"{p.get('s1', 0):.0f}")
+    with col5: st.metric("S2", f"{p.get('s2', 0):.0f}")
+
+st.caption(f"Última atualização: {datetime.now().strftime('%H:%M:%S')}")
+
+
+
+# ============================================================
+# ARQUIVO:
+# v2\tests\__init__.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-11 21:55:50
+# ============================================================
+
+
+
+
+
+
+
+# ============================================================
+# ARQUIVO:
+# v2\tests\test_contracts.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-11 22:36:42
+# ============================================================
+
+
+
+import unittest
+from datetime import datetime
+from v2.core.contracts import AtivoSnapshot, MarketContext
+
+class TestContracts(unittest.TestCase):
+    def test_ativo_snapshot(self):
+        snap = AtivoSnapshot(100.5, 1.2)
+        self.assertEqual(snap.preco, 100.5)
+        self.assertEqual(snap.variacao_pct, 1.2)
+
+if __name__ == "__main__":
+    unittest.main()

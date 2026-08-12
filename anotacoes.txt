@@ -60,7 +60,7 @@ Responda em português de forma objetiva.''',
 
 print(response['message']['content'])
 
-
+#################################################################
 Você é um especialista em Smart Money Concepts (ICT/SMC).
 
 Analise o gráfico e responda de forma objetiva em português:

@@ -1,81 +1,111 @@
 {
   "metadata": {
     "fonte": "TradingView API",
-    "timestamp": "2026-08-11T08:45:25.569902",
-    "data_referencia": "2026-08-11",
+    "timestamp": "2026-08-12T08:10:20.005591",
+    "data_referencia": "2026-08-12",
     "filtros": "Brasil e EUA (2 e 3 Estrelas)"
   },
   "calendario_eventos": {
-    "quantidade_eventos": 7,
+    "quantidade_eventos": 10,
     "eventos": [
       {
         "hora": "08:00",
-        "pais": "Brazil",
-        "moeda": "BRL",
-        "evento": "BCB Copom Meeting Minutes",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "MBA 30-Year Mortgage Rate",
+        "importancia": 2,
+        "anterior": "6.81",
+        "previsao": "",
+        "atual": "6.77"
+      },
+      {
+        "hora": "09:30",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "CPI s.a",
         "importancia": 3,
-        "anterior": "",
+        "anterior": "332.568",
         "previsao": "",
         "atual": ""
       },
       {
-        "hora": "09:00",
-        "pais": "Brazil",
-        "moeda": "BRL",
-        "evento": "Inflation Rate MoM",
-        "importancia": 3,
-        "anterior": "0.16",
-        "previsao": "0.03",
-        "atual": ""
-      },
-      {
-        "hora": "09:00",
-        "pais": "Brazil",
-        "moeda": "BRL",
+        "hora": "09:30",
+        "pais": "United States",
+        "moeda": "USD",
         "evento": "Inflation Rate YoY",
         "importancia": 3,
-        "anterior": "4.64",
-        "previsao": "4.4",
+        "anterior": "3.5",
+        "previsao": "3.4",
         "atual": ""
       },
       {
-        "hora": "09:15",
+        "hora": "09:30",
         "pais": "United States",
         "moeda": "USD",
-        "evento": "ADP Employment Change Weekly",
-        "importancia": 2,
-        "anterior": "15",
-        "previsao": "",
-        "atual": ""
-      },
-      {
-        "hora": "11:00",
-        "pais": "United States",
-        "moeda": "USD",
-        "evento": "Existing Home Sales",
+        "evento": "Core Inflation Rate MoM",
         "importancia": 3,
-        "anterior": "4.09",
-        "previsao": "4.05",
+        "anterior": "0",
+        "previsao": "0.2",
         "atual": ""
       },
       {
-        "hora": "11:00",
+        "hora": "09:30",
         "pais": "United States",
         "moeda": "USD",
-        "evento": "Existing Home Sales MoM",
-        "importancia": 2,
-        "anterior": "-2.4",
-        "previsao": "",
+        "evento": "Core Inflation Rate YoY",
+        "importancia": 3,
+        "anterior": "2.6",
+        "previsao": "2.5",
         "atual": ""
       },
       {
-        "hora": "17:30",
+        "hora": "09:30",
         "pais": "United States",
         "moeda": "USD",
-        "evento": "API Crude Oil Stock Change",
+        "evento": "Inflation Rate MoM",
+        "importancia": 3,
+        "anterior": "-0.4",
+        "previsao": "0.1",
+        "atual": ""
+      },
+      {
+        "hora": "09:30",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "CPI",
+        "importancia": 3,
+        "anterior": "333.95",
+        "previsao": "333.99",
+        "atual": ""
+      },
+      {
+        "hora": "11:30",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "EIA Gasoline Stocks Change",
         "importancia": 2,
-        "anterior": "2.69",
-        "previsao": "-0.5",
+        "anterior": "-1.643",
+        "previsao": "-1.2",
+        "atual": ""
+      },
+      {
+        "hora": "11:30",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "EIA Crude Oil Stocks Change",
+        "importancia": 2,
+        "anterior": "2.479",
+        "previsao": "-1.4",
+        "atual": ""
+      },
+      {
+        "hora": "15:00",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "Monthly Budget Statement",
+        "importancia": 2,
+        "anterior": "-120",
+        "previsao": "-346",
         "atual": ""
       }
     ]

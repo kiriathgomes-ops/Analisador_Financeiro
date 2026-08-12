@@ -1,6 +1,6 @@
 {
   "metadata_calculo": {
-    "timestamp": "2026-08-11T19:59:02.442635",
+    "timestamp": "2026-08-12T08:19:02.659587",
     "total_ativos_processados": 26
   },
   "cambio_e_arbitragem": {
@@ -15,20 +15,20 @@
     "inclinacao_29_27_bps": 42.5
   },
   "indicadores_macro": {
-    "vix": 15.27,
-    "vix_change_pct": -1.1650485436893185,
-    "dxy": 99.812,
-    "crude_oil": 83.45,
-    "crude_oil_change_pct": 0.3004807692307692,
+    "vix": 15.38,
+    "vix_change_pct": 0.7203667321545594,
+    "dxy": 99.846,
+    "crude_oil": 83.46,
+    "crude_oil_change_pct": 0.31249999999998906,
     "iron_ore_fef2": {
-      "close": 95.8,
-      "change_percent": -0.0521648408972323
+      "close": 95.75,
+      "change_percent": -0.1043296817944646
     }
   },
   "performance_relativa": {
     "ewz_change_pct": -3.4384768400113694,
-    "sp500_fut_change_pct": 0.06776379477250725,
-    "nasdaq_fut_change_pct": 0.07172753662323635,
+    "sp500_fut_change_pct": 0.26460148434979025,
+    "nasdaq_fut_change_pct": 0.6784581111186121,
     "adrs_brasileiras": {
       "BBD_ADR": {
         "close": 3.21,
@@ -57,7 +57,7 @@
     }
   },
   "indicadores_compostos": {
-    "indicador_mercado_externo": 1.4134,
+    "indicador_mercado_externo": -0.5122,
     "indicador_adrs_brasileiras": -21.6919
   }
 }

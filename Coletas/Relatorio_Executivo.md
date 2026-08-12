@@ -1,12 +1,12 @@
 # 📈 RELATÓRIO EXECUTIVO DE AUDITORIA E ANÁLISE MACRO
-**Data/Hora da Análise:** 11/08/2026 17:30:03
+**Data/Hora da Análise:** 12/08/2026 08:11:33
 
 ---
 ## 1. PAINEL SINTÉTICO DE AVALIAÇÃO DE MERCADO
 
-* **Ambiente Global de Risco (VIX):** `15.27` → **AMBIENTE NEUTRO / APETITE A RISCO MODERADO**
-* **Arbitragem Dólar Futuro / PTAX:** `58.6 pts` → **PRÊMIO ELEVADO (Dólar Futuro acima da PTAX - Pressão Compradora no WDO)**
-* **Sensibilidade EWZ vs S&P 500:** Spread de `-3.13%` → **DESCOLAMENTO NEGATIVO CRÍTICO (Brasil performando bem pior que EUA)**
+* **Ambiente Global de Risco (VIX):** `15.35` → **AMBIENTE NEUTRO / APETITE A RISCO MODERADO**
+* **Arbitragem Dólar Futuro / PTAX:** `67.67 pts` → **PRÊMIO ELEVADO (Dólar Futuro acima da PTAX - Pressão Compradora no WDO)**
+* **Sensibilidade EWZ vs S&P 500:** Spread de `-3.68%` → **DESCOLAMENTO NEGATIVO CRÍTICO (Brasil performando bem pior que EUA)**
 * **Estrutura de Juros B3 (DI 29-27):** `42.5 bps` de inclinação entre vértices médio e longo.
 
 ---
@@ -14,9 +14,9 @@
 
 ### A. Câmbio e Arbitragem
 - **USD PTAX (Oficial):** R$ 5.1279
-- **WDO Futuro:** R$ 5186.5
-- **Spread (Pontos):** 58.6 pts
-- **Spread (%):** 1.1428%
+- **WDO Futuro:** R$ 5195.566
+- **Spread (Pontos):** 67.67 pts
+- **Spread (%):** 1.3196%
 
 ### B. Curva de Juros Futuros (DI1 B3)
 - **DI1F2027 (Curto/Médio):** 13.755%
@@ -24,14 +24,14 @@
 - **Inclinação (Spread):** 42.5 bps
 
 ### C. Commodities e Drivers Externos
-- **Petróleo (Crude Oil WTI):** US$ 83.42
+- **Petróleo (Crude Oil WTI):** US$ 83.39
 - **Minério de Ferro (SGX):** US$ None
-- **DXY (Índice Dólar):** 99.827
+- **DXY (Índice Dólar):** 99.854
 
 ### D. Performance Relativa de ADRs Brasileiras
 - **EWZ (ETF Brasil):** -3.4384768400113694%
-- **S&P 500 Futuro:** -0.30539749895521906%
-- **Nasdaq Futuro:** -0.28920200423714565%
+- **S&P 500 Futuro:** 0.2452404001290739%
+- **Nasdaq Futuro:** 0.6362654425167082%
 
 #### Principais ADRs:
 - **BBD_ADR:** US$ 3.21 (-3.603603603603607%)
