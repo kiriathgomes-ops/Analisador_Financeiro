@@ -1,0 +1,140 @@
+Aqui está o relatório completo de análise Smart Money Concepts (SMC) / Inner Circle Trader (ICT) e o script NTSL (ProfitChart) mapeando **todos** os níveis de preço identificados nos gráficos fornecidos (5m e 1m).
+
+---
+
+### 1. Relatório de Análise SMT/ICT
+
+- **Timeframes Identificados:** 
+  - **HTF:** 5 Minutos (Gráfico Macro/Estrutural)
+  - **LTF:** 1 Minuto (Gráfico Micro/Execução)
+- **Asset:** WIN (Bovespa Index Mini Futures)
+
+- **Bias Direcional (HTF):** **Bearish (Baixista)**
+  - *Justificativa:* O mercado apresenta uma forte expansão vendedora vinda da região de oferta de HTF/Equilibrium (177.500 - 178.000), realizando múltiplos *Breaks of Structure* (BOS) de baixa até atingir a zona de *Discount* no fundo da consolidação atual (170.500 - 171.250). Atualmente o preço encontra-se acumulando em liquidez interna e limpando piscinas de liquidez de compra (BSL) para continuar a entrega de preço de baixa ou gerar um pullback de liquidação.
+
+- **Estruturas Coletadas (Exaustivo de Níveis):**
+
+  **High Timeframe (5m):**
+  - **Zona de Oferta / Equilibrium HTF:** 177.500 – 178.000
+  - **2x EQH (3K BSL):** 176.750
+  - **2x EQH (3.4K BSL):** 176.400
+  - **PDH / EQH (9.8K BSL):** 176.250
+  - **EQH (4.1K BSL):** 175.750
+  - **EQH (5K BSL):** 175.500
+  - **Bearish Order Block 5m (Supply Top):** 175.150
+  - **Bearish Order Block 5m Level 1:** 174.250
+  - **Bearish Order Block 5m Level 2:** 173.850
+  - **Bearish Order Block 5m Level 3:** 173.300
+  - **Strong High / Resistência Local 5m:** 172.400
+
+  **Low Timeframe (1m):**
+  - **Strong High / HH (1m):** 172.250
+  - **Zona de Oferta / Bearish OB (1m):** 171.850
+  - **2x EQH (277.9K BSL Pool):** 171.880
+  - **Bearish Order Block Intraday:** 171.750
+  - **Equilibrium Local (1m Range):** 171.250
+  - **PDL (Previous Day Low):** 170.890
+  - **2x EQL (292.9K SSL Pool):** 170.780
+  - **Discount Zone Lower Limit:** 170.600
+  - **Weak Low (Fundo Fraco):** 170.500
+
+- **Liquidez Relevante (Liquidity Pools):**
+  - **BSL (Buy-Side Liquidity):** Massiva concentração em **171.880** (277.9K BSL), **176.250** (9.8K BSL) e **176.750** (3K BSL).
+  - **SSL (Sell-Side Liquidity):** Grande acúmulo em **170.780** (292.9K SSL em Equal Lows) e abaixo do fundo fraco em **170.500** (Weak Low).
+
+- **Zonas de Interesse Principais & Cenários Operacionais:**
+  1. **Cenário de Venda (Continuation Bearish):** Captura da liquidez BSL em 171.880/172.250 seguida de rejeição nos Order Blocks em 172.250 ou 173.300 para buscar a liquidação do EQL em 170.780 e rompimento do Weak Low em 170.500.
+  2. **Cenário de Compra (Discount Sweep Reversal):** Captura/Sweep da piscina de SSL em 170.780 dentro da Discount Zone (170.500 - 170.800) com mudança de caráter (CHoCH no 1m) confirmando retração compradora rumo a 171.880 e 172.250.
+
+---
+
+### 2. Script de Níveis (ProfitChart / NTSL)
+
+```pascal
+// ==========================================
+// SCRIPT SMC / ICT - MAPEAMENTO COMPLETO DE NÍVEIS
+// PROFITCHART / NTSL
+// ==========================================
+var
+  L_WeakLow       : float;
+  L_Discount_Low   : float;
+  L_EQL_292K      : float;
+  L_PDL           : float;
+  L_Discount_High : float;
+  L_OB_1m_Bearish : float;
+  L_EQH_277K      : float;
+  L_StrongHigh_1m : float;
+  L_Supply_5m_Low : float;
+  L_OB_5m_3       : float;
+  L_OB_5m_2       : float;
+  L_OB_5m_1       : float;
+  L_OB_5m_High    : float;
+  L_EQH_5K        : float;
+  L_EQH_41K       : float;
+  L_PDH_EQH       : float;
+  L_EQH_34K       : float;
+  L_EQH_3K        : float;
+  L_Equil_HTF     : float;
+  L_Supply_HTF_Top: float;
+
+inicio
+  // ----------------------------------------
+  // ATRIBUIÇÃO DOS PREÇOS MAPEADOS
+  // ----------------------------------------
+  L_WeakLow        := 170500;
+  L_Discount_Low    := 170600;
+  L_EQL_292K       := 170780;
+  L_PDL            := 170890;
+  L_Discount_High  := 171250;
+  L_OB_1m_Bearish  := 171750;
+  L_EQH_277K       := 171880;
+  L_StrongHigh_1m  := 172250;
+  L_Supply_5m_Low  := 172400;
+  L_OB_5m_3        := 173300;
+  L_OB_5m_2        := 173850;
+  L_OB_5m_1        := 174250;
+  L_OB_5m_High     := 175150;
+  L_EQH_5K         := 175500;
+  L_EQH_41K        := 175750;
+  L_PDH_EQH        := 176250;
+  L_EQH_34K        := 176400;
+  L_EQH_3K         := 176750;
+  L_Equil_HTF      := 177500;
+  L_Supply_HTF_Top := 178000;
+
+  // ----------------------------------------
+  // PLOTAGEM DAS LINHAS HORIZONTAIS
+  // ----------------------------------------
+
+  // Suportes / Liquidez Vendedora (SSL) / Discount
+  HorizontalLineCustom(L_WeakLow, clRed, 2, 0, "Weak Low (1m/5m)", 9, tpTopRight, Date, 0, MinPriceIncrement);
+  HorizontalLineCustom(L_Discount_Low, clAqua, 1, 2, "Discount Zone Base", 8, tpTopRight, Date, 0, MinPriceIncrement);
+  HorizontalLineCustom(L_EQL_292K, clAqua, 2, 0, "2x EQL (292.9K SSL)", 9, tpTopRight, Date, 0, MinPriceIncrement);
+  HorizontalLineCustom(L_PDL, clFuchsia, 2, 0, "PDL (Previous Day Low)", 9, tpTopRight, Date, 0, MinPriceIncrement);
+  HorizontalLineCustom(L_Discount_High, clGray, 1, 2, "Equilibrium Local / Top Discount (171.250)", 9, tpTopRight, Date, 0, MinPriceIncrement);
+
+  // Resistências Intermediárias / OBs 1m e 5m
+  HorizontalLineCustom(L_OB_1m_Bearish, clMaroon, 1, 0, "Bearish OB 1m", 8, tpTopRight, Date, 0, MinPriceIncrement);
+  HorizontalLineCustom(L_EQH_277K, clBlue, 2, 0, "2x EQH (277.9K BSL)", 9, tpTopRight, Date, 0, MinPriceIncrement);
+  HorizontalLineCustom(L_StrongHigh_1m, clRed, 2, 0, "Strong High 1m / HH", 9, tpTopRight, Date, 0, MinPriceIncrement);
+  HorizontalLineCustom(L_Supply_5m_Low, clRed, 1, 0, "Resistencia Local 5m", 8, tpTopRight, Date, 0, MinPriceIncrement);
+
+  // Bloco de Oferta Médio (5m Order Blocks)
+  HorizontalLineCustom(L_OB_5m_3, clMaroon, 1, 0, "Bearish OB 5m", 8, tpTopRight, Date, 0, MinPriceIncrement);
+  HorizontalLineCustom(L_OB_5m_2, clMaroon, 1, 0, "Bearish OB 5m", 8, tpTopRight, Date, 0, MinPriceIncrement);
+  HorizontalLineCustom(L_OB_5m_1, clMaroon, 1, 0, "Bearish OB 5m", 8, tpTopRight, Date, 0, MinPriceIncrement);
+  HorizontalLineCustom(L_OB_5m_High, clMaroon, 2, 0, "Bearish OB 5m Zone Top", 9, tpTopRight, Date, 0, MinPriceIncrement);
+
+  // Piscinas de Liquidez Superior (BSL HTF)
+  HorizontalLineCustom(L_EQH_5K, clBlue, 1, 0, "EQH (5K BSL)", 8, tpTopRight, Date, 0, MinPriceIncrement);
+  HorizontalLineCustom(L_EQH_41K, clBlue, 1, 0, "EQH (4.1K BSL)", 8, tpTopRight, Date, 0, MinPriceIncrement);
+  HorizontalLineCustom(L_PDH_EQH, clFuchsia, 2, 0, "PDH / EQH (9.8K BSL)", 9, tpTopRight, Date, 0, MinPriceIncrement);
+  HorizontalLineCustom(L_EQH_34K, clBlue, 1, 0, "2x EQH (3.4K BSL)", 8, tpTopRight, Date, 0, MinPriceIncrement);
+  HorizontalLineCustom(L_EQH_3K, clBlue, 1, 0, "2x EQH (3K BSL)", 8, tpTopRight, Date, 0, MinPriceIncrement);
+
+  // Zona de Oferta Principal HTF (Equilibrium)
+  HorizontalLineCustom(L_Equil_HTF, clGray, 2, 2, "Equilibrium HTF Range", 9, tpTopRight, Date, 0, MinPriceIncrement);
+  HorizontalLineCustom(L_Supply_HTF_Top, clRed, 2, 0, "Supply Zone Top (HTF)", 9, tpTopRight, Date, 0, MinPriceIncrement);
+
+fim;
+```
