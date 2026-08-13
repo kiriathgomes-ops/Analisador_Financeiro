@@ -1,0 +1,37 @@
+{
+  "timeframes_identificados": "HTF (5 Minutos) e LTF (1 Minuto)",
+  "bias_direcional": "Bearish (Baixista)",
+  "estruturas_coletadas": [
+    "175.800: HTF Extreme Supply Zone (Topo do Range 5m / Bloco de Venda)",
+    "175.000: Bearish Order Block 5m / Zona de Oferta Superior",
+    "174.200: Bearish Order Block 5m / Impulso de Baixa",
+    "173.400: Bearish Order Block 5m Principal da Pernada",
+    "172.000: Strong High 1m / 2x EQH (277.9K BSL)",
+    "171.850: Bearish Order Block 1m / Premium Supply Zone",
+    "171.700: Strong High 1m / 2x EQH (188.5K BSL)",
+    "171.600: Zona de Oferta LTF / EQH (44.5K BSL / 173K BSL)",
+    "171.450: EQH (51.8K BSL / 28.7K BSL) / Zona de Oferta Local",
+    "171.000: PDL (Previous Day Low) / Nível de Equilibrium",
+    "170.900: BOS de Baixa 1m / Quebra de Estrutura Estrutural",
+    "170.800: Topo da Zona de Discount / Suporte Rompido",
+    "170.350: EQH Local 1m (24.4K BSL) / Cotação Atual (170.330)",
+    "170.230: EQL (19.1K / 66.9K SSL) - Liquidez de Fundo",
+    "170.200: Weak Low 1m / Fundo Extremo da Zona de Discount"
+  ],
+  "liquidez_relevante": [
+    "BSL: 175.800 (Piscina de Liquidez Superior 5m)",
+    "BSL: 172.000 (2x EQH 277.9K)",
+    "BSL: 171.700 (2x EQH 188.5K)",
+    "BSL: 171.600 (EQH 44.5K / 173K)",
+    "BSL: 171.450 (EQH 51.8K / 28.7K)",
+    "BSL: 170.350 (EQH Local 24.4K BSL)",
+    "SSL: 171.000 (PDL - Previous Day Low)",
+    "SSL: 170.230 (EQL 19.1K / 66.9K SSL - Varredura de Fundo)",
+    "SSL: 170.200 (Weak Low)"
+  ],
+  "zonas_de_interesse_e_cenarios": [
+    "Cenário Vendedor (Região 1): Retração até a região de Premium / Order Block 1m em 171.450 - 171.600 após reação na zona de Discount. Busca por alinhamento de baixa com CHoCH em 1m visando romper o Weak Low em 170.200.",
+    "Cenário Vendedor (Região 2): Retração mais profunda até o topo do Premium em 171.850 / 172.000 para capturar BSL (277.9K) com rejeição forte (SFP) e confirmação por CHoCH em 1m.",
+    "Cenário Comprador (Reversão / Scalp em Discount Zone): Entrada de compra tática no extremo do Discount Zone em 170.200 / 170.230 após a varredura completa da liquidez vendedora (EQL 66.9K / 19.1K SSL) com padrão SFP (Sweep and Reclaim) e CHoCH comprador em 1m acima de 170.350, visando retração até 171.000 (PDL) e 171.450."
+  ]
+}

@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "timestamp": "2026-08-13T06:19:04.415007",
+    "timestamp": "2026-08-13T08:09:04.082442",
     "status_pipeline": "OK"
   },
   "analise_operacional": {
@@ -9,7 +9,7 @@
       "vies_final": "MODERADO_VENDA",
       "fatores_relevantes": [
         "ADRs fortes no exterior (+2.81%)",
-        "Commodities e Mercado Externo pressionados (-3.11%)",
+        "Commodities e Mercado Externo pressionados (-2.51%)",
         "🔻 Last abaixo do ajuste em 3059 pts (viés vendedor)"
       ]
     },
