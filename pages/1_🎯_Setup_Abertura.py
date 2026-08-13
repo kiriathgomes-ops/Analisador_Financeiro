@@ -1,11 +1,13 @@
+
+
 """
 Setup Abertura – Unificado
 ===========================
 Página com abas para:
 - Ajuste B3 (distância do ajuste, scores, semáforo)
-- Abertura 09:00 (gap, sinal, IA de pré-abertura)
+- Abertura 09:00 (gap, sinal, IA de pré-abertura + Análise Gráfica SMC)
 
-Versão 6.1 - Aba 09h reorganizada e numerada
+Versão 6.2 - Integração do AnaliseGraficaSMC.json na IA de texto
 """
 
 import json
@@ -223,6 +225,7 @@ ARQUIVOS = {
     "ativos": COLETAS_DIR / "DadosAtivosUnificados.json",
     "tendencias": COLETAS_DIR / "Analise_Tendencias.json",
     "resultado_operacional": COLETAS_DIR / "Resultado_Calculadora_Operacional_Abertura.json",
+    "analise_smc": COLETAS_DIR / "AnaliseGraficaSMC.json",   # Análise gráfica SMC/ICT
 }
 
 SCRIPT_TENDENCIAS = BASE_DIR / "MapearTendencia15Min.py"
@@ -412,6 +415,9 @@ class SetupService:
         resultado_op = self.dados.get("resultado_operacional", {})
         self.classificacao_mercado = resultado_op.get("indicadores_compostos", {})
 
+        # Análise gráfica SMC/ICT (gerada pela página de visão)
+        self.analise_smc = self.dados.get("analise_smc", {})
+
     def _extrair_tendencias(self, dados_tendencias: Dict) -> Dict[str, TendenciaAtivo]:
         tendencias = {}
         if not dados_tendencias:
@@ -536,6 +542,38 @@ class SetupService:
                 "motivo": f"⚠️ Tendência ({win_tendencia.tendencia}) vs sinal ({sinal.direcao})"
             }
 
+    def _resumir_analise_smc(self) -> str:
+        """Extrai o essencial do AnaliseGraficaSMC.json para o prompt da IA."""
+        if not self.analise_smc:
+            return "Análise gráfica SMC não disponível."
+
+        partes = []
+
+        bias = self.analise_smc.get("bias_direcional")
+        if bias:
+            partes.append(f"Bias HTF: {bias}")
+
+        tfs = self.analise_smc.get("timeframes_identificados")
+        if tfs:
+            partes.append(f"TFs: {tfs}")
+
+        # Cenários (mais importantes para a pré-abertura)
+        zonas = self.analise_smc.get("zonas_de_interesse_e_cenarios") or []
+        if zonas:
+            partes.append("Cenários SMC: " + " | ".join(str(z) for z in zonas[:3]))
+
+        # Liquidez relevante
+        liq = self.analise_smc.get("liquidez_relevante") or []
+        if liq:
+            partes.append("Liquidez: " + " | ".join(str(l) for l in liq[:4]))
+
+        # Estruturas principais (limitado)
+        estruturas = self.analise_smc.get("estruturas_coletadas") or []
+        if estruturas:
+            partes.append("Estruturas chave: " + " | ".join(str(e) for e in estruturas[:5]))
+
+        return " • ".join(partes) if partes else "Análise SMC carregada (sem campos principais)."
+
     def dados_para_ia_resumido(self) -> Dict[str, Any]:
         s = self.sinal()
         da = self.dados_abertura()
@@ -555,6 +593,7 @@ class SetupService:
             "noticias": "🚨 3★" if self.tem_3estrelas else "Sem alerta",
             "tendencia_win": tend_resumo,
             "confluencia": self.confluencia_tendencia()["motivo"],
+            "analise_smc": self._resumir_analise_smc(),
             "loss": CONFIG.loss_pts,
             "alvo": CONFIG.alvo_min_pts,
         }
@@ -565,7 +604,7 @@ class SetupService:
 def montar_prompt_pre_abertura(dados: Dict[str, Any]) -> str:
     return f"""⚠️ RESPONDA EM PORTUGUÊS DO BRASIL. SEJA DIRETO E OBJETIVO.
 
-VOCÊ É UM ESPECIALISTA EM PRÉ-ABERTURA DO MERCADO BRASILEIRO.
+VOCÊ É UM ESPECIALISTA EM PRÉ-ABERTURA DO MERCADO BRASILEIRO (dados quantitativos + SMC/ICT).
 
 📊 DADOS DO PIPELINE:
 
@@ -578,6 +617,7 @@ CORE ENGINE: {dados['core']}
 NOTÍCIAS RELEVANTES: {dados['noticias']}
 TENDÊNCIA WIN: {dados['tendencia_win']}
 CONFLUÊNCIA: {dados['confluencia']}
+ANÁLISE GRÁFICA SMC: {dados.get('analise_smc', 'Não disponível')}
 GESTÃO DE RISCO: Loss {dados['loss']}pts | Alvo >{dados['alvo']}pts
 
 ---
@@ -590,7 +630,7 @@ GESTÃO DE RISCO: Loss {dados['loss']}pts | Alvo >{dados['alvo']}pts
 
 3. **VOLATILIDADE:** O mercado deve abrir com alta ou baixa volatilidade?
 
-4. **NÍVEIS CHAVE:** Quais escoras (pivots) são mais importantes para monitorar?
+4. **NÍVEIS CHAVE:** Quais escoras (pivots) + níveis SMC são mais importantes para monitorar?
 
 5. **CENÁRIOS PROVÁVEIS:** 
    - Cenário 1 (mais provável):
@@ -604,7 +644,8 @@ GESTÃO DE RISCO: Loss {dados['loss']}pts | Alvo >{dados['alvo']}pts
 ---
 
 ⚠️ **OBSERVAÇÕES:**
-- Baseie-se APENAS nos dados fornecidos acima
+- Baseie-se nos dados fornecidos (quantitativo + análise gráfica SMC)
+- Quando a análise SMC estiver alinhada com o sinal do setup, dê mais peso a ela
 - Seja prático e objetivo
 - Use termos técnicos do mercado
 - RESPONDA EM PORTUGUÊS
@@ -762,6 +803,7 @@ def render_sidebar_09h():
         "Decisão": ARQUIVOS["decisao"],
         "Tendências": ARQUIVOS["tendencias"],
         "Resultado": ARQUIVOS["resultado_operacional"],
+        "Análise SMC": ARQUIVOS["analise_smc"],
     }
     for nome, caminho in arquivos_status.items():
         existe = "✅" if os.path.exists(caminho) else "❌"
@@ -1706,6 +1748,7 @@ def main():
         "ativos": ativos_data,
         "tendencias": dados_tendencias,
         "resultado_operacional": dados.get("resultado_operacional", {}),
+        "analise_smc": dados.get("analise_smc", {}),   # Análise gráfica SMC/ICT
     }
     service = SetupService(dados_09h)
 
@@ -1819,10 +1862,11 @@ def main():
             render_bloco_5_ia_pre_abertura(service)
             render_bloco_6_checklist()
 
-            st.caption("Setup Abertura 09:00 • v6.1 • Sem IA visual")
+            st.caption("Setup Abertura 09:00 • v6.2 • IA texto + Análise SMC")
 
     st.markdown("---")
-    st.caption("Setup Abertura Unificado • v6.1 • Analisador Financeiro Quant")
+    st.caption("Setup Abertura Unificado • v6.2 • Analisador Financeiro Quant + SMC")
 
 if __name__ == "__main__":
     main()
+
