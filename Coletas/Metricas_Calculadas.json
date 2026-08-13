@@ -1,6 +1,6 @@
 {
   "metadata_calculo": {
-    "timestamp": "2026-08-12T14:54:02.053313",
+    "timestamp": "2026-08-12T14:59:02.061231",
     "total_ativos_processados": 24
   },
   "cambio_e_arbitragem": {
@@ -10,41 +10,41 @@
     "spread_wdo_ptax_percentual": 0.4125
   },
   "curva_juros_b3": {
-    "di1_2027_taxa": 13.755,
+    "di1_2027_taxa": 13.75,
     "di1_2029_taxa": 14.205,
-    "inclinacao_29_27_bps": 45.0
+    "inclinacao_29_27_bps": 45.5
   },
   "indicadores_macro": {
     "vix": 14.57,
     "vix_change_pct": -4.584151931892595,
-    "dxy": 99.995,
-    "crude_oil": 83.05,
-    "crude_oil_change_pct": -0.18028846153846836,
+    "dxy": 100.002,
+    "crude_oil": 83.0,
+    "crude_oil_change_pct": -0.24038461538461878,
     "iron_ore_fef2": {
       "close": 95.9,
       "change_percent": 0.20898641588297057
     }
   },
   "performance_relativa": {
-    "ewz_change_pct": 0.04414361389052551,
-    "sp500_fut_change_pct": 0.3420458212326557,
-    "nasdaq_fut_change_pct": 0.9982785391210423,
+    "ewz_change_pct": 0.07357268981755646,
+    "sp500_fut_change_pct": 0.32268473701193934,
+    "nasdaq_fut_change_pct": 0.9780260581921286,
     "adrs_brasileiras": {
       "BBD_ADR": {
-        "close": 3.22,
-        "change_percent": 0.311526479750786
+        "close": 3.215,
+        "change_percent": 0.1557632398753861
       },
       "ITUB_ADR": {
         "close": 7.445,
         "change_percent": -0.7333333333333295
       },
       "PETR_ADR": {
-        "close": 17.925,
-        "change_percent": -0.02788622420523706
+        "close": 17.915,
+        "change_percent": -0.083658672615731
       },
       "VALE_ADR": {
-        "close": 14.455,
-        "change_percent": 0.9427374301675963
+        "close": 14.465,
+        "change_percent": 1.0125698324022316
       },
       "BBAS_ADR": {
         "close": 3.81,
@@ -57,7 +57,7 @@
     }
   },
   "indicadores_compostos": {
-    "indicador_mercado_externo": 4.6128,
-    "indicador_adrs_brasileiras": -1.0837
+    "indicador_mercado_externo": 4.5528,
+    "indicador_adrs_brasileiras": -1.2254
   }
 }

@@ -1,6 +1,6 @@
 {
     "metadata": {
-        "timestamp": "2026-08-12 14:54:01",
+        "timestamp": "2026-08-12 14:59:01",
         "total_ativos": 24
     },
     "ativos": {
@@ -23,8 +23,8 @@
             "status": "OK"
         },
         "WIN_FUT": {
-            "preco": 171275.0,
-            "variacao_pct": 1.9390894968961476,
+            "preco": 171265.0,
+            "variacao_pct": 1.9331377182070861,
             "ticker_original": "BMFBOVESPA:WIN1!",
             "status": "OK"
         },
@@ -35,8 +35,8 @@
             "status": "OK"
         },
         "DI1_2027": {
-            "preco": 13.755,
-            "variacao_pct": 0.0,
+            "preco": 13.75,
+            "variacao_pct": -0.03635041802981302,
             "ticker_original": "BMFBOVESPA:DI1F2027",
             "status": "OK"
         },
@@ -65,20 +65,20 @@
             "status": "OK"
         },
         "CRUDE_OIL": {
-            "preco": 83.05,
-            "variacao_pct": -0.18028846153846836,
+            "preco": 83.0,
+            "variacao_pct": -0.24038461538461878,
             "ticker_original": "NYMEX:CL1!",
             "status": "OK"
         },
         "VALE_ADR": {
-            "preco": 14.455,
-            "variacao_pct": 0.9427374301675963,
+            "preco": 14.465,
+            "variacao_pct": 1.0125698324022316,
             "ticker_original": "NYSE:VALE",
             "status": "OK"
         },
         "PETR_ADR": {
-            "preco": 17.925,
-            "variacao_pct": -0.02788622420523706,
+            "preco": 17.915,
+            "variacao_pct": -0.083658672615731,
             "ticker_original": "NYSE:PBR",
             "status": "OK"
         },
@@ -95,8 +95,8 @@
             "status": "OK"
         },
         "BBD_ADR": {
-            "preco": 3.22,
-            "variacao_pct": 0.311526479750786,
+            "preco": 3.215,
+            "variacao_pct": 0.1557632398753861,
             "ticker_original": "NYSE:BBD",
             "status": "OK"
         },
@@ -107,44 +107,44 @@
             "status": "OK"
         },
         "EWZ": {
-            "preco": 33.995,
-            "variacao_pct": 0.04414361389052551,
+            "preco": 34.005,
+            "variacao_pct": 0.07357268981755646,
             "ticker_original": "AMEX:EWZ",
             "status": "OK"
         },
         "SP500_FUT": {
-            "preco": 7774.0,
-            "variacao_pct": 0.3420458212326557,
+            "preco": 7772.5,
+            "variacao_pct": 0.32268473701193934,
             "ticker_original": "CME_MINI:ES1!",
             "status": "OK"
         },
         "NASDAQ_FUT": {
-            "preco": 29921.75,
-            "variacao_pct": 0.9982785391210423,
+            "preco": 29915.75,
+            "variacao_pct": 0.9780260581921286,
             "ticker_original": "CME_MINI:NQ1!",
             "status": "OK"
         },
         "DXY": {
-            "preco": 99.995,
-            "variacao_pct": 0.18334468801347228,
+            "preco": 100.002,
+            "variacao_pct": 0.19035787280086336,
             "ticker_original": "TVC:DXY",
             "status": "OK"
         },
         "USD_MXN": {
-            "preco": 17.056,
-            "variacao_pct": -0.056253515844734106,
+            "preco": 17.0605,
+            "variacao_pct": -0.029884680292511085,
             "ticker_original": "FX_IDC:USDMXN",
             "status": "OK"
         },
         "GOLD": {
-            "preco": 4403.004,
-            "variacao_pct": 0.7822231581453154,
+            "preco": 4398.93,
+            "variacao_pct": 0.6889716468711387,
             "ticker_original": "TVC:GOLD",
             "status": "OK"
         },
         "USD_BRL": {
-            "preco": 5.1624,
-            "variacao_pct": 0.08724480893387175,
+            "preco": 5.1632,
+            "variacao_pct": 0.10275499718877998,
             "ticker_original": "FX_IDC:USDBRL",
             "status": "OK"
         }
