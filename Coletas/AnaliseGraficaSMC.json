@@ -2,36 +2,35 @@
   "timeframes_identificados": "HTF (5 Minutos) e LTF (1 Minuto)",
   "bias_direcional": "Bearish (Baixista)",
   "estruturas_coletadas": [
-    "175.800: HTF Extreme Supply Zone (Topo do Range 5m / Bloco de Venda)",
-    "175.000: Bearish Order Block 5m / Zona de Oferta Superior",
-    "174.200: Bearish Order Block 5m / Impulso de Baixa",
-    "173.400: Bearish Order Block 5m Principal da Pernada",
-    "172.000: Strong High 1m / 2x EQH (277.9K BSL)",
-    "171.850: Bearish Order Block 1m / Premium Supply Zone",
-    "171.700: Strong High 1m / 2x EQH (188.5K BSL)",
-    "171.600: Zona de Oferta LTF / EQH (44.5K BSL / 173K BSL)",
-    "171.450: EQH (51.8K BSL / 28.7K BSL) / Zona de Oferta Local",
-    "171.000: PDL (Previous Day Low) / Nível de Equilibrium",
-    "170.900: BOS de Baixa 1m / Quebra de Estrutura Estrutural",
-    "170.800: Topo da Zona de Discount / Suporte Rompido",
-    "170.350: EQH Local 1m (24.4K BSL) / Cotação Atual (170.330)",
-    "170.230: EQL (19.1K / 66.9K SSL) - Liquidez de Fundo",
-    "170.200: Weak Low 1m / Fundo Extremo da Zona de Discount"
+    "175.800: HTF Extreme Supply Zone (Topo da Estrutura Principal de Baixa)",
+    "175.100: Bearish Order Block 5m / Impulso Vendedor Superior",
+    "174.200: Bearish Order Block 5m / Intermediário de FVG",
+    "173.400: Bearish Order Block 5m Principal da Pernada Impulsiva",
+    "172.000: HTF Supply Zone / 2x EQH (Piscina Massiva BSL 378.9K / 277.9K)",
+    "171.800: Premium Supply Zone 1m / Região de Absorção Vendedora",
+    "171.700: Strong High 1m (Nível de Invalidação de Curto Prazo)",
+    "171.400: EQH 1m (51.8K BSL) / Zona de Oferta Menor",
+    "171.000: PDL (Previous Day Low) / Equilibrium Nível Neutro",
+    "170.850: LTF Bearish Order Block 1m / Quebra Estrutural (BOS)",
+    "170.500: Nível Intermediário de Continuação Baixista",
+    "170.330: Preço Atual de Cotação / Fechamento",
+    "170.300: EQH Local 1m (24.4K BSL) / Indução Vendedora",
+    "170.250: EQL / Discount Zone (19.1K SSL no 1m e 66.9K SSL no 5m)",
+    "170.200: Weak Low 1m / Mínima Extrema do Risco de Liquidação"
   ],
   "liquidez_relevante": [
-    "BSL: 175.800 (Piscina de Liquidez Superior 5m)",
-    "BSL: 172.000 (2x EQH 277.9K)",
-    "BSL: 171.700 (2x EQH 188.5K)",
-    "BSL: 171.600 (EQH 44.5K / 173K)",
-    "BSL: 171.450 (EQH 51.8K / 28.7K)",
-    "BSL: 170.350 (EQH Local 24.4K BSL)",
-    "SSL: 171.000 (PDL - Previous Day Low)",
-    "SSL: 170.230 (EQL 19.1K / 66.9K SSL - Varredura de Fundo)",
-    "SSL: 170.200 (Weak Low)"
+    "BSL: 175.800 (Topo Extremo do Mercado 5m)",
+    "BSL: 172.000 (2x EQH 378.9K no 5m / 277.9K no 1m)",
+    "BSL: 171.800 (188.5K no 1m)",
+    "BSL: 171.400 (EQH 51.8K)",
+    "BSL: 170.300 (EQH 24.4K local no 1m)",
+    "SSL: 171.000 (PDL - Previous Day Low Rompido)",
+    "SSL: 170.250 (EQL 66.9K no 5m / 19.1K no 1m)",
+    "SSL: 170.200 (Weak Low / Fundo Extremo no Discount)"
   ],
   "zonas_de_interesse_e_cenarios": [
-    "Cenário Vendedor (Região 1): Retração até a região de Premium / Order Block 1m em 171.450 - 171.600 após reação na zona de Discount. Busca por alinhamento de baixa com CHoCH em 1m visando romper o Weak Low em 170.200.",
-    "Cenário Vendedor (Região 2): Retração mais profunda até o topo do Premium em 171.850 / 172.000 para capturar BSL (277.9K) com rejeição forte (SFP) e confirmação por CHoCH em 1m.",
-    "Cenário Comprador (Reversão / Scalp em Discount Zone): Entrada de compra tática no extremo do Discount Zone em 170.200 / 170.230 após a varredura completa da liquidez vendedora (EQL 66.9K / 19.1K SSL) com padrão SFP (Sweep and Reclaim) e CHoCH comprador em 1m acima de 170.350, visando retração até 171.000 (PDL) e 171.450."
+    "Cenário Vendedor (Continuação Baixista): Retração corretiva em direção à zona de equilíbrio (170.850 - 171.000 / PDL), varrendo o EQH em 170.300 para captação de BSL local, seguida de rejeição na zona de oferta (170.850) para continuação da baixa rumo ao rompimento do Weak Low em 170.200.",
+    "Cenário Vendedor (Pullback Profundo / Premium): Pullback estendido até a Supply Zone de 171.800 / 172.000 para capturar a piscina massiva de BSL (378.9K), buscando padrão de reversão por CHoCH no 1m com alvo nos fundos de 170.250.",
+    "Cenário Comprador (Varredura de Liquidez e Reversão no Discount): Captura da SSL em 170.250 / 170.200 (Weak Low) com formação de SFP (Liquidity Sweep) na zona verde de Discount, seguida de confirmação de CHoCH no 1m acima de 170.500 para buscar alvos em 170.850 e 171.000."
   ]
 }

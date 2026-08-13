@@ -5,7 +5,7 @@
 # GERADO AUTOMATICAMENTE
 #
 # Data geração:
-# 2026-08-13 07:00:45
+# 2026-08-13 13:12:09
 #
 # Arquivos unificados:
 # 77
@@ -1624,7 +1624,7 @@ if __name__ == "__main__":
 # Coletor_MT5.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-10 10:47:02
+# 2026-08-13 08:19:00
 # ============================================================
 
 
@@ -1667,7 +1667,7 @@ os.makedirs(COLETAS_DIR, exist_ok=True)
 
 # Contratos disponíveis para consulta (ajuste conforme sua B3)
 CONTRATOS_MT5 = {
-    "WIN": ["WINQ26", "WINV26", "WINZ26"],  # Contratos ativos
+    "WIN": ["WINV26", "WINZ26"],  # Contratos ativos
     "WDO": ["WDOQ26", "WDOV26", "WDOZ26"],  # Contratos ativos
     "DI1": ["DI1Q26", "DI1V26", "DI1Z26"],
 }

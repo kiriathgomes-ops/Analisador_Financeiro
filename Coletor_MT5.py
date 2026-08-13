@@ -36,7 +36,7 @@ os.makedirs(COLETAS_DIR, exist_ok=True)
 
 # Contratos disponíveis para consulta (ajuste conforme sua B3)
 CONTRATOS_MT5 = {
-    "WIN": ["WINQ26", "WINV26", "WINZ26"],  # Contratos ativos
+    "WIN": ["WINV26", "WINZ26"],  # Contratos ativos
     "WDO": ["WDOQ26", "WDOV26", "WDOZ26"],  # Contratos ativos
     "DI1": ["DI1Q26", "DI1V26", "DI1Z26"],
 }
