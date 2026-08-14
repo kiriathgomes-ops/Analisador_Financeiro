@@ -2,35 +2,37 @@
   "timeframes_identificados": "HTF (5 Minutos) e LTF (1 Minuto)",
   "bias_direcional": "Bearish (Baixista)",
   "estruturas_coletadas": [
-    "171.850 - 172.000: HTF Strong High / PDH (Previous Day High) / Zona Extrema de Oferta (Premium Zone)",
-    "171.200: Bearish Order Block HTF 5m (Ponto de Rejeição e Deslocamento)",
-    "170.805: Topo Estrutural 1m / Zona de Oferta LTF",
-    "170.595: Bearish Order Block 5m / FVG 5min (Ponto de Vender Limite)",
-    "170.200: Topo Local / Nível de CHoCH 5m",
-    "170.020: Equilibrium Zone HTF (50% do Range Principal / 170.000 - 170.200)",
-    "169.790 - 169.795: Bearish Order Block 5m / Zona de Mitigação",
-    "169.600: Bearish Order Block 1m / Swing High Local de Indução (Sinal de Venda Vendedora)",
-    "169.400: PDL (Previous Day Low) Rompido com BOS",
-    "169.270: Nível de CHoCH 1m / Fundo Rompido que virou Oferta",
-    "169.000: Suporte Rompido / Confirmação de BOS Baixista 5m",
-    "168.685 - 168.700: Cotação Atual / Consolidação de Fundo",
-    "168.300 - 168.500: HTF Bullish Demand Zone / Zona Extrema de Discount (Região de Absorção)",
-    "168.200: Weak Low HTF / Fundo Extremo de Liquidez Vendedora"
+    "171.850: HTF Strong High / PDH (Previous Day High) / Piscina Extrema de Liquidez (213.95K BSL)",
+    "171.600: HTF Premium Supply Zone (Bloco de Rejeição Majoritário)",
+    "171.200: Bearish Order Block 5m / FVG Unfilled",
+    "170.805: Topo da Zona de Oferta / FVG 5 Min",
+    "170.595: FVG 5 Min / Nível de Venda Limite (Resistência Forte)",
+    "170.400: Nível de CHoCH Estrutural LTF rompido para baixa",
+    "170.200: Bearish Order Block 1m / Oferta Local",
+    "170.020: Topo da Faixa de Equilibrium (Ponto Neutro do Range)",
+    "169.795: Fundo da Faixa de Equilibrium / Suporte transformado em Resistência",
+    "169.600: Bearish Order Block 1m/5m (Gatilho de Venda 1 @ 169600)",
+    "169.400: PDL (Previous Day Low) rompido com BOS de baixa",
+    "169.270: Nível de Inversão / Pullback LTF (1 @ 169270)",
+    "169.000: Nível Psicológico / Fundo Intermediário com BOS",
+    "168.685: Cotação Atual (Preço de Mercado WINV2026)",
+    "168.500: Topo da Zona de Demanda HTF (Discount Zone)",
+    "168.350: Fundo da Bullish Demand Zone 1m/5m",
+    "168.300: Weak Low (Fundo Extremo da Estrutura / Alvo de Liquidez)"
   ],
   "liquidez_relevante": [
-    "BSL: 171.850 - 172.000 (PDH + Strong High HTF)",
-    "BSL: 170.805 (Topo Intraday / Liquidez Compradora)",
-    "BSL: 170.595 (Liquidez acima do FVG 5m)",
-    "BSL: 169.600 (Swing High 1m / Liquidez Interna)",
-    "BSL: 169.270 (Pullback High 1m)",
-    "SSL: 169.400 (PDL - Previous Day Low / Varrido)",
-    "SSL: 169.000 (Fundos Estruturais Rompidos por BOS)",
-    "SSL: 168.300 - 168.400 (Varredura de Liquidez de Fundo na Demand Zone)",
-    "SSL: 168.200 (Weak Low HTF)"
+    "BSL: 171.850 (Strong High / PDH - 213.95K)",
+    "BSL: 170.805 (Topo da FVG de Oferta 5m)",
+    "BSL: 170.595 (Ordem Limite Vendedora)",
+    "BSL: 169.600 (Bearish OB LTF / Topo de Retração)",
+    "SSL: 169.400 (PDL - Capturado)",
+    "SSL: 169.000 (Fundos relativos rompidos)",
+    "SSL: 168.685 (Liquidez imediata vendedora)",
+    "SSL: 168.300 (Weak Low / Liquidez de Discount a ser varrida)"
   ],
   "zonas_de_interesse_e_cenarios": [
-    "Cenário Vendedor (Continuação de Tendência HTF): Retração do preço até a zona de mitigação e FVG em 169.600 ou Bearish OB em 169.790/170.020 (Equilibrium). Confirmação de rejeição com CHoCH no 1m para entrada a favor do fluxo baixista visando a quebra de 168.300 e teste de 168.200.",
-    "Cenário Vendedor (Profundo): Pullback estendido até a região de 170.595 (FVG 5m) para nova pernada de venda.",
-    "Cenário Comprador (Reversão / Scalp de Discount): Reação forte e absorção dentro da Bullish Demand Zone (168.300 - 168.500) após captura da liquidez em 168.300, com confirmação de CHoCH no LTF (1m) rompendo acima de 168.800/169.000, visando alvos de retração em 169.400 (PDL) e 169.600."
+    "Cenário Vendedor (Continuação de Tendência): Retração corretiva até o Bearish Order Block em 169.600 ou à região de Equilibrium (169.795 - 170.020). Rejeição com CHoCH no LTF confirmando entrada vendida com primeiro alvo em 168.500 e alvo final no Weak Low em 168.300.",
+    "Cenário Vendedor (HTF Retracement): Busca mais profunda de liquidez compradora até a FVG 5m em 170.595 / 170.805 para montagem de posições vendidas institucionais visando a perda do PDL em 169.400.",
+    "Cenário Comprador (Reversão / Scalp de Discount): Teste da Bullish Demand Zone em 168.350 - 168.500 com varredura do Weak Low (168.300). Entrada autorizada somente mediante formação de SFP (Pavio longo de rejeição) e CHoCH em 1m rompendo acima de 168.800, visando pullback até 169.400 (PDL) e 169.600."
   ]
 }

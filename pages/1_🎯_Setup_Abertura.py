@@ -386,7 +386,7 @@ class SetupService:
                         soma += pct
                         count += 1
                 if count > 0:
-                    self.ind_adrs = soma / count
+                    self.ind_adrs = soma
         
         self.adrs: dict = metricas.get("performance_relativa", {}).get("adrs_brasileiras", {})
 
@@ -406,8 +406,11 @@ class SetupService:
         ativos = dados_ativos.get("ativos", dados_ativos)
         self.win_ativo = ativos.get("WIN_FUT", {})
         self.preco_win: Optional[float] = self.win_ativo.get("preco")
+        # Não inventa dado: se não veio do JSON, permanece None.
+        # A interface já trata None exibindo "N/A" (em render_bloco_3_abertura_escoras)
         if self.preco_win is None:
-            self.preco_win = self.est_win.get("abertura_teorica_pontos")
+            print("[AVISO] Preço atual do WIN não encontrado em DadosAtivosUnificados.json. Exibindo 'N/A'.")
+        #    self.preco_win = self.est_win.get("abertura_teorica_pontos") # Inventa dado
 
         tendencias_data = self.dados.get("tendencias", {})
         self.tendencias = self._extrair_tendencias(tendencias_data)
@@ -1398,6 +1401,43 @@ def render_ajuste_metricas(ativos):
             return ativo.get("preco", ativo.get("valor", 0.0))
         return 0.0
 
+    # 🔥 NOVA FUNÇÃO: busca o last diretamente no Dados_MT5.json
+    def obter_last_mt5(prefixo):
+        """
+        Retorna o 'last' do primeiro contrato que começa com o prefixo (WIN ou WDO)
+        no arquivo Dados_MT5.json.
+        """
+        import json
+        from pathlib import Path
+        caminho = Path(__file__).resolve().parent.parent / "Coletas" / "Dados_MT5.json"
+        if not caminho.exists():
+            return None
+        try:
+            with open(caminho, "r", encoding="utf-8") as f:
+                dados = json.load(f)
+            contratos = dados.get("contratos", {})
+            for nome, info in contratos.items():
+                if nome.startswith(prefixo):
+                    last = info.get("last")
+                    if last is not None and last > 0:
+                        return last
+        except:
+            pass
+        return None
+
+    # --- Dados do WIN ---
+    win_ajuste = obter_preco("WIN_AJUSTE")
+    win_atual = obter_preco("WIN_FUT")      # Futuro (Close) – preço atual
+    win_last = obter_last_mt5("WIN")        # Last (Candle) – fechamento do pregão anterior via MT5
+
+    # --- Dados do WDO ---
+    wdo_ajuste = obter_preco("WDO_AJUSTE")
+    wdo_atual = obter_preco("WDO_FUT")
+    wdo_last = obter_last_mt5("WDO")
+
+    ptax = obter_preco("USD_PTAX")
+
+    # --- Cálculo das distâncias e spreads (mesmo de antes) ---
     def calcular_distancia(preco, ajuste):
         if not preco or not ajuste:
             return 0, 0
@@ -1405,20 +1445,13 @@ def render_ajuste_metricas(ativos):
         percentual = (pontos / ajuste) * 100 if ajuste != 0 else 0
         return pontos, percentual
 
-    win_ajuste = obter_preco("WIN_AJUSTE")
-    win_atual = obter_preco("WIN_FUT")
-    win_last = obter_preco("WIN_LAST_TICK")
-    wdo_ajuste = obter_preco("WDO_AJUSTE")
-    wdo_atual = obter_preco("WDO_FUT")
-    wdo_last = obter_preco("WDO_LAST_TICK")
-    ptax = obter_preco("USD_PTAX")
-
     dist_win_pts, dist_win_pct = calcular_distancia(win_atual, win_ajuste)
     dist_wdo_pts, dist_wdo_pct = calcular_distancia(wdo_atual, wdo_ajuste)
 
     spread_win_last = win_ajuste - win_last if win_last and win_ajuste else None
     spread_wdo_last = wdo_ajuste - wdo_last if wdo_last and wdo_ajuste else None
 
+    # --- Exibição (cards) ---
     st.write("**📍 Mini Índice WIN**")
     col1, col2, col3, col4 = st.columns(4)
     with col1:
@@ -1455,7 +1488,7 @@ def render_ajuste_metricas(ativos):
         else:
             st.metric("📏 Spread", "N/A")
 
-    st.caption("💡 O 'Last' é o último tick negociado no pregão anterior (capturado via MT5).")
+    st.caption("💡 O 'Last' é o fechamento da última vela do pregão anterior (capturado via MT5). O 'Futuro (Close)' é o preço atual (TradingView).")
 
 def render_ajuste_macro(ativos):
     st.markdown("---")
@@ -1488,23 +1521,20 @@ def render_ajuste_macro(ativos):
     with m6:
         st.metric("⛏️ Minério", f"${iron.get('preco', 0):,.2f}", f"{variacao(iron):+.2f}%")
 
+####
 def render_ajuste_tendencia(ativos, dados_tendencias):
     st.markdown("---")
     st.subheader("📈 3. Confluência com Tendência")
 
-    def extrair_tendencia_win():
-        if not dados_tendencias:
-            return None
-        for chave in ["WIN_FUT", "BMFBOVESPA:WIN1!"]:
-            if chave in dados_tendencias:
-                info = dados_tendencias[chave]
-                return {
-                    "padrao": info.get("padrao_comportamento", "N/A"),
-                    "variacao": info.get("intervalo_5_para_0", {}).get("variacao_pct", 0),
-                    "tendencia": info.get("intervalo_5_para_0", {}).get("tendencia", "N/A")
-                }
-        return None
+    # --- Função para transformar padrão em bolinhas (igual à aba 09:00) ---
+    def padrao_para_bola(padrao: str) -> str:
+        mapa = {"Alta": "🟢", "Baixa": "🔴", "Estavel": "🟡"}
+        partes = padrao.split("_E_")
+        if len(partes) != 2:
+            return f"⚪ {padrao}"
+        return f"{mapa.get(partes[0], '⚪')} → {mapa.get(partes[1], '⚪')}"
 
+    # --- Função auxiliar para buscar preço (já existente) ---
     def obter_preco(nome):
         ativo = ativos.get(nome, {})
         if isinstance(ativo, dict):
@@ -1515,27 +1545,98 @@ def render_ajuste_tendencia(ativos, dados_tendencias):
         if not preco or not ajuste:
             return 0, 0
         pontos = preco - ajuste
-        return pontos, (pontos / ajuste) * 100 if ajuste != 0 else 0
+        percentual = (pontos / ajuste) * 100 if ajuste != 0 else 0
+        return pontos, percentual
 
+    # --- EXTRAÇÃO DE TENDÊNCIAS (MESMA LÓGICA DO SetupService) ---
+    def extrair_tendencias():
+        if not dados_tendencias:
+            return {}
+        tendencias = {}
+        # Mapeamento: nome padronizado -> label para exibição
+        ativos_desejados = {
+            "WIN_FUT": "WIN",
+            "WDO_FUT": "WDO",
+            "SP500_FUT": "S&P500",
+            "NASDAQ_FUT": "Nasdaq",
+            "VIX": "VIX",
+            "EWZ": "EWZ"
+        }
+        # Possíveis tickers originais que podem aparecer no JSON
+        ticker_map = {
+            "WIN_FUT": ["WIN_FUT", "BMFBOVESPA:WIN1!"],
+            "WDO_FUT": ["WDO_FUT", "BMFBOVESPA:WDO1!"],
+            "SP500_FUT": ["SP500_FUT", "CME_MINI:ES1!"],
+            "NASDAQ_FUT": ["NASDAQ_FUT", "CME_MINI:NQ1!"],
+            "VIX": ["VIX", "TVC:VIX"],
+            "EWZ": ["EWZ", "AMEX:EWZ"]
+        }
+
+        for ativo_padrao, label in ativos_desejados.items():
+            info = None
+            # Tenta encontrar pelas chaves mapeadas
+            for chave in ticker_map.get(ativo_padrao, [ativo_padrao]):
+                if chave in dados_tendencias:
+                    info = dados_tendencias[chave]
+                    break
+            # Se não encontrou, tenta buscar por qualquer chave que contenha o nome padronizado
+            if not info:
+                for chave, valor in dados_tendencias.items():
+                    if ativo_padrao in chave:
+                        info = valor
+                        break
+            if info:
+                tendencias[label] = {
+                    "padrao": info.get("padrao_comportamento", "N/A"),
+                    "variacao": info.get("intervalo_5_para_0", {}).get("variacao_pct", 0),
+                    "tendencia": info.get("intervalo_5_para_0", {}).get("tendencia", "N/A")
+                }
+        return tendencias
+
+    tendencias = extrair_tendencias()
+
+    # --- Se não houver tendências, tenta gerar (fallback) ---
+    if not tendencias:
+        st.info("📊 Analise_Tendencias.json não encontrado ou sem dados.")
+        sucesso, mensagem = garantir_tendencias()
+        if sucesso:
+            st.success(f"✅ {mensagem}")
+            st.rerun()
+        else:
+            st.warning(f"⚠️ {mensagem}")
+        return
+
+    # --- Exibe cards de tendência (igual à aba 09:00) ---
+    cols = st.columns(min(4, len(tendencias)))
+    for i, (label, tend) in enumerate(tendencias.items()):
+        with cols[i % len(cols)]:
+            bolas = padrao_para_bola(tend["padrao"])
+            delta_color = "normal" if tend["variacao"] > 0 else "inverse" if tend["variacao"] < 0 else "off"
+            st.metric(
+                label=label,
+                value=bolas,
+                delta=f"{tend['variacao']:+.2f}%",
+                delta_color=delta_color
+            )
+
+    # --- Diagnóstico de confluência (igual à aba 09:00) ---
     win_ajuste = obter_preco("WIN_AJUSTE")
     win_atual = obter_preco("WIN_FUT")
-    dist_win_pts, _ = calcular_distancia(win_atual, win_ajuste)
+    dist_win_pts, _ = calcular_distancia(win_atual, win_ajuste) if win_ajuste and win_atual else (0, 0)
 
-    tendencia_win = extrair_tendencia_win()
-    if tendencia_win:
-        emoji = "🟢" if tendencia_win["variacao"] > 0 else "🔴" if tendencia_win["variacao"] < 0 else "🟡"
-        st.metric("WIN - Tendência", f"{emoji} {tendencia_win['padrao']}", f"{tendencia_win['variacao']:+.2f}%")
-        if dist_win_pts > 300 and tendencia_win["tendencia"] == "SUBIU":
+    tend_win = tendencias.get("WIN")
+    if tend_win and win_ajuste and win_atual:
+        if dist_win_pts > 300 and tend_win["tendencia"] == "SUBIU":
             st.success("✅ WIN distante do ajuste e tendência de alta - Viés Comprador")
-        elif dist_win_pts < -300 and tendencia_win["tendencia"] == "DESCEU":
+        elif dist_win_pts < -300 and tend_win["tendencia"] == "DESCEU":
             st.error("🔴 WIN distante do ajuste e tendência de baixa - Viés Vendedor")
         elif abs(dist_win_pts) > 300:
             st.warning(f"⚠️ WIN distante do ajuste ({dist_win_pts:+.0f} pts) - Aguardar confirmação")
         else:
             st.info("ℹ️ WIN próximo do ajuste - Aguardar definição")
     else:
-        st.info("📊 Dados de tendência não disponíveis. Execute `MapearTendencia15Min.py`")
-
+        st.info("ℹ️ Dados insuficientes para diagnóstico de confluência.")
+####
 def render_ajuste_score_win(ativos, dados_tendencias):
     st.markdown("---")
     st.subheader("📊 4. Score Quantitativo WIN")
