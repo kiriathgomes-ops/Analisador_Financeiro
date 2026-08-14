@@ -1,5 +1,3 @@
-
-
 """
 Setup Abertura – Unificado
 ===========================
@@ -7,7 +5,8 @@ Página com abas para:
 - Ajuste B3 (distância do ajuste, scores, semáforo)
 - Abertura 09:00 (gap, sinal, IA de pré-abertura + Análise Gráfica SMC)
 
-Versão 6.2 - Integração do AnaliseGraficaSMC.json na IA de texto
+Versão 6.3 - IA unificada (KeyManager + limpeza thinking + max_tokens 2500)
+             Ajuste B3 e Pré-abertura usam a mesma engine chamar_groq_texto
 """
 
 import json
@@ -177,7 +176,7 @@ class ConfigSetup09:
     alvo_min_pts: int = 250
     modelo_groq_texto: str = "llama-3.3-70b-versatile"
     temperatura_groq: float = 0.2
-    max_tokens_groq: int = 1200
+    max_tokens_groq: int = 2500  # evita corte nas 7 seções
 
 CONFIG = ConfigSetup09()
 
@@ -648,13 +647,68 @@ GESTÃO DE RISCO: Loss {dados['loss']}pts | Alvo >{dados['alvo']}pts
 - Quando a análise SMC estiver alinhada com o sinal do setup, dê mais peso a ela
 - Seja prático e objetivo
 - Use termos técnicos do mercado
-- RESPONDA EM PORTUGUÊS
-- Não mostre raciocínio, apenas a análise final
+- RESPONDA 100% EM PORTUGUÊS DO BRASIL
+- NÃO mostre raciocínio interno, thinking ou planejamento
+- Complete TODAS as 7 seções até o grau de confiança
 """
 
-def chamar_groq_texto(api_key: str, prompt: str, modelo: str) -> str:
+
+def limpar_pensamento_ia(texto: str) -> str:
+    """Remove vazamento de raciocínio interno (thinking) da IA."""
+    if not texto:
+        return texto
+
+    texto = re.sub(r"<think>.*?</think>", "", texto, flags=re.DOTALL | re.IGNORECASE)
+    texto = re.sub(r"<thought>.*?</thought>", "", texto, flags=re.DOTALL | re.IGNORECASE)
+    texto = re.sub(r"<reasoning>.*?</reasoning>", "", texto, flags=re.DOTALL | re.IGNORECASE)
+
+    padroes = [
+        r"(?is)Here's a thinking process:.*?(?=###|\Z)",
+        r"(?is)Here is a thinking process:.*?(?=###|\Z)",
+        r"(?is)Thinking process:.*?(?=###|\Z)",
+        r"(?is)\*\*Analyze User Input:\*\*.*?(?=###|\Z)",
+        r"(?is)1\.\s*\*\*Analyze User Input:\*\*.*?(?=###|\Z)",
+        r"(?is)Draft generation \(mental refinement.*?(?=###|\Z)",
+        r"(?is)Check Against Constraints:.*?(?=###|\Z)",
+        r"(?is)Map Data to Required.*?(?=###|\Z)",
+    ]
+    for p in padroes:
+        texto = re.sub(p, "", texto)
+
+    marcadores = ["### 📊 1.", "### 1.", "1. **DIREÇÃO", "1. ANÁLISE DO AJUSTE"]
+    melhor_idx = -1
+    for m in marcadores:
+        idx = texto.find(m)
+        if idx != -1 and (melhor_idx == -1 or idx < melhor_idx):
+            melhor_idx = idx
+    if melhor_idx > 0:
+        pre = texto[:melhor_idx].lower()
+        if any(
+            x in pre
+            for x in (
+                "thinking",
+                "analyze user",
+                "draft generation",
+                "check against",
+                "map data",
+                "here's a",
+                "here is a",
+            )
+        ):
+            texto = texto[melhor_idx:]
+
+    return texto.strip()
+
+
+def chamar_groq_texto(
+    api_key: str,
+    prompt: str,
+    modelo: str,
+    system_content: Optional[str] = None,
+) -> str:
+    """Chamada unificada à Groq com KeyManager, limpeza e PT-BR."""
     try:
-        from groq import Groq
+        from groq import Groq  # noqa: F401
     except ImportError as exc:
         raise RuntimeError("Biblioteca 'groq' não instalada. Rode: pip install groq") from exc
 
@@ -662,25 +716,31 @@ def chamar_groq_texto(api_key: str, prompt: str, modelo: str) -> str:
         client, key_utilizada = get_groq_client()
         print(f"🔑 Usando chave: {key_utilizada[:20]}...")
     except Exception as e:
-        return f"❌ Erro ao obter chave API: {str(e)}"
-    
-    messages = [
-        {
-            "role": "system",
-            "content": """VOCÊ É UM ESPECIALISTA EM PRÉ-ABERTURA DO MERCADO BRASILEIRO.
+        # Fallback: chave passada manualmente / .env
+        if api_key:
+            from groq import Groq
+            client = Groq(api_key=api_key)
+            key_utilizada = api_key
+            print("🔑 Usando chave manual (.env / input)")
+        else:
+            return f"❌ Erro ao obter chave API: {str(e)}"
 
-REGRAS:
+    if not system_content:
+        system_content = """VOCÊ É UM ESPECIALISTA EM MERCADO BRASILEIRO (B3 / WIN / WDO).
+
+REGRAS OBRIGATÓRIAS:
 1. RESPONDA 100% EM PORTUGUÊS DO BRASIL.
-2. NÃO MOSTRE SEU RACIOCÍNIO.
+2. NÃO MOSTRE RACIOCÍNIO INTERNO, THINKING OU PLANEJAMENTO.
 3. SEJA DIRETO E OBJETIVO.
 4. USE TERMOS TÉCNICOS DO MERCADO.
-5. SUA ANÁLISE DEVE AJUDAR O TRADER NA ABERTURA.
+5. COMPLETE TODA A ESTRUTURA PEDIDA NO PROMPT.
+6. NÃO USE INGLÊS."""
 
-SUA RESPOSTA DEVE SER 100% EM PORTUGUÊS."""
-        },
-        {"role": "user", "content": prompt}
+    messages = [
+        {"role": "system", "content": system_content},
+        {"role": "user", "content": prompt},
     ]
-    
+
     try:
         completion = client.chat.completions.create(
             model=modelo,
@@ -688,26 +748,34 @@ SUA RESPOSTA DEVE SER 100% EM PORTUGUÊS."""
             temperature=CONFIG.temperatura_groq,
             max_tokens=CONFIG.max_tokens_groq,
         )
-        
-        if hasattr(completion, 'usage'):
+
+        if hasattr(completion, "usage") and completion.usage:
             tokens = completion.usage.total_tokens
-            key_manager.registrar_uso(key_utilizada, tokens)
-            print(f"📊 Tokens usados (texto): {tokens} (chave: {key_utilizada[:8]}...)")
-        
-        return completion.choices[0].message.content
-        
+            try:
+                key_manager.registrar_uso(key_utilizada, tokens)
+            except Exception:
+                pass
+            print(f"📊 Tokens usados (texto): {tokens} (chave: {str(key_utilizada)[:8]}...)")
+
+        bruto = completion.choices[0].message.content or ""
+        return garantir_portugues(limpar_pensamento_ia(bruto))
+
     except Exception as e:
         erro_msg = str(e).lower()
         if "429" in erro_msg or "rate_limit" in erro_msg:
-            print(f"⚠️ Rate limit detectado na chave {key_utilizada[:8]}...")
-            key_manager.marcar_rate_limit(key_utilizada)
+            print(f"⚠️ Rate limit detectado na chave {str(key_utilizada)[:8]}...")
+            try:
+                key_manager.marcar_rate_limit(key_utilizada)
+            except Exception:
+                pass
             try:
                 client, key_utilizada = get_groq_client()
                 print(f"🔑 Trocando para nova chave: {key_utilizada[:20]}...")
-                return chamar_groq_texto(api_key, prompt, modelo)
-            except:
+                return chamar_groq_texto(api_key, prompt, modelo, system_content)
+            except Exception:
                 return "❌ Todas as chaves em rate limit. Tente novamente em algumas horas."
         raise e
+
 
 def forcar_portugues(resposta: str) -> str:
     traducao = {
@@ -750,10 +818,17 @@ def forcar_portugues(resposta: str) -> str:
     return " ".join(palavras_traduzidas)
 
 def garantir_portugues(resposta: str) -> str:
+    """Limpa thinking residual e garante português."""
+    if not resposta:
+        return resposta
+
+    resposta = limpar_pensamento_ia(resposta)
+
     palavras_portugues = [
-        "mercado", "tendência", "compra", "venda", "preço", "suporte", 
-        "resistência", "análise", "estrutura", "liquidez", "entrada", 
-        "alvo", "stop", "perda", "rompimento", "confirmação"
+        "mercado", "tendência", "compra", "venda", "preço", "suporte",
+        "resistência", "análise", "estrutura", "liquidez", "entrada",
+        "alvo", "stop", "perda", "rompimento", "confirmação", "nível",
+        "abertura", "gap", "confiança",
     ]
     tem_portugues = any(p in resposta.lower() for p in palavras_portugues)
     if tem_portugues:
@@ -768,7 +843,7 @@ def garantir_portugues(resposta: str) -> str:
         }
         for en, pt in traducao_simples.items():
             resultado = resultado.replace(en, pt)
-        return resultado
+        return resultado.strip()
     aviso = "⚠️ RESPOSTA TRADUZIDA PARA PORTUGUÊS:\n\n"
     return aviso + forcar_portugues(resposta)
 
@@ -1143,7 +1218,14 @@ def render_bloco_4_contexto_confluencia(service: SetupService, dados: Dict):
 def render_bloco_5_ia_pre_abertura(service: SetupService):
     st.markdown("---")
     st.subheader("📌 5. Análise IA – Pré-Abertura")
-    st.caption("Previsão de direção, GAP e cenário para os primeiros minutos do pregão")
+    st.caption("Previsão de direção, GAP, SMC e cenário para os primeiros minutos do pregão")
+
+    # Status SMC
+    smc_ok = bool(service.analise_smc)
+    if smc_ok:
+        st.success("✅ Análise gráfica SMC carregada e será usada no prompt")
+    else:
+        st.info("ℹ️ AnaliseGraficaSMC.json não encontrado — IA usará só dados quantitativos")
 
     groq_key = os.getenv("GROQ_API_KEY", "")
     if not groq_key:
@@ -1154,36 +1236,43 @@ def render_bloco_5_ia_pre_abertura(service: SetupService):
         except Exception:
             pass
 
-    with st.expander("⚙️ Configurações da IA", expanded=not bool(groq_key)):
-        groq_key_input = st.text_input("Groq API Key", type="password", value=groq_key, help="Obtenha em https://console.groq.com", key="groq_key_pre_abertura")
-        modelo_texto = st.selectbox("Modelo (texto)", ["llama-3.3-70b-versatile", "llama-3.1-70b-versatile", "llama-3.1-8b-instant"], index=0, key="modelo_pre_abertura")
-        st.caption("💡 Llama 3.3 70B é o melhor modelo de texto da Groq.")
+    with st.expander("⚙️ Configurações da IA", expanded=False):
+        groq_key_input = st.text_input(
+            "Groq API Key (opcional se KeyManager estiver configurado)",
+            type="password",
+            value=groq_key,
+            help="KeyManager tem prioridade. Use este campo só como fallback.",
+            key="groq_key_pre_abertura",
+        )
+        modelo_texto = st.selectbox(
+            "Modelo (texto)",
+            ["llama-3.3-70b-versatile", "llama-3.1-70b-versatile", "llama-3.1-8b-instant"],
+            index=0,
+            key="modelo_pre_abertura",
+        )
+        st.caption("💡 KeyManager faz rotação automática de chaves. max_tokens=2500.")
 
     if not service.dados_minimos_ok():
         st.warning("⚠️ Dados insuficientes. Execute `rodar_pipeline_3x.bat`")
         return
 
     if st.button("📊 Analisar Pré-Abertura (Texto)", type="primary", key="btn_pre_abertura"):
-        key_final = groq_key_input or groq_key
-        if not key_final:
-            st.error("⚠️ Informe a Groq API Key")
-            return
-        with st.spinner("📊 Analisando dados para pré-abertura..."):
+        key_final = groq_key_input or groq_key or ""
+        with st.spinner("📊 Analisando pré-abertura (pipeline + SMC)..."):
             try:
                 dados_ia = service.dados_para_ia_resumido()
                 prompt = montar_prompt_pre_abertura(dados_ia)
-                resposta = chamar_groq_texto(key_final, prompt, modelo_texto)
-                resposta_limpa = re.sub(r'<think>.*?</think>', '', resposta, flags=re.DOTALL)
-                resposta_limpa = resposta_limpa.strip()
+                resposta_limpa = chamar_groq_texto(key_final, prompt, modelo_texto)
+                tag_smc = "SMC" if smc_ok else "Sem SMC"
                 st.markdown(
                     f"""
                     <div class="card-ai" style="border-left-color: #00d4ff;">
                         <h4 style="color:#00d4ff;">📊 Análise de Pré-Abertura</h4>
                         <div style="color:#a78bfa; font-size:0.85rem; margin-bottom:8px;">
-                            ⚡ Análise baseada apenas nos dados do pipeline
+                            ⚡ Pipeline + SMC • KeyManager
                             <span style="margin-left:12px; background:rgba(0,212,255,0.15); padding:2px 10px; border-radius:12px; font-size:0.7rem;">{modelo_texto}</span>
-                            <span style="margin-left:12px; background:rgba(0,200,83,0.15); padding:2px 10px; border-radius:12px; font-size:0.7rem;">🇧🇷 Português</span>
-                            <span style="margin-left:12px; background:rgba(255,193,7,0.15); padding:2px 10px; border-radius:12px; font-size:0.7rem;">📊 Somente texto</span>
+                            <span style="margin-left:12px; background:rgba(0,200,83,0.15); padding:2px 10px; border-radius:12px; font-size:0.7rem;">🇧🇷 PT-BR</span>
+                            <span style="margin-left:12px; background:rgba(124,92,252,0.15); padding:2px 10px; border-radius:12px; font-size:0.7rem;">{tag_smc}</span>
                         </div>
                         <div class="analysis-content">
                             {resposta_limpa.replace(chr(10), '<br>')}
@@ -1192,8 +1281,8 @@ def render_bloco_5_ia_pre_abertura(service: SetupService):
                             <span class="smc-tag">📊 Pré-Abertura</span>
                             <span class="smc-tag">🎯 Direção</span>
                             <span class="smc-tag">📈 GAP</span>
-                            <span class="smc-tag">⚡ Volatilidade</span>
-                            <span class="smc-tag">🎯 Níveis Chave</span>
+                            <span class="smc-tag">🔷 SMC</span>
+                            <span class="smc-tag">🎯 Níveis</span>
                         </div>
                     </div>
                     """,
@@ -1206,6 +1295,7 @@ def render_bloco_5_ia_pre_abertura(service: SetupService):
                     "sinal": service.sinal().direcao,
                     "modelo": modelo_texto,
                     "resposta": resposta_limpa,
+                    "smc": smc_ok,
                 })
             except Exception as e:
                 st.error(f"❌ Erro ao chamar IA: {e}")
@@ -1586,40 +1676,50 @@ def render_ajuste_ia(win_ajuste, win_atual, dist_win_pts, wdo_ajuste, wdo_atual,
         except Exception:
             pass
 
-    with st.expander("⚙️ Configurações da IA", expanded=not bool(groq_key)):
-        groq_key_input = st.text_input("Groq API Key", type="password", value=groq_key, help="Obtenha em https://console.groq.com", key="groq_key_ajuste_unificado")
-        modelo_texto = st.selectbox("Modelo (texto)", ["llama-3.3-70b-versatile", "llama-3.1-70b-versatile", "llama-3.1-8b-instant"], index=0, key="modelo_ajuste_unificado")
-        st.caption("💡 Modelos de texto são mais rápidos e baratos")
+    with st.expander("⚙️ Configurações da IA", expanded=False):
+        groq_key_input = st.text_input(
+            "Groq API Key (opcional se KeyManager estiver configurado)",
+            type="password",
+            value=groq_key,
+            help="KeyManager tem prioridade.",
+            key="groq_key_ajuste_unificado",
+        )
+        modelo_texto = st.selectbox(
+            "Modelo (texto)",
+            ["llama-3.3-70b-versatile", "llama-3.1-70b-versatile", "llama-3.1-8b-instant"],
+            index=0,
+            key="modelo_ajuste_unificado",
+        )
+        st.caption("💡 Mesma engine da pré-abertura: KeyManager + limpeza PT-BR + max_tokens=2500")
 
     if st.button("📊 Analisar Ajuste B3 (IA)", type="primary", key="btn_ajuste_unificado"):
-        key_final = groq_key_input or groq_key
-        if not key_final:
-            st.error("⚠️ Informe a Groq API Key")
-        else:
-            with st.spinner("🧠 Analisando setup de ajuste..."):
-                try:
-                    def variacao(ativo):
-                        return ativo.get("variacao_pct", ativo.get("var_pct", 0))
-                    dados_ia = {
-                        "win_ajuste": f"{win_ajuste:,.0f}",
-                        "win_atual": f"{win_atual:,.0f}",
-                        "dist_win": f"{dist_win_pts:+,.0f}",
-                        "wdo_ajuste": f"{wdo_ajuste:,.2f}",
-                        "wdo_atual": f"{wdo_atual:,.2f}",
-                        "dist_wdo": f"{dist_wdo_pts:+,.2f}",
-                        "ptax": f"{ptax:,.4f}" if ptax else "N/A",
-                        "score_win": f"{score_win}/6",
-                        "score_wdo": f"{score_wdo}/3",
-                        "status_win": status_win,
-                        "status_wdo": status_wdo,
-                        "tendencia_win": tendencia_win["padrao"] if tendencia_win else "N/A",
-                        "sp500": f"{variacao(sp500):+.2f}%",
-                        "nasdaq": f"{variacao(nasdaq):+.2f}%",
-                        "vix": f"{variacao(vix):+.2f}%",
-                        "dxy": f"{variacao(dxy):+.2f}%",
-                        "iron": f"{variacao(iron):+.2f}%",
-                    }
-                    prompt = f"""⚠️ RESPONDA EM PORTUGUÊS DO BRASIL. SEJA DIRETO.
+        key_final = groq_key_input or groq_key or ""
+        with st.spinner("🧠 Analisando setup de ajuste..."):
+            try:
+                def variacao(ativo):
+                    return ativo.get("variacao_pct", ativo.get("var_pct", 0)) if isinstance(ativo, dict) else 0
+
+                dados_ia = {
+                    "win_ajuste": f"{win_ajuste:,.0f}",
+                    "win_atual": f"{win_atual:,.0f}",
+                    "dist_win": f"{dist_win_pts:+,.0f}",
+                    "wdo_ajuste": f"{wdo_ajuste:,.2f}",
+                    "wdo_atual": f"{wdo_atual:,.2f}",
+                    "dist_wdo": f"{dist_wdo_pts:+,.2f}",
+                    "ptax": f"{ptax:,.4f}" if ptax else "N/A",
+                    "score_win": f"{score_win}/6",
+                    "score_wdo": f"{score_wdo}/3",
+                    "status_win": status_win,
+                    "status_wdo": status_wdo,
+                    "tendencia_win": tendencia_win["padrao"] if tendencia_win else "N/A",
+                    "sp500": f"{variacao(sp500):+.2f}%",
+                    "nasdaq": f"{variacao(nasdaq):+.2f}%",
+                    "vix": f"{variacao(vix):+.2f}%",
+                    "dxy": f"{variacao(dxy):+.2f}%",
+                    "iron": f"{variacao(iron):+.2f}%",
+                }
+                prompt = f"""⚠️ RESPONDA EM PORTUGUÊS DO BRASIL. SEJA DIRETO.
+NÃO mostre raciocínio interno. Complete todas as 6 seções.
 
 VOCÊ É UM ESPECIALISTA EM AJUSTE B3.
 
@@ -1641,49 +1741,46 @@ RESPONDA EM PORTUGUÊS:
 1. ANÁLISE DO AJUSTE WIN: O ajuste está distante ou próximo? O que esperar?
 2. ANÁLISE DO AJUSTE WDO: O ajuste está distante ou próximo? O que esperar?
 3. CONFLUÊNCIA MACRO: O cenário macro favorece ou atrapalha o ajuste?
-4. OPORTUNIDADE: Vale a pena operar o ajuste? (SIM/NÃO/PARCIAIS)
+4. OPORTUNIDADE: Vale a pena operar o ajuste? (SIM/NÃO/PARCIAL)
 5. RECOMENDAÇÃO: Qual ativo (WIN/WDO) tem melhor setup?
-6. CONFIANÇA: De 1 a 10
+6. CONFIANÇA: De 1 a 10 (justifique)
 
-SEJA DIRETO. PORTUGUÊS APENAS."""
-                    client = Groq(api_key=key_final)
-                    completion = client.chat.completions.create(
-                        model=modelo_texto,
-                        messages=[
-                            {"role": "system", "content": "Você é um especialista em ajuste B3. Responda em português."},
-                            {"role": "user", "content": prompt}
-                        ],
-                        temperature=0.2,
-                        max_tokens=1200,
-                    )
-                    resposta = completion.choices[0].message.content
-                    resposta_limpa = re.sub(r'<think>.*?</think>', '', resposta, flags=re.DOTALL)
-                    resposta_limpa = resposta_limpa.strip()
-                    st.markdown(f"""
-                    <div class="card-ai">
-                        <h4>🤖 Análise IA - Ajuste B3</h4>
-                        <div style="color:#a78bfa; font-size:0.85rem; margin-bottom:8px;">
-                            ⚡ Análise baseada nos dados do pipeline
-                            <span style="margin-left:12px; background:rgba(124,92,252,0.15); padding:2px 10px; border-radius:12px; font-size:0.7rem;">{modelo_texto}</span>
-                        </div>
-                        <div class="analysis-content">
-                            {resposta_limpa.replace(chr(10), '<br>')}
-                        </div>
-                        <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
-                            <span class="smc-tag">🎯 Ajuste B3</span>
-                            <span class="smc-tag">📊 WIN/WDO</span>
-                            <span class="smc-tag">🏦 Fluxo</span>
-                        </div>
+SEJA DIRETO. PORTUGUÊS APENAS. SEM THINKING."""
+
+                system_ajuste = """VOCÊ É UM ESPECIALISTA EM AJUSTE B3 (WIN/WDO).
+REGRAS: 100% português do Brasil; sem raciocínio interno; completo e objetivo."""
+
+                resposta_limpa = chamar_groq_texto(
+                    key_final,
+                    prompt,
+                    modelo_texto,
+                    system_content=system_ajuste,
+                )
+                st.markdown(f"""
+                <div class="card-ai">
+                    <h4>🤖 Análise IA - Ajuste B3</h4>
+                    <div style="color:#a78bfa; font-size:0.85rem; margin-bottom:8px;">
+                        ⚡ Pipeline • KeyManager • PT-BR
+                        <span style="margin-left:12px; background:rgba(124,92,252,0.15); padding:2px 10px; border-radius:12px; font-size:0.7rem;">{modelo_texto}</span>
                     </div>
-                    """, unsafe_allow_html=True)
-                    if "historico_ia_ajuste" not in st.session_state:
-                        st.session_state.historico_ia_ajuste = []
-                    st.session_state.historico_ia_ajuste.append({
-                        "hora": datetime.now().strftime("%H:%M:%S"),
-                        "resposta": resposta_limpa,
-                    })
-                except Exception as e:
-                    st.error(f"❌ Erro ao chamar IA: {e}")
+                    <div class="analysis-content">
+                        {resposta_limpa.replace(chr(10), '<br>')}
+                    </div>
+                    <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+                        <span class="smc-tag">🎯 Ajuste B3</span>
+                        <span class="smc-tag">📊 WIN/WDO</span>
+                        <span class="smc-tag">🏦 Fluxo</span>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+                if "historico_ia_ajuste" not in st.session_state:
+                    st.session_state.historico_ia_ajuste = []
+                st.session_state.historico_ia_ajuste.append({
+                    "hora": datetime.now().strftime("%H:%M:%S"),
+                    "resposta": resposta_limpa,
+                })
+            except Exception as e:
+                st.error(f"❌ Erro ao chamar IA: {e}")
 
     if st.session_state.get("historico_ia_ajuste"):
         with st.expander("📜 Histórico de análises IA"):
@@ -1862,10 +1959,10 @@ def main():
             render_bloco_5_ia_pre_abertura(service)
             render_bloco_6_checklist()
 
-            st.caption("Setup Abertura 09:00 • v6.2 • IA texto + Análise SMC")
+            st.caption("Setup Abertura 09:00 • v6.3 • KeyManager + SMC + limpeza thinking")
 
     st.markdown("---")
-    st.caption("Setup Abertura Unificado • v6.2 • Analisador Financeiro Quant + SMC")
+    st.caption("Setup Abertura Unificado • v6.3 • IA unificada (pré-abertura + ajuste B3)")
 
 if __name__ == "__main__":
     main()
