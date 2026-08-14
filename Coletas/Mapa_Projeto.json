@@ -1,7 +1,7 @@
 {
     "metadata": {
         "projeto": "Analisador_Financeiro",
-        "gerado_em": "2026-08-13 15:09:52",
+        "gerado_em": "2026-08-14 08:48:05",
         "fonte": "Coletas/Mapa_Inventario_Tecnico.json"
     },
     "estrutura": {
@@ -28,25 +28,39 @@
                 "ultima_alteracao": "2026-08-02 21:49:51"
             },
             {
+                "arquivo": "Anotacoes.txt",
+                "local": "Anotacoes.txt",
+                "tipo": "TXT",
+                "tamanho_kb": 10.5,
+                "ultima_alteracao": "2026-08-14 06:34:19"
+            },
+            {
+                "arquivo": "Anotações_MotorSMCRegras.txt",
+                "local": "Anotações_MotorSMCRegras.txt",
+                "tipo": "TXT",
+                "tamanho_kb": 0.7,
+                "ultima_alteracao": "2026-08-14 08:41:34"
+            },
+            {
                 "arquivo": "WIN_1min.png",
                 "local": "Coletas\\WIN_1min.png",
                 "tipo": "PNG",
-                "tamanho_kb": 213.69,
-                "ultima_alteracao": "2026-08-13 06:38:34"
+                "tamanho_kb": 227.33,
+                "ultima_alteracao": "2026-08-14 08:34:22"
             },
             {
                 "arquivo": "WIN_5min.png",
                 "local": "Coletas\\WIN_5min.png",
                 "tipo": "PNG",
-                "tamanho_kb": 172.81,
-                "ultima_alteracao": "2026-08-13 06:38:17"
+                "tamanho_kb": 172.91,
+                "ultima_alteracao": "2026-08-14 08:33:44"
             },
             {
                 "arquivo": "token_usage.log",
                 "local": "Coletas\\token_usage.log",
                 "tipo": "LOG",
-                "tamanho_kb": 0.16,
-                "ultima_alteracao": "2026-08-13 06:34:45"
+                "tamanho_kb": 0.7,
+                "ultima_alteracao": "2026-08-14 06:34:19"
             },
             {
                 "arquivo": "Gerar_Mapa_Fluxo.py",
@@ -103,6 +117,13 @@
                 "tipo": "PY",
                 "tamanho_kb": 4.33,
                 "ultima_alteracao": "2026-08-04 05:55:46"
+            },
+            {
+                "arquivo": "Motor_SMC_Regras.py",
+                "local": "Motor_SMC_Regras.py",
+                "tipo": "PY",
+                "tamanho_kb": 32.06,
+                "ultima_alteracao": "2026-08-14 08:35:11"
             },
             {
                 "arquivo": "__init__.py",
@@ -221,7 +242,14 @@
                 "local": "PromptIA\\Prompt_Abertura_0900.txt",
                 "tipo": "TXT",
                 "tamanho_kb": 4.74,
-                "ultima_alteracao": "2026-08-13 05:05:57"
+                "ultima_alteracao": "2026-08-14 06:34:19"
+            },
+            {
+                "arquivo": "Prompt_Gemini_SMC.txt",
+                "local": "PromptIA\\Prompt_Gemini_SMC.txt",
+                "tipo": "TXT",
+                "tamanho_kb": 2.89,
+                "ultima_alteracao": "2026-08-14 06:34:19"
             },
             {
                 "arquivo": "Prompt_Mestre_Visao_Ultra.txt",
@@ -259,6 +287,13 @@
                 "ultima_alteracao": "2026-08-04 21:13:56"
             },
             {
+                "arquivo": "Rodar_SMC_Regras.py",
+                "local": "Rodar_SMC_Regras.py",
+                "tipo": "PY",
+                "tamanho_kb": 3.84,
+                "ultima_alteracao": "2026-08-14 08:35:06"
+            },
+            {
                 "arquivo": "Versionador.bat",
                 "local": "Versionador.bat",
                 "tipo": "BAT",
@@ -271,13 +306,6 @@
                 "tipo": "BAT",
                 "tamanho_kb": 3.07,
                 "ultima_alteracao": "2026-08-10 12:17:49"
-            },
-            {
-                "arquivo": "anotacoes.txt",
-                "local": "anotacoes.txt",
-                "tipo": "TXT",
-                "tamanho_kb": 10.5,
-                "ultima_alteracao": "2026-08-12 14:51:09"
             },
             {
                 "arquivo": "config.py",
@@ -326,28 +354,21 @@
                 "local": "pages\\18_🔮_Previsao_Inteligente_Abertura.py",
                 "tipo": "PY",
                 "tamanho_kb": 13.25,
-                "ultima_alteracao": "2026-08-10 10:47:02"
+                "ultima_alteracao": "2026-08-14 06:34:19"
             },
             {
                 "arquivo": "19_🔮_Previsao_Inteligente_Abertura_Comparador.py",
                 "local": "pages\\19_🔮_Previsao_Inteligente_Abertura_Comparador.py",
                 "tipo": "PY",
                 "tamanho_kb": 13.54,
-                "ultima_alteracao": "2026-08-10 10:47:02"
-            },
-            {
-                "arquivo": "1_🎯_Setup_Abertura copy.py",
-                "local": "pages\\1_🎯_Setup_Abertura copy.py",
-                "tipo": "PY",
-                "tamanho_kb": 72.61,
-                "ultima_alteracao": "2026-08-11 08:43:45"
+                "ultima_alteracao": "2026-08-14 06:34:19"
             },
             {
                 "arquivo": "1_🎯_Setup_Abertura.py",
                 "local": "pages\\1_🎯_Setup_Abertura.py",
                 "tipo": "PY",
-                "tamanho_kb": 72.61,
-                "ultima_alteracao": "2026-08-11 08:43:45"
+                "tamanho_kb": 80.0,
+                "ultima_alteracao": "2026-08-14 08:37:11"
             },
             {
                 "arquivo": "3_🎯_Setup_Abertura_10h.py",
@@ -368,28 +389,35 @@
                 "local": "pages\\7_🤖_IA_Gemini.py",
                 "tipo": "PY",
                 "tamanho_kb": 12.1,
-                "ultima_alteracao": "2026-08-13 06:27:26"
+                "ultima_alteracao": "2026-08-14 06:34:19"
             },
             {
                 "arquivo": "7_🤖_IA_Imagem.py",
                 "local": "pages\\7_🤖_IA_Imagem.py",
                 "tipo": "PY",
-                "tamanho_kb": 31.65,
-                "ultima_alteracao": "2026-08-10 10:47:02"
-            },
-            {
-                "arquivo": "7_🤖_IA_Imagem_Hibrido.py",
-                "local": "pages\\7_🤖_IA_Imagem_Hibrido.py",
-                "tipo": "PY",
-                "tamanho_kb": 45.83,
-                "ultima_alteracao": "2026-08-10 10:47:02"
+                "tamanho_kb": 47.74,
+                "ultima_alteracao": "2026-08-14 06:34:19"
             },
             {
                 "arquivo": "8_📥_Gerador_Profit_Pro.py",
                 "local": "pages\\8_📥_Gerador_Profit_Pro.py",
                 "tipo": "PY",
+                "tamanho_kb": 11.56,
+                "ultima_alteracao": "2026-08-14 08:37:13"
+            },
+            {
+                "arquivo": "8_📥_Gerador_Profit_Pro_Orignal.py",
+                "local": "pages\\8_📥_Gerador_Profit_Pro_Orignal.py",
+                "tipo": "PY",
                 "tamanho_kb": 12.69,
                 "ultima_alteracao": "2026-08-10 10:47:02"
+            },
+            {
+                "arquivo": "9_📊_SMC_Regras.py",
+                "local": "pages\\9_📊_SMC_Regras.py",
+                "tipo": "PY",
+                "tamanho_kb": 8.09,
+                "ultima_alteracao": "2026-08-14 08:37:15"
             },
             {
                 "arquivo": "requirements.txt",
@@ -424,161 +452,161 @@
                 "local": "v2\\__init__.py",
                 "tipo": "PY",
                 "tamanho_kb": 0.0,
-                "ultima_alteracao": "2026-08-11 21:55:50"
+                "ultima_alteracao": "2026-08-14 06:34:19"
             },
             {
                 "arquivo": "__init__.py",
                 "local": "v2\\core\\__init__.py",
                 "tipo": "PY",
                 "tamanho_kb": 0.02,
-                "ultima_alteracao": "2026-08-11 22:31:43"
+                "ultima_alteracao": "2026-08-14 06:34:19"
             },
             {
                 "arquivo": "__init__.py",
                 "local": "v2\\core\\contracts\\__init__.py",
                 "tipo": "PY",
                 "tamanho_kb": 0.38,
-                "ultima_alteracao": "2026-08-11 22:32:08"
+                "ultima_alteracao": "2026-08-14 06:34:19"
             },
             {
                 "arquivo": "decision_context.py",
                 "local": "v2\\core\\contracts\\decision_context.py",
                 "tipo": "PY",
                 "tamanho_kb": 0.75,
-                "ultima_alteracao": "2026-08-11 22:33:20"
+                "ultima_alteracao": "2026-08-14 06:34:19"
             },
             {
                 "arquivo": "market_context.py",
                 "local": "v2\\core\\contracts\\market_context.py",
                 "tipo": "PY",
                 "tamanho_kb": 1.15,
-                "ultima_alteracao": "2026-08-11 22:32:29"
+                "ultima_alteracao": "2026-08-14 06:34:19"
             },
             {
                 "arquivo": "news_context.py",
                 "local": "v2\\core\\contracts\\news_context.py",
                 "tipo": "PY",
                 "tamanho_kb": 0.56,
-                "ultima_alteracao": "2026-08-11 22:32:56"
+                "ultima_alteracao": "2026-08-14 06:34:19"
             },
             {
                 "arquivo": "prediction_context.py",
                 "local": "v2\\core\\contracts\\prediction_context.py",
                 "tipo": "PY",
                 "tamanho_kb": 0.75,
-                "ultima_alteracao": "2026-08-11 22:32:45"
+                "ultima_alteracao": "2026-08-14 06:34:19"
             },
             {
                 "arquivo": "vision_context.py",
                 "local": "v2\\core\\contracts\\vision_context.py",
                 "tipo": "PY",
                 "tamanho_kb": 0.78,
-                "ultima_alteracao": "2026-08-11 22:33:07"
+                "ultima_alteracao": "2026-08-14 06:34:19"
             },
             {
                 "arquivo": "__init__.py",
                 "local": "v2\\core\\engines\\__init__.py",
                 "tipo": "PY",
                 "tamanho_kb": 0.03,
-                "ultima_alteracao": "2026-08-11 22:35:15"
+                "ultima_alteracao": "2026-08-14 06:34:19"
             },
             {
                 "arquivo": "__init__.py",
                 "local": "v2\\core\\services\\__init__.py",
                 "tipo": "PY",
                 "tamanho_kb": 0.03,
-                "ultima_alteracao": "2026-08-11 22:33:37"
+                "ultima_alteracao": "2026-08-14 06:34:19"
             },
             {
                 "arquivo": "market_service.py",
                 "local": "v2\\core\\services\\market_service.py",
                 "tipo": "PY",
                 "tamanho_kb": 5.28,
-                "ultima_alteracao": "2026-08-11 22:33:49"
+                "ultima_alteracao": "2026-08-14 06:34:19"
             },
             {
                 "arquivo": "news_service.py",
                 "local": "v2\\core\\services\\news_service.py",
                 "tipo": "PY",
                 "tamanho_kb": 1.77,
-                "ultima_alteracao": "2026-08-11 22:34:15"
+                "ultima_alteracao": "2026-08-14 06:34:19"
             },
             {
                 "arquivo": "prediction_service.py",
                 "local": "v2\\core\\services\\prediction_service.py",
                 "tipo": "PY",
                 "tamanho_kb": 4.39,
-                "ultima_alteracao": "2026-08-11 22:34:02"
+                "ultima_alteracao": "2026-08-14 06:34:19"
             },
             {
                 "arquivo": "vision_ai_service.py",
                 "local": "v2\\core\\services\\vision_ai_service.py",
                 "tipo": "PY",
                 "tamanho_kb": 5.06,
-                "ultima_alteracao": "2026-08-11 23:49:51"
+                "ultima_alteracao": "2026-08-14 06:34:19"
             },
             {
                 "arquivo": "vision_service.py",
                 "local": "v2\\core\\services\\vision_service.py",
                 "tipo": "PY",
                 "tamanho_kb": 2.44,
-                "ultima_alteracao": "2026-08-11 22:34:50"
+                "ultima_alteracao": "2026-08-14 06:34:19"
             },
             {
                 "arquivo": "main.py",
                 "local": "v2\\main.py",
                 "tipo": "PY",
                 "tamanho_kb": 2.84,
-                "ultima_alteracao": "2026-08-11 22:29:59"
+                "ultima_alteracao": "2026-08-14 06:34:19"
             },
             {
                 "arquivo": "__init__.py",
                 "local": "v2\\pages\\__init__.py",
                 "tipo": "PY",
                 "tamanho_kb": 0.02,
-                "ultima_alteracao": "2026-08-11 22:35:49"
+                "ultima_alteracao": "2026-08-14 06:34:19"
             },
             {
                 "arquivo": "analise_detalhada.py",
                 "local": "v2\\pages\\analise_detalhada.py",
                 "tipo": "PY",
                 "tamanho_kb": 3.36,
-                "ultima_alteracao": "2026-08-11 22:38:43"
+                "ultima_alteracao": "2026-08-14 06:34:19"
             },
             {
                 "arquivo": "comparador.py",
                 "local": "v2\\pages\\comparador.py",
                 "tipo": "PY",
                 "tamanho_kb": 2.4,
-                "ultima_alteracao": "2026-08-11 22:36:12"
+                "ultima_alteracao": "2026-08-14 06:34:19"
             },
             {
                 "arquivo": "dashboard_v2 copy.py",
                 "local": "v2\\pages\\dashboard_v2 copy.py",
                 "tipo": "PY",
                 "tamanho_kb": 10.07,
-                "ultima_alteracao": "2026-08-11 22:50:59"
+                "ultima_alteracao": "2026-08-14 06:34:19"
             },
             {
                 "arquivo": "dashboard_v2.py",
                 "local": "v2\\pages\\dashboard_v2.py",
                 "tipo": "PY",
                 "tamanho_kb": 9.71,
-                "ultima_alteracao": "2026-08-11 22:54:50"
+                "ultima_alteracao": "2026-08-14 06:34:19"
             },
             {
                 "arquivo": "__init__.py",
                 "local": "v2\\tests\\__init__.py",
                 "tipo": "PY",
                 "tamanho_kb": 0.0,
-                "ultima_alteracao": "2026-08-11 21:55:50"
+                "ultima_alteracao": "2026-08-14 06:34:19"
             },
             {
                 "arquivo": "test_contracts.py",
                 "local": "v2\\tests\\test_contracts.py",
                 "tipo": "PY",
                 "tamanho_kb": 0.36,
-                "ultima_alteracao": "2026-08-11 22:36:42"
+                "ultima_alteracao": "2026-08-14 06:34:19"
             }
         ],
         "NOTICIAS_MACRO": [
@@ -623,22 +651,22 @@
                 "arquivo": "EstimativaAbertura.json",
                 "local": "Coletas\\EstimativaAbertura.json",
                 "tipo": "JSON",
-                "tamanho_kb": 0.9,
-                "ultima_alteracao": "2026-08-13 15:09:02"
+                "tamanho_kb": 0.91,
+                "ultima_alteracao": "2026-08-14 08:47:00"
             },
             {
                 "arquivo": "Metricas_Calculadas.json",
                 "local": "Coletas\\Metricas_Calculadas.json",
                 "tipo": "JSON",
                 "tamanho_kb": 1.59,
-                "ultima_alteracao": "2026-08-13 15:09:02"
+                "ultima_alteracao": "2026-08-14 08:47:00"
             },
             {
                 "arquivo": "Resultado_Calculadora_Operacional_Abertura.json",
                 "local": "Coletas\\Resultado_Calculadora_Operacional_Abertura.json",
                 "tipo": "JSON",
-                "tamanho_kb": 2.27,
-                "ultima_alteracao": "2026-08-13 15:09:02"
+                "tamanho_kb": 2.46,
+                "ultima_alteracao": "2026-08-14 08:47:02"
             },
             {
                 "arquivo": "4_🔢_Calculadora.py",
@@ -654,63 +682,70 @@
                 "local": "Coletas\\AnaliseGraficaSMC.json",
                 "tipo": "JSON",
                 "tamanho_kb": 2.43,
-                "ultima_alteracao": "2026-08-13 09:18:16"
+                "ultima_alteracao": "2026-08-14 06:34:19"
+            },
+            {
+                "arquivo": "AnaliseGraficaSMC_Regras.json",
+                "local": "Coletas\\AnaliseGraficaSMC_Regras.json",
+                "tipo": "JSON",
+                "tamanho_kb": 4.88,
+                "ultima_alteracao": "2026-08-14 08:47:01"
             },
             {
                 "arquivo": "Analise_Tendencias.json",
                 "local": "Coletas\\Analise_Tendencias.json",
                 "tipo": "JSON",
-                "tamanho_kb": 11.64,
-                "ultima_alteracao": "2026-08-13 15:09:01"
+                "tamanho_kb": 12.59,
+                "ultima_alteracao": "2026-08-14 08:47:02"
             },
             {
                 "arquivo": "DadosAtivosUnificados.json",
                 "local": "Coletas\\DadosAtivosUnificados.json",
                 "tipo": "JSON",
-                "tamanho_kb": 4.54,
-                "ultima_alteracao": "2026-08-13 15:09:01"
+                "tamanho_kb": 4.9,
+                "ultima_alteracao": "2026-08-14 08:47:00"
             },
             {
                 "arquivo": "Dados_MT5.json",
                 "local": "Coletas\\Dados_MT5.json",
                 "tipo": "JSON",
-                "tamanho_kb": 1.21,
-                "ultima_alteracao": "2026-08-13 08:49:02"
+                "tamanho_kb": 1.22,
+                "ultima_alteracao": "2026-08-14 08:47:00"
             },
             {
                 "arquivo": "Mapa_Fluxo.json",
                 "local": "Coletas\\Mapa_Fluxo.json",
                 "tipo": "JSON",
                 "tamanho_kb": 2.98,
-                "ultima_alteracao": "2026-08-13 13:12:12"
+                "ultima_alteracao": "2026-08-14 06:34:19"
             },
             {
                 "arquivo": "Mapa_Projeto.json",
                 "local": "Coletas\\Mapa_Projeto.json",
                 "tipo": "JSON",
-                "tamanho_kb": 34.35,
-                "ultima_alteracao": "2026-08-13 13:12:12"
+                "tamanho_kb": 34.63,
+                "ultima_alteracao": "2026-08-14 06:34:19"
             },
             {
                 "arquivo": "Noticias_Calendario.json",
                 "local": "Coletas\\Noticias_Calendario.json",
                 "tipo": "JSON",
-                "tamanho_kb": 3.38,
-                "ultima_alteracao": "2026-08-13 05:24:13"
+                "tamanho_kb": 2.25,
+                "ultima_alteracao": "2026-08-14 06:34:19"
             },
             {
                 "arquivo": "Noticias_Calendario_0900.json",
                 "local": "Coletas\\Noticias_Calendario_0900.json",
                 "tipo": "JSON",
                 "tamanho_kb": 0.26,
-                "ultima_alteracao": "2026-08-13 05:24:13"
+                "ultima_alteracao": "2026-08-14 06:34:19"
             },
             {
                 "arquivo": "Noticias_Impacto_Dia.json",
                 "local": "Coletas\\Noticias_Impacto_Dia.json",
                 "tipo": "JSON",
                 "tamanho_kb": 0.54,
-                "ultima_alteracao": "2026-08-13 15:09:01"
+                "ultima_alteracao": "2026-08-14 08:47:00"
             },
             {
                 "arquivo": "grafico.json",
@@ -732,8 +767,8 @@
                 "arquivo": "App_Completo.txt",
                 "local": "Coletas\\App_Completo.txt",
                 "tipo": "TXT",
-                "tamanho_kb": 658.49,
-                "ultima_alteracao": "2026-08-13 15:09:50"
+                "tamanho_kb": 620.76,
+                "ultima_alteracao": "2026-08-14 08:48:03"
             },
             {
                 "arquivo": "Gerar_App_Completo.py",
@@ -755,43 +790,43 @@
                 "arquivo": "Coleta_ram.json",
                 "local": "Coletas\\Coleta_ram.json",
                 "tipo": "JSON",
-                "tamanho_kb": 8.74,
-                "ultima_alteracao": "2026-08-13 15:09:01"
+                "tamanho_kb": 9.38,
+                "ultima_alteracao": "2026-08-14 08:47:00"
             },
             {
                 "arquivo": "Coleta_rom-0.json",
                 "local": "Coletas\\Coleta_rom-0.json",
                 "tipo": "JSON",
-                "tamanho_kb": 8.74,
-                "ultima_alteracao": "2026-08-13 15:09:01"
+                "tamanho_kb": 9.38,
+                "ultima_alteracao": "2026-08-14 08:47:00"
             },
             {
                 "arquivo": "Coleta_rom-10.json",
                 "local": "Coletas\\Coleta_rom-10.json",
                 "tipo": "JSON",
-                "tamanho_kb": 8.74,
-                "ultima_alteracao": "2026-08-13 15:09:00"
+                "tamanho_kb": 9.38,
+                "ultima_alteracao": "2026-08-14 08:46:58"
             },
             {
                 "arquivo": "Coleta_rom-5.json",
                 "local": "Coletas\\Coleta_rom-5.json",
                 "tipo": "JSON",
-                "tamanho_kb": 8.73,
-                "ultima_alteracao": "2026-08-13 15:09:00"
+                "tamanho_kb": 9.38,
+                "ultima_alteracao": "2026-08-14 08:46:58"
             },
             {
                 "arquivo": "Coletor.py",
                 "local": "Coletor.py",
                 "tipo": "PY",
                 "tamanho_kb": 22.17,
-                "ultima_alteracao": "2026-08-11 08:36:28"
+                "ultima_alteracao": "2026-08-14 06:34:19"
             },
             {
                 "arquivo": "Coletor_MT5.py",
                 "local": "Coletor_MT5.py",
                 "tipo": "PY",
                 "tamanho_kb": 7.0,
-                "ultima_alteracao": "2026-08-13 08:19:00"
+                "ultima_alteracao": "2026-08-14 06:34:19"
             },
             {
                 "arquivo": "Gerar_ColetasArquivosApp.py",
@@ -813,8 +848,8 @@
                 "arquivo": "Dados_Validados.json",
                 "local": "Coletas\\Dados_Validados.json",
                 "tipo": "JSON",
-                "tamanho_kb": 8.3,
-                "ultima_alteracao": "2026-08-13 15:09:01"
+                "tamanho_kb": 8.92,
+                "ultima_alteracao": "2026-08-14 08:47:00"
             },
             {
                 "arquivo": "Promp_Mestre_Visual_Ultra_Teste.txt",
@@ -850,29 +885,29 @@
                 "arquivo": "Decisao_Core.json",
                 "local": "Coletas\\Decisao_Core.json",
                 "tipo": "JSON",
-                "tamanho_kb": 0.64,
-                "ultima_alteracao": "2026-08-13 15:09:02"
+                "tamanho_kb": 0.78,
+                "ultima_alteracao": "2026-08-14 08:47:01"
             },
             {
                 "arquivo": "Pipeline_Log.json",
                 "local": "Coletas\\Pipeline_Log.json",
                 "tipo": "JSON",
-                "tamanho_kb": 2.73,
-                "ultima_alteracao": "2026-08-13 15:09:02"
+                "tamanho_kb": 2.97,
+                "ultima_alteracao": "2026-08-14 08:47:01"
             },
             {
                 "arquivo": "Engine_Vies.py",
                 "local": "Engine_Vies.py",
                 "tipo": "PY",
                 "tamanho_kb": 11.36,
-                "ultima_alteracao": "2026-08-11 08:41:52"
+                "ultima_alteracao": "2026-08-14 06:34:19"
             },
             {
                 "arquivo": "main_pipeline.py",
                 "local": "main_pipeline.py",
                 "tipo": "PY",
-                "tamanho_kb": 6.48,
-                "ultima_alteracao": "2026-08-03 22:07:57"
+                "tamanho_kb": 5.81,
+                "ultima_alteracao": "2026-08-14 08:35:09"
             },
             {
                 "arquivo": "5_⚙️_Core_Engine.py",
@@ -893,14 +928,14 @@
                 "local": "v2\\core\\engines\\confluence_engine.py",
                 "tipo": "PY",
                 "tamanho_kb": 5.64,
-                "ultima_alteracao": "2026-08-11 22:35:24"
+                "ultima_alteracao": "2026-08-14 06:34:19"
             },
             {
                 "arquivo": "decision_engine.py",
                 "local": "v2\\core\\engines\\decision_engine.py",
                 "tipo": "PY",
                 "tamanho_kb": 3.0,
-                "ultima_alteracao": "2026-08-11 22:35:34"
+                "ultima_alteracao": "2026-08-14 06:34:19"
             }
         ],
         "RELATORIOS": [
@@ -909,7 +944,7 @@
                 "local": "Coletas\\Relatorio_Executivo.md",
                 "tipo": "MD",
                 "tamanho_kb": 1.64,
-                "ultima_alteracao": "2026-08-13 13:12:12"
+                "ultima_alteracao": "2026-08-14 06:34:19"
             },
             {
                 "arquivo": "Gerar_Relatorio.py",
@@ -934,5 +969,5 @@
             }
         ]
     },
-    "total_arquivos": 130
+    "total_arquivos": 135
 }
