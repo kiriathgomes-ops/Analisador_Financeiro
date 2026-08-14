@@ -1,33 +1,3 @@
-# ============================================================
-# ARQUIVO: main_pipeline.py
-#
-# ORQUESTRADOR PRINCIPAL
-# ANALISADOR FINANCEIRO
-#
-# PIPELINE OPERACIONAL:
-#
-# COLETA
-#      |
-# VALIDACAO
-#      |
-# CALCULOS
-#      |
-# ESTIMATIVAS
-#      |
-# DECISAO
-#      |
-# RELATORIO
-#
-# FERRAMENTAS ADMINISTRATIVAS:
-# - Mapa_Fluxo.py
-# - Mapa_Projeto.py
-# - Gerar_ArquivosApp.py
-# - Gerar_App_Completo.py
-# - Teste_ArquivosApp.py
-#
-# NÃO EXECUTADAS AUTOMATICAMENTE
-# ============================================================
-
 import json
 import os
 import subprocess
@@ -149,6 +119,7 @@ def executar_pipeline():
         ),
         ("7 - RESULTADO OPERACIONAL", "Gerar_Resultado_Operacional_Abertura.py"),
         ("8 - ENGINE DE VIES INSTITUCIONAL", "Engine_Vies.py"),
+        ("8.1 - MOTOR SMC POR REGRAS (MT5)", "Rodar_SMC_Regras.py"),
         ("9 - GERADOR RELATORIO FINAL", "Gerar_Relatorio_Mensagem.py"),
     ]
 
