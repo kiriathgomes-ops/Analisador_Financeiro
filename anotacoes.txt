@@ -262,3 +262,77 @@ Regras adicionais do script:
 - Aproxime os preços para números inteiros no padrão do ativo (ex: 170400, 171000, 172500).
 
 Seja extremamente preciso, técnico e completo. Não invente estruturas que não estejam visíveis nas imagens.
+
+
+
+
+
+
+CONTEXTO DO PROJETO – Analisador Financeiro (WIN/WDO)
+
+Projeto Python + Streamlit para day trade no Mini Índice (WIN) e Mini Dólar (WDO).
+Pipeline automatizado a cada ~5 min (Agendador + main_pipeline.py).
+
+ESTRUTURA PRINCIPAL
+- Coleta: Coletor.py, Coletor_MT5.py, notícias Investing
+- Processamento: Validador, Calculadora, EstimativaAbertura, Engine_Vies
+- Pasta Coletas/: JSONs (Dados_Validados, Metricas, EstimativaAbertura, Decisao_Core, Analise_Tendencias, etc.)
+- Interface: Streamlit (app_home + pages/)
+- v2/: arquitetura nova (contracts, services, engines) – parcialmente em uso
+- IA: Groq (texto + visão) com KeyManager (rotação de chaves)
+
+O QUE JÁ FOI FEITO NESTA CONVERSA
+
+1) IA Imagem unificada
+   - Uni 7_🤖_IA_Imagem.py + Híbrido → um arquivo só
+   - PT-BR forçado, limpeza de thinking, KeyManager
+   - temperature 0.7, max_tokens 3000 (visão) / 1500 (texto)
+   - Thinking em inglês foi filtrado com limpar_pensamento_ia()
+
+2) Setup Abertura (1_🎯_Setup_Abertura.py) – v6.4
+   - Integra AnaliseGraficaSMC.json (visão) + AnaliseGraficaSMC_Regras.json (regras)
+   - Prompt de pré-abertura usa os dois + confluência/divergência de bias
+   - Ajuste B3 e 09h usam a mesma engine Groq (KeyManager, limpeza thinking)
+   - max_tokens_groq = 2500
+
+3) Motor SMC por regras (SEM IA)
+   - Arquivo: Motor_SMC_Regras.py (raiz)
+   - Detecta: Swing, BOS, CHoCH, FVG, Order Block, liquidez (BSL/SSL)
+   - Símbolo MT5: WINV26 (não usar WIN$)
+   - Saída: Coletas/AnaliseGraficaSMC_Regras.json
+   - Wrapper: Rodar_SMC_Regras.py
+   - Integrado no main_pipeline.py como etapa 8.1 (após Engine_Vies)
+   - Pipeline testado e OK (bias=ALTA, conf=95)
+
+4) Página Dashboard SMC
+   - pages/9_📊_SMC_Regras.py (ou pages_9_📊_SMC_Regras.py → renomear)
+   - Mostra bias, OB, FVG, liquidez, entrada/stop/alvos
+   - Botão atualizar via MT5
+
+5) Gerador Profit Pro
+   - pages/8_📥_Gerador_Profit_Pro.py
+   - Fonte “Motor SMC Regras” → script de níveis (OB, FVG, BSL/SSL, entrada/stop/alvos)
+
+CONTRATO MT5 ATUAL
+- WIN: WINV26
+- WDO: WDOQ26 (e variantes)
+- Variável opcional: SMC_SYMBOL_WIN=WINV26
+
+ARQUIVOS-CHAVE GERADOS
+- Coletas/AnaliseGraficaSMC_Regras.json  ← motor de regras
+- Coletas/AnaliseGraficaSMC.json         ← visão (Gemini/Groq imagem), se existir
+- Coletas/Decisao_Core.json, Metricas_Calculadas.json, EstimativaAbertura.json, etc.
+
+PENDÊNCIAS / PRÓXIMOS PASSOS POSSÍVEIS
+- Testar UI: Setup Abertura (prompt com regras+visão), página SMC, Profit Pro
+- Ajustar pesos no ConfluenceEngine (v2) com bias/BOS das regras
+- ATR/stops dinâmicos
+- Unificar schema visão vs regras (já parcialmente compatível)
+- Símbolo WDO no motor de regras (hoje focado em WIN)
+- Automatizar símbolo do contrato (vencimento) em vez de hardcode WINV26
+
+REGRAS DO USUÁRIO
+- Preferiu não mexer em temperature/max_tokens da IA Imagem além do combinado
+- Quer arquivos completos prontos para substituir
+- Respostas em português
+

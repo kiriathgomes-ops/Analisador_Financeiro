@@ -1,63 +1,63 @@
 {
   "metadata_calculo": {
-    "timestamp": "2026-08-14T08:47:00.837578",
-    "total_ativos_processados": 26
+    "timestamp": "2026-08-14T14:49:01.849178",
+    "total_ativos_processados": 24
   },
   "cambio_e_arbitragem": {
-    "usd_ptax": 5.1853,
-    "wdo_fut": 5209.946,
-    "spread_wdo_ptax_pontos": 24.65,
-    "spread_wdo_ptax_percentual": 0.4753
+    "usd_ptax": 5.223,
+    "wdo_fut": 5260.5,
+    "spread_wdo_ptax_pontos": 37.5,
+    "spread_wdo_ptax_percentual": 0.718
   },
   "curva_juros_b3": {
-    "di1_2027_taxa": 13.75,
-    "di1_2029_taxa": 14.245,
-    "inclinacao_29_27_bps": 49.5
+    "di1_2027_taxa": 13.8,
+    "di1_2029_taxa": 14.465,
+    "inclinacao_29_27_bps": 66.5
   },
   "indicadores_macro": {
-    "vix": 14.5,
-    "vix_change_pct": -0.9562841530054683,
-    "dxy": 99.621,
-    "crude_oil": 81.58,
-    "crude_oil_change_pct": 0.40615384615384403,
+    "vix": 14.35,
+    "vix_change_pct": -1.980874316939897,
+    "dxy": 99.684,
+    "crude_oil": 82.22,
+    "crude_oil_change_pct": 1.1938461538461524,
     "iron_ore_fef2": {
       "close": 95.85,
-      "change_percent": 0.20909566126501686
+      "change_percent": 0.10443864229764419
     }
   },
   "performance_relativa": {
-    "ewz_change_pct": -0.2658003544004616,
-    "sp500_fut_change_pct": 0.08309364014062001,
-    "nasdaq_fut_change_pct": 0.225251337429816,
+    "ewz_change_pct": -0.8291382884216794,
+    "sp500_fut_change_pct": -0.3259827420901246,
+    "nasdaq_fut_change_pct": -0.4455338953575037,
     "adrs_brasileiras": {
       "BBD_ADR": {
-        "close": 3.15,
-        "change_percent": -1.5625000000000084
+        "close": 3.1,
+        "change_percent": -1.5873015873015817
       },
       "ITUB_ADR": {
-        "close": 7.34,
-        "change_percent": -0.8108108108108174
+        "close": 7.25,
+        "change_percent": -1.226158038147137
       },
       "PETR_ADR": {
-        "close": 17.89,
-        "change_percent": 0.7319819819819763
+        "close": 17.88,
+        "change_percent": -0.055897149245397224
       },
       "VALE_ADR": {
-        "close": 13.8,
-        "change_percent": -4.299583911234391
+        "close": 13.635,
+        "change_percent": -1.1956521739130501
       },
       "BBAS_ADR": {
-        "close": 3.61,
-        "change_percent": -10.42183622828785
+        "close": 3.5,
+        "change_percent": -3.047091412742379
       },
       "B3_ADR": {
-        "close": 8.41,
-        "change_percent": 0.8393285371702672
+        "close": 8.2735,
+        "change_percent": -1.6230677764565975
       }
     }
   },
   "indicadores_compostos": {
-    "indicador_mercado_externo": 1.5715,
-    "indicador_adrs_brasileiras": -15.5234
+    "indicador_mercado_externo": 3.2792,
+    "indicador_adrs_brasileiras": -8.7352
   }
 }

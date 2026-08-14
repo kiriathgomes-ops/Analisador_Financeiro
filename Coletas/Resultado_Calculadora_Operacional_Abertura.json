@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "timestamp": "2026-08-14T08:48:05.257564",
+    "timestamp": "2026-08-14T15:35:10.211731",
     "origem": "Pipeline_Completo_V3",
     "versao": "3.0",
     "dados_carregados": {
@@ -20,15 +20,15 @@
   },
   "indicadores_compostos": {
     "indicador_mercado_externo": {
-      "valor_pct": 1.5715,
-      "classificacao": "MODERADA",
+      "valor_pct": 3.2792,
+      "classificacao": "FORTE",
       "sinal_operacional": "COMPRA",
-      "rotulo_completo": "MODERADA_COMPRA",
+      "rotulo_completo": "FORTE_COMPRA",
       "valido": true,
       "observacao": "OK"
     },
     "indicador_adrs_brasileiras": {
-      "valor_pct": -15.5234,
+      "valor_pct": -8.7352,
       "classificacao": "MUITO_FORTE",
       "sinal_operacional": "VENDA",
       "rotulo_completo": "MUITO_FORTE_VENDA",
@@ -39,58 +39,57 @@
   "analise_tendencias": {},
   "estimativas_abertura": {
     "WIN_INDICE": {
-      "variacao_teorica_pct": -0.5886,
+      "variacao_teorica_pct": -0.5889,
       "pontos_ajuste_base": 170311.0,
-      "abertura_teorica_pontos": 169309.0
+      "abertura_teorica_pontos": 169308.0
     },
     "WDO_DOLAR": {
-      "variacao_teorica_pct": -0.1799,
+      "variacao_teorica_pct": 0.4186,
       "pontos_ajuste_base": 5209.946,
-      "abertura_teorica_pontos": 5200.573
+      "abertura_teorica_pontos": 5231.755
     }
   },
   "pivot_points": {
     "WIN_FUT": {
-      "PP": 170515.33,
-      "R1": 171660.67,
-      "R2": 173010.33,
-      "S1": 169165.67,
-      "S2": 168020.33
+      "PP": 169165.0,
+      "R1": 170250.0,
+      "R2": 172325.0,
+      "S1": 167090.0,
+      "S2": 166005.0
     },
     "WDO_FUT": {
-      "PP": 5209.32,
-      "R1": 5221.63,
-      "R2": 5233.32,
-      "S1": 5197.63,
-      "S2": 5185.32
+      "PP": 5240.33,
+      "R1": 5288.67,
+      "R2": 5316.83,
+      "S1": 5212.17,
+      "S2": 5163.83
     }
   },
   "resumo_macro": {
-    "vix": 14.5,
-    "di1_2027": 13.75,
-    "di1_2029": 14.245,
-    "iron_ore": 95.45,
-    "crude_oil": 81.58,
-    "gold": 4361.789
+    "vix": 14.35,
+    "di1_2027": 13.8,
+    "di1_2029": 14.465,
+    "iron_ore": 95.25,
+    "crude_oil": 82.22,
+    "gold": 4376.583
   },
   "decisao_core": {
     "win": {
-      "score_numeric": -1.0,
-      "vies_final": "NEUTRO",
+      "score_numeric": -3.0,
+      "vies_final": "MODERADO_VENDA",
       "fatores_relevantes": [
         "Teórico WIN negativo (-0.59%)",
-        "ADRs fracas no exterior (-15.52%)",
-        "Commodities e Mercado Externo favoráveis (+1.57%)",
-        "🔺 Last acima do ajuste em 464 pts (viés comprador)"
+        "ADRs fracas no exterior (-8.74%)",
+        "Commodities e Mercado Externo favoráveis (+3.28%)"
       ]
     },
     "wdo": {
-      "score_numeric": -1.5,
-      "vies_final": "MODERADO_VENDA",
+      "score_numeric": 3.5,
+      "vies_final": "MODERADO_COMPRA",
       "fatores_relevantes": [
-        "Spread WDO x PTAX esticado (+24.65 pts)",
-        "Curva de Juros (DI) abrindo (+49.5 bps)",
-        "🔻 Last abaixo do ajuste em 131.9 pts (viés vendedor dólar)"
+        "Teórico WDO em alta (+0.42%)",
+        "Spread WDO x PTAX esticado (+37.5 pts)",
+        "Curva de Juros (DI) abrindo (+66.5 bps)"
       ]
     }
   }

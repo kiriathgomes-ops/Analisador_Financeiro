@@ -2,35 +2,35 @@
   "timeframes_identificados": "HTF (5 Minutos) e LTF (1 Minuto)",
   "bias_direcional": "Bearish (Baixista)",
   "estruturas_coletadas": [
-    "175.800: HTF Extreme Supply Zone (Topo da Estrutura Principal de Baixa)",
-    "175.100: Bearish Order Block 5m / Impulso Vendedor Superior",
-    "174.200: Bearish Order Block 5m / Intermediário de FVG",
-    "173.400: Bearish Order Block 5m Principal da Pernada Impulsiva",
-    "172.000: HTF Supply Zone / 2x EQH (Piscina Massiva BSL 378.9K / 277.9K)",
-    "171.800: Premium Supply Zone 1m / Região de Absorção Vendedora",
-    "171.700: Strong High 1m (Nível de Invalidação de Curto Prazo)",
-    "171.400: EQH 1m (51.8K BSL) / Zona de Oferta Menor",
-    "171.000: PDL (Previous Day Low) / Equilibrium Nível Neutro",
-    "170.850: LTF Bearish Order Block 1m / Quebra Estrutural (BOS)",
-    "170.500: Nível Intermediário de Continuação Baixista",
-    "170.330: Preço Atual de Cotação / Fechamento",
-    "170.300: EQH Local 1m (24.4K BSL) / Indução Vendedora",
-    "170.250: EQL / Discount Zone (19.1K SSL no 1m e 66.9K SSL no 5m)",
-    "170.200: Weak Low 1m / Mínima Extrema do Risco de Liquidação"
+    "171.850 - 172.000: HTF Strong High / PDH (Previous Day High) / Zona Extrema de Oferta (Premium Zone)",
+    "171.200: Bearish Order Block HTF 5m (Ponto de Rejeição e Deslocamento)",
+    "170.805: Topo Estrutural 1m / Zona de Oferta LTF",
+    "170.595: Bearish Order Block 5m / FVG 5min (Ponto de Vender Limite)",
+    "170.200: Topo Local / Nível de CHoCH 5m",
+    "170.020: Equilibrium Zone HTF (50% do Range Principal / 170.000 - 170.200)",
+    "169.790 - 169.795: Bearish Order Block 5m / Zona de Mitigação",
+    "169.600: Bearish Order Block 1m / Swing High Local de Indução (Sinal de Venda Vendedora)",
+    "169.400: PDL (Previous Day Low) Rompido com BOS",
+    "169.270: Nível de CHoCH 1m / Fundo Rompido que virou Oferta",
+    "169.000: Suporte Rompido / Confirmação de BOS Baixista 5m",
+    "168.685 - 168.700: Cotação Atual / Consolidação de Fundo",
+    "168.300 - 168.500: HTF Bullish Demand Zone / Zona Extrema de Discount (Região de Absorção)",
+    "168.200: Weak Low HTF / Fundo Extremo de Liquidez Vendedora"
   ],
   "liquidez_relevante": [
-    "BSL: 175.800 (Topo Extremo do Mercado 5m)",
-    "BSL: 172.000 (2x EQH 378.9K no 5m / 277.9K no 1m)",
-    "BSL: 171.800 (188.5K no 1m)",
-    "BSL: 171.400 (EQH 51.8K)",
-    "BSL: 170.300 (EQH 24.4K local no 1m)",
-    "SSL: 171.000 (PDL - Previous Day Low Rompido)",
-    "SSL: 170.250 (EQL 66.9K no 5m / 19.1K no 1m)",
-    "SSL: 170.200 (Weak Low / Fundo Extremo no Discount)"
+    "BSL: 171.850 - 172.000 (PDH + Strong High HTF)",
+    "BSL: 170.805 (Topo Intraday / Liquidez Compradora)",
+    "BSL: 170.595 (Liquidez acima do FVG 5m)",
+    "BSL: 169.600 (Swing High 1m / Liquidez Interna)",
+    "BSL: 169.270 (Pullback High 1m)",
+    "SSL: 169.400 (PDL - Previous Day Low / Varrido)",
+    "SSL: 169.000 (Fundos Estruturais Rompidos por BOS)",
+    "SSL: 168.300 - 168.400 (Varredura de Liquidez de Fundo na Demand Zone)",
+    "SSL: 168.200 (Weak Low HTF)"
   ],
   "zonas_de_interesse_e_cenarios": [
-    "Cenário Vendedor (Continuação Baixista): Retração corretiva em direção à zona de equilíbrio (170.850 - 171.000 / PDL), varrendo o EQH em 170.300 para captação de BSL local, seguida de rejeição na zona de oferta (170.850) para continuação da baixa rumo ao rompimento do Weak Low em 170.200.",
-    "Cenário Vendedor (Pullback Profundo / Premium): Pullback estendido até a Supply Zone de 171.800 / 172.000 para capturar a piscina massiva de BSL (378.9K), buscando padrão de reversão por CHoCH no 1m com alvo nos fundos de 170.250.",
-    "Cenário Comprador (Varredura de Liquidez e Reversão no Discount): Captura da SSL em 170.250 / 170.200 (Weak Low) com formação de SFP (Liquidity Sweep) na zona verde de Discount, seguida de confirmação de CHoCH no 1m acima de 170.500 para buscar alvos em 170.850 e 171.000."
+    "Cenário Vendedor (Continuação de Tendência HTF): Retração do preço até a zona de mitigação e FVG em 169.600 ou Bearish OB em 169.790/170.020 (Equilibrium). Confirmação de rejeição com CHoCH no 1m para entrada a favor do fluxo baixista visando a quebra de 168.300 e teste de 168.200.",
+    "Cenário Vendedor (Profundo): Pullback estendido até a região de 170.595 (FVG 5m) para nova pernada de venda.",
+    "Cenário Comprador (Reversão / Scalp de Discount): Reação forte e absorção dentro da Bullish Demand Zone (168.300 - 168.500) após captura da liquidez em 168.300, com confirmação de CHoCH no LTF (1m) rompendo acima de 168.800/169.000, visando alvos de retração em 169.400 (PDL) e 169.600."
   ]
 }
