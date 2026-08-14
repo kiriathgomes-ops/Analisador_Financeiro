@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "timestamp": "2026-08-14T06:29:04.086955",
+    "timestamp": "2026-08-14T08:43:19.668466",
     "status_pipeline": "OK"
   },
   "analise_operacional": {
@@ -8,9 +8,9 @@
       "score_numeric": -1.0,
       "vies_final": "NEUTRO",
       "fatores_relevantes": [
-        "Teórico WIN negativo (-0.52%)",
+        "Teórico WIN negativo (-0.59%)",
         "ADRs fracas no exterior (-15.52%)",
-        "Commodities e Mercado Externo favoráveis (+1.94%)",
+        "Commodities e Mercado Externo favoráveis (+1.56%)",
         "🔺 Last acima do ajuste em 464 pts (viés comprador)"
       ]
     },

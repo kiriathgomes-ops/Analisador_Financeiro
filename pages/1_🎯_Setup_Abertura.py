@@ -224,7 +224,8 @@ ARQUIVOS = {
     "ativos": COLETAS_DIR / "DadosAtivosUnificados.json",
     "tendencias": COLETAS_DIR / "Analise_Tendencias.json",
     "resultado_operacional": COLETAS_DIR / "Resultado_Calculadora_Operacional_Abertura.json",
-    "analise_smc": COLETAS_DIR / "AnaliseGraficaSMC.json",   # Análise gráfica SMC/ICT
+    "analise_smc": COLETAS_DIR / "AnaliseGraficaSMC.json",  # visão IA (opcional)
+    "analise_smc_regras": COLETAS_DIR / "AnaliseGraficaSMC_Regras.json",  # motor regras
 }
 
 SCRIPT_TENDENCIAS = BASE_DIR / "MapearTendencia15Min.py"
@@ -414,8 +415,9 @@ class SetupService:
         resultado_op = self.dados.get("resultado_operacional", {})
         self.classificacao_mercado = resultado_op.get("indicadores_compostos", {})
 
-        # Análise gráfica SMC/ICT (gerada pela página de visão)
-        self.analise_smc = self.dados.get("analise_smc", {})
+        # Análise gráfica SMC: visão (IA) + regras (motor local)
+        self.analise_smc = self.dados.get("analise_smc", {}) or {}
+        self.analise_smc_regras = self.dados.get("analise_smc_regras", {}) or {}
 
     def _extrair_tendencias(self, dados_tendencias: Dict) -> Dict[str, TendenciaAtivo]:
         tendencias = {}
@@ -541,37 +543,86 @@ class SetupService:
                 "motivo": f"⚠️ Tendência ({win_tendencia.tendencia}) vs sinal ({sinal.direcao})"
             }
 
-    def _resumir_analise_smc(self) -> str:
-        """Extrai o essencial do AnaliseGraficaSMC.json para o prompt da IA."""
-        if not self.analise_smc:
-            return "Análise gráfica SMC não disponível."
+    def _resumir_bloco_smc(self, bloco: Dict[str, Any], rotulo: str) -> str:
+        """Resume um JSON SMC (visão ou regras) em texto curto."""
+        if not bloco or bloco.get("erro"):
+            return ""
 
-        partes = []
-
-        bias = self.analise_smc.get("bias_direcional")
+        partes = [f"[{rotulo}]"]
+        bias = bloco.get("bias_direcional") or bloco.get("direcao_estrutura")
         if bias:
-            partes.append(f"Bias HTF: {bias}")
-
-        tfs = self.analise_smc.get("timeframes_identificados")
+            partes.append(f"Bias: {bias}")
+        if "bos" in bloco:
+            partes.append(f"BOS: {bloco.get('bos')} | CHoCH: {bloco.get('choch')}")
+        conf = bloco.get("confianca_visual")
+        if conf is not None:
+            partes.append(f"Conf: {conf}")
+        tfs = bloco.get("timeframes_identificados")
         if tfs:
-            partes.append(f"TFs: {tfs}")
-
-        # Cenários (mais importantes para a pré-abertura)
-        zonas = self.analise_smc.get("zonas_de_interesse_e_cenarios") or []
+            partes.append(f"TF: {tfs}")
+        if bloco.get("entrada_sugerida"):
+            partes.append(
+                f"Entrada: {bloco.get('entrada_sugerida')} | "
+                f"Stop: {bloco.get('stop_sugerido')} | "
+                f"Alvos: {bloco.get('alvos')}"
+            )
+        zonas = bloco.get("zonas_de_interesse_e_cenarios") or []
         if zonas:
-            partes.append("Cenários SMC: " + " | ".join(str(z) for z in zonas[:3]))
-
-        # Liquidez relevante
-        liq = self.analise_smc.get("liquidez_relevante") or []
+            partes.append("Cenários: " + " | ".join(str(z) for z in zonas[:3]))
+        liq = bloco.get("liquidez_relevante") or []
         if liq:
             partes.append("Liquidez: " + " | ".join(str(l) for l in liq[:4]))
-
-        # Estruturas principais (limitado)
-        estruturas = self.analise_smc.get("estruturas_coletadas") or []
+        estruturas = bloco.get("estruturas_coletadas") or []
         if estruturas:
-            partes.append("Estruturas chave: " + " | ".join(str(e) for e in estruturas[:5]))
+            partes.append("Estruturas: " + " | ".join(str(e) for e in estruturas[:6]))
+        # OBs/FVGs estruturados (regras)
+        obs = bloco.get("order_blocks") or []
+        if obs:
+            partes.append(
+                "OBs: "
+                + " | ".join(
+                    f"{o.get('tipo')}@{o.get('preco')}" for o in obs[:4]
+                )
+            )
+        fvgs = bloco.get("fair_value_gaps") or []
+        if fvgs:
+            abertos = [f for f in fvgs if not f.get("preenchido")]
+            partes.append(
+                "FVGs: "
+                + " | ".join(
+                    f"{f.get('tipo')}({f.get('inferior')}-{f.get('superior')})"
+                    for f in abertos[:4]
+                )
+            )
+        return " • ".join(partes)
 
-        return " • ".join(partes) if partes else "Análise SMC carregada (sem campos principais)."
+    def _resumir_analise_smc(self) -> str:
+        """
+        Junta visão IA + motor de regras para o prompt.
+        Prioriza números das regras; mantém narrativa da visão se existir.
+        """
+        partes = []
+        r_regras = self._resumir_bloco_smc(self.analise_smc_regras, "REGRAS")
+        r_visao = self._resumir_bloco_smc(self.analise_smc, "VISÃO")
+        if r_regras:
+            partes.append(r_regras)
+        if r_visao:
+            partes.append(r_visao)
+        if not partes:
+            return "Análise gráfica SMC não disponível (nem regras nem visão)."
+        # alinhamento simples
+        b1 = (self.analise_smc_regras or {}).get("bias_direcional")
+        b2 = (self.analise_smc or {}).get("bias_direcional") or (
+            self.analise_smc or {}
+        ).get("direcao_estrutura")
+        if b1 and b2:
+            if str(b1).upper() == str(b2).upper():
+                partes.append("[CONFLUÊNCIA] Regras e visão com o mesmo bias.")
+            else:
+                partes.append(
+                    f"[DIVERGÊNCIA] Regras={b1} vs Visão={b2} — priorize confirmação de preço."
+                )
+        return " || ".join(partes)
 
     def dados_para_ia_resumido(self) -> Dict[str, Any]:
         s = self.sinal()
@@ -878,7 +929,8 @@ def render_sidebar_09h():
         "Decisão": ARQUIVOS["decisao"],
         "Tendências": ARQUIVOS["tendencias"],
         "Resultado": ARQUIVOS["resultado_operacional"],
-        "Análise SMC": ARQUIVOS["analise_smc"],
+        "SMC Visão": ARQUIVOS["analise_smc"],
+        "SMC Regras": ARQUIVOS["analise_smc_regras"],
     }
     for nome, caminho in arquivos_status.items():
         existe = "✅" if os.path.exists(caminho) else "❌"
@@ -1220,12 +1272,18 @@ def render_bloco_5_ia_pre_abertura(service: SetupService):
     st.subheader("📌 5. Análise IA – Pré-Abertura")
     st.caption("Previsão de direção, GAP, SMC e cenário para os primeiros minutos do pregão")
 
-    # Status SMC
-    smc_ok = bool(service.analise_smc)
-    if smc_ok:
-        st.success("✅ Análise gráfica SMC carregada e será usada no prompt")
+    # Status SMC (regras + visão)
+    smc_regras_ok = bool(service.analise_smc_regras) and not service.analise_smc_regras.get("erro")
+    smc_visao_ok = bool(service.analise_smc)
+    if smc_regras_ok and smc_visao_ok:
+        st.success("✅ SMC Regras + Visão carregados (prompt unificado)")
+    elif smc_regras_ok:
+        st.success("✅ SMC Regras carregado (visão IA ausente)")
+    elif smc_visao_ok:
+        st.info("ℹ️ Só Visão IA disponível (rode o motor de regras no pipeline)")
     else:
-        st.info("ℹ️ AnaliseGraficaSMC.json não encontrado — IA usará só dados quantitativos")
+        st.info("ℹ️ Sem SMC (regras/visão) — IA usará só dados quantitativos")
+    smc_ok = smc_regras_ok or smc_visao_ok
 
     groq_key = os.getenv("GROQ_API_KEY", "")
     if not groq_key:
@@ -1845,7 +1903,8 @@ def main():
         "ativos": ativos_data,
         "tendencias": dados_tendencias,
         "resultado_operacional": dados.get("resultado_operacional", {}),
-        "analise_smc": dados.get("analise_smc", {}),   # Análise gráfica SMC/ICT
+        "analise_smc": dados.get("analise_smc", {}),
+        "analise_smc_regras": dados.get("analise_smc_regras", {}),
     }
     service = SetupService(dados_09h)
 
@@ -1959,10 +2018,10 @@ def main():
             render_bloco_5_ia_pre_abertura(service)
             render_bloco_6_checklist()
 
-            st.caption("Setup Abertura 09:00 • v6.3 • KeyManager + SMC + limpeza thinking")
+            st.caption("Setup Abertura 09:00 • v6.4 • SMC Regras+Visão + KeyManager")
 
     st.markdown("---")
-    st.caption("Setup Abertura Unificado • v6.3 • IA unificada (pré-abertura + ajuste B3)")
+    st.caption("Setup Abertura Unificado • v6.4 • Quant + SMC regras/visão + IA")
 
 if __name__ == "__main__":
     main()

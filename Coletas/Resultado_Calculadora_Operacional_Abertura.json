@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "timestamp": "2026-08-14T06:29:03.889366",
+    "timestamp": "2026-08-14T08:43:19.525195",
     "origem": "Pipeline_Completo_V3",
     "versao": "3.0",
     "dados_carregados": {
@@ -20,7 +20,7 @@
   },
   "indicadores_compostos": {
     "indicador_mercado_externo": {
-      "valor_pct": 1.9438,
+      "valor_pct": 1.561,
       "classificacao": "MODERADA",
       "sinal_operacional": "COMPRA",
       "rotulo_completo": "MODERADA_COMPRA",
@@ -39,14 +39,14 @@
   "analise_tendencias": {},
   "estimativas_abertura": {
     "WIN_INDICE": {
-      "variacao_teorica_pct": -0.5249,
+      "variacao_teorica_pct": -0.5862,
       "pontos_ajuste_base": 170311.0,
-      "abertura_teorica_pontos": 169417.0
+      "abertura_teorica_pontos": 169313.0
     },
     "WDO_DOLAR": {
-      "variacao_teorica_pct": -0.1115,
+      "variacao_teorica_pct": -0.1859,
       "pontos_ajuste_base": 5209.946,
-      "abertura_teorica_pontos": 5204.137
+      "abertura_teorica_pontos": 5200.26
     }
   },
   "pivot_points": {
@@ -66,21 +66,21 @@
     }
   },
   "resumo_macro": {
-    "vix": 14.6,
+    "vix": 14.52,
     "di1_2027": 13.75,
     "di1_2029": 14.245,
-    "iron_ore": 95.5,
-    "crude_oil": 82.31,
-    "gold": 4351.4
+    "iron_ore": 95.45,
+    "crude_oil": 81.64,
+    "gold": 4363.04
   },
   "decisao_core": {
     "win": {
       "score_numeric": -1.0,
       "vies_final": "NEUTRO",
       "fatores_relevantes": [
-        "Teórico WIN negativo (-0.52%)",
+        "Teórico WIN negativo (-0.59%)",
         "ADRs fracas no exterior (-15.52%)",
-        "Commodities e Mercado Externo favoráveis (+2.13%)",
+        "Commodities e Mercado Externo favoráveis (+1.56%)",
         "🔺 Last acima do ajuste em 464 pts (viés comprador)"
       ]
     },
