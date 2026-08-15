@@ -336,3 +336,20 @@ REGRAS DO USUÁRIO
 - Quer arquivos completos prontos para substituir
 - Respostas em português
 
+
+
+
+O que você deseja fazer agora? Podemos:
+
+Priorizar testes – ajustar a interface ou corrigir integrações (Setup Abertura, SMC, Profit Pro).
+
+Implementar uma pendência – ex.: automatizar símbolo (WINV26 → dinâmico), adicionar WDO, unificar schema, ATR dinâmico.
+
+Refinar o Motor SMC – melhorar detecção de FVG/OB, adicionar mais regras ou melhorar a entrada/saída.
+
+Ajustar o ConfluenceEngine para usar bias/BOS das regras.
+
+Gerar código completo para substituir algum arquivo específico (ex.: pages/9_📊_SMC_Regras.py, Motor_SMC_Regras.py, etc.).
+
+Outra demanda que você tenha em mente.
+
