@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "timestamp": "2026-08-14T23:27:46.040063",
+    "timestamp": "2026-08-15T17:49:02.018832",
     "origem": "Pipeline_Completo_V3",
     "versao": "3.0",
     "dados_carregados": {
@@ -79,14 +79,15 @@
       "vies_final": "NEUTRO",
       "fatores_relevantes": [
         "ADRs fracas no exterior (-2.69%)",
-        "Commodities e Mercado Externo favoráveis (+4.08%)"
+        "Commodities e Mercado Externo favoráveis (+4.01%)"
       ]
     },
     "wdo": {
-      "score_numeric": 2.0,
-      "vies_final": "MODERADO_COMPRA",
+      "score_numeric": 0.0,
+      "vies_final": "NEUTRO",
       "fatores_relevantes": [
-        "Curva de Juros (DI) abrindo (+55.5 bps)"
+        "Spread WDO x PTAX esticado (+22.33 pts)",
+        "Curva de Juros (DI) abrindo (+56.5 bps)"
       ]
     }
   }

@@ -1,93 +1,12 @@
 {
   "metadata": {
     "fonte": "TradingView API",
-    "timestamp": "2026-08-14T05:21:59.004919",
-    "data_referencia": "2026-08-14",
+    "timestamp": "2026-08-15T16:52:38.031566",
+    "data_referencia": "2026-08-15",
     "filtros": "Brasil e EUA (2 e 3 Estrelas)"
   },
   "calendario_eventos": {
-    "quantidade_eventos": 8,
-    "eventos": [
-      {
-        "hora": "09:30",
-        "pais": "United States",
-        "moeda": "USD",
-        "evento": "Retail Sales YoY",
-        "importancia": 2,
-        "anterior": "6.7",
-        "previsao": "",
-        "atual": ""
-      },
-      {
-        "hora": "09:30",
-        "pais": "United States",
-        "moeda": "USD",
-        "evento": "Retail Sales Ex Gas/Autos MoM",
-        "importancia": 2,
-        "anterior": "0.4",
-        "previsao": "",
-        "atual": ""
-      },
-      {
-        "hora": "09:30",
-        "pais": "United States",
-        "moeda": "USD",
-        "evento": "Retail Sales Ex Autos MoM",
-        "importancia": 2,
-        "anterior": "-0.2",
-        "previsao": "0.2",
-        "atual": ""
-      },
-      {
-        "hora": "09:30",
-        "pais": "United States",
-        "moeda": "USD",
-        "evento": "Retail Sales MoM",
-        "importancia": 3,
-        "anterior": "0.2",
-        "previsao": "0.1",
-        "atual": ""
-      },
-      {
-        "hora": "09:30",
-        "pais": "United States",
-        "moeda": "USD",
-        "evento": "Retail Sales Control Group MoM",
-        "importancia": 2,
-        "anterior": "0.5",
-        "previsao": "0.3",
-        "atual": ""
-      },
-      {
-        "hora": "10:00",
-        "pais": "United States",
-        "moeda": "USD",
-        "evento": "Fed Venable Speech",
-        "importancia": 2,
-        "anterior": "",
-        "previsao": "",
-        "atual": ""
-      },
-      {
-        "hora": "11:00",
-        "pais": "United States",
-        "moeda": "USD",
-        "evento": "Michigan Consumer Sentiment Prel",
-        "importancia": 3,
-        "anterior": "55.2",
-        "previsao": "54.5",
-        "atual": ""
-      },
-      {
-        "hora": "11:00",
-        "pais": "United States",
-        "moeda": "USD",
-        "evento": "Business Inventories MoM",
-        "importancia": 2,
-        "anterior": "0.3",
-        "previsao": "0.1",
-        "atual": ""
-      }
-    ]
+    "quantidade_eventos": 0,
+    "eventos": []
   }
 }

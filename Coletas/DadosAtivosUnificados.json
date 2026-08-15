@@ -1,7 +1,7 @@
 {
     "metadata": {
-        "timestamp": "2026-08-14 23:27:44",
-        "total_ativos": 26
+        "timestamp": "2026-08-15 17:49:01",
+        "total_ativos": 24
     },
     "ativos": {
         "USD_PTAX": {
@@ -146,18 +146,6 @@
             "preco": 5.2132,
             "variacao_pct": 0.5690915755155515,
             "ticker_original": "FX_IDC:USDBRL",
-            "status": "OK"
-        },
-        "WIN_LAST_TICK": {
-            "preco": 170775.0,
-            "variacao_pct": 0.0,
-            "ticker_original": "WIN_LAST_TICK",
-            "status": "OK"
-        },
-        "WDO_LAST_TICK": {
-            "preco": 5078.0,
-            "variacao_pct": 0.0,
-            "ticker_original": "WDO_LAST_TICK",
             "status": "OK"
         }
     }

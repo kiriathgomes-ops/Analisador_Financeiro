@@ -1,9 +1,9 @@
 {
-  "timestamp": "2026-08-14T23:29:28.700274",
+  "timestamp": "2026-08-15T17:48:18.263788",
   "ativo": "WIN",
   "timeframe": "5m",
   "fonte": "regras_smc",
-  "erro": "Falha ao inicializar MT5: (-10003, \"IPC initialize failed, Pipe server didn't answer in 60 sec\")",
+  "erro": "Falha ao inicializar MT5: (-10005, 'IPC timeout')",
   "bias_direcional": "LATERAL",
   "direcao_estrutura": "LATERAL",
   "bos": false,
