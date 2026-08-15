@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "timestamp": "2026-08-14T17:49:02.499533",
+    "timestamp": "2026-08-14T23:27:46.040063",
     "origem": "Pipeline_Completo_V3",
     "versao": "3.0",
     "dados_carregados": {
@@ -20,7 +20,7 @@
   },
   "indicadores_compostos": {
     "indicador_mercado_externo": {
-      "valor_pct": 4.0908,
+      "valor_pct": 4.011,
       "classificacao": "FORTE",
       "sinal_operacional": "COMPRA",
       "rotulo_completo": "FORTE_COMPRA",
@@ -39,39 +39,39 @@
   "analise_tendencias": {},
   "estimativas_abertura": {
     "WIN_INDICE": {
-      "variacao_teorica_pct": 0.0953,
-      "pontos_ajuste_base": 170311.0,
-      "abertura_teorica_pontos": 170473.0
+      "variacao_teorica_pct": 0.1029,
+      "pontos_ajuste_base": 169904.0,
+      "abertura_teorica_pontos": 170079.0
     },
     "WDO_DOLAR": {
-      "variacao_teorica_pct": 0.1664,
-      "pontos_ajuste_base": 5209.946,
-      "abertura_teorica_pontos": 5218.618
+      "variacao_teorica_pct": 0.1031,
+      "pontos_ajuste_base": 5245.327,
+      "abertura_teorica_pontos": 5250.737
     }
   },
   "pivot_points": {
     "WIN_FUT": {
-      "PP": 169765.0,
-      "R1": 171555.0,
-      "R2": 173030.0,
-      "S1": 168290.0,
-      "S2": 166500.0
+      "PP": 169706.33,
+      "R1": 171437.67,
+      "R2": 172971.33,
+      "S1": 168172.67,
+      "S2": 166441.33
     },
     "WDO_FUT": {
-      "PP": 5233.17,
-      "R1": 5274.33,
-      "R2": 5309.67,
-      "S1": 5197.83,
-      "S2": 5156.67
+      "PP": 5235.28,
+      "R1": 5278.55,
+      "R2": 5311.78,
+      "S1": 5202.05,
+      "S2": 5158.78
     }
   },
   "resumo_macro": {
     "vix": 14.26,
-    "di1_2027": 13.77,
+    "di1_2027": 13.765,
     "di1_2029": 14.33,
     "iron_ore": 95.25,
-    "crude_oil": 82.38,
-    "gold": 4375.55
+    "crude_oil": 82.4,
+    "gold": 4376.333
   },
   "decisao_core": {
     "win": {
@@ -79,14 +79,14 @@
       "vies_final": "NEUTRO",
       "fatores_relevantes": [
         "ADRs fracas no exterior (-2.69%)",
-        "Commodities e Mercado Externo favoráveis (+3.99%)"
+        "Commodities e Mercado Externo favoráveis (+4.08%)"
       ]
     },
     "wdo": {
       "score_numeric": 2.0,
       "vies_final": "MODERADO_COMPRA",
       "fatores_relevantes": [
-        "Curva de Juros (DI) abrindo (+57.0 bps)"
+        "Curva de Juros (DI) abrindo (+55.5 bps)"
       ]
     }
   }
