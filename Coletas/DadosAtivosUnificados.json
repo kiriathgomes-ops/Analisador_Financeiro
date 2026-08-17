@@ -1,7 +1,7 @@
 {
     "metadata": {
-        "timestamp": "2026-08-15 17:49:01",
-        "total_ativos": 24
+        "timestamp": "2026-08-16 22:19:05",
+        "total_ativos": 26
     },
     "ativos": {
         "USD_PTAX": {
@@ -53,20 +53,20 @@
             "status": "OK"
         },
         "IRON_ORE": {
-            "preco": 95.25,
-            "variacao_pct": -0.20953378732320882,
+            "preco": 95.35,
+            "variacao_pct": -0.10476689366161188,
             "ticker_original": "SGX:FEF1!",
             "status": "OK"
         },
         "IRON_ORE_2M": {
-            "preco": 95.75,
-            "variacao_pct": 0.0,
+            "preco": 95.65,
+            "variacao_pct": -0.10443864229764419,
             "ticker_original": "SGX:FEF2!",
             "status": "OK"
         },
         "CRUDE_OIL": {
-            "preco": 82.4,
-            "variacao_pct": 1.4153846153846223,
+            "preco": 82.12,
+            "variacao_pct": -0.3398058252427198,
             "ticker_original": "NYMEX:CL1!",
             "status": "OK"
         },
@@ -113,39 +113,51 @@
             "status": "OK"
         },
         "SP500_FUT": {
-            "preco": 7805.0,
-            "variacao_pct": -0.22371364653243847,
+            "preco": 7812.25,
+            "variacao_pct": 0.09288917360666239,
             "ticker_original": "CME_MINI:ES1!",
             "status": "OK"
         },
         "NASDAQ_FUT": {
-            "preco": 30141.75,
-            "variacao_pct": -0.15486029448299848,
+            "preco": 30230.5,
+            "variacao_pct": 0.29444209443711794,
             "ticker_original": "CME_MINI:NQ1!",
             "status": "OK"
         },
         "DXY": {
-            "preco": 99.636,
-            "variacao_pct": -0.31216232440869013,
+            "preco": 99.54,
+            "variacao_pct": -0.09635071660844417,
             "ticker_original": "TVC:DXY",
             "status": "OK"
         },
         "USD_MXN": {
-            "preco": 17.0025,
-            "variacao_pct": -0.10282021151585367,
+            "preco": 17.004,
+            "variacao_pct": 0.008822232024702583,
             "ticker_original": "FX_IDC:USDMXN",
             "status": "OK"
         },
         "GOLD": {
-            "preco": 4376.333,
-            "variacao_pct": 0.5751837667090526,
+            "preco": 4409.054,
+            "variacao_pct": 0.7476807637810117,
             "ticker_original": "TVC:GOLD",
             "status": "OK"
         },
         "USD_BRL": {
             "preco": 5.2132,
-            "variacao_pct": 0.5690915755155515,
+            "variacao_pct": 0.0,
             "ticker_original": "FX_IDC:USDBRL",
+            "status": "OK"
+        },
+        "WIN_LAST_TICK": {
+            "preco": 169975.0,
+            "variacao_pct": 0.0,
+            "ticker_original": "WIN_LAST_TICK",
+            "status": "OK"
+        },
+        "WDO_LAST_TICK": {
+            "preco": 5234.0,
+            "variacao_pct": 0.0,
+            "ticker_original": "WDO_LAST_TICK",
             "status": "OK"
         }
     }

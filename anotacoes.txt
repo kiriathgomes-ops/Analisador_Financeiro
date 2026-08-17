@@ -353,3 +353,30 @@ Gerar código completo para substituir algum arquivo específico (ex.: pages/9_�
 
 Outra demanda que você tenha em mente.
 
+
+
+import MetaTrader5 as mt5
+
+# Conectar ao terminal MetaTrader 5 instalado
+if not mt5.initialize():
+    print("Falha ao inicializar o MT5")
+    mt5.shutdown()
+
+# Selecionar o contrato atual do mini índice (ex: WINZ26 ou o código contínuo WINFUT)
+ticker = "WINFUT"
+mt5.symbol_select(ticker, True)
+
+# Coletar as informações detalhadas do símbolo
+info = mt5.symbol_info(ticker)
+
+if info is not None:
+    # O MetaTrader traz o preço de ajuste do pregão anterior mapeado nesta propriedade
+    preco_ajuste_anterior = info.session_price_settlement
+    print(f"Preço de Ajuste do {ticker}: {preco_ajuste_anterior}")
+else:
+    print("Ativo não encontrado.")
+
+mt5.shutdown()
+
+
+

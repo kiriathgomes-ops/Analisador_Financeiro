@@ -121,6 +121,8 @@ def executar_pipeline():
         ("8 - ENGINE DE VIES INSTITUCIONAL", "Engine_Vies.py"),
         ("8.1 - MOTOR SMC POR REGRAS (MT5)", "Rodar_SMC_Regras.py"),
         ("9 - GERADOR RELATORIO FINAL", "Gerar_Relatorio_Mensagem.py"),
+        ("10 - V2 SESSAO WINFUT", "v2_gravar_sessao_win.py"),
+
     ]
 
     historico = []

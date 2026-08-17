@@ -1,15 +1,15 @@
 {
   "metadata_coleta": {
-    "timestamp_coleta": "2026-08-15T17:49:01.262998",
+    "timestamp_coleta": "2026-08-16T22:19:05.396150",
     "modo_execucao": "PADRAO_ROTATIVO",
-    "total_ativos_solicitados": 24,
+    "total_ativos_solicitados": 26,
     "arquivo_gerado": "Coleta_rom-0.json"
   },
   "coletas": [
     {
       "ativo": "USD_PTAX",
       "fonte": "BACEN_SGS_10813",
-      "timestamp": "2026-08-15T17:49:00.337527",
+      "timestamp": "2026-08-16T22:19:00.248619",
       "status": "OK",
       "dados_reais": {
         "close": 5.223,
@@ -22,8 +22,8 @@
     },
     {
       "ativo": "B3_AJUSTE_WIN",
-      "fonte": "CACHE_DISCO (Fora da janela)",
-      "timestamp": "2026-08-15T17:49:01.035674",
+      "fonte": "TRADINGVIEW_DIRECT_SYMBOL",
+      "timestamp": "2026-08-16T22:19:00.752787",
       "status": "OK",
       "dados_reais": {
         "close": 169904.0,
@@ -36,8 +36,8 @@
     },
     {
       "ativo": "B3_AJUSTE_WDO",
-      "fonte": "CACHE_DISCO (Fora da janela)",
-      "timestamp": "2026-08-15T17:49:01.035674",
+      "fonte": "TRADINGVIEW_DIRECT_SYMBOL",
+      "timestamp": "2026-08-16T22:19:00.752787",
       "status": "OK",
       "dados_reais": {
         "close": 5245.327,
@@ -51,7 +51,7 @@
     {
       "ativo": "BMFBOVESPA:WIN1!",
       "fonte": "TRADINGVIEW_SCANNER",
-      "timestamp": "2026-08-15T17:49:01.048277",
+      "timestamp": "2026-08-16T22:19:01.297051",
       "status": "OK",
       "dados_reais": {
         "close": 169904.0,
@@ -65,7 +65,7 @@
     {
       "ativo": "BMFBOVESPA:WDO1!",
       "fonte": "TRADINGVIEW_SCANNER",
-      "timestamp": "2026-08-15T17:49:01.048277",
+      "timestamp": "2026-08-16T22:19:01.297051",
       "status": "OK",
       "dados_reais": {
         "close": 5245.327,
@@ -79,7 +79,7 @@
     {
       "ativo": "BMFBOVESPA:DI1F2027",
       "fonte": "TRADINGVIEW_SCANNER",
-      "timestamp": "2026-08-15T17:49:01.048277",
+      "timestamp": "2026-08-16T22:19:01.297051",
       "status": "OK",
       "dados_reais": {
         "close": 13.765,
@@ -93,7 +93,7 @@
     {
       "ativo": "BMFBOVESPA:DI1F2029",
       "fonte": "TRADINGVIEW_SCANNER",
-      "timestamp": "2026-08-15T17:49:01.048277",
+      "timestamp": "2026-08-16T22:19:01.297051",
       "status": "OK",
       "dados_reais": {
         "close": 14.33,
@@ -107,7 +107,7 @@
     {
       "ativo": "TVC:VIX",
       "fonte": "TRADINGVIEW_SCANNER",
-      "timestamp": "2026-08-15T17:49:01.048277",
+      "timestamp": "2026-08-16T22:19:01.297051",
       "status": "OK",
       "dados_reais": {
         "close": 14.26,
@@ -121,49 +121,49 @@
     {
       "ativo": "SGX:FEF1!",
       "fonte": "TRADINGVIEW_SCANNER",
-      "timestamp": "2026-08-15T17:49:01.048277",
+      "timestamp": "2026-08-16T22:19:01.297051",
       "status": "OK",
       "dados_reais": {
-        "close": 95.25,
+        "close": 95.35,
         "open": 95.45,
-        "high": 95.5,
+        "high": 95.55,
         "low": 95.15,
-        "change_percent": -0.20953378732320882,
-        "volume": 2583.0
+        "change_percent": -0.10476689366161188,
+        "volume": 2761.0
       }
     },
     {
       "ativo": "SGX:FEF2!",
       "fonte": "TRADINGVIEW_SCANNER",
-      "timestamp": "2026-08-15T17:49:01.048277",
+      "timestamp": "2026-08-16T22:19:01.297051",
       "status": "OK",
       "dados_reais": {
-        "close": 95.75,
+        "close": 95.65,
         "open": 95.8,
-        "high": 96.0,
+        "high": 96.15,
         "low": 95.65,
-        "change_percent": 0.0,
-        "volume": 7630.0
+        "change_percent": -0.10443864229764419,
+        "volume": 9060.0
       }
     },
     {
       "ativo": "NYMEX:CL1!",
       "fonte": "TRADINGVIEW_SCANNER",
-      "timestamp": "2026-08-15T17:49:01.048277",
+      "timestamp": "2026-08-16T22:19:01.297051",
       "status": "OK",
       "dados_reais": {
-        "close": 82.4,
-        "open": 81.27,
-        "high": 82.99,
-        "low": 80.71,
-        "change_percent": 1.4153846153846223,
-        "volume": 164854.0
+        "close": 82.12,
+        "open": 82.53,
+        "high": 82.73,
+        "low": 81.72,
+        "change_percent": -0.3398058252427198,
+        "volume": 5229.0
       }
     },
     {
       "ativo": "NYSE:VALE",
       "fonte": "TRADINGVIEW_SCANNER",
-      "timestamp": "2026-08-15T17:49:01.048277",
+      "timestamp": "2026-08-16T22:19:01.297051",
       "status": "OK",
       "dados_reais": {
         "close": 13.63,
@@ -177,7 +177,7 @@
     {
       "ativo": "NYSE:PBR",
       "fonte": "TRADINGVIEW_SCANNER",
-      "timestamp": "2026-08-15T17:49:01.048277",
+      "timestamp": "2026-08-16T22:19:01.297051",
       "status": "OK",
       "dados_reais": {
         "close": 17.88,
@@ -191,7 +191,7 @@
     {
       "ativo": "NYSE:ITUB",
       "fonte": "TRADINGVIEW_SCANNER",
-      "timestamp": "2026-08-15T17:49:01.048277",
+      "timestamp": "2026-08-16T22:19:01.297051",
       "status": "OK",
       "dados_reais": {
         "close": 7.4,
@@ -205,7 +205,7 @@
     {
       "ativo": "OTC:BDORY",
       "fonte": "TRADINGVIEW_SCANNER",
-      "timestamp": "2026-08-15T17:49:01.048277",
+      "timestamp": "2026-08-16T22:19:01.297051",
       "status": "OK",
       "dados_reais": {
         "close": 3.58,
@@ -219,7 +219,7 @@
     {
       "ativo": "NYSE:BBD",
       "fonte": "TRADINGVIEW_SCANNER",
-      "timestamp": "2026-08-15T17:49:01.048277",
+      "timestamp": "2026-08-16T22:19:01.297051",
       "status": "OK",
       "dados_reais": {
         "close": 3.14,
@@ -233,7 +233,7 @@
     {
       "ativo": "OTC:BOLSY",
       "fonte": "TRADINGVIEW_SCANNER",
-      "timestamp": "2026-08-15T17:49:01.048277",
+      "timestamp": "2026-08-16T22:19:01.297051",
       "status": "OK",
       "dados_reais": {
         "close": 8.32,
@@ -247,7 +247,7 @@
     {
       "ativo": "AMEX:EWZ",
       "fonte": "TRADINGVIEW_SCANNER",
-      "timestamp": "2026-08-15T17:49:01.048277",
+      "timestamp": "2026-08-16T22:19:01.297051",
       "status": "OK",
       "dados_reais": {
         "close": 33.93,
@@ -261,85 +261,113 @@
     {
       "ativo": "CME_MINI:ES1!",
       "fonte": "TRADINGVIEW_SCANNER",
-      "timestamp": "2026-08-15T17:49:01.048277",
+      "timestamp": "2026-08-16T22:19:01.297051",
       "status": "OK",
       "dados_reais": {
-        "close": 7805.0,
-        "open": 7825.0,
-        "high": 7831.75,
-        "low": 7796.5,
-        "change_percent": -0.22371364653243847,
-        "volume": 841815.0
+        "close": 7812.25,
+        "open": 7809.25,
+        "high": 7814.0,
+        "low": 7804.0,
+        "change_percent": 0.09288917360666239,
+        "volume": 14382.0
       }
     },
     {
       "ativo": "CME_MINI:NQ1!",
       "fonte": "TRADINGVIEW_SCANNER",
-      "timestamp": "2026-08-15T17:49:01.048277",
+      "timestamp": "2026-08-16T22:19:01.297051",
       "status": "OK",
       "dados_reais": {
-        "close": 30141.75,
-        "open": 30210.75,
-        "high": 30283.0,
-        "low": 30028.5,
-        "change_percent": -0.15486029448299848,
-        "volume": 398169.0
+        "close": 30230.5,
+        "open": 30170.0,
+        "high": 30233.25,
+        "low": 30163.75,
+        "change_percent": 0.29444209443711794,
+        "volume": 13253.0
       }
     },
     {
       "ativo": "TVC:DXY",
       "fonte": "TRADINGVIEW_SCANNER",
-      "timestamp": "2026-08-15T17:49:01.048277",
+      "timestamp": "2026-08-16T22:19:01.297051",
       "status": "OK",
       "dados_reais": {
-        "close": 99.636,
-        "open": 99.926,
-        "high": 99.936,
-        "low": 99.475,
-        "change_percent": -0.31216232440869013,
+        "close": 99.54,
+        "open": 99.66,
+        "high": 99.668,
+        "low": 99.519,
+        "change_percent": -0.09635071660844417,
         "volume": null
       }
     },
     {
       "ativo": "FX_IDC:USDMXN",
       "fonte": "TRADINGVIEW_SCANNER",
-      "timestamp": "2026-08-15T17:49:01.048277",
+      "timestamp": "2026-08-16T22:19:01.297051",
       "status": "OK",
       "dados_reais": {
-        "close": 17.0025,
-        "open": 17.0217,
-        "high": 17.051,
-        "low": 16.9779,
-        "change_percent": -0.10282021151585367,
+        "close": 17.004,
+        "open": 16.9808,
+        "high": 17.02739,
+        "low": 16.9808,
+        "change_percent": 0.008822232024702583,
         "volume": 0.0
       }
     },
     {
       "ativo": "TVC:GOLD",
       "fonte": "TRADINGVIEW_SCANNER",
-      "timestamp": "2026-08-15T17:49:01.048277",
+      "timestamp": "2026-08-16T22:19:01.297051",
       "status": "OK",
       "dados_reais": {
-        "close": 4376.333,
-        "open": 4351.862,
-        "high": 4396.945,
-        "low": 4311.01,
-        "change_percent": 0.5751837667090526,
+        "close": 4409.054,
+        "open": 4376.16,
+        "high": 4411.76,
+        "low": 4367.36,
+        "change_percent": 0.7476807637810117,
         "volume": 0.0
       }
     },
     {
       "ativo": "FX_IDC:USDBRL",
       "fonte": "TRADINGVIEW_SCANNER",
-      "timestamp": "2026-08-15T17:49:01.048277",
+      "timestamp": "2026-08-16T22:19:01.297051",
       "status": "OK",
       "dados_reais": {
         "close": 5.2132,
-        "open": 5.1795,
-        "high": 5.2479,
-        "low": 5.1724,
-        "change_percent": 0.5690915755155515,
+        "open": 5.2132,
+        "high": 5.2132,
+        "low": 5.2132,
+        "change_percent": 0.0,
         "volume": 0.0
+      }
+    },
+    {
+      "ativo": "WIN_LAST_TICK",
+      "fonte": "MT5_v2.2",
+      "timestamp": "2026-08-16T22:19:05.396144",
+      "status": "OK",
+      "dados_reais": {
+        "close": 169975.0,
+        "open": null,
+        "high": null,
+        "low": null,
+        "change_percent": null,
+        "volume": null
+      }
+    },
+    {
+      "ativo": "WDO_LAST_TICK",
+      "fonte": "MT5_v2.2",
+      "timestamp": "2026-08-16T22:19:05.396144",
+      "status": "OK",
+      "dados_reais": {
+        "close": 5234.0,
+        "open": null,
+        "high": null,
+        "low": null,
+        "change_percent": null,
+        "volume": null
       }
     }
   ]

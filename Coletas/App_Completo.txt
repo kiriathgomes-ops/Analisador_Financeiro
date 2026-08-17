@@ -5,10 +5,10 @@
 # GERADO AUTOMATICAMENTE
 #
 # Data geração:
-# 2026-08-15 17:48:39
+# 2026-08-16 20:57:48
 #
 # Arquivos unificados:
-# 80
+# 87
 #
 # NÃO EDITAR MANUALMENTE
 # ============================================================
@@ -1869,6 +1869,792 @@ def obter_ajuste_mt5(contrato=None):
 if __name__ == "__main__":
     executar_coleta_mt5()
     
+
+
+
+# ============================================================
+# ARQUIVO:
+# Coletor_MT5_v2_2.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-16 20:49:08
+# ============================================================
+
+
+
+# ================================================================
+# COLETOR MT5 v2.2
+# Mercado B3 - WINFUT / WDO / DI1
+#
+# NÃO ALTERA OS COLETORES ANTERIORES
+# ================================================================
+
+import MetaTrader5 as mt5
+import json
+import os
+from datetime import datetime
+
+
+# ================================================================
+# CONFIGURAÇÃO
+# ================================================================
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+COLETAS_DIR = os.path.join(BASE_DIR, "Coletas")
+HISTORICO_DIR = os.path.join(COLETAS_DIR, "Historico_MT5")
+
+ARQUIVO_ATUAL = os.path.join(
+    COLETAS_DIR,
+    "Dados_MT5_v2_2.json"
+)
+
+os.makedirs(COLETAS_DIR, exist_ok=True)
+os.makedirs(HISTORICO_DIR, exist_ok=True)
+
+
+# ================================================================
+# ATIVOS
+# ================================================================
+
+ATIVOS = {
+    "WIN": {
+        "prefixo": "WIN",
+        "descricao": "Mini Índice B3"
+    },
+
+    "WDO": {
+        "prefixo": "WDO",
+        "descricao": "Mini Dólar B3"
+    },
+
+    "DI1": {
+        "prefixo": "DI1",
+        "descricao": "DI Futuro B3"
+    }
+}
+
+
+# ================================================================
+# CONEXÃO MT5
+# ================================================================
+
+def conectar_mt5():
+
+    print()
+    print("=" * 70)
+    print("🚀 INICIANDO COLETOR MT5 v2.2")
+    print("=" * 70)
+
+    if not mt5.initialize():
+
+        print()
+        print("❌ FALHA AO INICIALIZAR MT5")
+        print("Erro:", mt5.last_error())
+
+        return False
+
+    versao = mt5.version()
+
+    print()
+    print("🔌 MT5")
+    print("   Conectado: SIM")
+    print("   Versão:", versao)
+
+    return True
+
+
+# ================================================================
+# DATA/HORA
+# ================================================================
+
+def agora():
+
+    return datetime.now().isoformat(timespec="milliseconds")
+
+
+# ================================================================
+# IDENTIFICAÇÃO DO CONTRATO
+# ================================================================
+
+def obter_contratos(prefixo):
+
+    """
+    Procura somente contratos reais do ativo.
+
+    Exemplos aceitos:
+
+        WINV26
+        WINZ26
+
+        WDOU26
+        WDOV26
+
+        DI1V26
+        DI1F27
+
+    Símbolos sintéticos como:
+
+        WIN$
+        WIN$D
+        WIN$N
+        WIN@
+        WIN@D
+        WIN@N
+
+    são ignorados.
+    """
+
+    simbolos = mt5.symbols_get()
+
+    if simbolos is None:
+        return []
+
+    contratos = []
+
+    for s in simbolos:
+
+        nome = s.name
+
+        # --------------------------------------------------------
+        # Prefixo
+        # --------------------------------------------------------
+
+        if not nome.startswith(prefixo):
+            continue
+
+        # --------------------------------------------------------
+        # Ignora símbolos sintéticos
+        # --------------------------------------------------------
+
+        if "$" in nome:
+            continue
+
+        if "@" in nome:
+            continue
+
+        # --------------------------------------------------------
+        # Ignora opções
+        # --------------------------------------------------------
+
+        if "C" in nome[len(prefixo):]:
+            continue
+
+        if "P" in nome[len(prefixo):]:
+            continue
+
+        # --------------------------------------------------------
+        # Informações
+        # --------------------------------------------------------
+
+        info = {
+            "nome": nome,
+            "simbolo": s
+        }
+
+        # --------------------------------------------------------
+        # Data de vencimento
+        # --------------------------------------------------------
+
+        data_expiracao = getattr(
+            s,
+            "expiration_time",
+            0
+        )
+
+        if data_expiracao:
+
+            try:
+
+                data_expiracao = datetime.fromtimestamp(
+                    data_expiracao
+                )
+
+            except Exception:
+
+                data_expiracao = None
+
+        else:
+
+            data_expiracao = None
+
+        info["expiracao"] = data_expiracao
+
+        # --------------------------------------------------------
+        # Tick
+        # --------------------------------------------------------
+
+        tick = mt5.symbol_info_tick(nome)
+
+        if tick:
+
+            info["volume"] = float(
+                getattr(tick, "volume", 0) or 0
+            )
+
+            info["bid"] = float(
+                getattr(tick, "bid", 0) or 0
+            )
+
+            info["ask"] = float(
+                getattr(tick, "ask", 0) or 0
+            )
+
+            info["last"] = float(
+                getattr(tick, "last", 0) or 0
+            )
+
+        else:
+
+            info["volume"] = 0.0
+            info["bid"] = 0.0
+            info["ask"] = 0.0
+            info["last"] = 0.0
+
+        contratos.append(info)
+
+    return contratos
+
+
+# ================================================================
+# SELECIONA CONTRATO PRINCIPAL
+# ================================================================
+
+def selecionar_contrato(prefixo):
+
+    contratos = obter_contratos(prefixo)
+
+    agora_dt = datetime.now()
+
+    validos = []
+
+    for c in contratos:
+
+        expiracao = c["expiracao"]
+
+        # --------------------------------------------------------
+        # Sem data de vencimento
+        # --------------------------------------------------------
+
+        if expiracao is None:
+            continue
+
+        # --------------------------------------------------------
+        # Contrato vencido
+        # --------------------------------------------------------
+
+        if expiracao <= agora_dt:
+            continue
+
+        # --------------------------------------------------------
+        # Não considerar contratos sem mercado
+        # --------------------------------------------------------
+
+        if (
+            c["bid"] <= 0
+            and c["ask"] <= 0
+            and c["last"] <= 0
+        ):
+            continue
+
+        validos.append(c)
+
+    # ------------------------------------------------------------
+    # Ordenação
+    #
+    # Primeiro:
+    #   contrato vigente
+    #
+    # Depois:
+    #   maior volume
+    #
+    # ------------------------------------------------------------
+
+    validos.sort(
+        key=lambda x: (
+            x["volume"],
+            -x["expiracao"].timestamp()
+        ),
+        reverse=True
+    )
+
+    if not validos:
+
+        return None, []
+
+    principal = validos[0]
+
+    return principal, validos
+
+
+# ================================================================
+# PREÇO TEÓRICO
+# ================================================================
+
+def obter_preco_teorico(nome):
+
+    info = mt5.symbol_info(nome)
+
+    if info is None:
+        return None
+
+    try:
+
+        valor = getattr(
+            info,
+            "price_theoretical",
+            None
+        )
+
+        if valor is None:
+            return None
+
+        valor = float(valor)
+
+        if valor <= 0:
+            return None
+
+        return valor
+
+    except Exception:
+
+        return None
+
+
+# ================================================================
+# MARKET BOOK
+# ================================================================
+
+def obter_book(nome):
+
+    resultado = {
+        "disponivel": False,
+        "quantidade_niveis": 0,
+        "bids": [],
+        "asks": []
+    }
+
+    try:
+
+        # --------------------------------------------------------
+        # Assina Market Book
+        # --------------------------------------------------------
+
+        if not mt5.market_book_add(nome):
+
+            return resultado
+
+        # --------------------------------------------------------
+        # Obtém Book
+        # --------------------------------------------------------
+
+        book = mt5.market_book_get(nome)
+
+        if not book:
+
+            mt5.market_book_release(nome)
+
+            return resultado
+
+        resultado["disponivel"] = True
+
+        for nivel in book:
+
+            tipo = getattr(
+                nivel,
+                "type",
+                None
+            )
+
+            preco = float(
+                getattr(
+                    nivel,
+                    "price",
+                    0
+                ) or 0
+            )
+
+            volume = float(
+                getattr(
+                    nivel,
+                    "volume",
+                    0
+                ) or 0
+            )
+
+            item = {
+                "preco": preco,
+                "volume": volume
+            }
+
+            # ----------------------------------------------------
+            # Tipos do Market Book
+            # ----------------------------------------------------
+
+            if tipo == mt5.BOOK_TYPE_BUY:
+
+                resultado["bids"].append(item)
+
+            elif tipo == mt5.BOOK_TYPE_SELL:
+
+                resultado["asks"].append(item)
+
+        resultado["quantidade_niveis"] = len(book)
+
+        mt5.market_book_release(nome)
+
+    except Exception:
+
+        try:
+            mt5.market_book_release(nome)
+        except Exception:
+            pass
+
+    return resultado
+
+
+# ================================================================
+# COLETA DE UM ATIVO
+# ================================================================
+
+def coletar_ativo(nome_ativo, configuracao):
+
+    prefixo = configuracao["prefixo"]
+
+    principal, contratos = selecionar_contrato(prefixo)
+
+    if principal is None:
+
+        print()
+        print(f"📌 {nome_ativo}")
+        print("   ❌ Nenhum contrato vigente encontrado")
+
+        return {
+            "ativo": nome_ativo,
+            "status": "sem_contrato"
+        }
+
+    nome = principal["nome"]
+
+    # ------------------------------------------------------------
+    # Garantir símbolo selecionado
+    # ------------------------------------------------------------
+
+    mt5.symbol_select(nome, True)
+
+    tick = mt5.symbol_info_tick(nome)
+
+    if tick is None:
+
+        print()
+        print(f"📌 {nome_ativo}")
+        print(f"   Contrato: {nome}")
+        print("   ❌ Não foi possível obter tick")
+
+        return {
+            "ativo": nome_ativo,
+            "status": "sem_tick",
+            "contrato": nome
+        }
+
+    # ------------------------------------------------------------
+    # Preços
+    # ------------------------------------------------------------
+
+    bid = float(
+        getattr(tick, "bid", 0) or 0
+    )
+
+    ask = float(
+        getattr(tick, "ask", 0) or 0
+    )
+
+    last = float(
+        getattr(tick, "last", 0) or 0
+    )
+
+    volume = float(
+        getattr(tick, "volume", 0) or 0
+    )
+
+    spread = None
+
+    if bid > 0 and ask > 0:
+
+        spread = ask - bid
+
+    # ------------------------------------------------------------
+    # Preço teórico
+    # ------------------------------------------------------------
+
+    teorico = obter_preco_teorico(nome)
+
+    # ------------------------------------------------------------
+    # Book
+    # ------------------------------------------------------------
+
+    book = obter_book(nome)
+
+    # ------------------------------------------------------------
+    # Contratos vigentes
+    # ------------------------------------------------------------
+
+    contratos_saida = []
+
+    for c in contratos:
+
+        contratos_saida.append({
+            "contrato": c["nome"],
+            "expiracao": (
+                c["expiracao"].isoformat()
+                if c["expiracao"]
+                else None
+            ),
+            "volume": c["volume"],
+            "bid": c["bid"],
+            "ask": c["ask"],
+            "last": c["last"]
+        })
+
+    # ------------------------------------------------------------
+    # Resultado
+    # ------------------------------------------------------------
+
+    dados = {
+
+        "ativo": nome_ativo,
+
+        "descricao": configuracao["descricao"],
+
+        "contrato_principal": nome,
+
+        "timestamp": agora(),
+
+        "bid": bid,
+
+        "ask": ask,
+
+        "last": last,
+
+        "volume": volume,
+
+        "spread": spread,
+
+        "preco_teorico": teorico,
+
+        "vencimento": (
+            principal["expiracao"].isoformat()
+            if principal["expiracao"]
+            else None
+        ),
+
+        "market_book": book,
+
+        "contratos_vigentes": contratos_saida,
+
+        "status": "OK"
+    }
+
+    # ------------------------------------------------------------
+    # Console
+    # ------------------------------------------------------------
+
+    print()
+    print(f"📌 {nome_ativo}")
+    print(f"   Contrato principal: {nome}")
+
+    print()
+    print("   Contratos vigentes:")
+
+    for c in contratos_saida:
+
+        print(
+            f"      • {c['contrato']} | "
+            f"Volume: {c['volume']}"
+        )
+
+    print()
+    print(f"   Bid:    {bid}")
+    print(f"   Ask:    {ask}")
+    print(f"   Last:   {last}")
+    print(f"   Volume: {volume}")
+    print(f"   Spread: {spread}")
+
+    if teorico is not None:
+
+        print(
+            f"   Preço teórico: {teorico}"
+        )
+
+    else:
+
+        print(
+            "   Preço teórico: "
+            "⚠️ indisponível"
+        )
+
+    # ------------------------------------------------------------
+    # Book
+    # ------------------------------------------------------------
+
+    if book["disponivel"]:
+
+        print(
+            "   Market Book: "
+            f"✅ {book['quantidade_niveis']} níveis"
+        )
+
+    else:
+
+        print(
+            "   Market Book: "
+            "⚠️ indisponível/vazio"
+        )
+
+    return dados
+
+
+# ================================================================
+# SALVAR JSON
+# ================================================================
+
+def salvar_json(dados):
+
+    # ------------------------------------------------------------
+    # Arquivo atual
+    # ------------------------------------------------------------
+
+    with open(
+        ARQUIVO_ATUAL,
+        "w",
+        encoding="utf-8"
+    ) as arquivo:
+
+        json.dump(
+            dados,
+            arquivo,
+            ensure_ascii=False,
+            indent=4
+        )
+
+    # ------------------------------------------------------------
+    # Histórico
+    # ------------------------------------------------------------
+
+    agora_dt = datetime.now()
+
+    nome_historico = (
+        f"MT5_v2_2_"
+        f"{agora_dt.strftime('%Y%m%d_%H%M%S_%f')}.json"
+    )
+
+    arquivo_historico = os.path.join(
+        HISTORICO_DIR,
+        nome_historico
+    )
+
+    with open(
+        arquivo_historico,
+        "w",
+        encoding="utf-8"
+    ) as arquivo:
+
+        json.dump(
+            dados,
+            arquivo,
+            ensure_ascii=False,
+            indent=4
+        )
+
+    return arquivo_historico
+
+
+# ================================================================
+# MAIN
+# ================================================================
+
+def main():
+
+    if not conectar_mt5():
+
+        return
+
+    try:
+
+        timestamp = agora()
+
+        print()
+        print("=" * 70)
+        print("📊 COLETOR MT5 v2.2")
+        print("=" * 70)
+
+        print(
+            f"🕒 Coleta: {timestamp}"
+        )
+
+        dados = {
+
+            "versao_coletor": "2.2",
+
+            "timestamp": timestamp,
+
+            "mt5": {
+                "conectado": True,
+                "versao": mt5.version()
+            },
+
+            "ativos": {}
+        }
+
+        # --------------------------------------------------------
+        # Coleta
+        # --------------------------------------------------------
+
+        for nome_ativo, configuracao in ATIVOS.items():
+
+            dados["ativos"][nome_ativo] = coletar_ativo(
+                nome_ativo,
+                configuracao
+            )
+
+        print()
+        print("=" * 70)
+
+        # --------------------------------------------------------
+        # Salvar
+        # --------------------------------------------------------
+
+        arquivo_historico = salvar_json(dados)
+
+        print()
+        print("💾 Arquivo atual:")
+        print(f"   {ARQUIVO_ATUAL}")
+
+        print()
+        print("📚 Histórico:")
+        print(f"   {arquivo_historico}")
+
+    except Exception as erro:
+
+        print()
+        print("❌ ERRO DURANTE A COLETA")
+        print(f"   {erro}")
+
+    finally:
+
+        mt5.shutdown()
+
+        print()
+        print("🔌 MT5 desconectado.")
+        print()
+
+
+# ================================================================
+# EXECUÇÃO
+# ================================================================
+
+if __name__ == "__main__":
+    main()
 
 
 
@@ -4054,10 +4840,162 @@ if __name__ == "__main__":
 
 # ============================================================
 # ARQUIVO:
+# Monitor_WIN_Leilao.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-16 20:32:42
+# ============================================================
+
+
+
+import MetaTrader5 as mt5
+import time
+import csv
+from datetime import datetime
+from pathlib import Path
+
+
+# ============================================================
+# CONFIGURAÇÃO
+# ============================================================
+
+SIMBOLO = "WINV26"
+
+BASE_DIR = Path(__file__).resolve().parent
+ARQUIVO = BASE_DIR / "Coletas" / "Monitor_Leilao_WIN.csv"
+
+ARQUIVO.parent.mkdir(parents=True, exist_ok=True)
+
+
+# ============================================================
+# INICIALIZAÇÃO
+# ============================================================
+
+print("=" * 80)
+print("MONITOR DE LEILÃO - WINFUT")
+print("=" * 80)
+
+if not mt5.initialize():
+    print("❌ Falha ao inicializar MT5")
+    print("Erro:", mt5.last_error())
+    raise SystemExit
+
+print("✅ MT5 conectado")
+
+if not mt5.symbol_select(SIMBOLO, True):
+    print(f"❌ Não foi possível selecionar {SIMBOLO}")
+    print("Erro:", mt5.last_error())
+    mt5.shutdown()
+    raise SystemExit
+
+print(f"✅ Símbolo: {SIMBOLO}")
+print()
+print("Monitorando...")
+print("Pressione CTRL+C para encerrar.")
+print()
+
+
+# ============================================================
+# CSV
+# ============================================================
+
+novo_arquivo = not ARQUIVO.exists()
+
+arquivo_csv = open(
+    ARQUIVO,
+    "a",
+    newline="",
+    encoding="utf-8"
+)
+
+writer = csv.writer(arquivo_csv)
+
+if novo_arquivo:
+    writer.writerow([
+        "timestamp",
+        "symbol",
+        "bid",
+        "ask",
+        "last",
+        "volume",
+        "price_theoretical"
+    ])
+
+
+# ============================================================
+# MONITORAMENTO
+# ============================================================
+
+try:
+
+    while True:
+
+        info = mt5.symbol_info(SIMBOLO)
+
+        if info is None:
+            print("⚠️ symbol_info retornou None")
+            time.sleep(1)
+            continue
+
+        agora = datetime.now().isoformat()
+
+        bid = info.bid
+        ask = info.ask
+        last = info.last
+        volume = info.volume
+
+        try:
+            teorico = info.price_theoretical
+        except AttributeError:
+            teorico = None
+
+        writer.writerow([
+            agora,
+            SIMBOLO,
+            bid,
+            ask,
+            last,
+            volume,
+            teorico
+        ])
+
+        arquivo_csv.flush()
+
+        print(
+            f"{agora} | "
+            f"Last={last:.0f} | "
+            f"Bid={bid:.0f} | "
+            f"Ask={ask:.0f} | "
+            f"Vol={volume} | "
+            f"Teórico={teorico}"
+        )
+
+        time.sleep(1)
+
+except KeyboardInterrupt:
+
+    print()
+    print("🛑 Monitor encerrado pelo usuário.")
+
+finally:
+
+    arquivo_csv.close()
+    mt5.shutdown()
+
+    print()
+    print(f"📁 Dados salvos em:")
+    print(ARQUIVO)
+
+    print("=" * 80)
+
+
+
+# ============================================================
+# ARQUIVO:
 # Motor_SMC_Regras.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-14 08:35:11
+# 2026-08-15 17:54:39
 # ============================================================
 
 
@@ -6063,7 +7001,7 @@ class ResultadoPrevisao:
 # Rodar_SMC_Regras.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-14 08:35:06
+# 2026-08-15 17:54:39
 # ============================================================
 
 
@@ -6187,6 +7125,678 @@ def main() -> int:
 if __name__ == "__main__":
     sys.exit(main())
 
+
+
+
+# ============================================================
+# ARQUIVO:
+# Teste_Book_WIN.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-16 20:25:33
+# ============================================================
+
+
+
+import MetaTrader5 as mt5
+import time
+
+print("=" * 70)
+print("TESTE BOOK WINFUT - MONITORAMENTO")
+print("=" * 70)
+
+if not mt5.initialize():
+    print("❌ Falha ao inicializar")
+    print("Erro:", mt5.last_error())
+    raise SystemExit
+
+simbolo = "WINV26"
+
+if not mt5.symbol_select(simbolo, True):
+    print("❌ Falha ao selecionar", simbolo)
+    mt5.shutdown()
+    raise SystemExit
+
+print("✅ MT5 conectado")
+print("✅ Símbolo:", simbolo)
+
+if not mt5.market_book_add(simbolo):
+    print("❌ Falha ao assinar Market Book")
+    print("Erro:", mt5.last_error())
+    mt5.shutdown()
+    raise SystemExit
+
+print("✅ Market Book assinado")
+print()
+print("Aguardando dados...")
+print()
+
+for tentativa in range(10):
+
+    time.sleep(1)
+
+    book = mt5.market_book_get(simbolo)
+
+    print(f"[{tentativa + 1}/10] ", end="")
+
+    if book is None:
+        print("None | erro:", mt5.last_error())
+
+    elif len(book) == 0:
+        print("Book vazio")
+
+    else:
+
+        print(f"{len(book)} registros")
+
+        for item in book:
+
+            print(
+                f"   type={item.type} | "
+                f"price={item.price:.2f} | "
+                f"volume={item.volume}"
+            )
+
+        print()
+        break
+
+print()
+print("=" * 70)
+
+mt5.market_book_release(simbolo)
+mt5.shutdown()
+
+
+
+# ============================================================
+# ARQUIVO:
+# Teste_Historico_Ticks_WIN.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-16 20:27:06
+# ============================================================
+
+
+
+import MetaTrader5 as mt5
+from datetime import datetime, timedelta
+
+print("=" * 70)
+print("TESTE HISTÓRICO DE TICKS - WINFUT")
+print("=" * 70)
+
+if not mt5.initialize():
+    print("❌ Falha ao inicializar MT5")
+    print("Erro:", mt5.last_error())
+    raise SystemExit
+
+simbolo = "WINV26"
+
+if not mt5.symbol_select(simbolo, True):
+    print(f"❌ Não foi possível selecionar {simbolo}")
+    mt5.shutdown()
+    raise SystemExit
+
+print(f"✅ MT5 conectado")
+print(f"✅ Símbolo: {simbolo}")
+
+# Últimos 7 dias
+fim = datetime.now()
+inicio = fim - timedelta(days=7)
+
+print()
+print(f"Buscando ticks:")
+print(f"Início: {inicio}")
+print(f"Fim:    {fim}")
+print()
+
+ticks = mt5.copy_ticks_range(
+    simbolo,
+    inicio,
+    fim,
+    mt5.COPY_TICKS_ALL
+)
+
+if ticks is None:
+    print("❌ Nenhum dado retornado")
+    print("Erro:", mt5.last_error())
+
+elif len(ticks) == 0:
+    print("⚠️ Nenhum tick encontrado")
+
+else:
+    print(f"✅ Ticks encontrados: {len(ticks):,}")
+
+    primeiro = ticks[0]
+    ultimo = ticks[-1]
+
+    print()
+    print("Primeiro tick:")
+    print(primeiro)
+
+    print()
+    print("Último tick:")
+    print(ultimo)
+
+print()
+print("=" * 70)
+
+mt5.shutdown()
+
+
+
+# ============================================================
+# ARQUIVO:
+# Teste_Leilao_MT5.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-16 20:20:35
+# ============================================================
+
+
+
+import MetaTrader5 as mt5
+
+print("=" * 70)
+print("TESTE DE DADOS DO LEILÃO - WINFUT")
+print("=" * 70)
+
+if not mt5.initialize():
+    print("❌ Falha ao inicializar MT5")
+    print("Erro:", mt5.last_error())
+    raise SystemExit
+
+print("✅ MT5 conectado")
+print("Versão:", mt5.version())
+
+# ------------------------------------------------------------
+# Procurar símbolos relacionados ao WIN
+# ------------------------------------------------------------
+
+simbolos = mt5.symbols_get()
+
+if simbolos is None:
+    print("❌ Não foi possível obter os símbolos")
+    print("Erro:", mt5.last_error())
+    mt5.shutdown()
+    raise SystemExit
+
+wins = []
+
+for simbolo in simbolos:
+    nome = simbolo.name.upper()
+
+    if "WIN" in nome:
+        wins.append(simbolo)
+
+print()
+print(f"🔎 Símbolos contendo WIN encontrados: {len(wins)}")
+
+for simbolo in wins:
+    print()
+    print("-" * 70)
+    print("Símbolo:", simbolo.name)
+    print("Descrição:", simbolo.description)
+    print("Visível:", simbolo.visible)
+    print("Selecionável:", simbolo.select)
+
+    # Seleciona o símbolo
+    if mt5.symbol_select(simbolo.name, True):
+
+        info = mt5.symbol_info(simbolo.name)
+
+        if info:
+            print("Bid:", info.bid)
+            print("Ask:", info.ask)
+            print("Last:", info.last)
+            print("Volume:", info.volume)
+
+            # Tenta obter preço teórico
+            try:
+                print("Preço teórico:", info.price_theoretical)
+            except AttributeError:
+                print("Preço teórico: propriedade não disponível")
+
+        tick = mt5.symbol_info_tick(simbolo.name)
+
+        if tick:
+            print("Tick:")
+            print("  Bid:", tick.bid)
+            print("  Ask:", tick.ask)
+            print("  Last:", tick.last)
+            print("  Volume:", tick.volume)
+
+print()
+print("=" * 70)
+
+mt5.shutdown()
+
+
+
+# ============================================================
+# ARQUIVO:
+# Teste_MT5.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-15 23:05:31
+# ============================================================
+
+
+
+import MetaTrader5 as mt5
+
+print("=" * 60)
+print("TESTE DE CONEXÃO META TRADER 5")
+print("=" * 60)
+
+print("\nVersão do módulo:")
+print(mt5.version())
+
+print("\nTentando inicializar...")
+
+if not mt5.initialize():
+    print("❌ FALHA AO INICIALIZAR")
+    print("Erro retornado pelo MT5:")
+    print(mt5.last_error())
+else:
+    print("✅ MT5 INICIALIZADO COM SUCESSO")
+
+    print("\nInformações do terminal:")
+    print(mt5.terminal_info())
+
+    print("\nInformações da conta:")
+    print(mt5.account_info())
+
+    mt5.shutdown()
+
+print("=" * 60)
+
+
+
+
+# ============================================================
+# ARQUIVO:
+# Teste_Vencimento_MT5.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-16 20:45:25
+# ============================================================
+
+
+
+"""
+======================================================================
+TESTE DE VENCIMENTO DOS CONTRATOS - MT5
+======================================================================
+
+Objetivo:
+    Verificar se o MetaTrader 5 fornece corretamente a data de
+    vencimento dos contratos futuros da B3.
+
+IMPORTANTE:
+    Este arquivo NÃO altera nenhum coletor.
+    É apenas um teste/auditoria.
+
+Data: 2026-08-16
+======================================================================
+"""
+
+from datetime import datetime
+import MetaTrader5 as mt5
+
+
+# =====================================================================
+# CONFIGURAÇÃO
+# =====================================================================
+
+PREFIXOS = [
+    "WIN",
+    "WDO",
+    "DI1"
+]
+
+
+# =====================================================================
+# FUNÇÕES
+# =====================================================================
+
+def formatar_data(timestamp):
+
+    if not timestamp:
+        return "NÃO INFORMADA"
+
+    try:
+        return datetime.fromtimestamp(
+            timestamp
+        ).strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
+
+    except Exception:
+        return f"ERRO ({timestamp})"
+
+
+def status_vencimento(timestamp):
+
+    if not timestamp:
+        return "⚠️ SEM DATA"
+
+    try:
+
+        data_expiracao = datetime.fromtimestamp(
+            timestamp
+        )
+
+        agora = datetime.now()
+
+        if data_expiracao < agora:
+
+            return "❌ VENCIDO"
+
+        return "✅ VIGENTE"
+
+    except Exception:
+
+        return "⚠️ ERRO"
+
+
+# =====================================================================
+# CONEXÃO
+# =====================================================================
+
+print()
+print("=" * 70)
+print("TESTE DE VENCIMENTO DOS CONTRATOS - MT5")
+print("=" * 70)
+
+print()
+
+if not mt5.initialize():
+
+    print("❌ FALHA AO INICIALIZAR MT5")
+    print()
+    print("Erro:")
+    print(mt5.last_error())
+    print()
+
+    raise SystemExit
+
+
+print("✅ MT5 conectado")
+
+print(
+    f"Versão: {mt5.version()}"
+)
+
+print()
+
+
+# =====================================================================
+# OBTÉM TODOS OS SÍMBOLOS
+# =====================================================================
+
+simbolos = mt5.symbols_get()
+
+if simbolos is None:
+
+    print("❌ Não foi possível obter os símbolos.")
+
+    mt5.shutdown()
+
+    raise SystemExit
+
+
+print(
+    f"Total de símbolos encontrados: "
+    f"{len(simbolos)}"
+)
+
+print()
+
+
+# =====================================================================
+# ANALISA CADA PREFIXO
+# =====================================================================
+
+for prefixo in PREFIXOS:
+
+    print()
+    print("=" * 70)
+    print(f"📌 {prefixo}")
+    print("=" * 70)
+
+    encontrados = []
+
+    for simbolo in simbolos:
+
+        nome = simbolo.name.upper()
+
+        if not nome.startswith(prefixo):
+
+            continue
+
+        encontrados.append(
+            simbolo
+        )
+
+    print(
+        f"Símbolos encontrados: "
+        f"{len(encontrados)}"
+    )
+
+    print()
+
+    # ---------------------------------------------------------------
+    # ORDENA POR NOME
+    # ---------------------------------------------------------------
+
+    encontrados.sort(
+        key=lambda s: s.name
+    )
+
+    # ---------------------------------------------------------------
+    # EXIBE
+    # ---------------------------------------------------------------
+
+    for simbolo in encontrados:
+
+        nome = simbolo.name
+
+        # -----------------------------------------------------------
+        # Dados básicos
+        # -----------------------------------------------------------
+
+        try:
+
+            info = mt5.symbol_info(
+                nome
+            )
+
+        except Exception:
+
+            info = None
+
+        if info is None:
+
+            print()
+            print(
+                f"❌ {nome}"
+            )
+
+            print(
+                "   Não foi possível obter symbol_info."
+            )
+
+            continue
+
+        # -----------------------------------------------------------
+        # Vencimento
+        # -----------------------------------------------------------
+
+        expiration = getattr(
+            info,
+            "expiration_time",
+            0
+        )
+
+        expiration_time = formatar_data(
+            expiration
+        )
+
+        status = status_vencimento(
+            expiration
+        )
+
+        # -----------------------------------------------------------
+        # Volume
+        # -----------------------------------------------------------
+
+        try:
+
+            volume = float(
+                info.volume
+            )
+
+        except Exception:
+
+            volume = 0.0
+
+        # -----------------------------------------------------------
+        # Bid / Ask / Last
+        # -----------------------------------------------------------
+
+        try:
+
+            bid = float(
+                info.bid
+            )
+
+        except Exception:
+
+            bid = 0.0
+
+        try:
+
+            ask = float(
+                info.ask
+            )
+
+        except Exception:
+
+            ask = 0.0
+
+        try:
+
+            last = float(
+                info.last
+            )
+
+        except Exception:
+
+            last = 0.0
+
+        # -----------------------------------------------------------
+        # Selecionável
+        # -----------------------------------------------------------
+
+        selecionavel = getattr(
+            info,
+            "select",
+            False
+        )
+
+        # -----------------------------------------------------------
+        # Visível
+        # -----------------------------------------------------------
+
+        visivel = getattr(
+            info,
+            "visible",
+            False
+        )
+
+        # -----------------------------------------------------------
+        # Descrição
+        # -----------------------------------------------------------
+
+        descricao = getattr(
+            info,
+            "description",
+            ""
+        )
+
+        # -----------------------------------------------------------
+        # RESULTADO
+        # -----------------------------------------------------------
+
+        print()
+
+        print(
+            f"🔹 {nome}"
+        )
+
+        print(
+            f"   Descrição: "
+            f"{descricao}"
+        )
+
+        print(
+            f"   Expiração: "
+            f"{expiration_time}"
+        )
+
+        print(
+            f"   Status: "
+            f"{status}"
+        )
+
+        print(
+            f"   Selecionável: "
+            f"{selecionavel}"
+        )
+
+        print(
+            f"   Visível: "
+            f"{visivel}"
+        )
+
+        print(
+            f"   Volume: "
+            f"{volume}"
+        )
+
+        print(
+            f"   Bid: "
+            f"{bid}"
+        )
+
+        print(
+            f"   Ask: "
+            f"{ask}"
+        )
+
+        print(
+            f"   Last: "
+            f"{last}"
+        )
+
+
+# =====================================================================
+# ENCERRAMENTO
+# =====================================================================
+
+print()
+print("=" * 70)
+print("TESTE FINALIZADO")
+print("=" * 70)
+
+mt5.shutdown()
+
+print(
+    "🔌 MT5 desconectado."
+)
+
+print()
 
 
 
@@ -7225,7 +8835,7 @@ print("=" * 60)
 # main_pipeline.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-14 08:35:09
+# 2026-08-15 17:54:39
 # ============================================================
 
 
@@ -9873,7 +11483,7 @@ st.markdown(
 # pages\1_🎯_Setup_Abertura.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-14 17:35:49
+# 2026-08-15 17:54:39
 # ============================================================
 
 
@@ -15730,7 +17340,7 @@ st.caption("🐶 Spike - IA Imagem • SMC/ICT • PT-BR • Pipeline • KeyMan
 # pages\8_📥_Gerador_Profit_Pro.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-14 08:37:13
+# 2026-08-15 17:54:39
 # ============================================================
 
 
@@ -16107,7 +17717,7 @@ st.caption("Spike • Gerador Profit Pro • Regras + Visão + Texto")
 # pages\8_📥_Gerador_Profit_Pro_Orignal.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-10 10:47:02
+# 2026-08-15 17:54:39
 # ============================================================
 
 
@@ -16444,7 +18054,7 @@ st.caption("Gerador de Script Profit Pro • Versão 2.0 • Integrado ao Analis
 # pages\9_📊_SMC_Regras.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-14 08:37:15
+# 2026-08-15 17:54:39
 # ============================================================
 
 

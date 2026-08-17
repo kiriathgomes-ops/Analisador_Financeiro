@@ -7,7 +7,13 @@
 #         Geração do Arquivo Unificado dos 24 Ativos Mapeados.
 # MODIFICAÇÃO FINAL: Integração com MT5 para capturar o LAST TICK (WIN/WDO)
 #                    apenas dentro da janela de ajuste (19:00 - 08:50).
+#
+# ATUALIZAÇÃO 16/08/2026:
+#   - Integração prioritária com Coletor_MT5_v2_2 (seleção dinâmica de contrato)
+#   - Fallback automático para o coletor antigo (Coletor_MT5.py)
+#   - Preservação total da V1 (nenhum arquivo antigo foi removido)
 # ============================================================
+
 
 import json
 import os
@@ -34,8 +40,9 @@ FILE_ROM10 = os.path.join(COLETAS_DIR, "Coleta_rom-10.json")
 FILE_RAM = os.path.join(COLETAS_DIR, "Coleta_ram.json")
 FILE_UNIFICADO = os.path.join(COLETAS_DIR, "DadosAtivosUnificados.json")
 
-# Arquivo gerado pelo Coletor_MT5
-FILE_MT5 = os.path.join(COLETAS_DIR, "Dados_MT5.json")
+# Arquivos gerados pelos coletores MT5
+FILE_MT5 = os.path.join(COLETAS_DIR, "Dados_MT5.json")          # formato antigo (v1)
+FILE_MT5_V2 = os.path.join(COLETAS_DIR, "Dados_MT5_v2_2.json")  # formato novo (v2.2)
 
 # Dynamic Ticker Generation para Minério de Ferro (FEF2 - 2º Mês)
 ANO_ATUAL = datetime.now().year
@@ -117,13 +124,59 @@ def esta_na_janela_ajuste() -> bool:
 # ------------------------------------------------------------
 def capturar_last_do_mt5() -> dict:
     """
-    Lê o arquivo Dados_MT5.json (gerado pelo Coletor_MT5.py) e extrai
-    o 'last' dos contratos mais líquidos: WINQ26 e WDOQ26 (ou outros se disponíveis).
-    Retorna um dicionário com os valores encontrados.
+    Extrai o 'last' dos contratos principais de WIN e WDO.
+
+    Prioridade de leitura:
+      1. Dados_MT5_v2_2.json  (formato novo - seleção dinâmica por volume/vencimento)
+      2. Dados_MT5.json       (formato antigo - lista fixa)
+
+    Retorna dict no formato:
+      {
+        "WIN": {"contrato": "WINV26", "last": 128450.0, "timestamp": "..."},
+        "WDO": {"contrato": "WDOV26", "last": 5.432, "timestamp": "..."}
+      }
     """
     resultado = {}
+
+    # ----------------------------------------------------------
+    # 1. Tenta o formato novo (v2.2) — preferencial
+    # ----------------------------------------------------------
+    if os.path.exists(FILE_MT5_V2):
+        try:
+            with open(FILE_MT5_V2, "r", encoding="utf-8") as f:
+                dados = json.load(f)
+
+            timestamp = dados.get("timestamp", datetime.now().isoformat())
+            ativos = dados.get("ativos", {})
+
+            for prefixo in ("WIN", "WDO"):
+                info_ativo = ativos.get(prefixo, {})
+                if info_ativo.get("status") == "OK" or info_ativo.get("last") is not None:
+                    last = info_ativo.get("last")
+                    contrato = info_ativo.get("contrato_principal")
+                    if last is not None and last > 0 and contrato:
+                        resultado[prefixo] = {
+                            "contrato": contrato,
+                            "last": float(last),
+                            "timestamp": timestamp,
+                            "fonte": "MT5_v2.2",
+                        }
+
+            if resultado:
+                if "WIN" in resultado:
+                    print(f"   ✅ Last WIN via MT5 v2.2: {resultado['WIN']['last']} ({resultado['WIN']['contrato']})")
+                if "WDO" in resultado:
+                    print(f"   ✅ Last WDO via MT5 v2.2: {resultado['WDO']['last']} ({resultado['WDO']['contrato']})")
+                return resultado
+
+        except Exception as e:
+            print(f"[AVISO] Falha ao ler Dados_MT5_v2_2.json: {e}. Tentando formato antigo...")
+
+    # ----------------------------------------------------------
+    # 2. Fallback: formato antigo (Dados_MT5.json)
+    # ----------------------------------------------------------
     if not os.path.exists(FILE_MT5):
-        print("[AVISO] Dados_MT5.json não encontrado. Não será possível capturar o last via MT5.")
+        print("[AVISO] Nenhum arquivo MT5 encontrado (v2.2 nem v1). Não será possível capturar o last.")
         return resultado
 
     try:
@@ -133,9 +186,7 @@ def capturar_last_do_mt5() -> dict:
         contratos = dados.get("contratos", {})
         timestamp = dados.get("timestamp", datetime.now().isoformat())
 
-        # Mapeamento dos contratos mais líquidos (pode ajustar conforme sua necessidade)
-        # Prioridade: Q26 (Agosto/2026) ou o mais recente.
-        # Você pode ajustar a lógica para pegar o contrato com maior volume, ou fixo.
+        # Lista de prioridade do formato antigo (mantida por compatibilidade)
         mapeamento_contratos = {
             "WIN": ["WINQ26", "WINV26", "WINZ26"],
             "WDO": ["WDOQ26", "WDOV26", "WDOZ26"],
@@ -149,20 +200,21 @@ def capturar_last_do_mt5() -> dict:
                     if last is not None and last > 0:
                         resultado[ativo] = {
                             "contrato": contrato,
-                            "last": last,
+                            "last": float(last),
                             "timestamp": timestamp,
+                            "fonte": "MT5_v1",
                         }
-                        break  # usa o primeiro encontrado
+                        break
 
         if "WIN" in resultado:
-            print(f"   ✅ Last WIN via MT5: {resultado['WIN']['last']} ({resultado['WIN']['contrato']})")
+            print(f"   ✅ Last WIN via MT5 v1: {resultado['WIN']['last']} ({resultado['WIN']['contrato']})")
         if "WDO" in resultado:
-            print(f"   ✅ Last WDO via MT5: {resultado['WDO']['last']} ({resultado['WDO']['contrato']})")
+            print(f"   ✅ Last WDO via MT5 v1: {resultado['WDO']['last']} ({resultado['WDO']['contrato']})")
 
         return resultado
 
     except Exception as e:
-        print(f"[ERRO] Falha ao ler Dados_MT5.json: {e}")
+        print(f"[ERRO] Falha ao ler Dados_MT5.json (formato antigo): {e}")
         return {}
 
 
@@ -508,32 +560,49 @@ def executar_pipeline_coleta():
 
     # ------------------------------------------------------------
     # 4. Se estiver na janela de ajuste, capturar LAST via MT5
+    #    Prioridade: Coletor_MT5_v2_2 → fallback Coletor_MT5 (v1)
     # ------------------------------------------------------------
     if esta_na_janela_ajuste():
         print(f"[{datetime.now().strftime('%H:%M:%S')}] Capturando LAST TICK via MT5...")
-        
-        # Executa o Coletor_MT5 para gerar o Dados_MT5.json atualizado
-        try:
-            # Importa a função do Coletor_MT5 (assumindo que o arquivo está na mesma pasta)
-            from Coletor_MT5 import executar_coleta_mt5
-            dados_mt5 = executar_coleta_mt5()
-            if dados_mt5 and dados_mt5.get("status") == "OK":
-                print("   ✅ MT5 coletado com sucesso.")
-            else:
-                print("   ⚠️ Falha na coleta MT5, tentando ler arquivo existente.")
-        except ImportError:
-            print("   ⚠️ Módulo Coletor_MT5 não encontrado. Tentando ler arquivo existente.")
-        except Exception as e:
-            print(f"   ⚠️ Erro ao executar Coletor_MT5: {e}")
 
-        # Agora lê o arquivo gerado (ou existente) para extrair os lasts
+        # 4.1 Tenta o coletor v2.2 (seleção dinâmica de contrato)
+        mt5_ok = False
+        try:
+            from Coletor_MT5_v2_2 import executar_coleta_mt5_v2
+            dados_mt5 = executar_coleta_mt5_v2()
+            if dados_mt5 and dados_mt5.get("status") == "OK":
+                print("   ✅ MT5 v2.2 coletado com sucesso.")
+                mt5_ok = True
+            else:
+                print("   ⚠️ Coleta MT5 v2.2 retornou status não-OK.")
+        except ImportError:
+            print("   ⚠️ Módulo Coletor_MT5_v2_2 não encontrado.")
+        except Exception as e:
+            print(f"   ⚠️ Erro ao executar Coletor_MT5_v2_2: {e}")
+
+        # 4.2 Fallback para o coletor antigo (v1) se o v2.2 falhou
+        if not mt5_ok:
+            try:
+                from Coletor_MT5 import executar_coleta_mt5
+                dados_mt5 = executar_coleta_mt5()
+                if dados_mt5 and dados_mt5.get("status") == "OK":
+                    print("   ✅ MT5 v1 (fallback) coletado com sucesso.")
+                else:
+                    print("   ⚠️ Falha também no coletor MT5 v1. Tentando ler arquivo existente.")
+            except ImportError:
+                print("   ⚠️ Módulo Coletor_MT5 (v1) também não encontrado. Tentando ler arquivo existente.")
+            except Exception as e:
+                print(f"   ⚠️ Erro ao executar Coletor_MT5 (v1): {e}")
+
+        # 4.3 Extrai os lasts (lê preferencialmente o v2.2, com fallback automático)
         lasts = capturar_last_do_mt5()
         if lasts:
             timestamp_atual = datetime.now().isoformat()
             if "WIN" in lasts:
+                fonte_usada = lasts["WIN"].get("fonte", "MT5")
                 coletas.append({
                     "ativo": "WIN_LAST_TICK",
-                    "fonte": "MT5",
+                    "fonte": fonte_usada,
                     "timestamp": timestamp_atual,
                     "status": "OK",
                     "dados_reais": {
@@ -546,9 +615,10 @@ def executar_pipeline_coleta():
                     },
                 })
             if "WDO" in lasts:
+                fonte_usada = lasts["WDO"].get("fonte", "MT5")
                 coletas.append({
                     "ativo": "WDO_LAST_TICK",
-                    "fonte": "MT5",
+                    "fonte": fonte_usada,
                     "timestamp": timestamp_atual,
                     "status": "OK",
                     "dados_reais": {

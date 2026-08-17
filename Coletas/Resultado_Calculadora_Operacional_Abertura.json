@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "timestamp": "2026-08-15T17:49:02.018832",
+    "timestamp": "2026-08-16T22:19:05.899733",
     "origem": "Pipeline_Completo_V3",
     "versao": "3.0",
     "dados_carregados": {
@@ -20,10 +20,10 @@
   },
   "indicadores_compostos": {
     "indicador_mercado_externo": {
-      "valor_pct": 4.011,
-      "classificacao": "FORTE",
+      "valor_pct": 2.1514,
+      "classificacao": "MODERADA",
       "sinal_operacional": "COMPRA",
-      "rotulo_completo": "FORTE_COMPRA",
+      "rotulo_completo": "MODERADA_COMPRA",
       "valido": true,
       "observacao": "OK"
     },
@@ -39,14 +39,14 @@
   "analise_tendencias": {},
   "estimativas_abertura": {
     "WIN_INDICE": {
-      "variacao_teorica_pct": 0.1029,
+      "variacao_teorica_pct": 0.0424,
       "pontos_ajuste_base": 169904.0,
-      "abertura_teorica_pontos": 170079.0
+      "abertura_teorica_pontos": 169976.0
     },
     "WDO_DOLAR": {
-      "variacao_teorica_pct": 0.1031,
+      "variacao_teorica_pct": -0.0263,
       "pontos_ajuste_base": 5245.327,
-      "abertura_teorica_pontos": 5250.737
+      "abertura_teorica_pontos": 5243.95
     }
   },
   "pivot_points": {
@@ -69,9 +69,9 @@
     "vix": 14.26,
     "di1_2027": 13.765,
     "di1_2029": 14.33,
-    "iron_ore": 95.25,
-    "crude_oil": 82.4,
-    "gold": 4376.333
+    "iron_ore": 95.35,
+    "crude_oil": 82.12,
+    "gold": 4409.054
   },
   "decisao_core": {
     "win": {
@@ -79,15 +79,17 @@
       "vies_final": "NEUTRO",
       "fatores_relevantes": [
         "ADRs fracas no exterior (-2.69%)",
-        "Commodities e Mercado Externo favoráveis (+4.01%)"
+        "Commodities e Mercado Externo favoráveis (+2.26%)",
+        "⚖️ Spread Last vs Ajuste dentro da normalidade (+71 pts)"
       ]
     },
     "wdo": {
-      "score_numeric": 0.0,
-      "vies_final": "NEUTRO",
+      "score_numeric": -1.5,
+      "vies_final": "MODERADO_VENDA",
       "fatores_relevantes": [
         "Spread WDO x PTAX esticado (+22.33 pts)",
-        "Curva de Juros (DI) abrindo (+56.5 bps)"
+        "Curva de Juros (DI) abrindo (+56.5 bps)",
+        "🔻 Last abaixo do ajuste em 11.3 pts (viés vendedor dólar)"
       ]
     }
   }
