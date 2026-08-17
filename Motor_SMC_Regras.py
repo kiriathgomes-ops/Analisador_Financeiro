@@ -33,10 +33,25 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 from dataclasses import dataclass, asdict, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+
+##############
+# ============================================================
+# FIX: FORÇA UTF-8 NO TERMINAL WINDOWS PARA EVITAR UnicodeEncodeError
+# ============================================================
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except AttributeError:
+        pass  # versão antiga do Python que não tem reconfigure
+
+###############
+
+
 
 # ============================================================
 # CONFIGURAÇÃO

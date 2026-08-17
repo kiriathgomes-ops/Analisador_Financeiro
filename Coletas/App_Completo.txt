@@ -5,10 +5,10 @@
 # GERADO AUTOMATICAMENTE
 #
 # Data geração:
-# 2026-08-16 20:57:48
+# 2026-08-17 07:57:28
 #
 # Arquivos unificados:
-# 87
+# 99
 #
 # NÃO EDITAR MANUALMENTE
 # ============================================================
@@ -1006,10 +1006,10 @@ if __name__ == "__main__":
 
 # ============================================================
 # ARQUIVO:
-# Coletor.py
+# Coletor copy.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-14 06:34:19
+# 2026-08-16 21:22:23
 # ============================================================
 
 
@@ -1023,7 +1023,13 @@ if __name__ == "__main__":
 #         Geração do Arquivo Unificado dos 24 Ativos Mapeados.
 # MODIFICAÇÃO FINAL: Integração com MT5 para capturar o LAST TICK (WIN/WDO)
 #                    apenas dentro da janela de ajuste (19:00 - 08:50).
+#
+# ATUALIZAÇÃO 16/08/2026:
+#   - Integração prioritária com Coletor_MT5_v2_2 (seleção dinâmica de contrato)
+#   - Fallback automático para o coletor antigo (Coletor_MT5.py)
+#   - Preservação total da V1 (nenhum arquivo antigo foi removido)
 # ============================================================
+
 
 import json
 import os
@@ -1050,8 +1056,9 @@ FILE_ROM10 = os.path.join(COLETAS_DIR, "Coleta_rom-10.json")
 FILE_RAM = os.path.join(COLETAS_DIR, "Coleta_ram.json")
 FILE_UNIFICADO = os.path.join(COLETAS_DIR, "DadosAtivosUnificados.json")
 
-# Arquivo gerado pelo Coletor_MT5
-FILE_MT5 = os.path.join(COLETAS_DIR, "Dados_MT5.json")
+# Arquivos gerados pelos coletores MT5
+FILE_MT5 = os.path.join(COLETAS_DIR, "Dados_MT5.json")          # formato antigo (v1)
+FILE_MT5_V2 = os.path.join(COLETAS_DIR, "Dados_MT5_v2_2.json")  # formato novo (v2.2)
 
 # Dynamic Ticker Generation para Minério de Ferro (FEF2 - 2º Mês)
 ANO_ATUAL = datetime.now().year
@@ -1133,13 +1140,59 @@ def esta_na_janela_ajuste() -> bool:
 # ------------------------------------------------------------
 def capturar_last_do_mt5() -> dict:
     """
-    Lê o arquivo Dados_MT5.json (gerado pelo Coletor_MT5.py) e extrai
-    o 'last' dos contratos mais líquidos: WINQ26 e WDOQ26 (ou outros se disponíveis).
-    Retorna um dicionário com os valores encontrados.
+    Extrai o 'last' dos contratos principais de WIN e WDO.
+
+    Prioridade de leitura:
+      1. Dados_MT5_v2_2.json  (formato novo - seleção dinâmica por volume/vencimento)
+      2. Dados_MT5.json       (formato antigo - lista fixa)
+
+    Retorna dict no formato:
+      {
+        "WIN": {"contrato": "WINV26", "last": 128450.0, "timestamp": "..."},
+        "WDO": {"contrato": "WDOV26", "last": 5.432, "timestamp": "..."}
+      }
     """
     resultado = {}
+
+    # ----------------------------------------------------------
+    # 1. Tenta o formato novo (v2.2) — preferencial
+    # ----------------------------------------------------------
+    if os.path.exists(FILE_MT5_V2):
+        try:
+            with open(FILE_MT5_V2, "r", encoding="utf-8") as f:
+                dados = json.load(f)
+
+            timestamp = dados.get("timestamp", datetime.now().isoformat())
+            ativos = dados.get("ativos", {})
+
+            for prefixo in ("WIN", "WDO"):
+                info_ativo = ativos.get(prefixo, {})
+                if info_ativo.get("status") == "OK" or info_ativo.get("last") is not None:
+                    last = info_ativo.get("last")
+                    contrato = info_ativo.get("contrato_principal")
+                    if last is not None and last > 0 and contrato:
+                        resultado[prefixo] = {
+                            "contrato": contrato,
+                            "last": float(last),
+                            "timestamp": timestamp,
+                            "fonte": "MT5_v2.2",
+                        }
+
+            if resultado:
+                if "WIN" in resultado:
+                    print(f"   ✅ Last WIN via MT5 v2.2: {resultado['WIN']['last']} ({resultado['WIN']['contrato']})")
+                if "WDO" in resultado:
+                    print(f"   ✅ Last WDO via MT5 v2.2: {resultado['WDO']['last']} ({resultado['WDO']['contrato']})")
+                return resultado
+
+        except Exception as e:
+            print(f"[AVISO] Falha ao ler Dados_MT5_v2_2.json: {e}. Tentando formato antigo...")
+
+    # ----------------------------------------------------------
+    # 2. Fallback: formato antigo (Dados_MT5.json)
+    # ----------------------------------------------------------
     if not os.path.exists(FILE_MT5):
-        print("[AVISO] Dados_MT5.json não encontrado. Não será possível capturar o last via MT5.")
+        print("[AVISO] Nenhum arquivo MT5 encontrado (v2.2 nem v1). Não será possível capturar o last.")
         return resultado
 
     try:
@@ -1149,9 +1202,7 @@ def capturar_last_do_mt5() -> dict:
         contratos = dados.get("contratos", {})
         timestamp = dados.get("timestamp", datetime.now().isoformat())
 
-        # Mapeamento dos contratos mais líquidos (pode ajustar conforme sua necessidade)
-        # Prioridade: Q26 (Agosto/2026) ou o mais recente.
-        # Você pode ajustar a lógica para pegar o contrato com maior volume, ou fixo.
+        # Lista de prioridade do formato antigo (mantida por compatibilidade)
         mapeamento_contratos = {
             "WIN": ["WINQ26", "WINV26", "WINZ26"],
             "WDO": ["WDOQ26", "WDOV26", "WDOZ26"],
@@ -1165,20 +1216,21 @@ def capturar_last_do_mt5() -> dict:
                     if last is not None and last > 0:
                         resultado[ativo] = {
                             "contrato": contrato,
-                            "last": last,
+                            "last": float(last),
                             "timestamp": timestamp,
+                            "fonte": "MT5_v1",
                         }
-                        break  # usa o primeiro encontrado
+                        break
 
         if "WIN" in resultado:
-            print(f"   ✅ Last WIN via MT5: {resultado['WIN']['last']} ({resultado['WIN']['contrato']})")
+            print(f"   ✅ Last WIN via MT5 v1: {resultado['WIN']['last']} ({resultado['WIN']['contrato']})")
         if "WDO" in resultado:
-            print(f"   ✅ Last WDO via MT5: {resultado['WDO']['last']} ({resultado['WDO']['contrato']})")
+            print(f"   ✅ Last WDO via MT5 v1: {resultado['WDO']['last']} ({resultado['WDO']['contrato']})")
 
         return resultado
 
     except Exception as e:
-        print(f"[ERRO] Falha ao ler Dados_MT5.json: {e}")
+        print(f"[ERRO] Falha ao ler Dados_MT5.json (formato antigo): {e}")
         return {}
 
 
@@ -1524,32 +1576,49 @@ def executar_pipeline_coleta():
 
     # ------------------------------------------------------------
     # 4. Se estiver na janela de ajuste, capturar LAST via MT5
+    #    Prioridade: Coletor_MT5_v2_2 → fallback Coletor_MT5 (v1)
     # ------------------------------------------------------------
     if esta_na_janela_ajuste():
         print(f"[{datetime.now().strftime('%H:%M:%S')}] Capturando LAST TICK via MT5...")
-        
-        # Executa o Coletor_MT5 para gerar o Dados_MT5.json atualizado
-        try:
-            # Importa a função do Coletor_MT5 (assumindo que o arquivo está na mesma pasta)
-            from Coletor_MT5 import executar_coleta_mt5
-            dados_mt5 = executar_coleta_mt5()
-            if dados_mt5 and dados_mt5.get("status") == "OK":
-                print("   ✅ MT5 coletado com sucesso.")
-            else:
-                print("   ⚠️ Falha na coleta MT5, tentando ler arquivo existente.")
-        except ImportError:
-            print("   ⚠️ Módulo Coletor_MT5 não encontrado. Tentando ler arquivo existente.")
-        except Exception as e:
-            print(f"   ⚠️ Erro ao executar Coletor_MT5: {e}")
 
-        # Agora lê o arquivo gerado (ou existente) para extrair os lasts
+        # 4.1 Tenta o coletor v2.2 (seleção dinâmica de contrato)
+        mt5_ok = False
+        try:
+            from Coletor_MT5_v2_2 import executar_coleta_mt5_v2
+            dados_mt5 = executar_coleta_mt5_v2()
+            if dados_mt5 and dados_mt5.get("status") == "OK":
+                print("   ✅ MT5 v2.2 coletado com sucesso.")
+                mt5_ok = True
+            else:
+                print("   ⚠️ Coleta MT5 v2.2 retornou status não-OK.")
+        except ImportError:
+            print("   ⚠️ Módulo Coletor_MT5_v2_2 não encontrado.")
+        except Exception as e:
+            print(f"   ⚠️ Erro ao executar Coletor_MT5_v2_2: {e}")
+
+        # 4.2 Fallback para o coletor antigo (v1) se o v2.2 falhou
+        if not mt5_ok:
+            try:
+                from Coletor_MT5 import executar_coleta_mt5
+                dados_mt5 = executar_coleta_mt5()
+                if dados_mt5 and dados_mt5.get("status") == "OK":
+                    print("   ✅ MT5 v1 (fallback) coletado com sucesso.")
+                else:
+                    print("   ⚠️ Falha também no coletor MT5 v1. Tentando ler arquivo existente.")
+            except ImportError:
+                print("   ⚠️ Módulo Coletor_MT5 (v1) também não encontrado. Tentando ler arquivo existente.")
+            except Exception as e:
+                print(f"   ⚠️ Erro ao executar Coletor_MT5 (v1): {e}")
+
+        # 4.3 Extrai os lasts (lê preferencialmente o v2.2, com fallback automático)
         lasts = capturar_last_do_mt5()
         if lasts:
             timestamp_atual = datetime.now().isoformat()
             if "WIN" in lasts:
+                fonte_usada = lasts["WIN"].get("fonte", "MT5")
                 coletas.append({
                     "ativo": "WIN_LAST_TICK",
-                    "fonte": "MT5",
+                    "fonte": fonte_usada,
                     "timestamp": timestamp_atual,
                     "status": "OK",
                     "dados_reais": {
@@ -1562,9 +1631,10 @@ def executar_pipeline_coleta():
                     },
                 })
             if "WDO" in lasts:
+                fonte_usada = lasts["WDO"].get("fonte", "MT5")
                 coletas.append({
                     "ativo": "WDO_LAST_TICK",
-                    "fonte": "MT5",
+                    "fonte": fonte_usada,
                     "timestamp": timestamp_atual,
                     "status": "OK",
                     "dados_reais": {
@@ -1621,10 +1691,725 @@ if __name__ == "__main__":
 
 # ============================================================
 # ARQUIVO:
+# Coletor.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-16 22:32:23
+# ============================================================
+
+
+
+# ============================================================
+# ARQUIVO: Coletor.py
+# DATA: 30/07/2026
+# AUTOR: Arquiteto de Sistemas
+# MOTIVO: Ingestão de Dados (BACEN SGS 10813 + TV + B3 WIN/WDO Separados)
+#         Engine de Rotação Temporal de Memória e
+#         Geração do Arquivo Unificado dos 24 Ativos Mapeados.
+# MODIFICAÇÃO FINAL: Integração com MT5 para capturar o LAST TICK (WIN/WDO)
+#                    apenas dentro da janela de ajuste (19:00 - 08:50).
+#
+# ATUALIZAÇÃO 16/08/2026:
+#   - Integração prioritária com Coletor_MT5_v2_2 (seleção dinâmica de contrato)
+#   - Fallback automático para o coletor antigo (Coletor_MT5.py)
+#   - Preservação total da V1 (nenhum arquivo antigo foi removido)
+#   - ROTAÇÃO EXPANDIDA PARA 12 ARQUIVOS (0, 5, 10, ..., 55 min) → 60 min de histórico
+# ============================================================
+
+
+import json
+import os
+import shutil
+import ssl
+import sys
+import urllib.request
+from datetime import datetime, time
+from pathlib import Path
+
+# ------------------------------------------------------------
+# CONFIGURAÇÃO DE DIRETÓRIOS E ARQUIVOS
+# ------------------------------------------------------------
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+COLETAS_DIR = os.path.join(BASE_DIR, "Coletas")
+
+# Garante que a pasta 'Coletas' existe
+os.makedirs(COLETAS_DIR, exist_ok=True)
+
+# Definição dos caminhos para Rotação Temporal (Janela Móvel) - 12 arquivos
+# 0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55 minutos atrás
+ARQUIVOS_ROM = [
+    os.path.join(COLETAS_DIR, "Coleta_rom-0.json"),
+    os.path.join(COLETAS_DIR, "Coleta_rom-5.json"),
+    os.path.join(COLETAS_DIR, "Coleta_rom-10.json"),
+    os.path.join(COLETAS_DIR, "Coleta_rom-15.json"),
+    os.path.join(COLETAS_DIR, "Coleta_rom-20.json"),
+    os.path.join(COLETAS_DIR, "Coleta_rom-25.json"),
+    os.path.join(COLETAS_DIR, "Coleta_rom-30.json"),
+    os.path.join(COLETAS_DIR, "Coleta_rom-35.json"),
+    os.path.join(COLETAS_DIR, "Coleta_rom-40.json"),
+    os.path.join(COLETAS_DIR, "Coleta_rom-45.json"),
+    os.path.join(COLETAS_DIR, "Coleta_rom-50.json"),
+    os.path.join(COLETAS_DIR, "Coleta_rom-55.json"),
+]
+
+# Referência para o arquivo mais recente (usado pelo Validador e demais módulos)
+FILE_ROM0 = ARQUIVOS_ROM[0]
+
+FILE_RAM = os.path.join(COLETAS_DIR, "Coleta_ram.json")
+FILE_UNIFICADO = os.path.join(COLETAS_DIR, "DadosAtivosUnificados.json")
+
+# Arquivos gerados pelos coletores MT5
+FILE_MT5 = os.path.join(COLETAS_DIR, "Dados_MT5.json")          # formato antigo (v1)
+FILE_MT5_V2 = os.path.join(COLETAS_DIR, "Dados_MT5_v2_2.json")  # formato novo (v2.2)
+
+# Dynamic Ticker Generation para Minério de Ferro (FEF2 - 2º Mês)
+ANO_ATUAL = datetime.now().year
+TICKER_FEF2 = f"SGX:FEFU{ANO_ATUAL}"
+
+# Lista oficial dos 21 ativos coletados via TradingView Scanner API
+TICKERS_TRADINGVIEW = [
+    "BMFBOVESPA:WIN1!",
+    "BMFBOVESPA:WDO1!",
+    "BMFBOVESPA:DI1F2027",
+    "BMFBOVESPA:DI1F2029",
+    "TVC:VIX",
+    "SGX:FEF1!",
+    TICKER_FEF2,
+    "NYMEX:CL1!",
+    "NYSE:VALE",
+    "NYSE:PBR",
+    "NYSE:ITUB",
+    "OTC:BDORY",
+    "NYSE:BBD",
+    "OTC:BOLSY",
+    "AMEX:EWZ",
+    "CME_MINI:ES1!",
+    "CME_MINI:NQ1!",
+    "TVC:DXY",
+    "FX_IDC:USDMXN",
+    "TVC:GOLD",
+    "FX_IDC:USDBRL",
+]
+
+# Mapeamento Oficial dos Tickers Internos / Amigáveis
+MAPEAMENTO_TICKERS = {
+    "USD_PTAX": "USD_PTAX",
+    "B3_AJUSTE_WIN": "WIN_AJUSTE",
+    "B3_AJUSTE_WDO": "WDO_AJUSTE",
+    "BMFBOVESPA:WIN1!": "WIN_FUT",
+    "BMFBOVESPA:WDO1!": "WDO_FUT",
+    "BMFBOVESPA:DI1F2027": "DI1_2027",
+    "BMFBOVESPA:DI1F2029": "DI1_2029",
+    "TVC:VIX": "VIX",
+    "SGX:FEF1!": "IRON_ORE",
+    "SGX:FEF2!": "IRON_ORE_2M",
+    "NYMEX:CL1!": "CRUDE_OIL",
+    "NYSE:VALE": "VALE_ADR",
+    "NYSE:PBR": "PETR_ADR",
+    "NYSE:ITUB": "ITUB_ADR",
+    "OTC:BDORY": "BBAS_ADR",
+    "NYSE:BBD": "BBD_ADR",
+    "OTC:BOLSY": "B3_ADR",
+    "AMEX:EWZ": "EWZ",
+    "CME_MINI:ES1!": "SP500_FUT",
+    "CME_MINI:NQ1!": "NASDAQ_FUT",
+    "TVC:DXY": "DXY",
+    "FX_IDC:USDMXN": "USD_MXN",
+    "TVC:GOLD": "GOLD",
+    "FX_IDC:USDBRL": "USD_BRL",
+    # NOVOS ATIVOS PARA O LAST TICK (serão adicionados via MT5)
+    "WIN_LAST_TICK": "WIN_LAST_TICK",
+    "WDO_LAST_TICK": "WDO_LAST_TICK",
+}
+
+
+# ------------------------------------------------------------
+# FUNÇÃO AUXILIAR: VERIFICAÇÃO DA JANELA DE AJUSTE (19:00 - 08:50)
+# ------------------------------------------------------------
+def esta_na_janela_ajuste() -> bool:
+    """
+    Retorna True se o horário atual estiver dentro da janela de ajuste oficial.
+    Janela: das 19:00 até as 08:50 do dia seguinte (considerando virada de dia).
+    """
+    agora = datetime.now().time()
+    hora_inicio = time(19, 0, 0)
+    hora_fim = time(8, 50, 0)
+    return agora >= hora_inicio or agora <= hora_fim
+
+
+# ------------------------------------------------------------
+# FUNÇÃO PARA CAPTURAR LAST DO MT5
+# ------------------------------------------------------------
+def capturar_last_do_mt5() -> dict:
+    """
+    Extrai o 'last' dos contratos principais de WIN e WDO.
+
+    Prioridade de leitura:
+      1. Dados_MT5_v2_2.json  (formato novo - seleção dinâmica por volume/vencimento)
+      2. Dados_MT5.json       (formato antigo - lista fixa)
+
+    Retorna dict no formato:
+      {
+        "WIN": {"contrato": "WINV26", "last": 128450.0, "timestamp": "..."},
+        "WDO": {"contrato": "WDOV26", "last": 5.432, "timestamp": "..."}
+      }
+    """
+    resultado = {}
+
+    # ----------------------------------------------------------
+    # 1. Tenta o formato novo (v2.2) — preferencial
+    # ----------------------------------------------------------
+    if os.path.exists(FILE_MT5_V2):
+        try:
+            with open(FILE_MT5_V2, "r", encoding="utf-8") as f:
+                dados = json.load(f)
+
+            timestamp = dados.get("timestamp", datetime.now().isoformat())
+            ativos = dados.get("ativos", {})
+
+            for prefixo in ("WIN", "WDO"):
+                info_ativo = ativos.get(prefixo, {})
+                if info_ativo.get("status") == "OK" or info_ativo.get("last") is not None:
+                    last = info_ativo.get("last")
+                    contrato = info_ativo.get("contrato_principal")
+                    if last is not None and last > 0 and contrato:
+                        resultado[prefixo] = {
+                            "contrato": contrato,
+                            "last": float(last),
+                            "timestamp": timestamp,
+                            "fonte": "MT5_v2.2",
+                        }
+
+            if resultado:
+                if "WIN" in resultado:
+                    print(f"   ✅ Last WIN via MT5 v2.2: {resultado['WIN']['last']} ({resultado['WIN']['contrato']})")
+                if "WDO" in resultado:
+                    print(f"   ✅ Last WDO via MT5 v2.2: {resultado['WDO']['last']} ({resultado['WDO']['contrato']})")
+                return resultado
+
+        except Exception as e:
+            print(f"[AVISO] Falha ao ler Dados_MT5_v2_2.json: {e}. Tentando formato antigo...")
+
+    # ----------------------------------------------------------
+    # 2. Fallback: formato antigo (Dados_MT5.json)
+    # ----------------------------------------------------------
+    if not os.path.exists(FILE_MT5):
+        print("[AVISO] Nenhum arquivo MT5 encontrado (v2.2 nem v1). Não será possível capturar o last.")
+        return resultado
+
+    try:
+        with open(FILE_MT5, "r", encoding="utf-8") as f:
+            dados = json.load(f)
+
+        contratos = dados.get("contratos", {})
+        timestamp = dados.get("timestamp", datetime.now().isoformat())
+
+        # Lista de prioridade do formato antigo (mantida por compatibilidade)
+        mapeamento_contratos = {
+            "WIN": ["WINQ26", "WINV26", "WINZ26"],
+            "WDO": ["WDOQ26", "WDOV26", "WDOZ26"],
+        }
+
+        for ativo, lista in mapeamento_contratos.items():
+            for contrato in lista:
+                if contrato in contratos:
+                    info = contratos[contrato]
+                    last = info.get("last")
+                    if last is not None and last > 0:
+                        resultado[ativo] = {
+                            "contrato": contrato,
+                            "last": float(last),
+                            "timestamp": timestamp,
+                            "fonte": "MT5_v1",
+                        }
+                        break
+
+        if "WIN" in resultado:
+            print(f"   ✅ Last WIN via MT5 v1: {resultado['WIN']['last']} ({resultado['WIN']['contrato']})")
+        if "WDO" in resultado:
+            print(f"   ✅ Last WDO via MT5 v1: {resultado['WDO']['last']} ({resultado['WDO']['contrato']})")
+
+        return resultado
+
+    except Exception as e:
+        print(f"[ERRO] Falha ao ler Dados_MT5.json (formato antigo): {e}")
+        return {}
+
+
+# ------------------------------------------------------------
+# FUNÇÕES DE COLETA DE DADOS (FASE 1)
+# ------------------------------------------------------------
+
+def coletar_bacen_ptax():
+    """Coleta a PTAX oficial no Bacen via API SGS (Série 10813) com fallback via TradingView."""
+    timestamp = datetime.now().isoformat()
+
+    url_sgs = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.10813/dados/ultimos/5?formato=json"
+
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+
+    req_sgs = urllib.request.Request(
+        url_sgs,
+        headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"},
+    )
+
+    try:
+        with urllib.request.urlopen(
+            req_sgs, context=ctx, timeout=10
+        ) as response:
+            if response.getcode() == 200:
+                res = json.loads(response.read().decode("utf-8"))
+                if res:
+                    ultimo_valor = float(res[-1]["valor"].replace(",", "."))
+                    return {
+                        "ativo": "USD_PTAX",
+                        "fonte": "BACEN_SGS_10813",
+                        "timestamp": timestamp,
+                        "status": "OK",
+                        "dados_reais": {
+                            "close": ultimo_valor,
+                            "open": None,
+                            "high": None,
+                            "low": None,
+                            "change_percent": None,
+                            "volume": None,
+                        },
+                    }
+    except Exception as e:
+        print(f"[AVISO] Falha na API SGS Bacen: {e}. Executando fallback...")
+
+    # Fallback TradingView
+    try:
+        url_tv = "https://scanner.tradingview.com/global/scan"
+        payload = {
+            "symbols": {"tickers": ["FX_IDC:USDBRL"]},
+            "columns": ["close"],
+        }
+        req_tv = urllib.request.Request(
+            url_tv,
+            data=json.dumps(payload).encode("utf-8"),
+            headers={
+                "Content-Type": "application/json",
+                "User-Agent": "Mozilla/5.0",
+            },
+        )
+        with urllib.request.urlopen(req_tv, timeout=10) as response:
+            res = json.loads(response.read().decode("utf-8"))
+            vals = res.get("data", [])[0].get("d", [])
+            if vals and vals[0] is not None:
+                return {
+                    "ativo": "USD_PTAX",
+                    "fonte": "TRADINGVIEW_FALLBACK",
+                    "timestamp": timestamp,
+                    "status": "OK",
+                    "dados_reais": {
+                        "close": float(vals[0]),
+                        "open": None,
+                        "high": None,
+                        "low": None,
+                        "change_percent": None,
+                        "volume": None,
+                    },
+                }
+    except Exception:
+        pass
+
+    return {
+        "ativo": "USD_PTAX",
+        "fonte": "BACEN_API",
+        "timestamp": timestamp,
+        "status": "SEM_DADOS",
+        "dados_reais": None,
+    }
+
+
+def coletar_ajuste_oficial():
+    """
+    Coleta os valores de Ajuste Oficial APENAS entre 19:00 e 08:50.
+    Fora desse horário, busca o último valor salvo no cache (RAM/ROM) para não quebrar o sistema.
+    """
+    timestamp = datetime.now().isoformat()
+    hora_atual = datetime.now().time()
+
+    # Define os limites de horário (Brasília)
+    hora_inicio = time(19, 0, 0)  # 19:00
+    hora_fim = time(8, 50, 0)     # 08:50
+
+    # --- LÓGICA DE HORÁRIO ---
+    # Se estiver entre 08:50 e 19:00, NÃO faz a coleta ao vivo
+    if hora_fim < hora_atual < hora_inicio:
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] ⏳ Fora da janela de ajuste (19:00 - 08:50). Buscando último cache...")
+        
+        # Tenta carregar o último ajuste salvo no arquivo de RAM (ou ROM0)
+        cache_encontrado = []
+        for arquivo_cache in [FILE_RAM, FILE_ROM0]:
+            if os.path.exists(arquivo_cache):
+                try:
+                    with open(arquivo_cache, 'r', encoding='utf-8') as f:
+                        dados_cache = json.load(f)
+                        itens = dados_cache.get("coletas", [])
+                        # Filtra os ajustes
+                        for item in itens:
+                            if item.get("ativo") in ["B3_AJUSTE_WIN", "B3_AJUSTE_WDO"]:
+                                cache_encontrado.append(item)
+                    if cache_encontrado:
+                        break
+                except:
+                    continue
+        
+        if cache_encontrado:
+            # Retorna os dados do cache, mas marca a fonte como "CACHE"
+            for item in cache_encontrado:
+                item["fonte"] = "CACHE_DISCO (Fora da janela)"
+                item["timestamp"] = timestamp
+            return cache_encontrado
+        else:
+            print("   ⚠️ Nenhum cache de ajuste encontrado. Retornando dados vazios.")
+            return [
+                {
+                    "ativo": "B3_AJUSTE_WIN",
+                    "fonte": "NENHUM_DADO",
+                    "timestamp": timestamp,
+                    "status": "FORA_JANELA_SEM_CACHE",
+                    "dados_reais": None
+                },
+                {
+                    "ativo": "B3_AJUSTE_WDO",
+                    "fonte": "NENHUM_DADO",
+                    "timestamp": timestamp,
+                    "status": "FORA_JANELA_SEM_CACHE",
+                    "dados_reais": None
+                }
+            ]
+
+    # --- SE ESTIVER DENTRO DA JANELA (19:00 até 08:50) ---
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] ✅ Dentro da janela de ajuste. Coletando da API...")
+    headers = {"User-Agent": "Mozilla/5.0"}
+
+    simbolos = [
+        {"ativo": "B3_AJUSTE_WIN", "ticker": "BMFBOVESPA:WIN1!"},
+        {"ativo": "B3_AJUSTE_WDO", "ticker": "BMFBOVESPA:WDO1!"},
+    ]
+
+    resultados = []
+    for item in simbolos:
+        url = f"https://scanner.tradingview.com/symbol?symbol={item['ticker']}&fields=close,change"
+        try:
+            req = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(req, timeout=10) as response:
+                res = json.loads(response.read().decode("utf-8"))
+                close_val = res.get("close")
+                change_val = res.get("change", 0.0)
+
+                resultados.append({
+                    "ativo": item["ativo"],
+                    "fonte": "TRADINGVIEW_DIRECT_SYMBOL",
+                    "timestamp": timestamp,
+                    "status": "OK" if close_val is not None else "ERRO",
+                    "dados_reais": {
+                        "close": float(close_val) if close_val is not None else None,
+                        "open": None,
+                        "high": None,
+                        "low": None,
+                        "change_percent": float(change_val) if change_val is not None else 0.0,
+                        "volume": None,
+                    },
+                })
+        except Exception as e:
+            print(f"   ❌ Erro ao coletar {item['ativo']}: {e}")
+            resultados.append({
+                "ativo": item["ativo"],
+                "fonte": "TRADINGVIEW_DIRECT_SYMBOL",
+                "timestamp": timestamp,
+                "status": "ERRO",
+                "dados_reais": None,
+            })
+    
+    return resultados
+
+
+def coletar_tradingview():
+    """
+    Coleta os ativos mapeados via Scanner API Oculta do TradingView.
+    Não tenta mais capturar 'last' porque a API não retorna esse campo fora do pregão.
+    """
+    url = "https://scanner.tradingview.com/global/scan"
+    timestamp = datetime.now().isoformat()
+
+    payload = {
+        "symbols": {"tickers": TICKERS_TRADINGVIEW},
+        "columns": ["close", "open", "high", "low", "change", "volume"],
+    }
+
+    headers = {
+        "Content-Type": "application/json",
+        "User-Agent": "Mozilla/5.0",
+    }
+
+    try:
+        data = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(url, data=data, headers=headers)
+
+        with urllib.request.urlopen(req, timeout=10) as response:
+            res = json.loads(response.read().decode("utf-8"))
+            resultados = []
+
+            for item in res.get("data", []):
+                ticker = item.get("s")
+                vals = item.get("d", [])
+
+                ticker_chave = "SGX:FEF2!" if ticker == TICKER_FEF2 else ticker
+
+                if len(vals) >= 5 and vals[0] is not None:
+                    close = float(vals[0])
+                    change_pct = float(vals[4]) if vals[4] is not None else 0.0
+
+                    resultados.append(
+                        {
+                            "ativo": ticker_chave,
+                            "fonte": "TRADINGVIEW_SCANNER",
+                            "timestamp": timestamp,
+                            "status": "OK",
+                            "dados_reais": {
+                                "close": close,
+                                "open": float(vals[1]) if vals[1] is not None else None,
+                                "high": float(vals[2]) if vals[2] is not None else None,
+                                "low": float(vals[3]) if vals[3] is not None else None,
+                                "change_percent": change_pct,
+                                "volume": float(vals[5]) if len(vals) > 5 and vals[5] is not None else None,
+                            },
+                        }
+                    )
+
+            return resultados
+    except Exception as e:
+        print(f"[ERRO] Falha na coleta TradingView: {e}")
+        return []
+
+
+# ------------------------------------------------------------
+# ENGINE DE ROTAÇÃO E FORMATADOR UNIFICADO
+# ------------------------------------------------------------
+
+def executar_rotacao_memoria(is_ram_mode=False):
+    """
+    Executa a rotação temporal dos 12 arquivos (0, 5, 10, ..., 55 min).
+    - Se is_ram_mode for True, apenas retorna o caminho do RAM (sem rotação).
+    - Caso contrário, desloca os arquivos: rom-55 ← rom-50, rom-50 ← rom-45, ..., rom-0 ← rom-5? 
+      Na verdade, a lógica é: o arquivo mais antigo (rom-55) é sobrescrito pelo anterior (rom-50),
+      e assim sucessivamente, até que o rom-5 seja sobrescrito pelo rom-0 (que contém a coleta anterior),
+      e então o rom-0 será sobrescrito pela nova coleta.
+    """
+    if is_ram_mode:
+        print(
+            f"[{datetime.now().strftime('%H:%M:%S')}] Modo RAM ativado. Ignorando rotação temporal."
+        )
+        return FILE_RAM
+
+    print(
+        f"[{datetime.now().strftime('%H:%M:%S')}] Executando rotação de memória física (Janela Móvel - 12 arquivos)..."
+    )
+
+    # Percorre de trás para frente (do mais antigo para o mais recente)
+    # Exemplo: rom-50 -> rom-55, rom-45 -> rom-50, ..., rom-0 -> rom-5
+    # O índice 0 é o mais recente (rom-0), índice 11 é o mais antigo (rom-55)
+    for i in range(len(ARQUIVOS_ROM) - 1, 0, -1):
+        origem = ARQUIVOS_ROM[i - 1]
+        destino = ARQUIVOS_ROM[i]
+        if os.path.exists(origem):
+            shutil.copy2(origem, destino)
+            print(f"  └─ Rotação: {os.path.basename(origem)} ──> {os.path.basename(destino)}")
+        else:
+            # Se o arquivo de origem não existe, apenas registra (não copia)
+            print(f"  └─ Aviso: {os.path.basename(origem)} não encontrado, pulando.")
+
+    # Retorna o caminho do arquivo mais recente (rom-0) onde a nova coleta será gravada
+    return ARQUIVOS_ROM[0]
+
+
+def gerar_arquivo_unificado(coletas):
+    """Gera o arquivo DadosAtivosUnificados.json com as chaves tratadas dos ativos."""
+    ativos_map = {}
+
+    for item in coletas:
+        ativo_raw = item.get("ativo")
+        dados_reais = item.get("dados_reais") or {}
+
+        nome_limpo = MAPEAMENTO_TICKERS.get(ativo_raw, ativo_raw)
+
+        preco = dados_reais.get("close", 0.0) or 0.0
+        var = dados_reais.get("change_percent", 0.0) or 0.0
+
+        ativos_map[nome_limpo] = {
+            "preco": float(preco),
+            "variacao_pct": float(var),
+            "ticker_original": ativo_raw,
+            "status": item.get("status", "OK"),
+        }
+
+    estrutura_unificada = {
+        "metadata": {
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "total_ativos": len(ativos_map),
+        },
+        "ativos": ativos_map,
+    }
+
+    with open(FILE_UNIFICADO, "w", encoding="utf-8") as f:
+        json.dump(estrutura_unificada, f, indent=4, ensure_ascii=False)
+
+    print(f"✅ Arquivo unificado salvo em: {FILE_UNIFICADO}")
+
+
+# ------------------------------------------------------------
+# EXECUÇÃO PRINCIPAL
+# ------------------------------------------------------------
+
+def executar_pipeline_coleta():
+    is_ram = "--ram" in sys.argv
+    arquivo_destino = executar_rotacao_memoria(is_ram)
+
+    print(
+        f"[{datetime.now().strftime('%H:%M:%S')}] Iniciando extração de dados brutos..."
+    )
+
+    coletas = []
+
+    # 1. Extração BACEN PTAX
+    ptax = coletar_bacen_ptax()
+    coletas.append(ptax)
+
+    # 2. Extração Ajustes
+    ajustes = coletar_ajuste_oficial()
+    coletas.extend(ajustes)
+
+    # 3. Extração TradingView Scanner (sem last)
+    tv_dados = coletar_tradingview()
+    coletas.extend(tv_dados)
+
+    # ------------------------------------------------------------
+    # 4. Se estiver na janela de ajuste, capturar LAST via MT5
+    #    Prioridade: Coletor_MT5_v2_2 → fallback Coletor_MT5 (v1)
+    # ------------------------------------------------------------
+    if esta_na_janela_ajuste():
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Capturando LAST TICK via MT5...")
+
+        # 4.1 Tenta o coletor v2.2 (seleção dinâmica de contrato)
+        mt5_ok = False
+        try:
+            from Coletor_MT5_v2_2 import executar_coleta_mt5_v2
+            dados_mt5 = executar_coleta_mt5_v2()
+            if dados_mt5 and dados_mt5.get("status") == "OK":
+                print("   ✅ MT5 v2.2 coletado com sucesso.")
+                mt5_ok = True
+            else:
+                print("   ⚠️ Coleta MT5 v2.2 retornou status não-OK.")
+        except ImportError:
+            print("   ⚠️ Módulo Coletor_MT5_v2_2 não encontrado.")
+        except Exception as e:
+            print(f"   ⚠️ Erro ao executar Coletor_MT5_v2_2: {e}")
+
+        # 4.2 Fallback para o coletor antigo (v1) se o v2.2 falhou
+        if not mt5_ok:
+            try:
+                from Coletor_MT5 import executar_coleta_mt5
+                dados_mt5 = executar_coleta_mt5()
+                if dados_mt5 and dados_mt5.get("status") == "OK":
+                    print("   ✅ MT5 v1 (fallback) coletado com sucesso.")
+                else:
+                    print("   ⚠️ Falha também no coletor MT5 v1. Tentando ler arquivo existente.")
+            except ImportError:
+                print("   ⚠️ Módulo Coletor_MT5 (v1) também não encontrado. Tentando ler arquivo existente.")
+            except Exception as e:
+                print(f"   ⚠️ Erro ao executar Coletor_MT5 (v1): {e}")
+
+        # 4.3 Extrai os lasts (lê preferencialmente o v2.2, com fallback automático)
+        lasts = capturar_last_do_mt5()
+        if lasts:
+            timestamp_atual = datetime.now().isoformat()
+            if "WIN" in lasts:
+                fonte_usada = lasts["WIN"].get("fonte", "MT5")
+                coletas.append({
+                    "ativo": "WIN_LAST_TICK",
+                    "fonte": fonte_usada,
+                    "timestamp": timestamp_atual,
+                    "status": "OK",
+                    "dados_reais": {
+                        "close": lasts["WIN"]["last"],
+                        "open": None,
+                        "high": None,
+                        "low": None,
+                        "change_percent": None,
+                        "volume": None,
+                    },
+                })
+            if "WDO" in lasts:
+                fonte_usada = lasts["WDO"].get("fonte", "MT5")
+                coletas.append({
+                    "ativo": "WDO_LAST_TICK",
+                    "fonte": fonte_usada,
+                    "timestamp": timestamp_atual,
+                    "status": "OK",
+                    "dados_reais": {
+                        "close": lasts["WDO"]["last"],
+                        "open": None,
+                        "high": None,
+                        "low": None,
+                        "change_percent": None,
+                        "volume": None,
+                    },
+                })
+    else:
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Fora da janela de ajuste. LAST TICK NÃO coletado.")
+
+    # Monta estrutura da coleta bruta
+    conteudo_saida = {
+        "metadata_coleta": {
+            "timestamp_coleta": datetime.now().isoformat(),
+            "modo_execucao": "RAM" if is_ram else "PADRAO_ROTATIVO",
+            "total_ativos_solicitados": len(coletas),
+            "arquivo_gerado": os.path.basename(arquivo_destino),
+        },
+        "coletas": coletas,
+    }
+
+    # Grava Coleta de Rotação
+    with open(arquivo_destino, "w", encoding="utf-8") as f:
+        json.dump(conteudo_saida, f, indent=2, ensure_ascii=False)
+
+    # Grava RAM (cópia independente da mais recente)
+    if not is_ram:
+        with open(FILE_RAM, "w", encoding="utf-8") as f:
+            json.dump(conteudo_saida, f, indent=2, ensure_ascii=False)
+        print(f"✅ Cópia independente gerada em: {FILE_RAM}")
+
+    # Gera unificado
+    gerar_arquivo_unificado(coletas)
+
+    print(
+        f"[{datetime.now().strftime('%H:%M:%S')}] Coleta e Unificação concluídas com sucesso!"
+    )
+    print(
+        f"Total de itens processados: {len(coletas)} | Arquivo: {os.path.basename(arquivo_destino)}\n"
+    )
+
+
+if __name__ == "__main__":
+    print("============================================================")
+    print(" FASE 1 & 2: MOTOR DE INGESTÃO E ROTAÇÃO DE DADOS (24 ATIVOS)")
+    print("============================================================")
+    executar_pipeline_coleta()
+
+
+
+# ============================================================
+# ARQUIVO:
 # Coletor_MT5.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-14 06:34:19
+# 2026-08-16 22:00:08
 # ============================================================
 
 
@@ -1877,7 +2662,7 @@ if __name__ == "__main__":
 # Coletor_MT5_v2_2.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-16 20:49:08
+# 2026-08-16 21:26:24
 # ============================================================
 
 
@@ -2570,48 +3355,39 @@ def salvar_json(dados):
 
 
 # ================================================================
-# MAIN
+# FUNÇÃO PARA INTEGRAÇÃO COM O PIPELINE (Coletor.py)
 # ================================================================
 
-def main():
-
+def executar_coleta_mt5_v2():
+    """
+    Função principal para ser chamada pelo Coletor.py / pipeline.
+    Retorna o dicionário completo dos dados coletados ou None em caso de falha.
+    Também grava Dados_MT5_v2_2.json e o histórico.
+    """
     if not conectar_mt5():
-
-        return
+        return None
 
     try:
-
         timestamp = agora()
 
         print()
         print("=" * 70)
-        print("📊 COLETOR MT5 v2.2")
+        print("📊 COLETOR MT5 v2.2 (integração pipeline)")
         print("=" * 70)
-
-        print(
-            f"🕒 Coleta: {timestamp}"
-        )
+        print(f"🕒 Coleta: {timestamp}")
 
         dados = {
-
             "versao_coletor": "2.2",
-
             "timestamp": timestamp,
-
             "mt5": {
                 "conectado": True,
                 "versao": mt5.version()
             },
-
-            "ativos": {}
+            "ativos": {},
+            "status": "OK"
         }
 
-        # --------------------------------------------------------
-        # Coleta
-        # --------------------------------------------------------
-
         for nome_ativo, configuracao in ATIVOS.items():
-
             dados["ativos"][nome_ativo] = coletar_ativo(
                 nome_ativo,
                 configuracao
@@ -2620,33 +3396,36 @@ def main():
         print()
         print("=" * 70)
 
-        # --------------------------------------------------------
-        # Salvar
-        # --------------------------------------------------------
-
         arquivo_historico = salvar_json(dados)
 
         print()
         print("💾 Arquivo atual:")
         print(f"   {ARQUIVO_ATUAL}")
-
         print()
         print("📚 Histórico:")
         print(f"   {arquivo_historico}")
 
-    except Exception as erro:
+        return dados
 
+    except Exception as erro:
         print()
-        print("❌ ERRO DURANTE A COLETA")
+        print("❌ ERRO DURANTE A COLETA v2.2")
         print(f"   {erro}")
+        return None
 
     finally:
-
         mt5.shutdown()
-
         print()
         print("🔌 MT5 desconectado.")
         print()
+
+
+# ================================================================
+# MAIN (execução direta)
+# ================================================================
+
+def main():
+    executar_coleta_mt5_v2()
 
 
 # ================================================================
@@ -2655,6 +3434,10 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+
+
 
 
 
@@ -8835,7 +9618,7 @@ print("=" * 60)
 # main_pipeline.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-15 17:54:39
+# 2026-08-16 22:20:46
 # ============================================================
 
 
@@ -8963,6 +9746,8 @@ def executar_pipeline():
         ("8 - ENGINE DE VIES INSTITUCIONAL", "Engine_Vies.py"),
         ("8.1 - MOTOR SMC POR REGRAS (MT5)", "Rodar_SMC_Regras.py"),
         ("9 - GERADOR RELATORIO FINAL", "Gerar_Relatorio_Mensagem.py"),
+        ("10 - V2 SESSAO WINFUT", "v2_gravar_sessao_win.py"),
+
     ]
 
     historico = []
@@ -13618,6 +14403,2272 @@ if __name__ == "__main__":
     main()
 
 
+
+
+
+# ============================================================
+# ARQUIVO:
+# pages\20_📈_Previsao_Abertura_WINFUT.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-16 22:13:17
+# ============================================================
+
+
+
+# ============================================================
+# PÁGINA: Previsão de Abertura WINFUT
+# FASE 7 — Dashboard operacional V2 + Plotly
+#
+# Visualizações:
+#   - Barras de comportamentos (Plotly)
+#   - Gauge distância / posição vs ajuste
+#   - Níveis (ajuste, last, pivots)
+#   - Contexto externo (barras de variação)
+# ============================================================
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+import streamlit as st
+import plotly.graph_objects as go
+import plotly.express as px
+
+# Garante import da raiz do projeto
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from v2.core.services.win_session_builder import build_win_session
+from v2.core.engines.opening_scenario_engine import gerar_cenario_abertura
+from v2.core.services.session_history import SessionHistoryService, salvar_sessao_hoje
+
+st.set_page_config(
+    page_title="Previsão Abertura WINFUT",
+    page_icon="📈",
+    layout="wide",
+)
+
+# Tema escuro dos gráficos
+PLOTLY_LAYOUT = dict(
+    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)",
+    font=dict(color="#e6edf3", size=13),
+    margin=dict(l=40, r=20, t=40, b=40),
+)
+
+st.title("📈 Previsão de Abertura — WINFUT")
+st.caption("Cenários em relação ao ajuste · Não é ordem de compra/venda")
+
+# ------------------------------------------------------------
+# Carregar dados
+# ------------------------------------------------------------
+@st.cache_data(ttl=60)
+def carregar():
+    session = build_win_session()
+    cenario = gerar_cenario_abertura(session)
+    session.cenario = cenario
+    return session, cenario
+
+
+try:
+    session, cenario = carregar()
+except Exception as e:
+    st.error(f"Falha ao montar WinSession: {e}")
+    st.stop()
+
+# ------------------------------------------------------------
+# Ações
+# ------------------------------------------------------------
+col_a, col_b, col_c = st.columns([1, 1, 2])
+with col_a:
+    if st.button("🔄 Atualizar", use_container_width=True):
+        st.cache_data.clear()
+        st.rerun()
+with col_b:
+    if st.button("💾 Gravar no histórico", use_container_width=True):
+        path = salvar_sessao_hoje(session, cenario, tag="ui")
+        st.success(f"Salvo: {path.name}")
+
+# ------------------------------------------------------------
+# 1. Referências de preço
+# ------------------------------------------------------------
+st.subheader("Referências")
+
+c1, c2, c3, c4, c5 = st.columns(5)
+with c1:
+    st.metric("Contrato", session.metadata.contrato_principal or "—")
+with c2:
+    st.metric("Ajuste", f"{session.precos.ajuste:,.0f}" if session.precos.ajuste else "—")
+with c3:
+    st.metric("Last MT5", f"{session.precos.last_mt5:,.0f}" if session.precos.last_mt5 else "—")
+with c4:
+    dist = session.distancias.last_vs_ajuste_pts
+    st.metric(
+        "Distância",
+        f"{dist:+,.0f} pts" if dist is not None else "—",
+        delta=f"{session.distancias.last_vs_ajuste_pct:+.3f}%" if session.distancias.last_vs_ajuste_pct else None,
+    )
+with c5:
+    pos = cenario.relacao_com_ajuste.posicao or "—"
+    cor = {"ACIMA": "🟢", "ABAIXO": "🔴", "NO_AJUSTE": "🟡"}.get(pos, "⚪")
+    st.metric("Posição", f"{cor} {pos}")
+
+st.divider()
+
+# ------------------------------------------------------------
+# 2. Cenário + Gauge de distância
+# ------------------------------------------------------------
+st.subheader("Cenário principal")
+
+dir_ = cenario.direcao_provavel or "NEUTRO"
+prob = cenario.probabilidade_direcao
+conf = cenario.confianca_geral
+badge = {"ALTA": "🟢 ALTA", "BAIXA": "🔴 BAIXA", "NEUTRO": "🟡 NEUTRO"}.get(dir_, dir_)
+
+col1, col2 = st.columns([1.4, 1])
+
+with col1:
+    st.markdown(f"### {badge}")
+    st.write(cenario.relacao_com_ajuste.cenario_principal or "—")
+    if cenario.cenario_alternativo:
+        st.info(f"**Alternativo:** {cenario.cenario_alternativo}")
+
+    m1, m2, m3 = st.columns(3)
+    m1.metric("Prob. direção", f"{prob:.0f}%" if prob else "—")
+    m2.metric("Confiança", f"{conf:.0f}%" if conf else "—")
+    m3.metric(
+        "Prob. cenário",
+        f"{cenario.relacao_com_ajuste.probabilidade_cenario:.0f}%"
+        if cenario.relacao_com_ajuste.probabilidade_cenario
+        else "—",
+    )
+
+with col2:
+    # Gauge: distância last vs ajuste
+    dist_val = float(dist) if dist is not None else 0.0
+    # Escala simétrica em torno de 0
+    limite = max(400, abs(dist_val) * 1.5, 200)
+
+    fig_gauge = go.Figure(
+        go.Indicator(
+            mode="gauge+number+delta",
+            value=dist_val,
+            delta={"reference": 0, "relative": False, "valueformat": "+.0f"},
+            number={"suffix": " pts", "font": {"size": 28}},
+            title={"text": "Last × Ajuste", "font": {"size": 16}},
+            gauge={
+                "axis": {"range": [-limite, limite], "tickwidth": 1},
+                "bar": {"color": "#00c853" if dist_val >= 0 else "#ff3d00"},
+                "bgcolor": "#1a1c23",
+                "borderwidth": 0,
+                "steps": [
+                    {"range": [-limite, -150], "color": "#3d1515"},
+                    {"range": [-150, -50], "color": "#2a2210"},
+                    {"range": [-50, 50], "color": "#1a2a1a"},
+                    {"range": [50, 150], "color": "#1a2a1a"},
+                    {"range": [150, limite], "color": "#153d15"},
+                ],
+                "threshold": {
+                    "line": {"color": "#ffc107", "width": 3},
+                    "thickness": 0.8,
+                    "value": 0,
+                },
+            },
+        )
+    )
+    fig_gauge.update_layout(
+        **PLOTLY_LAYOUT,
+        height=260,
+    )
+    st.plotly_chart(fig_gauge, use_container_width=True)
+
+st.divider()
+
+# ------------------------------------------------------------
+# 3. Comportamentos (barras Plotly)
+# ------------------------------------------------------------
+st.subheader("Comportamentos possíveis")
+
+cb = cenario.comportamentos
+labels = [
+    "Romper e continuar",
+    "Testar e rejeitar",
+    "Testar e recuperar",
+    "Retornar ao ajuste",
+    "Falso rompimento",
+]
+valores = [
+    cb.romper_e_continuar or 0,
+    cb.testar_e_rejeitar or 0,
+    cb.testar_e_recuperar or 0,
+    cb.retornar_ao_ajuste or 0,
+    cb.falso_rompimento or 0,
+]
+cores = ["#00c853", "#ff9800", "#42a5f5", "#ab47bc", "#ff3d00"]
+
+fig_comp = go.Figure(
+    go.Bar(
+        x=valores,
+        y=labels,
+        orientation="h",
+        marker_color=cores,
+        text=[f"{v:.0f}%" for v in valores],
+        textposition="outside",
+        cliponaxis=False,
+    )
+)
+fig_comp.update_layout(
+    **PLOTLY_LAYOUT,
+    height=280,
+    xaxis=dict(title="Probabilidade (%)", range=[0, max(valores + [40]) * 1.25], gridcolor="#2a2d4a"),
+    yaxis=dict(autorange="reversed"),
+    showlegend=False,
+)
+st.plotly_chart(fig_comp, use_container_width=True)
+st.caption("Heurística inicial — será refinada com histórico estatístico.")
+
+st.divider()
+
+# ------------------------------------------------------------
+# 4. Níveis + Contexto (dois gráficos)
+# ------------------------------------------------------------
+col_n, col_x = st.columns(2)
+
+with col_n:
+    st.subheader("Níveis de preço")
+    n = session.niveis
+    nomes = []
+    precos = []
+    cores_n = []
+
+    mapa_niveis = [
+        ("R2", n.r2, "#ef5350"),
+        ("R1", n.r1, "#ff8a65"),
+        ("Last", session.precos.last_mt5, "#00e676"),
+        ("Ajuste", session.precos.ajuste, "#ffc107"),
+        ("PP", n.pivot_pp, "#90caf9"),
+        ("S1", n.s1, "#81c784"),
+        ("S2", n.s2, "#66bb6a"),
+    ]
+    for nome, val, cor in mapa_niveis:
+        if val is not None:
+            nomes.append(nome)
+            precos.append(val)
+            cores_n.append(cor)
+
+    if precos:
+        fig_niv = go.Figure(
+            go.Bar(
+                x=nomes,
+                y=precos,
+                marker_color=cores_n,
+                text=[f"{p:,.0f}" for p in precos],
+                textposition="outside",
+                cliponaxis=False,
+            )
+        )
+        fig_niv.update_layout(
+            **PLOTLY_LAYOUT,
+            height=320,
+            yaxis=dict(title="Pontos", gridcolor="#2a2d4a"),
+            showlegend=False,
+        )
+        st.plotly_chart(fig_niv, use_container_width=True)
+    else:
+        st.write("Níveis indisponíveis.")
+
+with col_x:
+    st.subheader("Contexto externo (variação %)")
+    ctx = session.contexto
+    ctx_labels = []
+    ctx_vals = []
+
+    pares = [
+        ("VIX", ctx.vix.variacao_pct),
+        ("ES", ctx.sp500_fut.variacao_pct),
+        ("NQ", ctx.nasdaq_fut.variacao_pct),
+        ("DXY", ctx.dxy.variacao_pct),
+        ("USD/BRL", ctx.usd_brl.variacao_pct),
+        ("ADRs", ctx.indicador_adrs),
+        ("Minério", ctx.iron_ore.variacao_pct),
+        ("Petróleo", ctx.crude_oil.variacao_pct),
+    ]
+    for nome, val in pares:
+        if val is not None:
+            ctx_labels.append(nome)
+            ctx_vals.append(val)
+
+    if ctx_vals:
+        cores_ctx = ["#00c853" if v >= 0 else "#ff3d00" for v in ctx_vals]
+        fig_ctx = go.Figure(
+            go.Bar(
+                x=ctx_labels,
+                y=ctx_vals,
+                marker_color=cores_ctx,
+                text=[f"{v:+.2f}%" for v in ctx_vals],
+                textposition="outside",
+                cliponaxis=False,
+            )
+        )
+        fig_ctx.update_layout(
+            **PLOTLY_LAYOUT,
+            height=320,
+            yaxis=dict(title="Variação %", gridcolor="#2a2d4a", zeroline=True, zerolinecolor="#ffc107"),
+            showlegend=False,
+        )
+        st.plotly_chart(fig_ctx, use_container_width=True)
+    else:
+        st.write("Contexto indisponível.")
+
+    # Texto resumido
+    if cenario.contexto_resumo:
+        with st.expander("Detalhe textual"):
+            for linha in cenario.contexto_resumo:
+                st.write(f"• {linha}")
+
+st.divider()
+
+# ------------------------------------------------------------
+# 5. Calendário econômico / notícias de impacto
+# ------------------------------------------------------------
+st.subheader("Calendário econômico")
+
+news = getattr(session, "noticias", None)
+if news is not None and getattr(news, "disponivel", False):
+    n1, n2, n3, n4 = st.columns(4)
+    with n1:
+        st.metric("Impacto total", news.impacto_total if news.impacto_total is not None else "—")
+    with n2:
+        risco = news.classificacao_risco or "—"
+        emoji = {
+            "BAIXO": "🟢",
+            "ATENÇÃO": "🟡",
+            "ALTO": "🟠",
+            "EXTREMO": "🔴",
+        }.get(risco, "⚪")
+        st.metric("Classificação", f"{emoji} {risco}")
+    with n3:
+        st.metric("Risco abertura WIN", "⚠️ SIM" if news.risco_abertura_win else "Não")
+    with n4:
+        st.metric("⭐⭐⭐ BR 09:00", "SIM" if news.tem_3_estrelas_brasil_0900 else "Não")
+
+    # Barra visual do impacto (0–20+ escala típica do Analise_Noticias)
+    impacto_val = float(news.impacto_total or 0)
+    fig_news = go.Figure(
+        go.Indicator(
+            mode="gauge+number",
+            value=impacto_val,
+            number={"font": {"size": 28}},
+            title={"text": "Pontuação de impacto do dia", "font": {"size": 14}},
+            gauge={
+                "axis": {"range": [0, max(20, impacto_val + 2)]},
+                "bar": {
+                    "color": (
+                        "#00c853" if impacto_val < 4
+                        else "#ffc107" if impacto_val < 9
+                        else "#ff9800" if impacto_val < 15
+                        else "#ff3d00"
+                    )
+                },
+                "steps": [
+                    {"range": [0, 4], "color": "#1a2a1a"},
+                    {"range": [4, 9], "color": "#2a2a10"},
+                    {"range": [9, 15], "color": "#2a1a10"},
+                    {"range": [15, max(20, impacto_val + 2)], "color": "#3d1515"},
+                ],
+            },
+        )
+    )
+    fig_news.update_layout(**PLOTLY_LAYOUT, height=220)
+    st.plotly_chart(fig_news, use_container_width=True)
+
+    if news.tem_3_estrelas_outros_horarios and news.noticias_3_estrelas:
+        with st.expander("Notícias ⭐⭐⭐ em outros horários"):
+            for item in news.noticias_3_estrelas:
+                st.write(
+                    f"• {item.get('hora', '')} | [{item.get('moeda', '')}] "
+                    f"{item.get('pais', '')} — {item.get('evento', '')}"
+                )
+    if news.tem_multiplas_2_estrelas_mesmo_horario and news.horarios_multiplas_2_estrelas:
+        with st.expander("Horários com 2+ notícias ⭐⭐"):
+            for item in news.horarios_multiplas_2_estrelas:
+                st.write(
+                    f"• {item.get('hora', '')} — "
+                    f"{item.get('quantidade_2_estrelas', '')} eventos"
+                )
+else:
+    st.info(
+        "Calendário econômico não disponível. "
+        "Rode a coleta/análise de notícias (Noticias_Impacto_Dia.json)."
+    )
+
+st.divider()
+
+# ------------------------------------------------------------
+# 6. Histórico recente (timeline simples)
+# ------------------------------------------------------------
+st.subheader("Histórico recente")
+
+try:
+    svc = SessionHistoryService()
+    recentes = svc.resumo_recente(10)
+    if not recentes:
+        st.write("Nenhum histórico ainda. Use **Gravar no histórico**.")
+    else:
+        datas = [r.get("data") for r in recentes]
+        dists = [r.get("distancia_pts") or 0 for r in recentes]
+        cores_h = ["#00c853" if d >= 0 else "#ff3d00" for d in dists]
+
+        fig_hist = go.Figure()
+        fig_hist.add_trace(
+            go.Scatter(
+                x=datas,
+                y=dists,
+                mode="lines+markers",
+                line=dict(color="#90caf9", width=2),
+                marker=dict(size=10, color=cores_h),
+                text=[
+                    f"{r.get('posicao')} · {r.get('direcao')}<br>{r.get('cenario_principal', '')[:80]}"
+                    for r in recentes
+                ],
+                hoverinfo="text+y",
+            )
+        )
+        fig_hist.add_hline(y=0, line_dash="dot", line_color="#ffc107")
+        fig_hist.update_layout(
+            **PLOTLY_LAYOUT,
+            height=280,
+            yaxis=dict(title="Distância last × ajuste (pts)", gridcolor="#2a2d4a"),
+            xaxis=dict(title="Data"),
+            showlegend=False,
+        )
+        st.plotly_chart(fig_hist, use_container_width=True)
+
+        with st.expander("Lista"):
+            for r in reversed(recentes):
+                st.write(
+                    f"**{r.get('data')}** · {r.get('contrato')} · "
+                    f"Ajuste {r.get('ajuste')} · Last {r.get('last_mt5')} · "
+                    f"{r.get('distancia_pts'):+.0f} pts · {r.get('posicao')} · {r.get('direcao')}"
+                )
+except Exception as e:
+    st.write(f"Histórico indisponível: {e}")
+
+st.caption(
+    f"Fonte last: {session.metadata.fonte_last or '—'} · "
+    f"Coleta: {session.metadata.timestamp_coleta or '—'} · "
+    "Assistente de cenário — não é recomendação de trade."
+)
+
+
+
+
+# ============================================================
+# ARQUIVO:
+# pages\20_📈_Previsao_Abertura_WINFUTa.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-16 22:03:32
+# ============================================================
+
+
+
+# ============================================================
+# PÁGINA: Previsão de Abertura WINFUT
+# FASE 7 — Dashboard operacional V2 + Plotly
+#
+# Visualizações:
+#   - Barras de comportamentos (Plotly)
+#   - Gauge distância / posição vs ajuste
+#   - Níveis (ajuste, last, pivots)
+#   - Contexto externo (barras de variação)
+# ============================================================
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+import streamlit as st
+import plotly.graph_objects as go
+import plotly.express as px
+
+# Garante import da raiz do projeto
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from v2.core.services.win_session_builder import build_win_session
+from v2.core.engines.opening_scenario_engine import gerar_cenario_abertura
+from v2.core.services.session_history import SessionHistoryService, salvar_sessao_hoje
+
+st.set_page_config(
+    page_title="Previsão Abertura WINFUT",
+    page_icon="📈",
+    layout="wide",
+)
+
+# Tema escuro dos gráficos
+PLOTLY_LAYOUT = dict(
+    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)",
+    font=dict(color="#e6edf3", size=13),
+    margin=dict(l=40, r=20, t=40, b=40),
+)
+
+st.title("📈 Previsão de Abertura — WINFUT")
+st.caption("Cenários em relação ao ajuste · Não é ordem de compra/venda")
+
+# ------------------------------------------------------------
+# Carregar dados
+# ------------------------------------------------------------
+@st.cache_data(ttl=60)
+def carregar():
+    session = build_win_session()
+    cenario = gerar_cenario_abertura(session)
+    session.cenario = cenario
+    return session, cenario
+
+
+try:
+    session, cenario = carregar()
+except Exception as e:
+    st.error(f"Falha ao montar WinSession: {e}")
+    st.stop()
+
+# ------------------------------------------------------------
+# Ações
+# ------------------------------------------------------------
+col_a, col_b, col_c = st.columns([1, 1, 2])
+with col_a:
+    if st.button("🔄 Atualizar", use_container_width=True):
+        st.cache_data.clear()
+        st.rerun()
+with col_b:
+    if st.button("💾 Gravar no histórico", use_container_width=True):
+        path = salvar_sessao_hoje(session, cenario, tag="ui")
+        st.success(f"Salvo: {path.name}")
+
+# ------------------------------------------------------------
+# 1. Referências de preço
+# ------------------------------------------------------------
+st.subheader("Referências")
+
+c1, c2, c3, c4, c5 = st.columns(5)
+with c1:
+    st.metric("Contrato", session.metadata.contrato_principal or "—")
+with c2:
+    st.metric("Ajuste", f"{session.precos.ajuste:,.0f}" if session.precos.ajuste else "—")
+with c3:
+    st.metric("Last MT5", f"{session.precos.last_mt5:,.0f}" if session.precos.last_mt5 else "—")
+with c4:
+    dist = session.distancias.last_vs_ajuste_pts
+    st.metric(
+        "Distância",
+        f"{dist:+,.0f} pts" if dist is not None else "—",
+        delta=f"{session.distancias.last_vs_ajuste_pct:+.3f}%" if session.distancias.last_vs_ajuste_pct else None,
+    )
+with c5:
+    pos = cenario.relacao_com_ajuste.posicao or "—"
+    cor = {"ACIMA": "🟢", "ABAIXO": "🔴", "NO_AJUSTE": "🟡"}.get(pos, "⚪")
+    st.metric("Posição", f"{cor} {pos}")
+
+st.divider()
+
+# ------------------------------------------------------------
+# 2. Cenário + Gauge de distância
+# ------------------------------------------------------------
+st.subheader("Cenário principal")
+
+dir_ = cenario.direcao_provavel or "NEUTRO"
+prob = cenario.probabilidade_direcao
+conf = cenario.confianca_geral
+badge = {"ALTA": "🟢 ALTA", "BAIXA": "🔴 BAIXA", "NEUTRO": "🟡 NEUTRO"}.get(dir_, dir_)
+
+col1, col2 = st.columns([1.4, 1])
+
+with col1:
+    st.markdown(f"### {badge}")
+    st.write(cenario.relacao_com_ajuste.cenario_principal or "—")
+    if cenario.cenario_alternativo:
+        st.info(f"**Alternativo:** {cenario.cenario_alternativo}")
+
+    m1, m2, m3 = st.columns(3)
+    m1.metric("Prob. direção", f"{prob:.0f}%" if prob else "—")
+    m2.metric("Confiança", f"{conf:.0f}%" if conf else "—")
+    m3.metric(
+        "Prob. cenário",
+        f"{cenario.relacao_com_ajuste.probabilidade_cenario:.0f}%"
+        if cenario.relacao_com_ajuste.probabilidade_cenario
+        else "—",
+    )
+
+with col2:
+    # Gauge: distância last vs ajuste
+    dist_val = float(dist) if dist is not None else 0.0
+    # Escala simétrica em torno de 0
+    limite = max(400, abs(dist_val) * 1.5, 200)
+
+    fig_gauge = go.Figure(
+        go.Indicator(
+            mode="gauge+number+delta",
+            value=dist_val,
+            delta={"reference": 0, "relative": False, "valueformat": "+.0f"},
+            number={"suffix": " pts", "font": {"size": 28}},
+            title={"text": "Last × Ajuste", "font": {"size": 16}},
+            gauge={
+                "axis": {"range": [-limite, limite], "tickwidth": 1},
+                "bar": {"color": "#00c853" if dist_val >= 0 else "#ff3d00"},
+                "bgcolor": "#1a1c23",
+                "borderwidth": 0,
+                "steps": [
+                    {"range": [-limite, -150], "color": "#3d1515"},
+                    {"range": [-150, -50], "color": "#2a2210"},
+                    {"range": [-50, 50], "color": "#1a2a1a"},
+                    {"range": [50, 150], "color": "#1a2a1a"},
+                    {"range": [150, limite], "color": "#153d15"},
+                ],
+                "threshold": {
+                    "line": {"color": "#ffc107", "width": 3},
+                    "thickness": 0.8,
+                    "value": 0,
+                },
+            },
+        )
+    )
+    fig_gauge.update_layout(
+        **PLOTLY_LAYOUT,
+        height=260,
+    )
+    st.plotly_chart(fig_gauge, use_container_width=True)
+
+st.divider()
+
+# ------------------------------------------------------------
+# 3. Comportamentos (barras Plotly)
+# ------------------------------------------------------------
+st.subheader("Comportamentos possíveis")
+
+cb = cenario.comportamentos
+labels = [
+    "Romper e continuar",
+    "Testar e rejeitar",
+    "Testar e recuperar",
+    "Retornar ao ajuste",
+    "Falso rompimento",
+]
+valores = [
+    cb.romper_e_continuar or 0,
+    cb.testar_e_rejeitar or 0,
+    cb.testar_e_recuperar or 0,
+    cb.retornar_ao_ajuste or 0,
+    cb.falso_rompimento or 0,
+]
+cores = ["#00c853", "#ff9800", "#42a5f5", "#ab47bc", "#ff3d00"]
+
+fig_comp = go.Figure(
+    go.Bar(
+        x=valores,
+        y=labels,
+        orientation="h",
+        marker_color=cores,
+        text=[f"{v:.0f}%" for v in valores],
+        textposition="outside",
+        cliponaxis=False,
+    )
+)
+fig_comp.update_layout(
+    **PLOTLY_LAYOUT,
+    height=280,
+    xaxis=dict(title="Probabilidade (%)", range=[0, max(valores + [40]) * 1.25], gridcolor="#2a2d4a"),
+    yaxis=dict(autorange="reversed"),
+    showlegend=False,
+)
+st.plotly_chart(fig_comp, use_container_width=True)
+st.caption("Heurística inicial — será refinada com histórico estatístico.")
+
+st.divider()
+
+# ------------------------------------------------------------
+# 4. Níveis + Contexto (dois gráficos)
+# ------------------------------------------------------------
+col_n, col_x = st.columns(2)
+
+with col_n:
+    st.subheader("Níveis de preço")
+    n = session.niveis
+    nomes = []
+    precos = []
+    cores_n = []
+
+    mapa_niveis = [
+        ("R2", n.r2, "#ef5350"),
+        ("R1", n.r1, "#ff8a65"),
+        ("Last", session.precos.last_mt5, "#00e676"),
+        ("Ajuste", session.precos.ajuste, "#ffc107"),
+        ("PP", n.pivot_pp, "#90caf9"),
+        ("S1", n.s1, "#81c784"),
+        ("S2", n.s2, "#66bb6a"),
+    ]
+    for nome, val, cor in mapa_niveis:
+        if val is not None:
+            nomes.append(nome)
+            precos.append(val)
+            cores_n.append(cor)
+
+    if precos:
+        fig_niv = go.Figure(
+            go.Bar(
+                x=nomes,
+                y=precos,
+                marker_color=cores_n,
+                text=[f"{p:,.0f}" for p in precos],
+                textposition="outside",
+                cliponaxis=False,
+            )
+        )
+        fig_niv.update_layout(
+            **PLOTLY_LAYOUT,
+            height=320,
+            yaxis=dict(title="Pontos", gridcolor="#2a2d4a"),
+            showlegend=False,
+        )
+        st.plotly_chart(fig_niv, use_container_width=True)
+    else:
+        st.write("Níveis indisponíveis.")
+
+with col_x:
+    st.subheader("Contexto externo (variação %)")
+    ctx = session.contexto
+    ctx_labels = []
+    ctx_vals = []
+
+    pares = [
+        ("VIX", ctx.vix.variacao_pct),
+        ("ES", ctx.sp500_fut.variacao_pct),
+        ("NQ", ctx.nasdaq_fut.variacao_pct),
+        ("DXY", ctx.dxy.variacao_pct),
+        ("USD/BRL", ctx.usd_brl.variacao_pct),
+        ("ADRs", ctx.indicador_adrs),
+        ("Minério", ctx.iron_ore.variacao_pct),
+        ("Petróleo", ctx.crude_oil.variacao_pct),
+    ]
+    for nome, val in pares:
+        if val is not None:
+            ctx_labels.append(nome)
+            ctx_vals.append(val)
+
+    if ctx_vals:
+        cores_ctx = ["#00c853" if v >= 0 else "#ff3d00" for v in ctx_vals]
+        fig_ctx = go.Figure(
+            go.Bar(
+                x=ctx_labels,
+                y=ctx_vals,
+                marker_color=cores_ctx,
+                text=[f"{v:+.2f}%" for v in ctx_vals],
+                textposition="outside",
+                cliponaxis=False,
+            )
+        )
+        fig_ctx.update_layout(
+            **PLOTLY_LAYOUT,
+            height=320,
+            yaxis=dict(title="Variação %", gridcolor="#2a2d4a", zeroline=True, zerolinecolor="#ffc107"),
+            showlegend=False,
+        )
+        st.plotly_chart(fig_ctx, use_container_width=True)
+    else:
+        st.write("Contexto indisponível.")
+
+    # Texto resumido
+    if cenario.contexto_resumo:
+        with st.expander("Detalhe textual"):
+            for linha in cenario.contexto_resumo:
+                st.write(f"• {linha}")
+
+st.divider()
+
+# ------------------------------------------------------------
+# 5. Histórico recente (timeline simples)
+# ------------------------------------------------------------
+st.subheader("Histórico recente")
+
+try:
+    svc = SessionHistoryService()
+    recentes = svc.resumo_recente(10)
+    if not recentes:
+        st.write("Nenhum histórico ainda. Use **Gravar no histórico**.")
+    else:
+        datas = [r.get("data") for r in recentes]
+        dists = [r.get("distancia_pts") or 0 for r in recentes]
+        cores_h = ["#00c853" if d >= 0 else "#ff3d00" for d in dists]
+
+        fig_hist = go.Figure()
+        fig_hist.add_trace(
+            go.Scatter(
+                x=datas,
+                y=dists,
+                mode="lines+markers",
+                line=dict(color="#90caf9", width=2),
+                marker=dict(size=10, color=cores_h),
+                text=[
+                    f"{r.get('posicao')} · {r.get('direcao')}<br>{r.get('cenario_principal', '')[:80]}"
+                    for r in recentes
+                ],
+                hoverinfo="text+y",
+            )
+        )
+        fig_hist.add_hline(y=0, line_dash="dot", line_color="#ffc107")
+        fig_hist.update_layout(
+            **PLOTLY_LAYOUT,
+            height=280,
+            yaxis=dict(title="Distância last × ajuste (pts)", gridcolor="#2a2d4a"),
+            xaxis=dict(title="Data"),
+            showlegend=False,
+        )
+        st.plotly_chart(fig_hist, use_container_width=True)
+
+        with st.expander("Lista"):
+            for r in reversed(recentes):
+                st.write(
+                    f"**{r.get('data')}** · {r.get('contrato')} · "
+                    f"Ajuste {r.get('ajuste')} · Last {r.get('last_mt5')} · "
+                    f"{r.get('distancia_pts'):+.0f} pts · {r.get('posicao')} · {r.get('direcao')}"
+                )
+except Exception as e:
+    st.write(f"Histórico indisponível: {e}")
+
+st.caption(
+    f"Fonte last: {session.metadata.fonte_last or '—'} · "
+    f"Coleta: {session.metadata.timestamp_coleta or '—'} · "
+    "Assistente de cenário — não é recomendação de trade."
+)
+
+
+
+
+# ============================================================
+# ARQUIVO:
+# pages\20_📈_Previsao_Abertura_WINFUTs.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-16 22:00:36
+# ============================================================
+
+
+
+# ============================================================
+# PÁGINA: Previsão de Abertura WINFUT
+# FASE 7 — Dashboard operacional V2
+#
+# Mostra:
+#   - Ajuste / Last / Distância
+#   - Posição em relação ao ajuste
+#   - Cenário principal e alternativo
+#   - Comportamentos possíveis
+#   - Contexto externo
+#   - Níveis
+#
+# Não gera ordem. Linguagem de cenário / probabilidade.
+# ============================================================
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+import streamlit as st
+
+# Garante import da raiz do projeto
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from v2.core.services.win_session_builder import build_win_session
+from v2.core.engines.opening_scenario_engine import gerar_cenario_abertura
+from v2.core.services.session_history import SessionHistoryService, salvar_sessao_hoje
+
+st.set_page_config(
+    page_title="Previsão Abertura WINFUT",
+    page_icon="📈",
+    layout="wide",
+)
+
+st.title("📈 Previsão de Abertura — WINFUT")
+st.caption("Cenários em relação ao ajuste · Não é ordem de compra/venda")
+
+# ------------------------------------------------------------
+# Carregar dados
+# ------------------------------------------------------------
+@st.cache_data(ttl=60)
+def carregar():
+    session = build_win_session()
+    cenario = gerar_cenario_abertura(session)
+    session.cenario = cenario
+    return session, cenario
+
+
+try:
+    session, cenario = carregar()
+except Exception as e:
+    st.error(f"Falha ao montar WinSession: {e}")
+    st.stop()
+
+# ------------------------------------------------------------
+# Ações
+# ------------------------------------------------------------
+col_a, col_b, col_c = st.columns([1, 1, 2])
+with col_a:
+    if st.button("🔄 Atualizar", use_container_width=True):
+        st.cache_data.clear()
+        st.rerun()
+with col_b:
+    if st.button("💾 Gravar no histórico", use_container_width=True):
+        path = salvar_sessao_hoje(session, cenario, tag="ui")
+        st.success(f"Salvo: {path.name}")
+
+# ------------------------------------------------------------
+# 1. Referências de preço
+# ------------------------------------------------------------
+st.subheader("Referências")
+
+c1, c2, c3, c4, c5 = st.columns(5)
+with c1:
+    st.metric("Contrato", session.metadata.contrato_principal or "—")
+with c2:
+    st.metric("Ajuste", f"{session.precos.ajuste:,.0f}" if session.precos.ajuste else "—")
+with c3:
+    st.metric("Last MT5", f"{session.precos.last_mt5:,.0f}" if session.precos.last_mt5 else "—")
+with c4:
+    dist = session.distancias.last_vs_ajuste_pts
+    st.metric(
+        "Distância",
+        f"{dist:+,.0f} pts" if dist is not None else "—",
+        delta=f"{session.distancias.last_vs_ajuste_pct:+.3f}%" if session.distancias.last_vs_ajuste_pct else None,
+    )
+with c5:
+    pos = cenario.relacao_com_ajuste.posicao or "—"
+    cor = {"ACIMA": "🟢", "ABAIXO": "🔴", "NO_AJUSTE": "🟡"}.get(pos, "⚪")
+    st.metric("Posição", f"{cor} {pos}")
+
+st.divider()
+
+# ------------------------------------------------------------
+# 2. Cenário principal
+# ------------------------------------------------------------
+st.subheader("Cenário principal")
+
+dir_ = cenario.direcao_provavel or "NEUTRO"
+prob = cenario.probabilidade_direcao
+conf = cenario.confianca_geral
+
+badge = {"ALTA": "🟢 ALTA", "BAIXA": "🔴 BAIXA", "NEUTRO": "🟡 NEUTRO"}.get(dir_, dir_)
+
+col1, col2 = st.columns([2, 1])
+with col1:
+    st.markdown(f"### {badge}")
+    st.write(cenario.relacao_com_ajuste.cenario_principal or "—")
+    if cenario.cenario_alternativo:
+        st.info(f"**Alternativo:** {cenario.cenario_alternativo}")
+with col2:
+    st.metric("Prob. direção", f"{prob:.0f}%" if prob else "—")
+    st.metric("Confiança", f"{conf:.0f}%" if conf else "—")
+    st.metric("Prob. cenário", f"{cenario.relacao_com_ajuste.probabilidade_cenario:.0f}%" if cenario.relacao_com_ajuste.probabilidade_cenario else "—")
+
+st.divider()
+
+# ------------------------------------------------------------
+# 3. Comportamentos em relação ao ajuste
+# ------------------------------------------------------------
+st.subheader("Comportamentos possíveis (heurística)")
+
+cb = cenario.comportamentos
+itens = [
+    ("Romper e continuar", cb.romper_e_continuar),
+    ("Testar e rejeitar", cb.testar_e_rejeitar),
+    ("Testar e recuperar", cb.testar_e_recuperar),
+    ("Retornar ao ajuste", cb.retornar_ao_ajuste),
+    ("Falso rompimento", cb.falso_rompimento),
+]
+
+for nome, pct in itens:
+    if pct is None:
+        continue
+    st.progress(min(1.0, pct / 100.0), text=f"{nome}: {pct:.0f}%")
+
+st.caption("Probabilidades heurísticas. Serão substituídas por estatística quando houver histórico suficiente.")
+
+st.divider()
+
+# ------------------------------------------------------------
+# 4. Níveis e contexto
+# ------------------------------------------------------------
+col_n, col_x = st.columns(2)
+
+with col_n:
+    st.subheader("Níveis")
+    n = session.niveis
+    niveis_show = [
+        ("R2", n.r2),
+        ("R1", n.r1),
+        ("PP", n.pivot_pp),
+        ("S1", n.s1),
+        ("S2", n.s2),
+        ("Ajuste", session.precos.ajuste),
+        ("Last", session.precos.last_mt5),
+    ]
+    for label, val in niveis_show:
+        if val is not None:
+            st.write(f"**{label}:** {val:,.0f}")
+
+with col_x:
+    st.subheader("Contexto externo")
+    if cenario.contexto_resumo:
+        for linha in cenario.contexto_resumo:
+            st.write(f"• {linha}")
+    else:
+        st.write("Sem contexto disponível.")
+
+st.divider()
+
+# ------------------------------------------------------------
+# 5. Histórico recente
+# ------------------------------------------------------------
+with st.expander("Histórico recente de sessões"):
+    try:
+        svc = SessionHistoryService()
+        recentes = svc.resumo_recente(7)
+        if not recentes:
+            st.write("Nenhum histórico ainda.")
+        else:
+            for r in reversed(recentes):
+                st.write(
+                    f"**{r.get('data')}** · {r.get('contrato')} · "
+                    f"Ajuste {r.get('ajuste')} · Last {r.get('last_mt5')} · "
+                    f"{r.get('distancia_pts'):+.0f} pts · {r.get('posicao')} · {r.get('direcao')}"
+                )
+    except Exception as e:
+        st.write(f"Histórico indisponível: {e}")
+
+st.caption(
+    f"Fonte last: {session.metadata.fonte_last or '—'} · "
+    f"Coleta: {session.metadata.timestamp_coleta or '—'} · "
+    "Assistente de cenário — não é recomendação de trade."
+)
+
+
+
+
+# ============================================================
+# ARQUIVO:
+# pages\21_📈_Historico_Macro copy 2.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-16 23:11:06
+# ============================================================
+
+
+
+# ============================================================
+# ARQUIVO: pages/21_📈_Historico_Macro.py
+# VERSÃO: 3.1 - Seleção manual de ativos via multiselect
+# ============================================================
+
+from __future__ import annotations
+
+import json
+import re
+from datetime import datetime
+from pathlib import Path
+
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+import streamlit as st
+
+# ------------------------------------------------------------
+# CONFIGURAÇÃO DA PÁGINA
+# ------------------------------------------------------------
+st.set_page_config(
+    page_title="Histórico Macro - Analisador Financeiro",
+    page_icon="📈",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+st.markdown("""
+<style>
+    .stApp { background: linear-gradient(180deg, #0a0e17 0%, #0e1117 50%, #121620 100%); }
+    .card { background: #161b22; border-radius: 10px; padding: 16px; border: 1px solid #2a2d4a; margin-bottom: 16px; }
+    .card h3 { color: #58a6ff; margin-top: 0; }
+    .metric-green { color: #00c853; }
+    .metric-red { color: #ff3d00; }
+    .metric-neutral { color: #ffc107; }
+    .separator { border: none; height: 2px; background: linear-gradient(90deg, #2a2d4a, transparent); margin: 24px 0; }
+</style>
+""", unsafe_allow_html=True)
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+COLETAS_DIR = BASE_DIR / "Coletas"
+
+# ------------------------------------------------------------
+# FUNÇÃO: INFERIR RÓTULO AMIGÁVEL
+# ------------------------------------------------------------
+def inferir_label(ticker: str) -> str:
+    nome = ticker
+    for prefixo in ["TVC:", "NYSE:", "OTC:", "SGX:", "NYMEX:", "FX_IDC:", "BMFBOVESPA:", "CME_MINI:"]:
+        if nome.startswith(prefixo):
+            nome = nome[len(prefixo):]
+            break
+    nome = re.sub(r"[!@#$%^&*()_+=\-]", "", nome)
+    nome = re.sub(r"FUT|ADR|_2M|_", "", nome)
+    mapping = {
+        "CL1": "Petróleo",
+        "FEF2": "Minério (2M)",
+        "FEF1": "Minério (1M)",
+        "ES1": "S&P500",
+        "NQ1": "Nasdaq",
+    }
+    if nome in mapping:
+        return mapping[nome]
+    if len(nome) <= 5:
+        return nome
+    partes = nome.split(":")
+    return partes[-1] if partes else nome
+
+# ------------------------------------------------------------
+# FUNÇÃO: CARREGAR TODOS OS ATIVOS DOS ROMs
+# ------------------------------------------------------------
+@st.cache_data(ttl=60, show_spinner=False)
+def carregar_todos_ativos() -> pd.DataFrame:
+    registros = []
+    nomes_rom = ["0", "5", "10", "15", "20", "25", "30", "35", "40", "45", "50", "55"]
+    arquivos = [COLETAS_DIR / f"Coleta_rom-{nome}.json" for nome in nomes_rom]
+    arquivos_existentes = [a for a in arquivos if a.exists()]
+
+    if not arquivos_existentes:
+        return carregar_atual_unificado()
+
+    for arquivo in arquivos_existentes:
+        try:
+            with open(arquivo, "r", encoding="utf-8") as f:
+                dados = json.load(f)
+        except Exception:
+            continue
+
+        ts_str = dados.get("metadata_coleta", {}).get("timestamp_coleta")
+        if not ts_str:
+            ts = datetime.fromtimestamp(arquivo.stat().st_mtime)
+        else:
+            try:
+                ts = datetime.fromisoformat(ts_str)
+            except ValueError:
+                ts = datetime.fromtimestamp(arquivo.stat().st_mtime)
+
+        coletas = dados.get("coletas", [])
+        for item in coletas:
+            ticker = item.get("ativo")
+            if not ticker:
+                continue
+            dados_reais = item.get("dados_reais")
+            if not dados_reais:
+                continue
+            preco = dados_reais.get("close")
+            if preco is None:
+                continue
+            label = inferir_label(ticker)
+            registros.append({
+                "timestamp": ts,
+                "ticker_original": ticker,
+                "ativo": label,
+                "preco": float(preco),
+            })
+
+    if not registros:
+        return carregar_atual_unificado()
+
+    df = pd.DataFrame(registros)
+    df = df.drop_duplicates(subset=["timestamp", "ativo"], keep="first")
+    df = df.sort_values(["timestamp", "ativo"]).reset_index(drop=True)
+    return df
+
+# ------------------------------------------------------------
+# FALLBACK: DadosAtivosUnificados.json
+# ------------------------------------------------------------
+def carregar_atual_unificado() -> pd.DataFrame:
+    arquivo = COLETAS_DIR / "DadosAtivosUnificados.json"
+    if not arquivo.exists():
+        return pd.DataFrame()
+
+    try:
+        with open(arquivo, "r", encoding="utf-8") as f:
+            dados = json.load(f)
+    except Exception:
+        return pd.DataFrame()
+
+    ativos = dados.get("ativos", {})
+    if not ativos:
+        return pd.DataFrame()
+
+    unificado_to_label = {
+        "WIN_FUT": "WIN",
+        "VIX": "VIX",
+        "VALE_ADR": "VALE",
+        "PETR_ADR": "PETR",
+        "ITUB_ADR": "ITUB",
+        "BBD_ADR": "BBD",
+        "BBAS_ADR": "BBAS",
+        "B3_ADR": "B3",
+        "IRON_ORE_2M": "Minério (2M)",
+        "CRUDE_OIL": "Petróleo",
+    }
+
+    registros = []
+    ts = datetime.now()
+    for nome_padrao, label in unificado_to_label.items():
+        item = ativos.get(nome_padrao)
+        if not item:
+            continue
+        preco = item.get("preco")
+        if preco is None:
+            continue
+        registros.append({
+            "timestamp": ts,
+            "ativo": label,
+            "preco": float(preco),
+        })
+
+    return pd.DataFrame(registros)
+
+# ------------------------------------------------------------
+# CORRELAÇÃO
+# ------------------------------------------------------------
+def calcular_correlacao(df: pd.DataFrame) -> pd.DataFrame:
+    if df.empty:
+        return pd.DataFrame()
+    ativos_validos = []
+    for ativo in df["ativo"].unique():
+        if len(df[df["ativo"] == ativo]) >= 3:
+            ativos_validos.append(ativo)
+    if len(ativos_validos) < 2:
+        return pd.DataFrame()
+    df_filtrado = df[df["ativo"].isin(ativos_validos)]
+    pivot = df_filtrado.pivot(index="timestamp", columns="ativo", values="preco")
+    if pivot.empty or len(pivot.columns) < 2:
+        return pd.DataFrame()
+    return pivot.pct_change().corr()
+
+# ------------------------------------------------------------
+# EXIBIR GRÁFICOS
+# ------------------------------------------------------------
+def exibir_grafico_normalizado(df: pd.DataFrame, titulo: str):
+    if df.empty:
+        st.info("Nenhum dado para exibir.")
+        return
+    df_norm = df.copy()
+    df_norm["preco_norm"] = df_norm.groupby("ativo")["preco"].transform(
+        lambda x: x / x.iloc[0] * 100 if len(x) > 0 else x
+    )
+    fig = px.line(df_norm, x="timestamp", y="preco_norm", color="ativo",
+                  title=f"Evolução normalizada – {titulo}",
+                  labels={"preco_norm": "Índice (base 100)", "timestamp": "Horário"})
+    fig.update_layout(plot_bgcolor="#0e1117", paper_bgcolor="#0e1117",
+                      font_color="#e6edf3", height=400,
+                      legend=dict(orientation="h", yanchor="bottom", y=1.02))
+    fig.update_xaxes(gridcolor="#2a2d4a")
+    fig.update_yaxes(gridcolor="#2a2d4a")
+    st.plotly_chart(fig, use_container_width=True)
+
+def exibir_graficos_individuais(df: pd.DataFrame):
+    if df.empty:
+        return
+    df_var = df.copy()
+    df_var["var_pct"] = df_var.groupby("ativo")["preco"].pct_change() * 100
+    ativos = sorted(df["ativo"].unique())
+    cols = st.columns(2)
+    for i, ativo in enumerate(ativos):
+        with cols[i % 2]:
+            df_plot = df_var[df_var["ativo"] == ativo]
+            if df_plot.empty:
+                continue
+            fig = px.line(df_plot, x="timestamp", y="preco", title=ativo,
+                          labels={"preco": "Preço", "timestamp": ""})
+            fig.update_layout(plot_bgcolor="#0e1117", paper_bgcolor="#0e1117",
+                              font_color="#e6edf3", height=200, margin=dict(l=20, r=20, t=40, b=20),
+                              showlegend=False)
+            fig.update_xaxes(gridcolor="#2a2d4a")
+            fig.update_yaxes(gridcolor="#2a2d4a")
+            st.plotly_chart(fig, use_container_width=True)
+
+# ------------------------------------------------------------
+# MAIN
+# ------------------------------------------------------------
+st.title("📈 Histórico Macro")
+st.caption("Selecione os ativos que deseja visualizar no sidebar")
+
+st.sidebar.title("⚙️ Configurações")
+max_pontos = st.sidebar.slider("Pontos (coletas)", 5, 120, 60, 5)
+
+# Carrega todos os ativos disponíveis
+df_all = carregar_todos_ativos()
+
+if df_all.empty:
+    st.error("❌ Nenhum dado disponível. Execute o pipeline para gerar coletas.")
+    st.stop()
+
+# Lista de ativos disponíveis
+ativos_disponiveis = sorted(df_all["ativo"].unique())
+
+# Multiselect para escolher quais ativos exibir
+ativos_selecionados = st.sidebar.multiselect(
+    "Selecione os ativos para exibir",
+    options=ativos_disponiveis,
+    default=ativos_disponiveis[:6] if len(ativos_disponiveis) > 6 else ativos_disponiveis,
+    help="Escolha os ativos que deseja visualizar nos gráficos e cards."
+)
+
+if not ativos_selecionados:
+    st.warning("Selecione pelo menos um ativo no sidebar.")
+    st.stop()
+
+# Filtra o DataFrame
+df = df_all[df_all["ativo"].isin(ativos_selecionados)]
+df = df.sort_values("timestamp").tail(max_pontos)
+
+# Resumo no sidebar
+st.sidebar.markdown("### Resumo")
+st.sidebar.metric("Registros", len(df))
+st.sidebar.metric("Ativos selecionados", len(ativos_selecionados))
+if not df.empty:
+    st.sidebar.metric("Período", f"{df['timestamp'].min().strftime('%H:%M')} → {df['timestamp'].max().strftime('%H:%M')}")
+
+# Atalhos para seleções rápidas
+st.sidebar.markdown("### Atalhos")
+col1, col2 = st.sidebar.columns(2)
+with col1:
+    if st.button("📊 WIN + ADRs + Ext"):
+        default_sel = [a for a in ativos_disponiveis if any(x in a.upper() for x in ["WIN", "VALE", "PETR", "ITUB", "BBD", "BBAS", "B3", "VIX", "MINÉRIO", "PETRÓLEO"])]
+        if default_sel:
+            st.session_state.ativos_selecionados = default_sel
+            st.rerun()
+with col2:
+    if st.button("🎯 Apenas WIN"):
+        win_sel = [a for a in ativos_disponiveis if "WIN" in a.upper()]
+        if win_sel:
+            st.session_state.ativos_selecionados = win_sel
+            st.rerun()
+
+# Salva seleção na sessão para persistência
+if "ativos_selecionados" not in st.session_state:
+    st.session_state.ativos_selecionados = ativos_selecionados
+else:
+    # Se a seleção mudou, atualiza o multiselect
+    if st.session_state.ativos_selecionados != ativos_selecionados:
+        # O multiselect já reflete o estado atual, mas podemos sincronizar
+        pass
+
+# ------------------------------------------------------------
+# GRÁFICO UNIFICADO
+# ------------------------------------------------------------
+st.markdown("### 📊 Comparação Unificada")
+if len(df["ativo"].unique()) >= 2:
+    exibir_grafico_normalizado(df, "Todos os ativos selecionados")
+else:
+    st.info("Selecione pelo menos 2 ativos para o gráfico comparativo.")
+
+st.markdown('<hr class="separator">', unsafe_allow_html=True)
+
+# ------------------------------------------------------------
+# GRÁFICOS INDIVIDUAIS
+# ------------------------------------------------------------
+st.markdown("### 📉 Gráficos individuais")
+exibir_graficos_individuais(df)
+
+st.markdown('<hr class="separator">', unsafe_allow_html=True)
+
+# ------------------------------------------------------------
+# CORRELAÇÃO
+# ------------------------------------------------------------
+st.markdown("### 🔗 Correlação entre ativos selecionados")
+corr = calcular_correlacao(df)
+if not corr.empty:
+    fig = go.Figure(data=go.Heatmap(z=corr.values, x=corr.columns, y=corr.index,
+                                    colorscale="RdBu", zmid=0,
+                                    text=corr.round(2), texttemplate="%{text}",
+                                    textfont={"color": "#e6edf3"}))
+    fig.update_layout(plot_bgcolor="#0e1117", paper_bgcolor="#0e1117",
+                      font_color="#e6edf3", height=450,
+                      xaxis=dict(tickangle=45))
+    st.plotly_chart(fig, use_container_width=True)
+else:
+    st.info("Dados insuficientes para correlação.")
+
+# ------------------------------------------------------------
+# ÚLTIMAS COTAÇÕES
+# ------------------------------------------------------------
+st.markdown("### 📌 Últimas cotações e variações")
+
+ultimo_ts = df["timestamp"].max()
+df_ultimo = df[df["timestamp"] == ultimo_ts]
+
+if len(df["timestamp"].unique()) > 1:
+    ts_anterior = sorted(df["timestamp"].unique())[-2]
+    df_anterior = df[df["timestamp"] == ts_anterior]
+else:
+    df_anterior = pd.DataFrame()
+
+cols = st.columns(min(len(df_ultimo), 6))
+for i, (_, row) in enumerate(df_ultimo.iterrows()):
+    if i >= len(cols):
+        break
+    ativo = row["ativo"]
+    preco = row["preco"]
+    var_real = None
+    if not df_anterior.empty:
+        prev = df_anterior[df_anterior["ativo"] == ativo]
+        if not prev.empty:
+            var_real = (preco / prev.iloc[0]["preco"] - 1) * 100
+    delta = f"{var_real:+.2f}%" if var_real is not None else None
+    cor = "normal" if var_real is not None and var_real > 0 else "inverse" if var_real is not None and var_real < 0 else "off"
+    with cols[i]:
+        st.metric(label=ativo, value=f"{preco:.2f}", delta=delta, delta_color=cor)
+
+st.markdown("---")
+st.caption(f"{len(df)} registros • Última: {ultimo_ts.strftime('%d/%m/%Y %H:%M:%S')}")
+
+
+
+# ============================================================
+# ARQUIVO:
+# pages\21_📈_Historico_Macro copy.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-16 22:57:12
+# ============================================================
+
+
+
+# ============================================================
+# ARQUIVO: pages/21_📈_Historico_Macro.py
+# OBJETIVO: Dashboard histórico de ativos macro (VIX, ADRs, Minério, Petróleo)
+# VERSÃO: 2.4 com separação entre ADRs e Mercado Externo
+# ============================================================
+
+from __future__ import annotations
+
+import json
+from datetime import datetime
+from pathlib import Path
+
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+import streamlit as st
+
+# ------------------------------------------------------------
+# CONFIGURAÇÃO DA PÁGINA
+# ------------------------------------------------------------
+st.set_page_config(
+    page_title="Histórico Macro - Analisador Financeiro",
+    page_icon="📈",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+# ------------------------------------------------------------
+# CSS PERSONALIZADO (tema escuro)
+# ------------------------------------------------------------
+st.markdown("""
+<style>
+    .stApp {
+        background: linear-gradient(180deg, #0a0e17 0%, #0e1117 50%, #121620 100%);
+    }
+    .card {
+        background: #161b22;
+        border-radius: 10px;
+        padding: 16px;
+        border: 1px solid #2a2d4a;
+        margin-bottom: 16px;
+    }
+    .card h3 {
+        color: #58a6ff;
+        margin-top: 0;
+    }
+    .metric-green { color: #00c853; }
+    .metric-red { color: #ff3d00; }
+    .metric-neutral { color: #ffc107; }
+    .separator {
+        border: none;
+        height: 2px;
+        background: linear-gradient(90deg, #2a2d4a, transparent);
+        margin: 24px 0;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# ------------------------------------------------------------
+# CAMINHOS
+# ------------------------------------------------------------
+BASE_DIR = Path(__file__).resolve().parent.parent
+COLETAS_DIR = BASE_DIR / "Coletas"
+
+# Mapeamento dos tickers originais (como aparecem nos ROMs) para os rótulos amigáveis
+TICKER_ORIGINAL_TO_LABEL = {
+    # ADRs Brasileiras
+    "NYSE:VALE": "VALE",
+    "NYSE:PBR": "PETR",
+    "NYSE:ITUB": "ITUB",
+    "NYSE:BBD": "BBD",
+    "OTC:BDORY": "BBAS",
+    "OTC:BOLSY": "B3",
+    # Mercado Externo
+    "TVC:VIX": "VIX",
+    "SGX:FEF2!": "Minério (2M)",
+    "NYMEX:CL1!": "Petróleo",
+}
+
+# Separação em grupos
+GRUPO_ADRS = ["VALE", "PETR", "ITUB", "BBD", "BBAS", "B3"]
+GRUPO_EXTERNO = ["VIX", "Minério (2M)", "Petróleo"]
+
+# Cores para os gráficos
+CORES = {
+    "VIX": "#ff6b6b",
+    "VALE": "#4ecdc4",
+    "PETR": "#ffe66d",
+    "ITUB": "#4dabf7",
+    "BBD": "#f783ac",
+    "BBAS": "#9775fa",
+    "B3": "#69db7c",
+    "Minério (2M)": "#fcc419",
+    "Petróleo": "#ff922b",
+}
+
+# ------------------------------------------------------------
+# FUNÇÃO: CARREGAR HISTÓRICO DOS ARQUIVOS ROM
+# ------------------------------------------------------------
+@st.cache_data(ttl=60, show_spinner=False)
+def carregar_historico_rom() -> pd.DataFrame:
+    registros = []
+
+    nomes_rom = ["0", "5", "10", "15", "20", "25", "30", "35", "40", "45", "50", "55"]
+    arquivos = [COLETAS_DIR / f"Coleta_rom-{nome}.json" for nome in nomes_rom]
+    arquivos_existentes = [a for a in arquivos if a.exists()]
+
+    st.sidebar.write("**Arquivos ROM encontrados:**", len(arquivos_existentes))
+    if arquivos_existentes:
+        st.sidebar.write("Último:", arquivos_existentes[-1].name)
+
+    if not arquivos_existentes:
+        return carregar_atual_unificado()
+
+    for arquivo in arquivos_existentes:
+        try:
+            with open(arquivo, "r", encoding="utf-8") as f:
+                dados = json.load(f)
+        except Exception:
+            continue
+
+        ts_str = dados.get("metadata_coleta", {}).get("timestamp_coleta")
+        if not ts_str:
+            ts = datetime.fromtimestamp(arquivo.stat().st_mtime)
+        else:
+            try:
+                ts = datetime.fromisoformat(ts_str)
+            except ValueError:
+                ts = datetime.fromtimestamp(arquivo.stat().st_mtime)
+
+        coletas = dados.get("coletas", [])
+        mapa = {item["ativo"]: item for item in coletas}
+
+        for ticker_original, label in TICKER_ORIGINAL_TO_LABEL.items():
+            item = mapa.get(ticker_original)
+            if not item:
+                continue
+            dados_reais = item.get("dados_reais")
+            if not dados_reais:
+                continue
+            preco = dados_reais.get("close")
+            if preco is None:
+                continue
+            variacao = dados_reais.get("change_percent", 0.0) or 0.0
+            registros.append({
+                "timestamp": ts,
+                "ativo": label,
+                "preco": float(preco),
+                "variacao_pct": float(variacao),
+            })
+
+    if not registros:
+        st.sidebar.warning("Nenhum dos tickers mapeados foi encontrado nos ROMs.")
+        return carregar_atual_unificado()
+
+    df = pd.DataFrame(registros)
+    df = df.drop_duplicates(subset=["timestamp", "ativo"], keep="first")
+    df = df.sort_values(["timestamp", "ativo"]).reset_index(drop=True)
+
+    st.sidebar.write("**Ativos extraídos dos ROMs:**", df["ativo"].unique().tolist())
+    return df
+
+# ------------------------------------------------------------
+# FUNÇÃO FALLBACK: CARREGAR DADOS ATUAIS DO UNIFICADO
+# ------------------------------------------------------------
+def carregar_atual_unificado() -> pd.DataFrame:
+    arquivo = COLETAS_DIR / "DadosAtivosUnificados.json"
+    if not arquivo.exists():
+        st.sidebar.error("DadosAtivosUnificados.json não encontrado.")
+        return pd.DataFrame()
+
+    try:
+        with open(arquivo, "r", encoding="utf-8") as f:
+            dados = json.load(f)
+    except Exception as e:
+        st.sidebar.error(f"Erro ao ler DadosAtivosUnificados.json: {e}")
+        return pd.DataFrame()
+
+    ativos = dados.get("ativos", {})
+    if not ativos:
+        st.sidebar.warning("DadosAtivosUnificados.json não contém 'ativos'.")
+        return pd.DataFrame()
+
+    unificado_to_label = {
+        "VIX": "VIX",
+        "VALE_ADR": "VALE",
+        "PETR_ADR": "PETR",
+        "ITUB_ADR": "ITUB",
+        "BBD_ADR": "BBD",
+        "BBAS_ADR": "BBAS",
+        "B3_ADR": "B3",
+        "IRON_ORE_2M": "Minério (2M)",
+        "CRUDE_OIL": "Petróleo",
+    }
+
+    registros = []
+    ts = datetime.now()
+    for nome_padrao, label in unificado_to_label.items():
+        item = ativos.get(nome_padrao)
+        if not item:
+            continue
+        preco = item.get("preco")
+        if preco is None:
+            continue
+        variacao = item.get("variacao_pct", 0.0) or 0.0
+        registros.append({
+            "timestamp": ts,
+            "ativo": label,
+            "preco": float(preco),
+            "variacao_pct": float(variacao),
+        })
+
+    if not registros:
+        st.sidebar.warning("Nenhum ativo encontrado no DadosAtivosUnificados.json.")
+        return pd.DataFrame()
+
+    st.sidebar.write("**Ativos extraídos (fallback):**", [r["ativo"] for r in registros])
+    return pd.DataFrame(registros)
+
+# ------------------------------------------------------------
+# FUNÇÃO: CALCULAR CORRELAÇÃO ENTRE ATIVOS
+# ------------------------------------------------------------
+def calcular_correlacao(df: pd.DataFrame) -> pd.DataFrame:
+    if df.empty:
+        return pd.DataFrame()
+    ativos_validos = df.groupby("ativo").filter(lambda g: len(g) >= 3)["ativo"].unique()
+    if len(ativos_validos) < 2:
+        return pd.DataFrame()
+    df_filtrado = df[df["ativo"].isin(ativos_validos)]
+    pivot = df_filtrado.pivot(index="timestamp", columns="ativo", values="preco")
+    if pivot.empty or len(pivot.columns) < 2:
+        return pd.DataFrame()
+    corr = pivot.pct_change().corr()
+    return corr
+
+# ------------------------------------------------------------
+# FUNÇÃO AUXILIAR: EXIBIR GRÁFICO NORMALIZADO POR GRUPO
+# ------------------------------------------------------------
+def exibir_grafico_normalizado(df: pd.DataFrame, ativos_grupo: list, titulo: str):
+    df_filtrado = df[df["ativo"].isin(ativos_grupo)]
+    if df_filtrado.empty:
+        st.info(f"Nenhum dado disponível para {titulo}.")
+        return
+
+    df_norm = df_filtrado.copy()
+    df_norm["preco_norm"] = df_norm.groupby("ativo")["preco"].transform(
+        lambda x: x / x.iloc[0] * 100 if len(x) > 0 else x
+    )
+
+    fig = px.line(
+        df_norm,
+        x="timestamp",
+        y="preco_norm",
+        color="ativo",
+        color_discrete_map=CORES,
+        title=f"Evolução normalizada (início = 100) – {titulo}",
+        labels={"preco_norm": "Índice (base 100)", "timestamp": "Horário"},
+    )
+    fig.update_layout(
+        plot_bgcolor="#0e1117",
+        paper_bgcolor="#0e1117",
+        font_color="#e6edf3",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        height=350,
+    )
+    fig.update_xaxes(gridcolor="#2a2d4a")
+    fig.update_yaxes(gridcolor="#2a2d4a")
+    st.plotly_chart(fig, use_container_width=True)
+
+# ------------------------------------------------------------
+# FUNÇÃO AUXILIAR: EXIBIR GRÁFICOS INDIVIDUAIS POR GRUPO
+# ------------------------------------------------------------
+def exibir_graficos_individuais(df: pd.DataFrame, ativos_grupo: list):
+    df_filtrado = df[df["ativo"].isin(ativos_grupo)]
+    if df_filtrado.empty:
+        return
+
+    # Calcula variação percentual
+    df_var = df_filtrado.copy()
+    df_var["var_pct"] = df_var.groupby("ativo")["preco"].pct_change() * 100
+
+    ativos_ordenados = sorted(ativos_grupo, key=lambda x: ativos_grupo.index(x))
+    cols = st.columns(2)
+
+    for i, ativo in enumerate(ativos_ordenados):
+        with cols[i % 2]:
+            df_plot = df_var[df_var["ativo"] == ativo]
+            if df_plot.empty:
+                continue
+            fig = px.line(
+                df_plot,
+                x="timestamp",
+                y="preco",
+                title=f"{ativo}",
+                labels={"preco": "Preço", "timestamp": ""},
+                color_discrete_sequence=[CORES.get(ativo, "#ffffff")],
+            )
+            fig.update_layout(
+                plot_bgcolor="#0e1117",
+                paper_bgcolor="#0e1117",
+                font_color="#e6edf3",
+                height=200,
+                margin=dict(l=20, r=20, t=40, b=20),
+                showlegend=False,
+            )
+            fig.update_xaxes(gridcolor="#2a2d4a")
+            fig.update_yaxes(gridcolor="#2a2d4a")
+            st.plotly_chart(fig, use_container_width=True)
+
+# ------------------------------------------------------------
+# INTERFACE STREAMLIT
+# ------------------------------------------------------------
+st.title("📈 Histórico Macro")
+st.caption("Evolução de VIX, ADRs, Minério e Petróleo a partir dos arquivos de coleta")
+
+st.sidebar.title("⚙️ Configurações")
+max_pontos = st.sidebar.slider(
+    "Número máximo de pontos (coletas)",
+    min_value=5,
+    max_value=120,
+    value=60,
+    step=5,
+)
+
+df = carregar_historico_rom()
+
+if df.empty:
+    st.error("❌ Nenhum dado disponível. Verifique os diagnósticos no sidebar.")
+    st.stop()
+
+df = df.sort_values("timestamp").tail(max_pontos)
+
+st.sidebar.markdown("### Resumo")
+st.sidebar.metric("Total de registros", len(df))
+st.sidebar.metric("Ativos disponíveis", len(df["ativo"].unique()))
+if not df.empty:
+    st.sidebar.metric("Período", f"{df['timestamp'].min().strftime('%H:%M')} → {df['timestamp'].max().strftime('%H:%M')}")
+
+# ------------------------------------------------------------
+# SEÇÃO 1: ADRs Brasileiras
+# ------------------------------------------------------------
+st.markdown("### 🇧🇷 ADRs Brasileiras")
+exibir_grafico_normalizado(df, GRUPO_ADRS, "ADRs")
+exibir_graficos_individuais(df, GRUPO_ADRS)
+
+st.markdown('<hr class="separator">', unsafe_allow_html=True)
+
+# ------------------------------------------------------------
+# SEÇÃO 2: Mercado Externo
+# ------------------------------------------------------------
+st.markdown("### 🌍 Mercado Externo (VIX, Minério, Petróleo)")
+exibir_grafico_normalizado(df, GRUPO_EXTERNO, "Mercado Externo")
+exibir_graficos_individuais(df, GRUPO_EXTERNO)
+
+st.markdown('<hr class="separator">', unsafe_allow_html=True)
+
+# ------------------------------------------------------------
+# HEATMAP DE CORRELAÇÃO (GERAL)
+# ------------------------------------------------------------
+st.markdown("### 🔗 Correlação entre Ativos (Retornos)")
+
+corr_matrix = calcular_correlacao(df)
+
+if not corr_matrix.empty:
+    fig_heat = go.Figure(
+        data=go.Heatmap(
+            z=corr_matrix.values,
+            x=corr_matrix.columns,
+            y=corr_matrix.index,
+            colorscale="RdBu",
+            zmid=0,
+            text=corr_matrix.round(2).values,
+            texttemplate="%{text}",
+            textfont={"color": "#e6edf3", "size": 10},
+        )
+    )
+    fig_heat.update_layout(
+        plot_bgcolor="#0e1117",
+        paper_bgcolor="#0e1117",
+        font_color="#e6edf3",
+        height=500,
+        xaxis=dict(title="", tickangle=45),
+        yaxis=dict(title=""),
+    )
+    st.plotly_chart(fig_heat, use_container_width=True)
+
+    st.markdown("#### ⚡ Correlações mais altas")
+    corr_abs = corr_matrix.abs().unstack()
+    corr_abs = corr_abs[corr_abs.index.get_level_values(0) != corr_abs.index.get_level_values(1)]
+    if not corr_abs.empty:
+        top = corr_abs.sort_values(ascending=False).head(5)
+        for (a, b), val in top.items():
+            st.caption(f"**{a} × {b}**: {val:.2f}")
+else:
+    st.info("Dados insuficientes para calcular correlação.")
+
+# ------------------------------------------------------------
+# ÚLTIMOS VALORES E VARIAÇÕES (todos os ativos)
+# ------------------------------------------------------------
+st.markdown("### 📌 Últimas cotações e variações")
+
+ultimo_ts = df["timestamp"].max()
+df_ultimo = df[df["timestamp"] == ultimo_ts]
+
+if len(df["timestamp"].unique()) > 1:
+    ts_anterior = sorted(df["timestamp"].unique())[-2]
+    df_anterior = df[df["timestamp"] == ts_anterior]
+else:
+    df_anterior = pd.DataFrame()
+
+cols = st.columns(min(len(df_ultimo), 6))
+for i, (_, row) in enumerate(df_ultimo.iterrows()):
+    if i >= len(cols):
+        break
+    ativo = row["ativo"]
+    preco = row["preco"]
+    if not df_anterior.empty:
+        prev = df_anterior[df_anterior["ativo"] == ativo]
+        var_real = (preco / prev.iloc[0]["preco"] - 1) * 100 if not prev.empty else None
+    else:
+        var_real = None
+    delta = f"{var_real:+.2f}%" if var_real is not None else None
+    cor = "normal" if var_real is not None and var_real > 0 else "inverse" if var_real is not None and var_real < 0 else "off"
+    with cols[i]:
+        st.metric(
+            label=ativo,
+            value=f"{preco:.2f}",
+            delta=delta,
+            delta_color=cor,
+        )
+
+# ------------------------------------------------------------
+# RODAPÉ
+# ------------------------------------------------------------
+st.markdown("---")
+if not df.empty:
+    st.caption(f"Histórico baseado em {len(df)} registros de coleta • Última atualização: {ultimo_ts.strftime('%d/%m/%Y %H:%M:%S') if ultimo_ts else 'N/A'}")
+else:
+    st.caption("Sem dados históricos disponíveis.")
+
+
+
+# ============================================================
+# ARQUIVO:
+# pages\21_📈_Historico_Macro.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-16 23:16:26
+# ============================================================
+
+
+
+# ============================================================
+# ARQUIVO: pages/21_📈_Historico_Macro.py
+# VERSÃO: 4.0 - Fixa: WIN + ADRs + Mercado Externo
+# ============================================================
+
+from __future__ import annotations
+
+import json
+import re
+from datetime import datetime
+from pathlib import Path
+
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+import streamlit as st
+
+# ------------------------------------------------------------
+# CONFIGURAÇÃO DA PÁGINA
+# ------------------------------------------------------------
+st.set_page_config(
+    page_title="Histórico Macro - Analisador Financeiro",
+    page_icon="📈",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+st.markdown("""
+<style>
+    .stApp { background: linear-gradient(180deg, #0a0e17 0%, #0e1117 50%, #121620 100%); }
+    .card { background: #161b22; border-radius: 10px; padding: 16px; border: 1px solid #2a2d4a; margin-bottom: 16px; }
+    .card h3 { color: #58a6ff; margin-top: 0; }
+    .metric-green { color: #00c853; }
+    .metric-red { color: #ff3d00; }
+    .metric-neutral { color: #ffc107; }
+    .separator { border: none; height: 2px; background: linear-gradient(90deg, #2a2d4a, transparent); margin: 24px 0; }
+</style>
+""", unsafe_allow_html=True)
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+COLETAS_DIR = BASE_DIR / "Coletas"
+
+# ------------------------------------------------------------
+# MAPEAMENTO DOS TICKERS (ajuste conforme seus ROMs)
+# ------------------------------------------------------------
+TICKER_MAP = {
+    "BMFBOVESPA:WIN1!": "WIN",
+    "WIN1!": "WIN",
+    "WIN$": "WIN",
+    "TVC:VIX": "VIX",
+    "NYSE:VALE": "VALE",
+    "VALE": "VALE",
+    "NYSE:PBR": "PETR",
+    "PBR": "PETR",
+    "NYSE:ITUB": "ITUB",
+    "NYSE:BBD": "BBD",
+    "OTC:BDORY": "BBAS",
+    "OTC:BOLSY": "B3",
+    "SGX:FEF2!": "Minério (2M)",
+    "FEF2!": "Minério (2M)",
+    "NYMEX:CL1!": "Petróleo",
+    "CL1!": "Petróleo",
+}
+
+# Grupos fixos
+GRUPO_WIN = ["WIN"]
+GRUPO_ADRS = ["VALE", "PETR", "ITUB", "BBD", "BBAS", "B3"]
+GRUPO_EXTERNO = ["VIX", "Minério (2M)", "Petróleo"]
+TODOS_ATIVOS = GRUPO_WIN + GRUPO_ADRS + GRUPO_EXTERNO
+
+# Cores
+CORES = {
+    "WIN": "#00d4ff",
+    "VIX": "#ff6b6b",
+    "VALE": "#4ecdc4",
+    "PETR": "#ffe66d",
+    "ITUB": "#4dabf7",
+    "BBD": "#f783ac",
+    "BBAS": "#9775fa",
+    "B3": "#69db7c",
+    "Minério (2M)": "#fcc419",
+    "Petróleo": "#ff922b",
+}
+
+# ------------------------------------------------------------
+# CARREGAR DADOS
+# ------------------------------------------------------------
+@st.cache_data(ttl=60, show_spinner=False)
+def carregar_dados() -> pd.DataFrame:
+    registros = []
+
+    # Tenta carregar dos ROMs
+    nomes_rom = ["0", "5", "10", "15", "20", "25", "30", "35", "40", "45", "50", "55"]
+    arquivos = [COLETAS_DIR / f"Coleta_rom-{nome}.json" for nome in nomes_rom]
+    arquivos_existentes = [a for a in arquivos if a.exists()]
+
+    if arquivos_existentes:
+        for arquivo in arquivos_existentes:
+            try:
+                with open(arquivo, "r", encoding="utf-8") as f:
+                    dados = json.load(f)
+            except Exception:
+                continue
+
+            ts_str = dados.get("metadata_coleta", {}).get("timestamp_coleta")
+            if not ts_str:
+                ts = datetime.fromtimestamp(arquivo.stat().st_mtime)
+            else:
+                try:
+                    ts = datetime.fromisoformat(ts_str)
+                except ValueError:
+                    ts = datetime.fromtimestamp(arquivo.stat().st_mtime)
+
+            coletas = dados.get("coletas", [])
+            for item in coletas:
+                ticker = item.get("ativo")
+                if not ticker:
+                    continue
+                # Verifica se o ticker está no mapa
+                label = TICKER_MAP.get(ticker)
+                if not label:
+                    continue
+                dados_reais = item.get("dados_reais")
+                if not dados_reais:
+                    continue
+                preco = dados_reais.get("close")
+                if preco is None:
+                    continue
+                registros.append({
+                    "timestamp": ts,
+                    "ativo": label,
+                    "preco": float(preco),
+                })
+
+    # Se não encontrou nos ROMs, tenta fallback
+    if not registros:
+        arquivo = COLETAS_DIR / "DadosAtivosUnificados.json"
+        if arquivo.exists():
+            try:
+                with open(arquivo, "r", encoding="utf-8") as f:
+                    dados = json.load(f)
+            except Exception:
+                return pd.DataFrame()
+            ativos = dados.get("ativos", {})
+            if ativos:
+                unificado_map = {
+                    "WIN_FUT": "WIN",
+                    "VIX": "VIX",
+                    "VALE_ADR": "VALE",
+                    "PETR_ADR": "PETR",
+                    "ITUB_ADR": "ITUB",
+                    "BBD_ADR": "BBD",
+                    "BBAS_ADR": "BBAS",
+                    "B3_ADR": "B3",
+                    "IRON_ORE_2M": "Minério (2M)",
+                    "CRUDE_OIL": "Petróleo",
+                }
+                ts = datetime.now()
+                for nome, label in unificado_map.items():
+                    item = ativos.get(nome)
+                    if not item:
+                        continue
+                    preco = item.get("preco")
+                    if preco is None:
+                        continue
+                    registros.append({
+                        "timestamp": ts,
+                        "ativo": label,
+                        "preco": float(preco),
+                    })
+
+    if not registros:
+        return pd.DataFrame()
+
+    df = pd.DataFrame(registros)
+    df = df.drop_duplicates(subset=["timestamp", "ativo"], keep="first")
+    df = df.sort_values(["timestamp", "ativo"]).reset_index(drop=True)
+    return df
+
+# ------------------------------------------------------------
+# CORRELAÇÃO
+# ------------------------------------------------------------
+def calcular_correlacao(df: pd.DataFrame) -> pd.DataFrame:
+    if df.empty:
+        return pd.DataFrame()
+    ativos_validos = []
+    for ativo in df["ativo"].unique():
+        if len(df[df["ativo"] == ativo]) >= 3:
+            ativos_validos.append(ativo)
+    if len(ativos_validos) < 2:
+        return pd.DataFrame()
+    df_filtrado = df[df["ativo"].isin(ativos_validos)]
+    pivot = df_filtrado.pivot(index="timestamp", columns="ativo", values="preco")
+    if pivot.empty or len(pivot.columns) < 2:
+        return pd.DataFrame()
+    return pivot.pct_change().corr()
+
+# ------------------------------------------------------------
+# EXIBIR GRÁFICOS
+# ------------------------------------------------------------
+def exibir_grafico_normalizado(df: pd.DataFrame, titulo: str):
+    if df.empty:
+        st.info(f"Nenhum dado para {titulo}.")
+        return
+    df_norm = df.copy()
+    df_norm["preco_norm"] = df_norm.groupby("ativo")["preco"].transform(
+        lambda x: x / x.iloc[0] * 100 if len(x) > 0 else x
+    )
+    fig = px.line(df_norm, x="timestamp", y="preco_norm", color="ativo",
+                  color_discrete_map=CORES,
+                  title=f"Evolução normalizada – {titulo}",
+                  labels={"preco_norm": "Índice (base 100)", "timestamp": "Horário"})
+    fig.update_layout(plot_bgcolor="#0e1117", paper_bgcolor="#0e1117",
+                      font_color="#e6edf3", height=350,
+                      legend=dict(orientation="h", yanchor="bottom", y=1.02))
+    fig.update_xaxes(gridcolor="#2a2d4a")
+    fig.update_yaxes(gridcolor="#2a2d4a")
+    st.plotly_chart(fig, use_container_width=True)
+
+def exibir_graficos_individuais(df: pd.DataFrame):
+    if df.empty:
+        return
+    df_var = df.copy()
+    df_var["var_pct"] = df_var.groupby("ativo")["preco"].pct_change() * 100
+    ativos = sorted(df["ativo"].unique())
+    cols = st.columns(2)
+    for i, ativo in enumerate(ativos):
+        with cols[i % 2]:
+            df_plot = df_var[df_var["ativo"] == ativo]
+            if df_plot.empty:
+                continue
+            fig = px.line(df_plot, x="timestamp", y="preco", title=ativo,
+                          labels={"preco": "Preço", "timestamp": ""},
+                          color_discrete_sequence=[CORES.get(ativo, "#ffffff")])
+            fig.update_layout(plot_bgcolor="#0e1117", paper_bgcolor="#0e1117",
+                              font_color="#e6edf3", height=200, margin=dict(l=20, r=20, t=40, b=20),
+                              showlegend=False)
+            fig.update_xaxes(gridcolor="#2a2d4a")
+            fig.update_yaxes(gridcolor="#2a2d4a")
+            st.plotly_chart(fig, use_container_width=True)
+
+# ------------------------------------------------------------
+# MAIN
+# ------------------------------------------------------------
+st.title("📈 Histórico Macro")
+st.caption("WIN • ADRs • Mercado Externo")
+
+st.sidebar.title("⚙️ Configurações")
+max_pontos = st.sidebar.slider("Pontos (coletas)", 5, 120, 60, 5)
+
+df_all = carregar_dados()
+
+if df_all.empty:
+    st.error("❌ Nenhum dado disponível. Execute o pipeline para gerar coletas.")
+    st.stop()
+
+# Filtra apenas os ativos dos grupos fixos
+df = df_all[df_all["ativo"].isin(TODOS_ATIVOS)]
+df = df.sort_values("timestamp").tail(max_pontos)
+
+st.sidebar.markdown("### Resumo")
+st.sidebar.metric("Registros", len(df))
+st.sidebar.metric("Ativos carregados", len(df["ativo"].unique()))
+if not df.empty:
+    st.sidebar.metric("Período", f"{df['timestamp'].min().strftime('%H:%M')} → {df['timestamp'].max().strftime('%H:%M')}")
+
+# ------------------------------------------------------------
+# GRÁFICO UNIFICADO (todos os grupos)
+# ------------------------------------------------------------
+st.markdown("### 📊 Comparação Unificada")
+if len(df["ativo"].unique()) >= 2:
+    df_norm = df.copy()
+    df_norm["preco_norm"] = df_norm.groupby("ativo")["preco"].transform(
+        lambda x: x / x.iloc[0] * 100 if len(x) > 0 else x
+    )
+    fig = px.line(df_norm, x="timestamp", y="preco_norm", color="ativo",
+                  color_discrete_map=CORES,
+                  title="Evolução normalizada – WIN, ADRs e Mercado Externo",
+                  labels={"preco_norm": "Índice (base 100)", "timestamp": "Horário"})
+    fig.update_layout(plot_bgcolor="#0e1117", paper_bgcolor="#0e1117",
+                      font_color="#e6edf3", height=450,
+                      legend=dict(orientation="h", yanchor="bottom", y=1.02))
+    fig.update_xaxes(gridcolor="#2a2d4a")
+    fig.update_yaxes(gridcolor="#2a2d4a")
+    st.plotly_chart(fig, use_container_width=True)
+else:
+    st.info("Dados insuficientes para o gráfico unificado.")
+
+st.markdown('<hr class="separator">', unsafe_allow_html=True)
+
+# ------------------------------------------------------------
+# WIN
+# ------------------------------------------------------------
+st.markdown("### 🎯 WIN")
+win_df = df[df["ativo"].isin(GRUPO_WIN)]
+exibir_grafico_normalizado(win_df, "WIN")
+exibir_graficos_individuais(win_df)
+st.markdown('<hr class="separator">', unsafe_allow_html=True)
+
+# ------------------------------------------------------------
+# ADRs
+# ------------------------------------------------------------
+st.markdown("### 🇧🇷 ADRs Brasileiras")
+adrs_df = df[df["ativo"].isin(GRUPO_ADRS)]
+exibir_grafico_normalizado(adrs_df, "ADRs")
+exibir_graficos_individuais(adrs_df)
+st.markdown('<hr class="separator">', unsafe_allow_html=True)
+
+# ------------------------------------------------------------
+# Mercado Externo
+# ------------------------------------------------------------
+st.markdown("### 🌍 Mercado Externo")
+ext_df = df[df["ativo"].isin(GRUPO_EXTERNO)]
+exibir_grafico_normalizado(ext_df, "Mercado Externo")
+exibir_graficos_individuais(ext_df)
+st.markdown('<hr class="separator">', unsafe_allow_html=True)
+
+# ------------------------------------------------------------
+# CORRELAÇÃO
+# ------------------------------------------------------------
+st.markdown("### 🔗 Correlação entre ativos")
+corr = calcular_correlacao(df)
+if not corr.empty:
+    fig = go.Figure(data=go.Heatmap(z=corr.values, x=corr.columns, y=corr.index,
+                                    colorscale="RdBu", zmid=0,
+                                    text=corr.round(2), texttemplate="%{text}",
+                                    textfont={"color": "#e6edf3"}))
+    fig.update_layout(plot_bgcolor="#0e1117", paper_bgcolor="#0e1117",
+                      font_color="#e6edf3", height=450,
+                      xaxis=dict(tickangle=45))
+    st.plotly_chart(fig, use_container_width=True)
+else:
+    st.info("Dados insuficientes para correlação.")
+
+# ------------------------------------------------------------
+# ÚLTIMAS COTAÇÕES
+# ------------------------------------------------------------
+st.markdown("### 📌 Últimas cotações e variações")
+
+ultimo_ts = df["timestamp"].max()
+df_ultimo = df[df["timestamp"] == ultimo_ts]
+
+if len(df["timestamp"].unique()) > 1:
+    ts_anterior = sorted(df["timestamp"].unique())[-2]
+    df_anterior = df[df["timestamp"] == ts_anterior]
+else:
+    df_anterior = pd.DataFrame()
+
+cols = st.columns(min(len(df_ultimo), 6))
+for i, (_, row) in enumerate(df_ultimo.iterrows()):
+    if i >= len(cols):
+        break
+    ativo = row["ativo"]
+    preco = row["preco"]
+    var_real = None
+    if not df_anterior.empty:
+        prev = df_anterior[df_anterior["ativo"] == ativo]
+        if not prev.empty:
+            var_real = (preco / prev.iloc[0]["preco"] - 1) * 100
+    delta = f"{var_real:+.2f}%" if var_real is not None else None
+    cor = "normal" if var_real is not None and var_real > 0 else "inverse" if var_real is not None and var_real < 0 else "off"
+    with cols[i]:
+        st.metric(label=ativo, value=f"{preco:.2f}", delta=delta, delta_color=cor)
+
+st.markdown("---")
+st.caption(f"{len(df)} registros • Última: {ultimo_ts.strftime('%d/%m/%Y %H:%M:%S')}")
 
 
 
@@ -18775,6 +21826,265 @@ class VisionContext:
 
 # ============================================================
 # ARQUIVO:
+# v2\core\contracts\win_session.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-16 22:12:47
+# ============================================================
+
+
+
+# ============================================================
+# ARQUIVO: v2/core/contracts/win_session.py
+# FASE 4 — Modelo de Dados V2
+# Foco: Previsão de Abertura WINFUT
+# ============================================================
+"""
+Contratos semânticos para a sessão operacional do WINFUT.
+
+Não misturar:
+  - dado bruto com dado calculado
+  - contexto com sinal de ordem
+  - WDO como instrumento operacional (apenas contexto, se necessário)
+
+Fontes prioritárias (ver mapeamento_campos_v2.md):
+  1. Dados_MT5_v2_2.json
+  2. DadosAtivosUnificados.json
+  3. EstimativaAbertura.json
+  4. Metricas_Calculadas.json
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from datetime import date, datetime
+from typing import Any, Dict, List, Optional
+
+
+# ------------------------------------------------------------
+# Blocos internos
+# ------------------------------------------------------------
+
+@dataclass
+class WinSessionMetadata:
+    data_sessao: Optional[date] = None
+    timestamp_coleta: Optional[datetime] = None
+    contrato_principal: Optional[str] = None   # ex: WINV26
+    fonte_last: Optional[str] = None           # "MT5_v2.2" | "MT5_v1"
+
+
+@dataclass
+class PrecosReferencia:
+    ajuste: Optional[float] = None             # TradingView close → WIN_AJUSTE
+    last_mt5: Optional[float] = None           # last do contrato principal
+    fechamento_anterior: Optional[float] = None  # ainda não disponível
+    pre_abertura: Optional[float] = None       # ainda não disponível (pré 09:00)
+
+
+@dataclass
+class Distancias:
+    last_vs_ajuste_pts: Optional[float] = None
+    last_vs_ajuste_pct: Optional[float] = None
+    pre_abertura_vs_ajuste_pts: Optional[float] = None
+    pre_abertura_vs_fechamento_pts: Optional[float] = None
+
+
+@dataclass
+class GapInfo:
+    gap_projetado_pts: Optional[float] = None
+    gap_projetado_pct: Optional[float] = None
+    direcao_gap: Optional[str] = None          # "ALTA" | "BAIXA" | "NEUTRO"
+
+
+@dataclass
+class NiveisPivot:
+    pivot_pp: Optional[float] = None
+    r1: Optional[float] = None
+    r2: Optional[float] = None
+    s1: Optional[float] = None
+    s2: Optional[float] = None
+
+
+# ------------------------------------------------------------
+# Contexto externo (explica, não gera ordem)
+# ------------------------------------------------------------
+
+@dataclass
+class SnapshotSimples:
+    preco: Optional[float] = None
+    variacao_pct: Optional[float] = None
+
+
+@dataclass
+class MarketContextWIN:
+    """Contexto externo relevante para o WINFUT."""
+    vix: SnapshotSimples = field(default_factory=SnapshotSimples)
+    sp500_fut: SnapshotSimples = field(default_factory=SnapshotSimples)
+    nasdaq_fut: SnapshotSimples = field(default_factory=SnapshotSimples)
+    dxy: SnapshotSimples = field(default_factory=SnapshotSimples)
+    usd_brl: SnapshotSimples = field(default_factory=SnapshotSimples)
+    usd_ptax: Optional[float] = None
+
+    vale: SnapshotSimples = field(default_factory=SnapshotSimples)
+    petr: SnapshotSimples = field(default_factory=SnapshotSimples)
+    itub: SnapshotSimples = field(default_factory=SnapshotSimples)
+    bbd: SnapshotSimples = field(default_factory=SnapshotSimples)
+    bbas: SnapshotSimples = field(default_factory=SnapshotSimples)
+    b3: SnapshotSimples = field(default_factory=SnapshotSimples)
+    indicador_adrs: Optional[float] = None
+
+    iron_ore: SnapshotSimples = field(default_factory=SnapshotSimples)
+    iron_ore_2m: SnapshotSimples = field(default_factory=SnapshotSimples)
+    crude_oil: SnapshotSimples = field(default_factory=SnapshotSimples)
+    gold: SnapshotSimples = field(default_factory=SnapshotSimples)
+
+    di1_2027: Optional[float] = None
+    di1_2029: Optional[float] = None
+    inclinacao_bps: Optional[float] = None
+
+    indicador_mercado_externo: Optional[float] = None
+
+
+# ------------------------------------------------------------
+# Dados econômicos / calendário (notícias de alto impacto)
+# ------------------------------------------------------------
+
+@dataclass
+class EconomicNewsContext:
+    """
+    Impacto do calendário econômico no dia.
+    Fonte: Noticias_Impacto_Dia.json (Analise_Noticias.py)
+    """
+    impacto_total: Optional[int] = None
+    classificacao_risco: Optional[str] = None  # BAIXO | ATENÇÃO | ALTO | EXTREMO
+    tem_3_estrelas_brasil_0900: bool = False
+    tem_3_estrelas_outros_horarios: bool = False
+    tem_multiplas_2_estrelas_mesmo_horario: bool = False
+    risco_abertura_win: bool = False
+    noticias_3_estrelas: List[Dict[str, Any]] = field(default_factory=list)
+    horarios_multiplas_2_estrelas: List[Dict[str, Any]] = field(default_factory=list)
+    disponivel: bool = False
+
+
+# ------------------------------------------------------------
+# Cenário de abertura
+# ------------------------------------------------------------
+
+@dataclass
+class ComportamentosPossiveis:
+    """Probabilidades (0–100) dos comportamentos em relação ao ajuste."""
+    romper_e_continuar: Optional[float] = None
+    testar_e_rejeitar: Optional[float] = None
+    testar_e_recuperar: Optional[float] = None
+    retornar_ao_ajuste: Optional[float] = None
+    falso_rompimento: Optional[float] = None
+
+
+@dataclass
+class RelacaoComAjuste:
+    posicao: Optional[str] = None              # "ACIMA" | "ABAIXO" | "NO_AJUSTE"
+    cenario_principal: Optional[str] = None    # texto curto
+    probabilidade_cenario: Optional[float] = None
+
+
+@dataclass
+class OpeningScenario:
+    direcao_provavel: Optional[str] = None     # "ALTA" | "BAIXA" | "NEUTRO"
+    probabilidade_direcao: Optional[float] = None
+
+    relacao_com_ajuste: RelacaoComAjuste = field(default_factory=RelacaoComAjuste)
+    comportamentos: ComportamentosPossiveis = field(default_factory=ComportamentosPossiveis)
+
+    niveis_observacao: Dict[str, float] = field(default_factory=dict)
+    contexto_resumo: List[str] = field(default_factory=list)
+    cenario_alternativo: Optional[str] = None
+    confianca_geral: Optional[float] = None    # 0–100
+
+
+# ------------------------------------------------------------
+# Histórico de sessão (FASE 5 — reservado)
+# ------------------------------------------------------------
+
+@dataclass
+class SessionHistoryRecord:
+    data: Optional[date] = None
+    ajuste: Optional[float] = None
+    last_pre: Optional[float] = None
+    abertura_real: Optional[float] = None
+    gap_real_pts: Optional[float] = None
+    direcao_real: Optional[str] = None
+    testou_ajuste: Optional[bool] = None
+    rejeitou_ajuste: Optional[bool] = None
+    rompeu_ajuste: Optional[bool] = None
+    continuou_direcao: Optional[bool] = None
+    reverteu: Optional[bool] = None
+    maxima_sessao: Optional[float] = None
+    minima_sessao: Optional[float] = None
+    resultado_resumo: Optional[str] = None
+
+
+# ------------------------------------------------------------
+# Contrato principal da sessão WIN
+# ------------------------------------------------------------
+
+@dataclass
+class WinSession:
+    """
+    Estado operacional do WINFUT para previsão de abertura.
+
+    Uso típico:
+      - builder lê fontes (MT5 v2.2, Unificados, Estimativa, Métricas)
+      - preenche WinSession
+      - motor de previsão consome WinSession e produz OpeningScenario
+    """
+    metadata: WinSessionMetadata = field(default_factory=WinSessionMetadata)
+    precos: PrecosReferencia = field(default_factory=PrecosReferencia)
+    distancias: Distancias = field(default_factory=Distancias)
+    gap: GapInfo = field(default_factory=GapInfo)
+    niveis: NiveisPivot = field(default_factory=NiveisPivot)
+    contexto: MarketContextWIN = field(default_factory=MarketContextWIN)
+    noticias: EconomicNewsContext = field(default_factory=EconomicNewsContext)
+    cenario: OpeningScenario = field(default_factory=OpeningScenario)
+
+    # Metadados livres (debug, versões, flags)
+    extras: Dict = field(default_factory=dict)
+
+    def calcular_distancias_basicas(self) -> None:
+        """Preenche last_vs_ajuste quando ajuste e last_mt5 estão disponíveis."""
+        if self.precos.ajuste and self.precos.last_mt5 and self.precos.ajuste != 0:
+            pts = self.precos.last_mt5 - self.precos.ajuste
+            pct = (self.precos.last_mt5 / self.precos.ajuste - 1.0) * 100.0
+            self.distancias.last_vs_ajuste_pts = round(pts, 2)
+            self.distancias.last_vs_ajuste_pct = round(pct, 4)
+
+            if pts > 0:
+                pos = "ACIMA"
+            elif pts < 0:
+                pos = "ABAIXO"
+            else:
+                pos = "NO_AJUSTE"
+            self.cenario.relacao_com_ajuste.posicao = pos
+
+    def definir_direcao_gap(self) -> None:
+        """Define direcao_gap a partir do gap_projetado_pts ou last_vs_ajuste."""
+        ref = self.gap.gap_projetado_pts
+        if ref is None:
+            ref = self.distancias.last_vs_ajuste_pts
+        if ref is None:
+            self.gap.direcao_gap = None
+            return
+        if ref > 0:
+            self.gap.direcao_gap = "ALTA"
+        elif ref < 0:
+            self.gap.direcao_gap = "BAIXA"
+        else:
+            self.gap.direcao_gap = "NEUTRO"
+
+
+
+
+# ============================================================
+# ARQUIVO:
 # v2\core\engines\__init__.py
 #
 # ÚLTIMA ALTERAÇÃO:
@@ -18995,6 +22305,472 @@ class DecisionEngine:
             riscos=riscos,
             metadados={"pivots": pivots}
         )
+
+
+
+# ============================================================
+# ARQUIVO:
+# v2\core\engines\opening_scenario_engine.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-16 22:08:55
+# ============================================================
+
+
+
+# ============================================================
+# ARQUIVO: v2/core/engines/opening_scenario_engine.py
+# FASE 6 (inicial) — Motor de Cenários de Abertura WINFUT
+#
+# Consome WinSession e produz OpeningScenario.
+# Não gera ordem. Não afirma certeza.
+# Linguagem: cenário provável, probabilidade relativa, invalidação.
+# ============================================================
+
+from __future__ import annotations
+
+from dataclasses import asdict
+from typing import List, Optional
+
+from v2.core.contracts.win_session import (
+    WinSession,
+    OpeningScenario,
+    RelacaoComAjuste,
+    ComportamentosPossiveis,
+)
+
+
+class OpeningScenarioEngine:
+    """
+    Motor de cenários de abertura em relação ao ajuste.
+
+    Regras iniciais (heurísticas — serão refinadas com histórico na FASE 5/6):
+      - Distância last × ajuste define a "força" do posicionamento.
+      - Gap projetado reforça ou suaviza a direção.
+      - Contexto (VIX, ES, ADRs) qualifica o cenário, não decide sozinho.
+    """
+
+    # Limiares em pontos de WIN (ajustáveis depois)
+    LIMIAR_PROXIMO = 50          # até 50 pts → perto do ajuste
+    LIMIAR_MODERADO = 150        # 50–150 → moderado
+    LIMIAR_DISTANTE = 300        # > 300 → gap grande / excesso
+
+    def processar(self, session: WinSession) -> OpeningScenario:
+        cenario = OpeningScenario()
+
+        dist = session.distancias.last_vs_ajuste_pts
+        gap_pts = session.gap.gap_projetado_pts
+        gap_dir = session.gap.direcao_gap
+        posicao = session.cenario.relacao_com_ajuste.posicao
+
+        # --------------------------------------------------------
+        # 1. Posição em relação ao ajuste
+        # --------------------------------------------------------
+        if not posicao and dist is not None:
+            if dist > 0:
+                posicao = "ACIMA"
+            elif dist < 0:
+                posicao = "ABAIXO"
+            else:
+                posicao = "NO_AJUSTE"
+
+        cenario.relacao_com_ajuste = RelacaoComAjuste(posicao=posicao)
+
+        # --------------------------------------------------------
+        # 2. Direção provável (gap + posição)
+        # --------------------------------------------------------
+        direcao = self._definir_direcao(posicao, gap_dir, dist)
+        cenario.direcao_provavel = direcao
+
+        # --------------------------------------------------------
+        # 3. Intensidade da distância
+        # --------------------------------------------------------
+        intensidade = self._classificar_intensidade(dist)
+
+        # --------------------------------------------------------
+        # 4. Comportamentos possíveis (heurística inicial)
+        # --------------------------------------------------------
+        comportamentos = self._estimar_comportamentos(
+            posicao=posicao,
+            intensidade=intensidade,
+            dist=dist,
+            gap_pts=gap_pts,
+            session=session,
+        )
+        cenario.comportamentos = comportamentos
+
+        # --------------------------------------------------------
+        # 5. Cenário principal (texto)
+        # --------------------------------------------------------
+        cenario.relacao_com_ajuste.cenario_principal = self._texto_cenario_principal(
+            posicao, intensidade, direcao, dist
+        )
+        cenario.relacao_com_ajuste.probabilidade_cenario = self._prob_cenario_principal(
+            comportamentos
+        )
+
+        # --------------------------------------------------------
+        # 6. Cenário alternativo
+        # --------------------------------------------------------
+        cenario.cenario_alternativo = self._texto_cenario_alternativo(
+            posicao, intensidade, comportamentos
+        )
+
+        # --------------------------------------------------------
+        # 7. Probabilidade de direção (heurística)
+        # --------------------------------------------------------
+        cenario.probabilidade_direcao = self._prob_direcao(
+            intensidade, session
+        )
+
+        # --------------------------------------------------------
+        # 8. Confiança geral e contexto
+        # --------------------------------------------------------
+        cenario.confianca_geral = self._confianca_geral(session, intensidade)
+        cenario.contexto_resumo = self._montar_contexto_resumo(session)
+        cenario.niveis_observacao = dict(session.cenario.niveis_observacao or {})
+
+        if session.precos.ajuste is not None:
+            cenario.niveis_observacao.setdefault("ajuste", session.precos.ajuste)
+        if session.precos.last_mt5 is not None:
+            cenario.niveis_observacao.setdefault("last_mt5", session.precos.last_mt5)
+        if dist is not None:
+            cenario.niveis_observacao["distancia_ajuste_pts"] = dist
+
+        return cenario
+
+    # ============================================================
+    # Regras internas
+    # ============================================================
+
+    def _definir_direcao(
+        self,
+        posicao: Optional[str],
+        gap_dir: Optional[str],
+        dist: Optional[float],
+    ) -> str:
+        if gap_dir in ("ALTA", "BAIXA", "NEUTRO"):
+            return gap_dir
+        if posicao == "ACIMA":
+            return "ALTA"
+        if posicao == "ABAIXO":
+            return "BAIXA"
+        return "NEUTRO"
+
+    def _classificar_intensidade(self, dist: Optional[float]) -> str:
+        if dist is None:
+            return "INDEFINIDO"
+        ad = abs(dist)
+        if ad <= self.LIMIAR_PROXIMO:
+            return "PROXIMO"
+        if ad <= self.LIMIAR_MODERADO:
+            return "MODERADO"
+        if ad <= self.LIMIAR_DISTANTE:
+            return "DISTANTE"
+        return "EXCESSO"
+
+    def _estimar_comportamentos(
+        self,
+        posicao: Optional[str],
+        intensidade: str,
+        dist: Optional[float],
+        gap_pts: Optional[float],
+        session: WinSession,
+    ) -> ComportamentosPossiveis:
+        """
+        Heurística inicial (não estatística).
+
+        Ideia geral:
+          - Perto do ajuste → maior chance de teste / rejeição / retorno
+          - Distante / excesso → maior chance de rompimento ou falso rompimento
+          - Contexto adverso (VIX alto, ES fraco) reduz continuidade
+        """
+        cb = ComportamentosPossiveis()
+
+        # Base neutra
+        base = {
+            "romper_e_continuar": 25.0,
+            "testar_e_rejeitar": 25.0,
+            "testar_e_recuperar": 15.0,
+            "retornar_ao_ajuste": 20.0,
+            "falso_rompimento": 15.0,
+        }
+
+        if intensidade == "PROXIMO":
+            base = {
+                "romper_e_continuar": 15.0,
+                "testar_e_rejeitar": 30.0,
+                "testar_e_recuperar": 20.0,
+                "retornar_ao_ajuste": 25.0,
+                "falso_rompimento": 10.0,
+            }
+        elif intensidade == "MODERADO":
+            base = {
+                "romper_e_continuar": 30.0,
+                "testar_e_rejeitar": 25.0,
+                "testar_e_recuperar": 15.0,
+                "retornar_ao_ajuste": 15.0,
+                "falso_rompimento": 15.0,
+            }
+        elif intensidade == "DISTANTE":
+            base = {
+                "romper_e_continuar": 35.0,
+                "testar_e_rejeitar": 15.0,
+                "testar_e_recuperar": 10.0,
+                "retornar_ao_ajuste": 15.0,
+                "falso_rompimento": 25.0,
+            }
+        elif intensidade == "EXCESSO":
+            base = {
+                "romper_e_continuar": 25.0,
+                "testar_e_rejeitar": 10.0,
+                "testar_e_recuperar": 10.0,
+                "retornar_ao_ajuste": 20.0,
+                "falso_rompimento": 35.0,
+            }
+
+        # Ajuste leve por contexto (VIX alto reduz continuidade)
+        vix = session.contexto.vix.preco
+        if vix is not None and vix >= 25:
+            base["romper_e_continuar"] = max(5.0, base["romper_e_continuar"] - 8)
+            base["falso_rompimento"] = min(45.0, base["falso_rompimento"] + 5)
+            base["retornar_ao_ajuste"] = min(40.0, base["retornar_ao_ajuste"] + 3)
+
+        # ES negativo forte reduz rompimento de alta
+        es_var = session.contexto.sp500_fut.variacao_pct
+        if posicao == "ACIMA" and es_var is not None and es_var < -0.5:
+            base["romper_e_continuar"] = max(5.0, base["romper_e_continuar"] - 7)
+            base["testar_e_rejeitar"] = min(40.0, base["testar_e_rejeitar"] + 5)
+
+        if posicao == "ABAIXO" and es_var is not None and es_var > 0.5:
+            base["romper_e_continuar"] = max(5.0, base["romper_e_continuar"] - 7)
+            base["testar_e_recuperar"] = min(35.0, base["testar_e_recuperar"] + 5)
+
+        # Calendário econômico de alto impacto → mais cautela (menos continuidade)
+        news = session.noticias
+        if news and news.disponivel:
+            if news.risco_abertura_win or news.tem_3_estrelas_brasil_0900:
+                base["romper_e_continuar"] = max(5.0, base["romper_e_continuar"] - 10)
+                base["falso_rompimento"] = min(45.0, base["falso_rompimento"] + 8)
+                base["retornar_ao_ajuste"] = min(40.0, base["retornar_ao_ajuste"] + 5)
+            elif news.classificacao_risco in ("ALTO", "EXTREMO"):
+                base["romper_e_continuar"] = max(5.0, base["romper_e_continuar"] - 6)
+                base["falso_rompimento"] = min(40.0, base["falso_rompimento"] + 5)
+
+        # Normaliza para ~100
+        total = sum(base.values()) or 1.0
+        fator = 100.0 / total
+        cb.romper_e_continuar = round(base["romper_e_continuar"] * fator, 1)
+        cb.testar_e_rejeitar = round(base["testar_e_rejeitar"] * fator, 1)
+        cb.testar_e_recuperar = round(base["testar_e_recuperar"] * fator, 1)
+        cb.retornar_ao_ajuste = round(base["retornar_ao_ajuste"] * fator, 1)
+        cb.falso_rompimento = round(base["falso_rompimento"] * fator, 1)
+
+        return cb
+
+    def _prob_cenario_principal(self, cb: ComportamentosPossiveis) -> float:
+        vals = [
+            cb.romper_e_continuar or 0,
+            cb.testar_e_rejeitar or 0,
+            cb.testar_e_recuperar or 0,
+            cb.retornar_ao_ajuste or 0,
+            cb.falso_rompimento or 0,
+        ]
+        return round(max(vals), 1)
+
+    def _prob_direcao(self, intensidade: str, session: WinSession) -> float:
+        base = {
+            "PROXIMO": 52.0,
+            "MODERADO": 58.0,
+            "DISTANTE": 62.0,
+            "EXCESSO": 55.0,
+            "INDEFINIDO": 50.0,
+        }.get(intensidade, 50.0)
+
+        # Contexto alinhado aumenta um pouco
+        es = session.contexto.sp500_fut.variacao_pct
+        adrs = session.contexto.indicador_adrs
+        if es is not None and adrs is not None:
+            if (es > 0 and adrs > 0) or (es < 0 and adrs < 0):
+                base = min(70.0, base + 5)
+        return round(base, 1)
+
+    def _confianca_geral(self, session: WinSession, intensidade: str) -> float:
+        conf = 50.0
+        if session.precos.ajuste is not None and session.precos.last_mt5 is not None:
+            conf += 15
+        if session.gap.gap_projetado_pts is not None:
+            conf += 10
+        if session.contexto.vix.preco is not None:
+            conf += 5
+        if session.contexto.sp500_fut.preco is not None:
+            conf += 5
+        if intensidade in ("MODERADO", "DISTANTE"):
+            conf += 5
+        if intensidade == "EXCESSO":
+            conf -= 5  # gap extremo = mais incerteza de continuidade
+        # Notícias de alto impacto reduzem confiança na continuidade
+        news = session.noticias
+        if news and news.disponivel:
+            if news.risco_abertura_win or news.tem_3_estrelas_brasil_0900:
+                conf -= 12
+            elif news.classificacao_risco == "EXTREMO":
+                conf -= 10
+            elif news.classificacao_risco == "ALTO":
+                conf -= 6
+            elif news.classificacao_risco == "ATENÇÃO":
+                conf -= 3
+        return round(min(85.0, max(30.0, conf)), 1)
+
+    def _texto_cenario_principal(
+        self,
+        posicao: Optional[str],
+        intensidade: str,
+        direcao: str,
+        dist: Optional[float],
+    ) -> str:
+        dist_txt = f"{dist:+.0f} pts" if dist is not None else "n/d"
+
+        if posicao == "ACIMA":
+            if intensidade == "PROXIMO":
+                return (
+                    f"Preço pouco acima do ajuste ({dist_txt}). "
+                    "Cenário mais provável: teste do ajuste com possível rejeição ou retorno."
+                )
+            if intensidade == "MODERADO":
+                return (
+                    f"Abertura/preço moderadamente acima do ajuste ({dist_txt}). "
+                    "Cenário principal: tentar continuidade de alta, com risco de teste do ajuste."
+                )
+            if intensidade in ("DISTANTE", "EXCESSO"):
+                return (
+                    f"Preço bem acima do ajuste ({dist_txt}). "
+                    "Cenário principal: risco elevado de excesso de gap — "
+                    "continuidade possível, mas falso rompimento e retorno ao ajuste ganham peso."
+                )
+        if posicao == "ABAIXO":
+            if intensidade == "PROXIMO":
+                return (
+                    f"Preço pouco abaixo do ajuste ({dist_txt}). "
+                    "Cenário mais provável: teste do ajuste com possível recuperação ou rejeição."
+                )
+            if intensidade == "MODERADO":
+                return (
+                    f"Preço moderadamente abaixo do ajuste ({dist_txt}). "
+                    "Cenário principal: pressão vendedora com risco de teste de recuperação do ajuste."
+                )
+            if intensidade in ("DISTANTE", "EXCESSO"):
+                return (
+                    f"Preço bem abaixo do ajuste ({dist_txt}). "
+                    "Cenário principal: gap de baixa relevante — continuidade possível, "
+                    "mas falso rompimento e busca do ajuste ganham peso."
+                )
+        return "Posição indefinida em relação ao ajuste. Aguardando definição."
+
+    def _texto_cenario_alternativo(
+        self,
+        posicao: Optional[str],
+        intensidade: str,
+        cb: ComportamentosPossiveis,
+    ) -> str:
+        # Pega o segundo maior comportamento
+        itens = [
+            ("rompimento e continuidade", cb.romper_e_continuar or 0),
+            ("teste e rejeição", cb.testar_e_rejeitar or 0),
+            ("teste e recuperação", cb.testar_e_recuperar or 0),
+            ("retorno ao ajuste", cb.retornar_ao_ajuste or 0),
+            ("falso rompimento", cb.falso_rompimento or 0),
+        ]
+        itens_ord = sorted(itens, key=lambda x: x[1], reverse=True)
+        if len(itens_ord) < 2:
+            return "Cenário alternativo não calculado."
+        alt_nome, alt_pct = itens_ord[1]
+        return f"Alternativo: {alt_nome} (~{alt_pct:.0f}%). Monitorar invalidação do cenário principal."
+
+    def _montar_contexto_resumo(self, session: WinSession) -> List[str]:
+        linhas: List[str] = []
+        ctx = session.contexto
+
+        if ctx.vix.preco is not None:
+            linhas.append(f"VIX {ctx.vix.preco:.1f}" + (
+                f" ({ctx.vix.variacao_pct:+.2f}%)" if ctx.vix.variacao_pct is not None else ""
+            ))
+        if ctx.sp500_fut.variacao_pct is not None:
+            linhas.append(f"ES {ctx.sp500_fut.variacao_pct:+.2f}%")
+        if ctx.nasdaq_fut.variacao_pct is not None:
+            linhas.append(f"NQ {ctx.nasdaq_fut.variacao_pct:+.2f}%")
+        if ctx.dxy.variacao_pct is not None:
+            linhas.append(f"DXY {ctx.dxy.variacao_pct:+.2f}%")
+        if ctx.usd_brl.variacao_pct is not None:
+            linhas.append(f"USD/BRL {ctx.usd_brl.variacao_pct:+.2f}%")
+        if ctx.indicador_adrs is not None:
+            linhas.append(f"ADRs BR {ctx.indicador_adrs:+.2f}%")
+        if ctx.iron_ore.variacao_pct is not None:
+            linhas.append(f"Minério {ctx.iron_ore.variacao_pct:+.2f}%")
+        if ctx.crude_oil.variacao_pct is not None:
+            linhas.append(f"Petróleo {ctx.crude_oil.variacao_pct:+.2f}%")
+
+        news = session.noticias
+        if news and news.disponivel:
+            if news.classificacao_risco:
+                linhas.append(f"Calendário: {news.classificacao_risco} (impacto {news.impacto_total})")
+            if news.risco_abertura_win:
+                linhas.append("⚠️ Risco elevado na abertura WIN (notícias)")
+            if news.tem_3_estrelas_brasil_0900:
+                linhas.append("⭐⭐⭐ Brasil 09:00")
+
+        return linhas[:10]
+
+
+# ------------------------------------------------------------
+# Atalho
+# ------------------------------------------------------------
+
+def gerar_cenario_abertura(session: WinSession) -> OpeningScenario:
+    return OpeningScenarioEngine().processar(session)
+
+
+# ------------------------------------------------------------
+# Debug
+# ------------------------------------------------------------
+
+if __name__ == "__main__":
+    from v2.core.services.win_session_builder import build_win_session
+
+    print("=" * 60)
+    print(" OPENING SCENARIO ENGINE — debug")
+    print("=" * 60)
+
+    session = build_win_session()
+    cenario = gerar_cenario_abertura(session)
+
+    # Anexa ao session para visualização
+    session.cenario = cenario
+
+    print(f"Contrato        : {session.metadata.contrato_principal}")
+    print(f"Ajuste          : {session.precos.ajuste}")
+    print(f"Last MT5        : {session.precos.last_mt5}")
+    print(f"Distância       : {session.distancias.last_vs_ajuste_pts} pts")
+    print(f"Posição         : {cenario.relacao_com_ajuste.posicao}")
+    print(f"Direção         : {cenario.direcao_provavel} ({cenario.probabilidade_direcao}%)")
+    print(f"Confiança       : {cenario.confianca_geral}%")
+    print()
+    print("Cenário principal:")
+    print(f"  {cenario.relacao_com_ajuste.cenario_principal}")
+    print()
+    print("Comportamentos:")
+    cb = cenario.comportamentos
+    print(f"  Romper e continuar : {cb.romper_e_continuar}%")
+    print(f"  Testar e rejeitar  : {cb.testar_e_rejeitar}%")
+    print(f"  Testar e recuperar : {cb.testar_e_recuperar}%")
+    print(f"  Retornar ao ajuste : {cb.retornar_ao_ajuste}%")
+    print(f"  Falso rompimento   : {cb.falso_rompimento}%")
+    print()
+    print(f"Alternativo: {cenario.cenario_alternativo}")
+    print()
+    print("Contexto:", " | ".join(cenario.contexto_resumo))
+    print("=" * 60)
+
 
 
 
@@ -19318,6 +23094,234 @@ class PredictionService:
 
 # ============================================================
 # ARQUIVO:
+# v2\core\services\session_history.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-16 21:57:48
+# ============================================================
+
+
+
+# ============================================================
+# ARQUIVO: v2/core/services/session_history.py
+# FASE 5 — Histórico de Sessões WINFUT
+#
+# Grava snapshots de WinSession + OpeningScenario
+# em Coletas/Historico_Aberturas/YYYY-MM-DD.json
+#
+# Objetivo futuro: base estatística para probabilidades reais
+# (romper / testar / rejeitar / retornar).
+# ============================================================
+
+from __future__ import annotations
+
+import json
+from dataclasses import asdict, is_dataclass
+from datetime import date, datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+
+def _raiz_projeto() -> Path:
+    return Path(__file__).resolve().parent.parent.parent.parent
+
+
+def _historico_dir() -> Path:
+    d = _raiz_projeto() / "Coletas" / "Historico_Aberturas"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def _serializar(obj: Any) -> Any:
+    """Converte dataclasses, date, datetime para tipos JSON-safe."""
+    if obj is None:
+        return None
+    if is_dataclass(obj) and not isinstance(obj, type):
+        return {k: _serializar(v) for k, v in asdict(obj).items()}
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    if isinstance(obj, date):
+        return obj.isoformat()
+    if isinstance(obj, dict):
+        return {k: _serializar(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_serializar(x) for x in obj]
+    if isinstance(obj, (str, int, float, bool)):
+        return obj
+    return str(obj)
+
+
+class SessionHistoryService:
+    """
+    Persiste e lê o histórico de sessões WINFUT.
+
+    Estrutura do arquivo diário:
+      Coletas/Historico_Aberturas/2026-08-16.json
+      {
+        "data": "2026-08-16",
+        "atualizacoes": [
+          {
+            "timestamp": "...",
+            "metadata": {...},
+            "precos": {...},
+            "distancias": {...},
+            "gap": {...},
+            "cenario": {...},
+            "contexto_resumo": [...],
+            ...
+          }
+        ]
+      }
+    """
+
+    def __init__(self, historico_dir: Optional[Path] = None):
+        self.dir = Path(historico_dir) if historico_dir else _historico_dir()
+        self.dir.mkdir(parents=True, exist_ok=True)
+
+    def _caminho_dia(self, data_ref: date) -> Path:
+        return self.dir / f"{data_ref.isoformat()}.json"
+
+    def salvar_snapshot(
+        self,
+        session,
+        cenario=None,
+        tag: Optional[str] = None,
+    ) -> Path:
+        """
+        Acrescenta um snapshot da sessão (e cenário, se houver) no arquivo do dia.
+
+        session: WinSession
+        cenario: OpeningScenario (opcional; usa session.cenario se None)
+        """
+        if cenario is None:
+            cenario = getattr(session, "cenario", None)
+
+        data_ref = session.metadata.data_sessao or date.today()
+        caminho = self._caminho_dia(data_ref)
+
+        registro: Dict[str, Any] = {
+            "timestamp": datetime.now().isoformat(),
+            "tag": tag,
+            "metadata": _serializar(session.metadata),
+            "precos": _serializar(session.precos),
+            "distancias": _serializar(session.distancias),
+            "gap": _serializar(session.gap),
+            "niveis": _serializar(session.niveis),
+            "cenario": _serializar(cenario) if cenario else None,
+            "contexto_resumo": (
+                list(cenario.contexto_resumo) if cenario and cenario.contexto_resumo else []
+            ),
+            "extras": _serializar(getattr(session, "extras", {})),
+        }
+
+        # Carrega arquivo do dia (se existir) e append
+        if caminho.exists():
+            try:
+                with open(caminho, "r", encoding="utf-8") as f:
+                    dia = json.load(f)
+            except Exception:
+                dia = {"data": data_ref.isoformat(), "atualizacoes": []}
+        else:
+            dia = {"data": data_ref.isoformat(), "atualizacoes": []}
+
+        dia.setdefault("atualizacoes", []).append(registro)
+        dia["ultima_atualizacao"] = registro["timestamp"]
+        dia["total_snapshots"] = len(dia["atualizacoes"])
+
+        # Resumo do último estado (atalho para leitura rápida)
+        dia["ultimo"] = {
+            "contrato": session.metadata.contrato_principal,
+            "ajuste": session.precos.ajuste,
+            "last_mt5": session.precos.last_mt5,
+            "distancia_pts": session.distancias.last_vs_ajuste_pts,
+            "posicao": (
+                cenario.relacao_com_ajuste.posicao
+                if cenario and cenario.relacao_com_ajuste
+                else None
+            ),
+            "direcao": cenario.direcao_provavel if cenario else None,
+            "cenario_principal": (
+                cenario.relacao_com_ajuste.cenario_principal
+                if cenario and cenario.relacao_com_ajuste
+                else None
+            ),
+        }
+
+        with open(caminho, "w", encoding="utf-8") as f:
+            json.dump(dia, f, ensure_ascii=False, indent=2)
+
+        return caminho
+
+    def carregar_dia(self, data_ref: Optional[date] = None) -> Dict[str, Any]:
+        data_ref = data_ref or date.today()
+        caminho = self._caminho_dia(data_ref)
+        if not caminho.exists():
+            return {"data": data_ref.isoformat(), "atualizacoes": []}
+        try:
+            with open(caminho, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return {"data": data_ref.isoformat(), "atualizacoes": []}
+
+    def listar_dias(self) -> List[str]:
+        arquivos = sorted(self.dir.glob("*.json"))
+        return [a.stem for a in arquivos]
+
+    def resumo_recente(self, n: int = 5) -> List[Dict[str, Any]]:
+        """Retorna o campo 'ultimo' dos N dias mais recentes."""
+        dias = self.listar_dias()[-n:]
+        resultado = []
+        for d in dias:
+            try:
+                data_ref = date.fromisoformat(d)
+            except ValueError:
+                continue
+            dia = self.carregar_dia(data_ref)
+            if dia.get("ultimo"):
+                item = dict(dia["ultimo"])
+                item["data"] = d
+                resultado.append(item)
+        return resultado
+
+
+# ------------------------------------------------------------
+# Atalhos
+# ------------------------------------------------------------
+
+def salvar_sessao_hoje(session, cenario=None, tag: Optional[str] = None) -> Path:
+    return SessionHistoryService().salvar_snapshot(session, cenario, tag=tag)
+
+
+# ------------------------------------------------------------
+# Debug / gravação sob demanda
+# ------------------------------------------------------------
+
+if __name__ == "__main__":
+    from v2.core.services.win_session_builder import build_win_session
+    from v2.core.engines.opening_scenario_engine import gerar_cenario_abertura
+
+    print("=" * 60)
+    print(" SESSION HISTORY — gravando snapshot de hoje")
+    print("=" * 60)
+
+    session = build_win_session()
+    cenario = gerar_cenario_abertura(session)
+    session.cenario = cenario
+
+    caminho = salvar_sessao_hoje(session, cenario, tag="manual_debug")
+    print(f"Salvo em: {caminho}")
+
+    svc = SessionHistoryService()
+    dia = svc.carregar_dia()
+    print(f"Snapshots no dia: {dia.get('total_snapshots')}")
+    print(f"Último resumo  : {dia.get('ultimo')}")
+    print("=" * 60)
+
+
+
+
+# ============================================================
+# ARQUIVO:
 # v2\core\services\vision_ai_service.py
 #
 # ÚLTIMA ALTERAÇÃO:
@@ -19561,6 +23565,394 @@ class VisionService:
             confianca_visual=conf,
             metadados={"fonte": "tendencia_15min", "padrao": padrao}
         )
+
+
+
+# ============================================================
+# ARQUIVO:
+# v2\core\services\win_session_builder.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-16 22:08:19
+# ============================================================
+
+
+
+# ============================================================
+# ARQUIVO: v2/core/services/win_session_builder.py
+# FASE 4 — Builder do WinSession
+#
+# Lê as fontes atuais e monta o contrato WinSession.
+# Não toma decisão. Não gera ordem. Apenas organiza dados.
+# ============================================================
+
+from __future__ import annotations
+
+import json
+import os
+from datetime import datetime, date
+from pathlib import Path
+from typing import Any, Dict, Optional
+
+from v2.core.contracts.win_session import (
+    WinSession,
+    WinSessionMetadata,
+    PrecosReferencia,
+    Distancias,
+    GapInfo,
+    NiveisPivot,
+    MarketContextWIN,
+    EconomicNewsContext,
+    SnapshotSimples,
+    OpeningScenario,
+    RelacaoComAjuste,
+)
+
+
+# ------------------------------------------------------------
+# Caminhos padrão (relativos à raiz do projeto)
+# ------------------------------------------------------------
+
+def _raiz_projeto() -> Path:
+    """Sobe até a raiz do projeto (onde está a pasta Coletas)."""
+    # Este arquivo: v2/core/services/win_session_builder.py
+    return Path(__file__).resolve().parent.parent.parent.parent
+
+
+def _coletas_dir() -> Path:
+    return _raiz_projeto() / "Coletas"
+
+
+# ------------------------------------------------------------
+# Utilitários de leitura
+# ------------------------------------------------------------
+
+def _carregar_json(caminho: Path) -> Dict[str, Any]:
+    if not caminho.exists():
+        return {}
+    try:
+        with open(caminho, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def _snap(ativos: Dict, chave: str) -> SnapshotSimples:
+    item = ativos.get(chave) or {}
+    return SnapshotSimples(
+        preco=_float(item.get("preco")),
+        variacao_pct=_float(item.get("variacao_pct")),
+    )
+
+
+def _float(valor: Any) -> Optional[float]:
+    if valor is None:
+        return None
+    try:
+        return float(valor)
+    except (TypeError, ValueError):
+        return None
+
+
+def _parse_ts(valor: Any) -> Optional[datetime]:
+    if not valor:
+        return None
+    if isinstance(valor, datetime):
+        return valor
+    texto = str(valor).replace("Z", "+00:00")
+    for fmt in (
+        "%Y-%m-%dT%H:%M:%S.%f",
+        "%Y-%m-%dT%H:%M:%S",
+        "%Y-%m-%d %H:%M:%S",
+    ):
+        try:
+            return datetime.strptime(texto[:26], fmt)
+        except ValueError:
+            continue
+    try:
+        return datetime.fromisoformat(texto)
+    except Exception:
+        return None
+
+
+# ------------------------------------------------------------
+# Builder principal
+# ------------------------------------------------------------
+
+class WinSessionBuilder:
+    """
+    Monta WinSession a partir das fontes do pipeline atual.
+
+    Ordem de leitura (conforme mapeamento_campos_v2.md):
+      1. Dados_MT5_v2_2.json
+      2. DadosAtivosUnificados.json
+      3. EstimativaAbertura.json
+      4. Metricas_Calculadas.json
+      5. Noticias_Impacto_Dia.json  (calendário econômico)
+    """
+
+    def __init__(self, coletas_dir: Optional[Path] = None):
+        self.coletas = Path(coletas_dir) if coletas_dir else _coletas_dir()
+
+    def build(self) -> WinSession:
+        mt5 = _carregar_json(self.coletas / "Dados_MT5_v2_2.json")
+        unificados = _carregar_json(self.coletas / "DadosAtivosUnificados.json")
+        estimativa = _carregar_json(self.coletas / "EstimativaAbertura.json")
+        metricas = _carregar_json(self.coletas / "Metricas_Calculadas.json")
+        noticias = _carregar_json(self.coletas / "Noticias_Impacto_Dia.json")
+
+        # Fallback: se v2.2 não existir, tenta formato antigo
+        if not mt5:
+            mt5 = _carregar_json(self.coletas / "Dados_MT5.json")
+
+        session = WinSession()
+        self._preencher_metadata(session, mt5, unificados)
+        self._preencher_precos(session, mt5, unificados)
+        self._preencher_gap_e_niveis(session, estimativa)
+        self._preencher_contexto(session, unificados, metricas)
+        self._preencher_noticias(session, noticias)
+
+        # Cálculos derivados
+        session.calcular_distancias_basicas()
+        session.definir_direcao_gap()
+
+        if session.gap.direcao_gap and not session.cenario.direcao_provavel:
+            session.cenario.direcao_provavel = session.gap.direcao_gap
+
+        session.extras["fontes_lidas"] = {
+            "mt5_v2_2": bool(mt5.get("versao_coletor") == "2.2" or mt5.get("ativos")),
+            "unificados": bool(unificados.get("ativos")),
+            "estimativa": bool(estimativa),
+            "metricas": bool(metricas),
+            "noticias": bool(noticias),
+        }
+        session.extras["timestamp_build"] = datetime.now().isoformat()
+
+        return session
+
+    # ----------------------------------------------------------
+    # Preenchimento por bloco
+    # ----------------------------------------------------------
+
+    def _preencher_metadata(
+        self,
+        session: WinSession,
+        mt5: Dict,
+        unificados: Dict,
+    ) -> None:
+        ts = _parse_ts(mt5.get("timestamp")) or _parse_ts(
+            unificados.get("metadata", {}).get("timestamp")
+        )
+        data_sessao = ts.date() if ts else date.today()
+
+        # Contrato principal (formato v2.2)
+        win_mt5 = (mt5.get("ativos") or {}).get("WIN") or {}
+        contrato = win_mt5.get("contrato_principal")
+
+        # Fallback formato antigo
+        if not contrato and mt5.get("contratos"):
+            for nome in mt5["contratos"]:
+                if str(nome).upper().startswith("WIN"):
+                    contrato = nome
+                    break
+
+        fonte = "MT5_v2.2" if mt5.get("versao_coletor") == "2.2" else None
+        if not fonte and mt5:
+            fonte = "MT5_v1"
+
+        session.metadata = WinSessionMetadata(
+            data_sessao=data_sessao,
+            timestamp_coleta=ts,
+            contrato_principal=contrato,
+            fonte_last=fonte,
+        )
+
+    def _preencher_precos(
+        self,
+        session: WinSession,
+        mt5: Dict,
+        unificados: Dict,
+    ) -> None:
+        ativos = unificados.get("ativos") or {}
+
+        # Ajuste (TradingView)
+        ajuste = _float((ativos.get("WIN_AJUSTE") or {}).get("preco"))
+        if ajuste is None:
+            ajuste = _float((ativos.get("WIN_FUT") or {}).get("preco"))
+
+        # Last MT5 (preferencial: v2.2)
+        win_mt5 = (mt5.get("ativos") or {}).get("WIN") or {}
+        last = _float(win_mt5.get("last"))
+
+        # Fallback: unificado WIN_LAST_TICK
+        if last is None:
+            last = _float((ativos.get("WIN_LAST_TICK") or {}).get("preco"))
+
+        # Fallback: formato antigo contratos
+        if last is None and mt5.get("contratos"):
+            for nome, info in mt5["contratos"].items():
+                if str(nome).upper().startswith("WIN"):
+                    last = _float(info.get("last"))
+                    if last:
+                        break
+
+        session.precos = PrecosReferencia(
+            ajuste=ajuste,
+            last_mt5=last,
+            fechamento_anterior=None,  # FASE 5
+            pre_abertura=None,         # FASE 5 / coleta dedicada
+        )
+
+    def _preencher_gap_e_niveis(
+        self,
+        session: WinSession,
+        estimativa: Dict,
+    ) -> None:
+        win_est = (estimativa.get("estimativas_abertura") or {}).get("WIN_INDICE") or {}
+        pivots = (estimativa.get("pivot_points") or {}).get("WIN_FUT") or {}
+
+        abertura_teorica = _float(win_est.get("abertura_teorica_pontos"))
+        base_ajuste = _float(win_est.get("pontos_ajuste_base"))
+        var_pct = _float(win_est.get("variacao_teorica_pct"))
+
+        gap_pts = None
+        if abertura_teorica is not None and base_ajuste is not None:
+            gap_pts = round(abertura_teorica - base_ajuste, 2)
+
+        session.gap = GapInfo(
+            gap_projetado_pts=gap_pts,
+            gap_projetado_pct=var_pct,
+            direcao_gap=None,  # preenchido depois por definir_direcao_gap()
+        )
+
+        session.niveis = NiveisPivot(
+            pivot_pp=_float(pivots.get("PP")),
+            r1=_float(pivots.get("R1")),
+            r2=_float(pivots.get("R2")),
+            s1=_float(pivots.get("S1")),
+            s2=_float(pivots.get("S2")),
+        )
+
+        # Níveis de observação preliminares no cenário
+        obs = {}
+        if session.precos.ajuste is not None:
+            obs["ajuste"] = session.precos.ajuste
+        if abertura_teorica is not None:
+            obs["abertura_projetada"] = abertura_teorica
+        if session.niveis.pivot_pp is not None:
+            obs["pp"] = session.niveis.pivot_pp
+        session.cenario.niveis_observacao = obs
+
+    def _preencher_contexto(
+        self,
+        session: WinSession,
+        unificados: Dict,
+        metricas: Dict,
+    ) -> None:
+        ativos = unificados.get("ativos") or {}
+        ind = metricas.get("indicadores_compostos") or {}
+        curva = metricas.get("curva_juros_b3") or {}
+        macro = metricas.get("indicadores_macro") or {}
+
+        ctx = MarketContextWIN(
+            vix=_snap(ativos, "VIX"),
+            sp500_fut=_snap(ativos, "SP500_FUT"),
+            nasdaq_fut=_snap(ativos, "NASDAQ_FUT"),
+            dxy=_snap(ativos, "DXY"),
+            usd_brl=_snap(ativos, "USD_BRL"),
+            usd_ptax=_float((ativos.get("USD_PTAX") or {}).get("preco")),
+            vale=_snap(ativos, "VALE_ADR"),
+            petr=_snap(ativos, "PETR_ADR"),
+            itub=_snap(ativos, "ITUB_ADR"),
+            bbd=_snap(ativos, "BBD_ADR"),
+            bbas=_snap(ativos, "BBAS_ADR"),
+            b3=_snap(ativos, "B3_ADR"),
+            indicador_adrs=_float(ind.get("indicador_adrs_brasileiras")),
+            iron_ore=_snap(ativos, "IRON_ORE"),
+            iron_ore_2m=_snap(ativos, "IRON_ORE_2M"),
+            crude_oil=_snap(ativos, "CRUDE_OIL"),
+            gold=_snap(ativos, "GOLD"),
+            di1_2027=_float((ativos.get("DI1_2027") or {}).get("preco")),
+            di1_2029=_float((ativos.get("DI1_2029") or {}).get("preco")),
+            inclinacao_bps=_float(curva.get("inclinacao_29_27_bps")),
+            indicador_mercado_externo=_float(ind.get("indicador_mercado_externo")),
+        )
+        session.contexto = ctx
+
+    def _preencher_noticias(self, session: WinSession, noticias: Dict) -> None:
+        """Integra Noticias_Impacto_Dia.json (calendário econômico)."""
+        if not noticias:
+            session.noticias = EconomicNewsContext(disponivel=False)
+            return
+
+        resumo = noticias.get("resumo") or {}
+        alertas = noticias.get("alertas") or {}
+
+        impacto = resumo.get("impacto_total")
+        try:
+            impacto = int(impacto) if impacto is not None else None
+        except (TypeError, ValueError):
+            impacto = None
+
+        session.noticias = EconomicNewsContext(
+            impacto_total=impacto,
+            classificacao_risco=resumo.get("classificacao"),
+            tem_3_estrelas_brasil_0900=bool(
+                alertas.get("tem_3_estrelas_brasil_0900")
+            ),
+            tem_3_estrelas_outros_horarios=bool(
+                alertas.get("tem_3_estrelas_outros_horarios")
+            ),
+            tem_multiplas_2_estrelas_mesmo_horario=bool(
+                alertas.get("tem_multiplas_2_estrelas_mesmo_horario")
+            ),
+            risco_abertura_win=bool(alertas.get("risco_abertura_WIN")),
+            noticias_3_estrelas=list(
+                alertas.get("noticias_3_estrelas_outros_horarios") or []
+            ),
+            horarios_multiplas_2_estrelas=list(
+                alertas.get("horarios_multiplas_2_estrelas") or []
+            ),
+            disponivel=True,
+        )
+
+
+# ------------------------------------------------------------
+# Atalho de uso
+# ------------------------------------------------------------
+
+def build_win_session(coletas_dir: Optional[str | Path] = None) -> WinSession:
+    """Função de conveniência para montar o WinSession."""
+    builder = WinSessionBuilder(Path(coletas_dir) if coletas_dir else None)
+    return builder.build()
+
+
+# ------------------------------------------------------------
+# Execução direta (debug)
+# ------------------------------------------------------------
+
+if __name__ == "__main__":
+    print("=" * 60)
+    print(" WIN SESSION BUILDER — debug")
+    print("=" * 60)
+
+    session = build_win_session()
+
+    print(f"Data sessão     : {session.metadata.data_sessao}")
+    print(f"Contrato        : {session.metadata.contrato_principal}")
+    print(f"Fonte last      : {session.metadata.fonte_last}")
+    print(f"Ajuste          : {session.precos.ajuste}")
+    print(f"Last MT5        : {session.precos.last_mt5}")
+    print(f"Last vs Ajuste  : {session.distancias.last_vs_ajuste_pts} pts")
+    print(f"Posição         : {session.cenario.relacao_com_ajuste.posicao}")
+    print(f"Gap projetado   : {session.gap.gap_projetado_pts} pts ({session.gap.direcao_gap})")
+    print(f"VIX             : {session.contexto.vix.preco}")
+    print(f"Notícias        : impacto={session.noticias.impacto_total} "
+          f"risco={session.noticias.classificacao_risco} "
+          f"risco_abertura_WIN={session.noticias.risco_abertura_win}")
+    print(f"Fontes lidas    : {session.extras.get('fontes_lidas')}")
+    print("=" * 60)
+
 
 
 
@@ -20452,3 +24844,81 @@ class TestContracts(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+
+# ============================================================
+# ARQUIVO:
+# v2_gravar_sessao_win.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-16 22:16:04
+# ============================================================
+
+
+
+# ============================================================
+# ARQUIVO: v2_gravar_sessao_win.py
+# FASE 5/7 — Etapa do pipeline: grava WinSession + cenário
+#
+# Uso:
+#   1. Rodar isolado:  python v2_gravar_sessao_win.py
+#   2. No main_pipeline.py, incluir na lista de etapas, por exemplo:
+#      ("10 - V2 SESSAO WINFUT", "v2_gravar_sessao_win.py"),
+#
+# Não altera a V1. Falhas aqui não devem derrubar o pipeline
+# se você preferir: troque raise por log e return.
+# ============================================================
+
+from __future__ import annotations
+
+import sys
+from datetime import datetime
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+
+
+def main() -> int:
+    print("=" * 60)
+    print(" V2 — Gravação de sessão WINFUT")
+    print("=" * 60)
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] Montando WinSession...")
+
+    try:
+        from v2.core.services.win_session_builder import build_win_session
+        from v2.core.engines.opening_scenario_engine import gerar_cenario_abertura
+        from v2.core.services.session_history import salvar_sessao_hoje
+    except ImportError as e:
+        print(f"❌ Import V2 falhou: {e}")
+        print("   Verifique se a pasta v2/ está na raiz do projeto.")
+        return 1
+
+    try:
+        session = build_win_session()
+        cenario = gerar_cenario_abertura(session)
+        session.cenario = cenario
+
+        caminho = salvar_sessao_hoje(session, cenario, tag="pipeline")
+
+        print(f"Contrato     : {session.metadata.contrato_principal}")
+        print(f"Ajuste       : {session.precos.ajuste}")
+        print(f"Last MT5     : {session.precos.last_mt5}")
+        print(f"Distância    : {session.distancias.last_vs_ajuste_pts} pts")
+        print(f"Posição      : {cenario.relacao_com_ajuste.posicao}")
+        print(f"Direção      : {cenario.direcao_provavel}")
+        print(f"Notícias     : {session.noticias.classificacao_risco} "
+              f"(impacto={session.noticias.impacto_total})")
+        print(f"✅ Histórico  : {caminho}")
+        print("=" * 60)
+        return 0
+
+    except Exception as e:
+        print(f"❌ Erro ao gravar sessão V2: {e}")
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

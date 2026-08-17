@@ -1,0 +1,334 @@
+{
+  "timestamp": "2026-08-17T11:23:29.553940",
+  "total_ativos": 19,
+  "encontrados_com_preco": 8,
+  "encontrados_sem_preco": 0,
+  "nao_encontrados": 11,
+  "detalhes": {
+    "VALE_ADR": {
+      "tv_ticker": "NYSE:VALE",
+      "mt5_simbolo_usado": "VALE3",
+      "candidatos_testados": [
+        "VALE",
+        "VALE3",
+        "VALE.US",
+        "VALE.N",
+        "VALE3.US",
+        "VALE3.N"
+      ],
+      "status": "✅ ENCONTRADO (preço: 71.15)",
+      "preco": 71.15,
+      "bid": 71.15,
+      "ask": 71.17,
+      "volume": 100,
+      "time": "2026-08-17 08:23:25",
+      "erro": null
+    },
+    "PETR_ADR": {
+      "tv_ticker": "NYSE:PBR",
+      "mt5_simbolo_usado": "PETR4",
+      "candidatos_testados": [
+        "PETR",
+        "PETR4",
+        "PBR",
+        "PETR.US",
+        "PETR.N",
+        "PETR4.US"
+      ],
+      "status": "✅ ENCONTRADO (preço: 42.30)",
+      "preco": 42.3,
+      "bid": 42.29,
+      "ask": 42.3,
+      "volume": 5000,
+      "time": "2026-08-17 08:23:28",
+      "erro": null
+    },
+    "ITUB_ADR": {
+      "tv_ticker": "NYSE:ITUB",
+      "mt5_simbolo_usado": "ITUB4",
+      "candidatos_testados": [
+        "ITUB",
+        "ITUB4",
+        "ITUB.US",
+        "ITUB.N",
+        "ITUB4.US"
+      ],
+      "status": "✅ ENCONTRADO (preço: 38.66)",
+      "preco": 38.66,
+      "bid": 38.64,
+      "ask": 38.66,
+      "volume": 7800,
+      "time": "2026-08-17 08:23:28",
+      "erro": null
+    },
+    "BBD_ADR": {
+      "tv_ticker": "NYSE:BBD",
+      "mt5_simbolo_usado": "BBDC4",
+      "candidatos_testados": [
+        "BBD",
+        "BBDC4",
+        "BBD.US",
+        "BBD.N",
+        "BBDC4.US"
+      ],
+      "status": "✅ ENCONTRADO (preço: 16.37)",
+      "preco": 16.37,
+      "bid": 16.36,
+      "ask": 16.37,
+      "volume": 100,
+      "time": "2026-08-17 08:23:18",
+      "erro": null
+    },
+    "BBAS_ADR": {
+      "tv_ticker": "OTC:BDORY",
+      "mt5_simbolo_usado": "BBAS3",
+      "candidatos_testados": [
+        "BBAS",
+        "BBAS3",
+        "BDORY",
+        "BBAS.US"
+      ],
+      "status": "✅ ENCONTRADO (preço: 18.30)",
+      "preco": 18.3,
+      "bid": 18.29,
+      "ask": 18.31,
+      "volume": 500,
+      "time": "2026-08-17 08:23:28",
+      "erro": null
+    },
+    "B3_ADR": {
+      "tv_ticker": "OTC:BOLSY",
+      "mt5_simbolo_usado": "B3SA3",
+      "candidatos_testados": [
+        "B3",
+        "B3SA3",
+        "BOLSY",
+        "B3.US"
+      ],
+      "status": "✅ ENCONTRADO (preço: 14.74)",
+      "preco": 14.74,
+      "bid": 14.73,
+      "ask": 14.74,
+      "volume": 500,
+      "time": "2026-08-17 08:23:02",
+      "erro": null
+    },
+    "EWZ": {
+      "tv_ticker": "AMEX:EWZ",
+      "mt5_simbolo_usado": "N/A",
+      "candidatos_testados": [
+        "EWZ",
+        "EWZ.US"
+      ],
+      "status": "❌ NAO_ENCONTRADO",
+      "preco": null,
+      "bid": null,
+      "ask": null,
+      "volume": null,
+      "time": null,
+      "erro": "Nenhum candidato funcionou"
+    },
+    "SP500_FUT": {
+      "tv_ticker": "CME_MINI:ES1!",
+      "mt5_simbolo_usado": "N/A",
+      "candidatos_testados": [
+        "ES1!",
+        "ES",
+        "SPX",
+        "US500",
+        "SP500"
+      ],
+      "status": "❌ NAO_ENCONTRADO",
+      "preco": null,
+      "bid": null,
+      "ask": null,
+      "volume": null,
+      "time": null,
+      "erro": "Nenhum candidato funcionou"
+    },
+    "NASDAQ_FUT": {
+      "tv_ticker": "CME_MINI:NQ1!",
+      "mt5_simbolo_usado": "N/A",
+      "candidatos_testados": [
+        "NQ1!",
+        "NQ",
+        "NAS100",
+        "US100",
+        "NASDAQ"
+      ],
+      "status": "❌ NAO_ENCONTRADO",
+      "preco": null,
+      "bid": null,
+      "ask": null,
+      "volume": null,
+      "time": null,
+      "erro": "Nenhum candidato funcionou"
+    },
+    "VIX": {
+      "tv_ticker": "TVC:VIX",
+      "mt5_simbolo_usado": "N/A",
+      "candidatos_testados": [
+        "VIX",
+        "VIX.US",
+        "VIX.IND"
+      ],
+      "status": "❌ NAO_ENCONTRADO",
+      "preco": null,
+      "bid": null,
+      "ask": null,
+      "volume": null,
+      "time": null,
+      "erro": "Nenhum candidato funcionou"
+    },
+    "CRUDE_OIL": {
+      "tv_ticker": "NYMEX:CL1!",
+      "mt5_simbolo_usado": "N/A",
+      "candidatos_testados": [
+        "CL1!",
+        "CL",
+        "WTI",
+        "USOIL",
+        "OIL"
+      ],
+      "status": "❌ NAO_ENCONTRADO",
+      "preco": null,
+      "bid": null,
+      "ask": null,
+      "volume": null,
+      "time": null,
+      "erro": "Nenhum candidato funcionou"
+    },
+    "GOLD": {
+      "tv_ticker": "TVC:GOLD",
+      "mt5_simbolo_usado": "N/A",
+      "candidatos_testados": [
+        "XAUUSD",
+        "GOLD",
+        "XAU",
+        "GOLD.USD"
+      ],
+      "status": "❌ NAO_ENCONTRADO",
+      "preco": null,
+      "bid": null,
+      "ask": null,
+      "volume": null,
+      "time": null,
+      "erro": "Nenhum candidato funcionou"
+    },
+    "IRON_ORE": {
+      "tv_ticker": "SGX:FEF1!",
+      "mt5_simbolo_usado": "N/A",
+      "candidatos_testados": [
+        "FEF1!",
+        "FEF",
+        "FE",
+        "SGX:FE"
+      ],
+      "status": "❌ NAO_ENCONTRADO",
+      "preco": null,
+      "bid": null,
+      "ask": null,
+      "volume": null,
+      "time": null,
+      "erro": "Nenhum candidato funcionou"
+    },
+    "IRON_ORE_2M": {
+      "tv_ticker": "SGX:FEF2!",
+      "mt5_simbolo_usado": "N/A",
+      "candidatos_testados": [
+        "FEF2!",
+        "FEFU2026",
+        "FE"
+      ],
+      "status": "❌ NAO_ENCONTRADO",
+      "preco": null,
+      "bid": null,
+      "ask": null,
+      "volume": null,
+      "time": null,
+      "erro": "Nenhum candidato funcionou"
+    },
+    "USD_BRL": {
+      "tv_ticker": "FX_IDC:USDBRL",
+      "mt5_simbolo_usado": "N/A",
+      "candidatos_testados": [
+        "USDBRL",
+        "USD/BRL",
+        "USD.BRL",
+        "BRL"
+      ],
+      "status": "❌ NAO_ENCONTRADO",
+      "preco": null,
+      "bid": null,
+      "ask": null,
+      "volume": null,
+      "time": null,
+      "erro": "Nenhum candidato funcionou"
+    },
+    "USD_MXN": {
+      "tv_ticker": "FX_IDC:USDMXN",
+      "mt5_simbolo_usado": "N/A",
+      "candidatos_testados": [
+        "USDMXN",
+        "USD/MXN",
+        "USD.MXN"
+      ],
+      "status": "❌ NAO_ENCONTRADO",
+      "preco": null,
+      "bid": null,
+      "ask": null,
+      "volume": null,
+      "time": null,
+      "erro": "Nenhum candidato funcionou"
+    },
+    "DXY": {
+      "tv_ticker": "TVC:DXY",
+      "mt5_simbolo_usado": "N/A",
+      "candidatos_testados": [
+        "DXY",
+        "USDOLLAR",
+        "USDX",
+        "DX"
+      ],
+      "status": "❌ NAO_ENCONTRADO",
+      "preco": null,
+      "bid": null,
+      "ask": null,
+      "volume": null,
+      "time": null,
+      "erro": "Nenhum candidato funcionou"
+    },
+    "DI1_2027": {
+      "tv_ticker": "BMFBOVESPA:DI1F2027",
+      "mt5_simbolo_usado": "DI1F27",
+      "candidatos_testados": [
+        "DI1F27",
+        "DI1V26",
+        "DI1Z26"
+      ],
+      "status": "✅ ENCONTRADO (preço: 13.76)",
+      "preco": 13.76,
+      "bid": 13.755,
+      "ask": 13.76,
+      "volume": 3,
+      "time": "2026-08-17 08:23:24",
+      "erro": null
+    },
+    "DI1_2029": {
+      "tv_ticker": "BMFBOVESPA:DI1F2029",
+      "mt5_simbolo_usado": "DI1F29",
+      "candidatos_testados": [
+        "DI1F29",
+        "DI1V28",
+        "DI1Z28"
+      ],
+      "status": "✅ ENCONTRADO (preço: 14.30)",
+      "preco": 14.3,
+      "bid": 14.29,
+      "ask": 14.3,
+      "volume": 1,
+      "time": "2026-08-17 08:23:20",
+      "erro": null
+    }
+  }
+}

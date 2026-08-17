@@ -1,12 +1,12 @@
 # 📈 RELATÓRIO EXECUTIVO DE AUDITORIA E ANÁLISE MACRO
-**Data/Hora da Análise:** 16/08/2026 20:57:49
+**Data/Hora da Análise:** 17/08/2026 07:57:29
 
 ---
 ## 1. PAINEL SINTÉTICO DE AVALIAÇÃO DE MERCADO
 
-* **Ambiente Global de Risco (VIX):** `14.26` → **AMBIENTE NEUTRO / APETITE A RISCO MODERADO**
+* **Ambiente Global de Risco (VIX):** `14.93` → **AMBIENTE NEUTRO / APETITE A RISCO MODERADO**
 * **Arbitragem Dólar Futuro / PTAX:** `22.33 pts` → **PRÊMIO ELEVADO (Dólar Futuro acima da PTAX - Pressão Compradora no WDO)**
-* **Sensibilidade EWZ vs S&P 500:** Spread de `0.70%` → **CORRELAÇÃO ALINHADA COM MERCADOS INTERNACIONAIS**
+* **Sensibilidade EWZ vs S&P 500:** Spread de `0.32%` → **CORRELAÇÃO ALINHADA COM MERCADOS INTERNACIONAIS**
 * **Estrutura de Juros B3 (DI 29-27):** `56.5 bps` de inclinação entre vértices médio e longo.
 
 ---
@@ -24,14 +24,14 @@
 - **Inclinação (Spread):** 56.5 bps
 
 ### C. Commodities e Drivers Externos
-- **Petróleo (Crude Oil WTI):** US$ 82.4
+- **Petróleo (Crude Oil WTI):** US$ 82.97
 - **Minério de Ferro (SGX):** US$ None
-- **DXY (Índice Dólar):** 99.636
+- **DXY (Índice Dólar):** 99.465
 
 ### D. Performance Relativa de ADRs Brasileiras
 - **EWZ (ETF Brasil):** 0.473793307669519%
-- **S&P 500 Futuro:** -0.22371364653243847%
-- **Nasdaq Futuro:** -0.15486029448299848%
+- **S&P 500 Futuro:** 0.15374759769378604%
+- **Nasdaq Futuro:** 0.554048786152098%
 
 #### Principais ADRs:
 - **BBD_ADR:** US$ 3.14 (-0.31746031746031067%)

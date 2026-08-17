@@ -12,6 +12,7 @@
 #   - Integração prioritária com Coletor_MT5_v2_2 (seleção dinâmica de contrato)
 #   - Fallback automático para o coletor antigo (Coletor_MT5.py)
 #   - Preservação total da V1 (nenhum arquivo antigo foi removido)
+#   - ROTAÇÃO EXPANDIDA PARA 12 ARQUIVOS (0, 5, 10, ..., 55 min) → 60 min de histórico
 # ============================================================
 
 
@@ -33,10 +34,26 @@ COLETAS_DIR = os.path.join(BASE_DIR, "Coletas")
 # Garante que a pasta 'Coletas' existe
 os.makedirs(COLETAS_DIR, exist_ok=True)
 
-# Definição dos caminhos para Rotação Temporal (Janela Móvel)
-FILE_ROM0 = os.path.join(COLETAS_DIR, "Coleta_rom-0.json")
-FILE_ROM5 = os.path.join(COLETAS_DIR, "Coleta_rom-5.json")
-FILE_ROM10 = os.path.join(COLETAS_DIR, "Coleta_rom-10.json")
+# Definição dos caminhos para Rotação Temporal (Janela Móvel) - 12 arquivos
+# 0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55 minutos atrás
+ARQUIVOS_ROM = [
+    os.path.join(COLETAS_DIR, "Coleta_rom-0.json"),
+    os.path.join(COLETAS_DIR, "Coleta_rom-5.json"),
+    os.path.join(COLETAS_DIR, "Coleta_rom-10.json"),
+    os.path.join(COLETAS_DIR, "Coleta_rom-15.json"),
+    os.path.join(COLETAS_DIR, "Coleta_rom-20.json"),
+    os.path.join(COLETAS_DIR, "Coleta_rom-25.json"),
+    os.path.join(COLETAS_DIR, "Coleta_rom-30.json"),
+    os.path.join(COLETAS_DIR, "Coleta_rom-35.json"),
+    os.path.join(COLETAS_DIR, "Coleta_rom-40.json"),
+    os.path.join(COLETAS_DIR, "Coleta_rom-45.json"),
+    os.path.join(COLETAS_DIR, "Coleta_rom-50.json"),
+    os.path.join(COLETAS_DIR, "Coleta_rom-55.json"),
+]
+
+# Referência para o arquivo mais recente (usado pelo Validador e demais módulos)
+FILE_ROM0 = ARQUIVOS_ROM[0]
+
 FILE_RAM = os.path.join(COLETAS_DIR, "Coleta_ram.json")
 FILE_UNIFICADO = os.path.join(COLETAS_DIR, "DadosAtivosUnificados.json")
 
@@ -476,7 +493,14 @@ def coletar_tradingview():
 # ------------------------------------------------------------
 
 def executar_rotacao_memoria(is_ram_mode=False):
-    """Executa a rotação temporal (rom-0 -> rom-5 -> rom-10) ou grava em RAM."""
+    """
+    Executa a rotação temporal dos 12 arquivos (0, 5, 10, ..., 55 min).
+    - Se is_ram_mode for True, apenas retorna o caminho do RAM (sem rotação).
+    - Caso contrário, desloca os arquivos: rom-55 ← rom-50, rom-50 ← rom-45, ..., rom-0 ← rom-5? 
+      Na verdade, a lógica é: o arquivo mais antigo (rom-55) é sobrescrito pelo anterior (rom-50),
+      e assim sucessivamente, até que o rom-5 seja sobrescrito pelo rom-0 (que contém a coleta anterior),
+      e então o rom-0 será sobrescrito pela nova coleta.
+    """
     if is_ram_mode:
         print(
             f"[{datetime.now().strftime('%H:%M:%S')}] Modo RAM ativado. Ignorando rotação temporal."
@@ -484,18 +508,24 @@ def executar_rotacao_memoria(is_ram_mode=False):
         return FILE_RAM
 
     print(
-        f"[{datetime.now().strftime('%H:%M:%S')}] Executando rotação de memória física (Janela Móvel)..."
+        f"[{datetime.now().strftime('%H:%M:%S')}] Executando rotação de memória física (Janela Móvel - 12 arquivos)..."
     )
 
-    if os.path.exists(FILE_ROM5):
-        shutil.copy(FILE_ROM5, FILE_ROM10)
-        print("  └─ Rotação: Coleta_rom-5.json ──> Coleta_rom-10.json")
+    # Percorre de trás para frente (do mais antigo para o mais recente)
+    # Exemplo: rom-50 -> rom-55, rom-45 -> rom-50, ..., rom-0 -> rom-5
+    # O índice 0 é o mais recente (rom-0), índice 11 é o mais antigo (rom-55)
+    for i in range(len(ARQUIVOS_ROM) - 1, 0, -1):
+        origem = ARQUIVOS_ROM[i - 1]
+        destino = ARQUIVOS_ROM[i]
+        if os.path.exists(origem):
+            shutil.copy2(origem, destino)
+            print(f"  └─ Rotação: {os.path.basename(origem)} ──> {os.path.basename(destino)}")
+        else:
+            # Se o arquivo de origem não existe, apenas registra (não copia)
+            print(f"  └─ Aviso: {os.path.basename(origem)} não encontrado, pulando.")
 
-    if os.path.exists(FILE_ROM0):
-        shutil.copy(FILE_ROM0, FILE_ROM5)
-        print("  └─ Rotação: Coleta_rom-0.json ──> Coleta_rom-5.json")
-
-    return FILE_ROM0
+    # Retorna o caminho do arquivo mais recente (rom-0) onde a nova coleta será gravada
+    return ARQUIVOS_ROM[0]
 
 
 def gerar_arquivo_unificado(coletas):
@@ -648,7 +678,7 @@ def executar_pipeline_coleta():
     with open(arquivo_destino, "w", encoding="utf-8") as f:
         json.dump(conteudo_saida, f, indent=2, ensure_ascii=False)
 
-    # Grava RAM
+    # Grava RAM (cópia independente da mais recente)
     if not is_ram:
         with open(FILE_RAM, "w", encoding="utf-8") as f:
             json.dump(conteudo_saida, f, indent=2, ensure_ascii=False)

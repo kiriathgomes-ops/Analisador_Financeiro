@@ -380,3 +380,6 @@ mt5.shutdown()
 
 
 
+https://chat.deepseek.com/share/ktcsf53ec89gdpo850
+
+

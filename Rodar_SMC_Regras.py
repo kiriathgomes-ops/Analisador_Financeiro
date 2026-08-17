@@ -30,7 +30,9 @@ if str(BASE_DIR) not in sys.path:
 
 
 def log(msg: str, ok: bool = True):
-    icone = "✅" if ok else "⚠️"
+    icone = "[Ok]" if ok else "[ERRO]"
+     # Remove qualquer caractere não-ASCII para evitar UnicodeEncodeError
+    safe_msg = msg.encode('ascii', 'ignore').decode('ascii')
     print(f"[{datetime.now().strftime('%H:%M:%S')}] {icone} {msg}")
 
 

@@ -1,12 +1,53 @@
 {
   "metadata": {
     "fonte": "TradingView API",
-    "timestamp": "2026-08-16T22:02:32.150936",
-    "data_referencia": "2026-08-16",
+    "timestamp": "2026-08-17T00:04:06.233024",
+    "data_referencia": "2026-08-17",
     "filtros": "Brasil e EUA (2 e 3 Estrelas)"
   },
   "calendario_eventos": {
-    "quantidade_eventos": 0,
-    "eventos": []
+    "quantidade_eventos": 4,
+    "eventos": [
+      {
+        "hora": "08:30",
+        "pais": "Brazil",
+        "moeda": "BRL",
+        "evento": "BCB Focus Market Readout",
+        "importancia": 2,
+        "anterior": "",
+        "previsao": "",
+        "atual": ""
+      },
+      {
+        "hora": "09:30",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "NY Empire State Manufacturing Index",
+        "importancia": 2,
+        "anterior": "15.6",
+        "previsao": "10.2",
+        "atual": ""
+      },
+      {
+        "hora": "11:00",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "NAHB Housing Market Index",
+        "importancia": 2,
+        "anterior": "34",
+        "previsao": "33",
+        "atual": ""
+      },
+      {
+        "hora": "17:00",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "Net Long-term TIC Flows",
+        "importancia": 2,
+        "anterior": "232.7",
+        "previsao": "",
+        "atual": ""
+      }
+    ]
   }
 }
