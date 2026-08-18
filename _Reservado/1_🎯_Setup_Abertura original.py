@@ -5,7 +5,7 @@ Página com abas para:
 - Ajuste B3 (distância do ajuste, scores, semáforo)
 - Abertura 09:00 (gap, sinal, IA de pré-abertura + Análise Gráfica SMC)
 
-Versão 6.4 - IA unificada (KeyManager + limpeza thinking + max_tokens 2500)
+Versão 6.3 - IA unificada (KeyManager + limpeza thinking + max_tokens 2500)
              Ajuste B3 e Pré-abertura usam a mesma engine chamar_groq_texto
 """
 
@@ -329,7 +329,7 @@ class TendenciaAtivo:
     tendencia: str
 
 # ============================================================
-# CLASSE SETUPSERVICE
+# CLASSE SETUPSERVICE (mesma do arquivo 09h)
 # ============================================================
 class SetupService:
     def __init__(self, dados: Dict[str, Dict[str, Any]], config: ConfigSetup09 = CONFIG):
@@ -406,9 +406,11 @@ class SetupService:
         ativos = dados_ativos.get("ativos", dados_ativos)
         self.win_ativo = ativos.get("WIN_FUT", {})
         self.preco_win: Optional[float] = self.win_ativo.get("preco")
-        
+        # Não inventa dado: se não veio do JSON, permanece None.
+        # A interface já trata None exibindo "N/A" (em render_bloco_3_abertura_escoras)
         if self.preco_win is None:
             print("[AVISO] Preço atual do WIN não encontrado em DadosAtivosUnificados.json. Exibindo 'N/A'.")
+        #    self.preco_win = self.est_win.get("abertura_teorica_pontos") # Inventa dado
 
         tendencias_data = self.dados.get("tendencias", {})
         self.tendencias = self._extrair_tendencias(tendencias_data)
@@ -416,6 +418,7 @@ class SetupService:
         resultado_op = self.dados.get("resultado_operacional", {})
         self.classificacao_mercado = resultado_op.get("indicadores_compostos", {})
 
+        # Análise gráfica SMC: visão (IA) + regras (motor local)
         self.analise_smc = self.dados.get("analise_smc", {}) or {}
         self.analise_smc_regras = self.dados.get("analise_smc_regras", {}) or {}
 
@@ -544,6 +547,7 @@ class SetupService:
             }
 
     def _resumir_bloco_smc(self, bloco: Dict[str, Any], rotulo: str) -> str:
+        """Resume um JSON SMC (visão ou regras) em texto curto."""
         if not bloco or bloco.get("erro"):
             return ""
 
@@ -574,7 +578,7 @@ class SetupService:
         estruturas = bloco.get("estruturas_coletadas") or []
         if estruturas:
             partes.append("Estruturas: " + " | ".join(str(e) for e in estruturas[:6]))
-        
+        # OBs/FVGs estruturados (regras)
         obs = bloco.get("order_blocks") or []
         if obs:
             partes.append(
@@ -596,6 +600,10 @@ class SetupService:
         return " • ".join(partes)
 
     def _resumir_analise_smc(self) -> str:
+        """
+        Junta visão IA + motor de regras para o prompt.
+        Prioriza números das regras; mantém narrativa da visão se existir.
+        """
         partes = []
         r_regras = self._resumir_bloco_smc(self.analise_smc_regras, "REGRAS")
         r_visao = self._resumir_bloco_smc(self.analise_smc, "VISÃO")
@@ -605,7 +613,7 @@ class SetupService:
             partes.append(r_visao)
         if not partes:
             return "Análise gráfica SMC não disponível (nem regras nem visão)."
-        
+        # alinhamento simples
         b1 = (self.analise_smc_regras or {}).get("bias_direcional")
         b2 = (self.analise_smc or {}).get("bias_direcional") or (
             self.analise_smc or {}
@@ -698,6 +706,7 @@ GESTÃO DE RISCO: Loss {dados['loss']}pts | Alvo >{dados['alvo']}pts
 - Complete TODAS as 7 seções até o grau de confiança
 """
 
+
 def limpar_pensamento_ia(texto: str) -> str:
     """Remove vazamento de raciocínio interno (thinking) da IA."""
     if not texto:
@@ -744,6 +753,7 @@ def limpar_pensamento_ia(texto: str) -> str:
 
     return texto.strip()
 
+
 def chamar_groq_texto(
     api_key: str,
     prompt: str,
@@ -760,6 +770,7 @@ def chamar_groq_texto(
         client, key_utilizada = get_groq_client()
         print(f"🔑 Usando chave: {key_utilizada[:20]}...")
     except Exception as e:
+        # Fallback: chave passada manualmente / .env
         if api_key:
             from groq import Groq
             client = Groq(api_key=api_key)
@@ -818,6 +829,7 @@ REGRAS OBRIGATÓRIAS:
             except Exception:
                 return "❌ Todas as chaves em rate limit. Tente novamente em algumas horas."
         raise e
+
 
 def forcar_portugues(resposta: str) -> str:
     traducao = {
@@ -932,10 +944,12 @@ def render_sidebar_09h():
             st.session_state.historico_pre_abertura = []
         st.rerun()
 
+# ---------- Bloco 1: Filtro de Notícias e Classificação ----------
 def render_bloco_1_filtro_classificacao(service: SetupService):
     st.markdown("---")
     st.subheader("📌 1. Filtro de Notícias e Classificação")
 
+    # Notícias
     if service.tem_3estrelas:
         st.warning("🚨 **Notícia ⭐⭐⭐ detectada!**")
         if service.alerta_texto:
@@ -947,6 +961,7 @@ def render_bloco_1_filtro_classificacao(service: SetupService):
     else:
         st.success("✅ **Nenhuma notícia ⭐⭐⭐** para hoje. Mercado com menor risco de surpresa.")
 
+    # Explicação
     with st.expander("📖 O que é a Classificação Operacional?", expanded=False):
         st.markdown("""
         <div class="explicacao">
@@ -964,9 +979,11 @@ def render_bloco_1_filtro_classificacao(service: SetupService):
         </div>
         """, unsafe_allow_html=True)
 
+    # Métricas
     ind_mercado = service.ind_mercado_externo
     ind_adrs = service.ind_adrs
 
+    # Fallback
     if ind_mercado == 0.0 and ind_adrs == 0.0:
         resultado_op = service.dados.get("resultado_operacional", {})
         indicadores_op = resultado_op.get("indicadores_compostos", {})
@@ -1002,6 +1019,7 @@ def render_bloco_1_filtro_classificacao(service: SetupService):
         delta_color = "normal" if "COMPRA" in rotulo else "inverse" if "VENDA" in rotulo else "off"
         st.metric("🇧🇷 ADRs Brasileiras", f"{ind_adrs:+.2f}%", rotulo, delta_color=delta_color)
 
+    # Interpretação
     st.markdown("**Interpretação:**")
     def extrair_direcao(rotulo):
         if "COMPRA" in rotulo: return "COMPRA"
@@ -1027,6 +1045,7 @@ def render_bloco_1_filtro_classificacao(service: SetupService):
 
     st.caption(f"📌 Filtro aplicado: {'Notícia 3★ → ADRs' if service.tem_3estrelas else 'Sem notícia 3★ → Mercado Externo'}")
 
+# ---------- Bloco 2: Decisão do Setup e Gestão de Risco ----------
 def render_bloco_2_decisao_risco(service: SetupService):
     st.markdown("---")
     st.subheader("📌 2. Decisão do Setup e Gestão de Risco")
@@ -1074,6 +1093,7 @@ def render_bloco_2_decisao_risco(service: SetupService):
             for f in cw.fatores:
                 st.write(f"• {f}")
 
+# ---------- Bloco 3: Abertura Teórica e Escoras ----------
 def render_bloco_3_abertura_escoras(service: SetupService):
     st.markdown("---")
     st.subheader("📌 3. Abertura Teórica e Escoras (Pivots)")
@@ -1111,10 +1131,12 @@ def render_bloco_3_abertura_escoras(service: SetupService):
             f"ao S1: {da.preco_atual - e.s1:+.0f} pts"
         )
 
+# ---------- Bloco 4: Contexto Macro e Confluência ----------
 def render_bloco_4_contexto_confluencia(service: SetupService, dados: Dict):
     st.markdown("---")
     st.subheader("📌 4. Contexto Macro e Confluência")
 
+    # Sub-blocos: ADRs e Macro
     resumo = service.resumo_macro
     metricas = dados.get("metricas", {})
     ativos_brutos = dados.get("ativos", {})
@@ -1197,6 +1219,7 @@ def render_bloco_4_contexto_confluencia(service: SetupService, dados: Dict):
     with m5:
         st.metric("DI 2029", f"{di29:.2f}%" if di29 else "N/A")
 
+    # Confluência de tendência (bolinhas)
     st.markdown("**Confluência com Tendência (últimos 15min)**")
     arquivo_tendencias = ARQUIVOS["tendencias"]
 
@@ -1225,6 +1248,7 @@ def render_bloco_4_contexto_confluencia(service: SetupService, dados: Dict):
                                 delta=f"{tend.ultima_variacao:+.2f}%",
                                 delta_color=delta_color
                             )
+                    # Exibe a confluência
                     confluencia = service.confluencia_tendencia()
                     if confluencia["confluente"]:
                         st.success(f"✅ {confluencia['motivo']}")
@@ -1245,11 +1269,13 @@ def render_bloco_4_contexto_confluencia(service: SetupService, dados: Dict):
         else:
             st.warning(f"⚠️ {mensagem}")
 
+# ---------- Bloco 5: Análise IA – Pré-Abertura ----------
 def render_bloco_5_ia_pre_abertura(service: SetupService):
     st.markdown("---")
     st.subheader("📌 5. Análise IA – Pré-Abertura")
     st.caption("Previsão de direção, GAP, SMC e cenário para os primeiros minutos do pregão")
 
+    # Status SMC (regras + visão)
     smc_regras_ok = bool(service.analise_smc_regras) and not service.analise_smc_regras.get("erro")
     smc_visao_ok = bool(service.analise_smc)
     if smc_regras_ok and smc_visao_ok:
@@ -1335,6 +1361,7 @@ def render_bloco_5_ia_pre_abertura(service: SetupService):
             except Exception as e:
                 st.error(f"❌ Erro ao chamar IA: {e}")
 
+# ---------- Bloco 6: Checklist Final ----------
 def render_bloco_6_checklist():
     st.markdown("---")
     st.subheader("📌 6. Checklist Final")
@@ -1362,7 +1389,7 @@ def render_bloco_6_checklist():
         st.info("⏳ Complete o checklist")
 
 # ============================================================
-# RENDERIZAÇÃO DO SETUP AJUSTE B3
+# RENDERIZAÇÃO DO SETUP AJUSTE B3 (extraído do arquivo original)
 # ============================================================
 def render_ajuste_metricas(ativos):
     st.markdown("---")
@@ -1374,8 +1401,15 @@ def render_ajuste_metricas(ativos):
             return ativo.get("preco", ativo.get("valor", 0.0))
         return 0.0
 
+    # 🔥 NOVA FUNÇÃO: busca o last diretamente no Dados_MT5.json
     def obter_last_mt5(prefixo):
-        caminho = BASE_DIR / "Coletas" / "Dados_MT5.json"
+        """
+        Retorna o 'last' do primeiro contrato que começa com o prefixo (WIN ou WDO)
+        no arquivo Dados_MT5.json.
+        """
+        import json
+        from pathlib import Path
+        caminho = Path(__file__).resolve().parent.parent / "Coletas" / "Dados_MT5.json"
         if not caminho.exists():
             return None
         try:
@@ -1387,20 +1421,23 @@ def render_ajuste_metricas(ativos):
                     last = info.get("last")
                     if last is not None and last > 0:
                         return last
-        except (FileNotFoundError, json.JSONDecodeError, KeyError, OSError):
+        except:
             pass
         return None
 
+    # --- Dados do WIN ---
     win_ajuste = obter_preco("WIN_AJUSTE")
-    win_atual = obter_preco("WIN_FUT")
-    win_last = obter_last_mt5("WIN")
+    win_atual = obter_preco("WIN_FUT")      # Futuro (Close) – preço atual
+    win_last = obter_last_mt5("WIN")        # Last (Candle) – fechamento do pregão anterior via MT5
 
+    # --- Dados do WDO ---
     wdo_ajuste = obter_preco("WDO_AJUSTE")
     wdo_atual = obter_preco("WDO_FUT")
     wdo_last = obter_last_mt5("WDO")
 
     ptax = obter_preco("USD_PTAX")
 
+    # --- Cálculo das distâncias e spreads (mesmo de antes) ---
     def calcular_distancia(preco, ajuste):
         if not preco or not ajuste:
             return 0, 0
@@ -1414,6 +1451,7 @@ def render_ajuste_metricas(ativos):
     spread_win_last = win_ajuste - win_last if win_last and win_ajuste else None
     spread_wdo_last = wdo_ajuste - wdo_last if wdo_last and wdo_ajuste else None
 
+    # --- Exibição (cards) ---
     st.write("**📍 Mini Índice WIN**")
     col1, col2, col3, col4 = st.columns(4)
     with col1:
@@ -1467,6 +1505,7 @@ def render_ajuste_macro(ativos):
     vix = ativos.get("VIX", {})
     dxy = ativos.get("DXY", {})
     iron = ativos.get("IRON_ORE", {})
+    petr = ativos.get("PETR_ADR", {})
 
     m1, m2, m3, m4, m5, m6 = st.columns(6)
     with m1:
@@ -1482,10 +1521,12 @@ def render_ajuste_macro(ativos):
     with m6:
         st.metric("⛏️ Minério", f"${iron.get('preco', 0):,.2f}", f"{variacao(iron):+.2f}%")
 
+####
 def render_ajuste_tendencia(ativos, dados_tendencias):
     st.markdown("---")
     st.subheader("📈 3. Confluência com Tendência")
 
+    # --- Função para transformar padrão em bolinhas (igual à aba 09:00) ---
     def padrao_para_bola(padrao: str) -> str:
         mapa = {"Alta": "🟢", "Baixa": "🔴", "Estavel": "🟡"}
         partes = padrao.split("_E_")
@@ -1493,6 +1534,7 @@ def render_ajuste_tendencia(ativos, dados_tendencias):
             return f"⚪ {padrao}"
         return f"{mapa.get(partes[0], '⚪')} → {mapa.get(partes[1], '⚪')}"
 
+    # --- Função auxiliar para buscar preço (já existente) ---
     def obter_preco(nome):
         ativo = ativos.get(nome, {})
         if isinstance(ativo, dict):
@@ -1506,10 +1548,12 @@ def render_ajuste_tendencia(ativos, dados_tendencias):
         percentual = (pontos / ajuste) * 100 if ajuste != 0 else 0
         return pontos, percentual
 
+    # --- EXTRAÇÃO DE TENDÊNCIAS (MESMA LÓGICA DO SetupService) ---
     def extrair_tendencias():
         if not dados_tendencias:
             return {}
         tendencias = {}
+        # Mapeamento: nome padronizado -> label para exibição
         ativos_desejados = {
             "WIN_FUT": "WIN",
             "WDO_FUT": "WDO",
@@ -1518,6 +1562,7 @@ def render_ajuste_tendencia(ativos, dados_tendencias):
             "VIX": "VIX",
             "EWZ": "EWZ"
         }
+        # Possíveis tickers originais que podem aparecer no JSON
         ticker_map = {
             "WIN_FUT": ["WIN_FUT", "BMFBOVESPA:WIN1!"],
             "WDO_FUT": ["WDO_FUT", "BMFBOVESPA:WDO1!"],
@@ -1529,10 +1574,12 @@ def render_ajuste_tendencia(ativos, dados_tendencias):
 
         for ativo_padrao, label in ativos_desejados.items():
             info = None
+            # Tenta encontrar pelas chaves mapeadas
             for chave in ticker_map.get(ativo_padrao, [ativo_padrao]):
                 if chave in dados_tendencias:
                     info = dados_tendencias[chave]
                     break
+            # Se não encontrou, tenta buscar por qualquer chave que contenha o nome padronizado
             if not info:
                 for chave, valor in dados_tendencias.items():
                     if ativo_padrao in chave:
@@ -1548,6 +1595,7 @@ def render_ajuste_tendencia(ativos, dados_tendencias):
 
     tendencias = extrair_tendencias()
 
+    # --- Se não houver tendências, tenta gerar (fallback) ---
     if not tendencias:
         st.info("📊 Analise_Tendencias.json não encontrado ou sem dados.")
         sucesso, mensagem = garantir_tendencias()
@@ -1558,6 +1606,7 @@ def render_ajuste_tendencia(ativos, dados_tendencias):
             st.warning(f"⚠️ {mensagem}")
         return
 
+    # --- Exibe cards de tendência (igual à aba 09:00) ---
     cols = st.columns(min(4, len(tendencias)))
     for i, (label, tend) in enumerate(tendencias.items()):
         with cols[i % len(cols)]:
@@ -1570,6 +1619,7 @@ def render_ajuste_tendencia(ativos, dados_tendencias):
                 delta_color=delta_color
             )
 
+    # --- Diagnóstico de confluência (igual à aba 09:00) ---
     win_ajuste = obter_preco("WIN_AJUSTE")
     win_atual = obter_preco("WIN_FUT")
     dist_win_pts, _ = calcular_distancia(win_atual, win_ajuste) if win_ajuste and win_atual else (0, 0)
@@ -1586,7 +1636,7 @@ def render_ajuste_tendencia(ativos, dados_tendencias):
             st.info("ℹ️ WIN próximo do ajuste - Aguardar definição")
     else:
         st.info("ℹ️ Dados insuficientes para diagnóstico de confluência.")
-
+####
 def render_ajuste_score_win(ativos, dados_tendencias):
     st.markdown("---")
     st.subheader("📊 4. Score Quantitativo WIN")
@@ -1923,11 +1973,13 @@ def main():
     )
     st.markdown(CSS_CUSTOM, unsafe_allow_html=True)
 
+    # Sidebar comum
     render_sidebar_09h()
 
     st.title("🎯 Setup Abertura")
     st.caption("Unificado: Ajuste B3 | Abertura 09:00")
 
+    # Carregamento de dados compartilhado
     @st.cache_data(ttl=60, show_spinner=False)
     def carregar_dados_unificados():
         dados = {}
@@ -1937,11 +1989,13 @@ def main():
 
     dados = carregar_dados_unificados()
 
+    # Dados para o ajuste
     ativos_data = dados.get("ativos", {})
     ativos = ativos_data.get("ativos", ativos_data)
     dados_tendencias = dados.get("tendencias", {})
     fonte_dados = "DadosAtivosUnificados.json" if ativos else "N/A"
 
+    # Dados para o 09h
     dados_09h = {
         "noticias_0900": dados.get("noticias_0900", {}),
         "metricas": dados.get("metricas", {}),
@@ -1955,10 +2009,11 @@ def main():
     }
     service = SetupService(dados_09h)
 
+    # Abas
     tab_ajuste, tab_09h = st.tabs(["🎯 Ajuste B3", "🎯 Abertura 09:00"])
 
     # ------------------------------------------------------------
-    # ABA 1: AJUSTE B3
+    # ABA 1: AJUSTE B3 (mantido igual)
     # ------------------------------------------------------------
     with tab_ajuste:
         if not ativos:
@@ -2042,7 +2097,7 @@ def main():
             st.caption("Setup Ajuste B3 - módulo quantitativo")
 
     # ------------------------------------------------------------
-    # ABA 2: ABERTURA 09:00
+    # ABA 2: ABERTURA 09:00 (REORGANIZADA)
     # ------------------------------------------------------------
     with tab_09h:
         st.header("Setup Abertura 09:00 – 09:15")
@@ -2056,6 +2111,7 @@ def main():
             else:
                 st.warning(f"⏰ Fora da janela • {datetime.now().strftime('%H:%M:%S')}")
 
+            # Nova ordem numerada
             render_bloco_1_filtro_classificacao(service)
             render_bloco_2_decisao_risco(service)
             render_bloco_3_abertura_escoras(service)
@@ -2070,3 +2126,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

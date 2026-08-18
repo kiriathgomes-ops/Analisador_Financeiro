@@ -1,20 +1,20 @@
 {
   "metadata": {
     "fonte": "TradingView API",
-    "timestamp": "2026-08-17T00:04:06.233024",
-    "data_referencia": "2026-08-17",
+    "timestamp": "2026-08-18T06:44:09.056326",
+    "data_referencia": "2026-08-18",
     "filtros": "Brasil e EUA (2 e 3 Estrelas)"
   },
   "calendario_eventos": {
-    "quantidade_eventos": 4,
+    "quantidade_eventos": 12,
     "eventos": [
       {
-        "hora": "08:30",
-        "pais": "Brazil",
-        "moeda": "BRL",
-        "evento": "BCB Focus Market Readout",
+        "hora": "09:15",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "ADP Employment Change Weekly",
         "importancia": 2,
-        "anterior": "",
+        "anterior": "8.25",
         "previsao": "",
         "atual": ""
       },
@@ -22,29 +22,109 @@
         "hora": "09:30",
         "pais": "United States",
         "moeda": "USD",
-        "evento": "NY Empire State Manufacturing Index",
+        "evento": "Housing Starts MoM",
         "importancia": 2,
-        "anterior": "15.6",
-        "previsao": "10.2",
+        "anterior": "19",
+        "previsao": "",
+        "atual": ""
+      },
+      {
+        "hora": "09:30",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "Housing Starts",
+        "importancia": 3,
+        "anterior": "1.427",
+        "previsao": "1.35",
+        "atual": ""
+      },
+      {
+        "hora": "09:30",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "Import Prices MoM",
+        "importancia": 2,
+        "anterior": "0.3",
+        "previsao": "0.1",
+        "atual": ""
+      },
+      {
+        "hora": "09:30",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "Building Permits Prel",
+        "importancia": 3,
+        "anterior": "1.374",
+        "previsao": "1.37",
+        "atual": ""
+      },
+      {
+        "hora": "09:30",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "Building Permits MoM Prel",
+        "importancia": 2,
+        "anterior": "-2.6",
+        "previsao": "",
+        "atual": ""
+      },
+      {
+        "hora": "09:30",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "Export Prices MoM",
+        "importancia": 2,
+        "anterior": "-0.6",
+        "previsao": "0.2",
+        "atual": ""
+      },
+      {
+        "hora": "10:15",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "Industrial Production MoM",
+        "importancia": 2,
+        "anterior": "0.1",
+        "previsao": "0.3",
+        "atual": ""
+      },
+      {
+        "hora": "10:15",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "Industrial Production YoY",
+        "importancia": 2,
+        "anterior": "1.1",
+        "previsao": "",
         "atual": ""
       },
       {
         "hora": "11:00",
         "pais": "United States",
         "moeda": "USD",
-        "evento": "NAHB Housing Market Index",
+        "evento": "Pending Home Sales MoM",
         "importancia": 2,
-        "anterior": "34",
-        "previsao": "33",
+        "anterior": "-5.4",
+        "previsao": "0.2",
         "atual": ""
       },
       {
-        "hora": "17:00",
+        "hora": "11:00",
         "pais": "United States",
         "moeda": "USD",
-        "evento": "Net Long-term TIC Flows",
+        "evento": "Pending Home Sales YoY",
         "importancia": 2,
-        "anterior": "232.7",
+        "anterior": "-0.3",
+        "previsao": "",
+        "atual": ""
+      },
+      {
+        "hora": "17:30",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "API Crude Oil Stock Change",
+        "importancia": 2,
+        "anterior": "9.072",
         "previsao": "",
         "atual": ""
       }

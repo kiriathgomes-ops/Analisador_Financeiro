@@ -1,8 +1,6 @@
 # ================================================================
-# COLETOR MT5 v2.2
+# COLETOR MT5 v2.2 (Corrigido)
 # Mercado B3 - WINFUT / WDO / DI1
-#
-# NÃO ALTERA OS COLETORES ANTERIORES
 # ================================================================
 
 import MetaTrader5 as mt5
@@ -96,29 +94,8 @@ def agora():
 def obter_contratos(prefixo):
 
     """
-    Procura somente contratos reais do ativo.
-
-    Exemplos aceitos:
-
-        WINV26
-        WINZ26
-
-        WDOU26
-        WDOV26
-
-        DI1V26
-        DI1F27
-
-    Símbolos sintéticos como:
-
-        WIN$
-        WIN$D
-        WIN$N
-        WIN@
-        WIN@D
-        WIN@N
-
-    são ignorados.
+    Procura somente contratos reais do ativo no formato padrão B3.
+    Ignora símbolos sintéticos e opções.
     """
 
     simbolos = mt5.symbols_get()
@@ -132,96 +109,49 @@ def obter_contratos(prefixo):
 
         nome = s.name
 
-        # --------------------------------------------------------
         # Prefixo
-        # --------------------------------------------------------
-
         if not nome.startswith(prefixo):
             continue
 
-        # --------------------------------------------------------
-        # Ignora símbolos sintéticos
-        # --------------------------------------------------------
-
-        if "$" in nome:
+        # Ignora símbolos sintéticos ($ / @)
+        if "$" in nome or "@" in nome:
             continue
 
-        if "@" in nome:
-            continue
-
-        # --------------------------------------------------------
         # Ignora opções
-        # --------------------------------------------------------
-
-        if "C" in nome[len(prefixo):]:
+        if "C" in nome[len(prefixo):] or "P" in nome[len(prefixo):]:
             continue
 
-        if "P" in nome[len(prefixo):]:
-            continue
-
-        # --------------------------------------------------------
         # Informações
-        # --------------------------------------------------------
-
         info = {
             "nome": nome,
             "simbolo": s
         }
 
-        # --------------------------------------------------------
         # Data de vencimento
-        # --------------------------------------------------------
-
-        data_expiracao = getattr(
-            s,
-            "expiration_time",
-            0
-        )
+        data_expiracao = getattr(s, "expiration_time", 0)
 
         if data_expiracao:
-
             try:
-
-                data_expiracao = datetime.fromtimestamp(
-                    data_expiracao
-                )
-
+                data_expiracao = datetime.fromtimestamp(data_expiracao)
             except Exception:
-
                 data_expiracao = None
-
         else:
-
             data_expiracao = None
 
         info["expiracao"] = data_expiracao
 
-        # --------------------------------------------------------
-        # Tick
-        # --------------------------------------------------------
+        # Garantir visibilidade do símbolo no Market Watch
+        mt5.symbol_select(nome, True)
 
+        # Tick
         tick = mt5.symbol_info_tick(nome)
 
         if tick:
-
-            info["volume"] = float(
-                getattr(tick, "volume", 0) or 0
-            )
-
-            info["bid"] = float(
-                getattr(tick, "bid", 0) or 0
-            )
-
-            info["ask"] = float(
-                getattr(tick, "ask", 0) or 0
-            )
-
-            info["last"] = float(
-                getattr(tick, "last", 0) or 0
-            )
-
+            info["volume"] = float(getattr(tick, "volume", 0) or 0)
+            info["bid"] = float(getattr(tick, "bid", 0) or 0)
+            info["ask"] = float(getattr(tick, "ask", 0) or 0)
+            info["last"] = float(getattr(tick, "last", 0) or 0)
         else:
-
             info["volume"] = 0.0
             info["bid"] = 0.0
             info["ask"] = 0.0
@@ -248,55 +178,31 @@ def selecionar_contrato(prefixo):
 
         expiracao = c["expiracao"]
 
-        # --------------------------------------------------------
-        # Sem data de vencimento
-        # --------------------------------------------------------
-
+        # Sem data de vencimento -> Ignora
         if expiracao is None:
             continue
 
-        # --------------------------------------------------------
-        # Contrato vencido
-        # --------------------------------------------------------
-
+        # Contrato vencido -> Ignora
         if expiracao <= agora_dt:
-            continue
-
-        # --------------------------------------------------------
-        # Não considerar contratos sem mercado
-        # --------------------------------------------------------
-
-        if (
-            c["bid"] <= 0
-            and c["ask"] <= 0
-            and c["last"] <= 0
-        ):
             continue
 
         validos.append(c)
 
+    if not validos:
+        return None, []
+
     # ------------------------------------------------------------
-    # Ordenação
-    #
-    # Primeiro:
-    #   contrato vigente
-    #
-    # Depois:
-    #   maior volume
-    #
+    # ORDENAÇÃO CORRIGIDA:
+    # 1º Critério: Expiração mais próxima (Vencimento Atual Vigente)
+    # 2º Critério: Maior volume (Desempate caso vençam no mesmo dia)
     # ------------------------------------------------------------
 
     validos.sort(
         key=lambda x: (
-            x["volume"],
-            -x["expiracao"].timestamp()
-        ),
-        reverse=True
+            x["expiracao"].timestamp(),
+            -x["volume"]
+        )
     )
-
-    if not validos:
-
-        return None, []
 
     principal = validos[0]
 
@@ -316,11 +222,7 @@ def obter_preco_teorico(nome):
 
     try:
 
-        valor = getattr(
-            info,
-            "price_theoretical",
-            None
-        )
+        valor = getattr(info, "price_theoretical", None)
 
         if valor is None:
             return None
@@ -352,67 +254,32 @@ def obter_book(nome):
 
     try:
 
-        # --------------------------------------------------------
-        # Assina Market Book
-        # --------------------------------------------------------
-
         if not mt5.market_book_add(nome):
-
             return resultado
-
-        # --------------------------------------------------------
-        # Obtém Book
-        # --------------------------------------------------------
 
         book = mt5.market_book_get(nome)
 
         if not book:
-
             mt5.market_book_release(nome)
-
             return resultado
 
         resultado["disponivel"] = True
 
         for nivel in book:
 
-            tipo = getattr(
-                nivel,
-                "type",
-                None
-            )
-
-            preco = float(
-                getattr(
-                    nivel,
-                    "price",
-                    0
-                ) or 0
-            )
-
-            volume = float(
-                getattr(
-                    nivel,
-                    "volume",
-                    0
-                ) or 0
-            )
+            tipo = getattr(nivel, "type", None)
+            preco = float(getattr(nivel, "price", 0) or 0)
+            volume = float(getattr(nivel, "volume", 0) or 0)
 
             item = {
                 "preco": preco,
                 "volume": volume
             }
 
-            # ----------------------------------------------------
-            # Tipos do Market Book
-            # ----------------------------------------------------
-
             if tipo == mt5.BOOK_TYPE_BUY:
-
                 resultado["bids"].append(item)
 
             elif tipo == mt5.BOOK_TYPE_SELL:
-
                 resultado["asks"].append(item)
 
         resultado["quantidade_niveis"] = len(book)
@@ -452,10 +319,6 @@ def coletar_ativo(nome_ativo, configuracao):
 
     nome = principal["nome"]
 
-    # ------------------------------------------------------------
-    # Garantir símbolo selecionado
-    # ------------------------------------------------------------
-
     mt5.symbol_select(nome, True)
 
     tick = mt5.symbol_info_tick(nome)
@@ -473,48 +336,24 @@ def coletar_ativo(nome_ativo, configuracao):
             "contrato": nome
         }
 
-    # ------------------------------------------------------------
     # Preços
-    # ------------------------------------------------------------
-
-    bid = float(
-        getattr(tick, "bid", 0) or 0
-    )
-
-    ask = float(
-        getattr(tick, "ask", 0) or 0
-    )
-
-    last = float(
-        getattr(tick, "last", 0) or 0
-    )
-
-    volume = float(
-        getattr(tick, "volume", 0) or 0
-    )
+    bid = float(getattr(tick, "bid", 0) or 0)
+    ask = float(getattr(tick, "ask", 0) or 0)
+    last = float(getattr(tick, "last", 0) or 0)
+    volume = float(getattr(tick, "volume", 0) or 0)
 
     spread = None
 
     if bid > 0 and ask > 0:
-
         spread = ask - bid
 
-    # ------------------------------------------------------------
     # Preço teórico
-    # ------------------------------------------------------------
-
     teorico = obter_preco_teorico(nome)
 
-    # ------------------------------------------------------------
     # Book
-    # ------------------------------------------------------------
-
     book = obter_book(nome)
 
-    # ------------------------------------------------------------
     # Contratos vigentes
-    # ------------------------------------------------------------
-
     contratos_saida = []
 
     for c in contratos:
@@ -532,10 +371,7 @@ def coletar_ativo(nome_ativo, configuracao):
             "last": c["last"]
         })
 
-    # ------------------------------------------------------------
     # Resultado
-    # ------------------------------------------------------------
-
     dados = {
 
         "ativo": nome_ativo,
@@ -571,22 +407,20 @@ def coletar_ativo(nome_ativo, configuracao):
         "status": "OK"
     }
 
-    # ------------------------------------------------------------
-    # Console
-    # ------------------------------------------------------------
-
+    # Console Output
     print()
     print(f"📌 {nome_ativo}")
-    print(f"   Contrato principal: {nome}")
+    print(f"   Contrato principal selecionado: {nome} (Vencimento: {principal['expiracao'].strftime('%Y-%m-%d')})")
 
     print()
-    print("   Contratos vigentes:")
+    print("   Contratos vigentes encontrados:")
 
     for c in contratos_saida:
 
         print(
             f"      • {c['contrato']} | "
-            f"Volume: {c['volume']}"
+            f"Volume: {c['volume']} | "
+            f"Vencimento: {c['expiracao'][:10] if c['expiracao'] else 'N/A'}"
         )
 
     print()
@@ -597,35 +431,14 @@ def coletar_ativo(nome_ativo, configuracao):
     print(f"   Spread: {spread}")
 
     if teorico is not None:
-
-        print(
-            f"   Preço teórico: {teorico}"
-        )
-
+        print(f"   Preço teórico: {teorico}")
     else:
-
-        print(
-            "   Preço teórico: "
-            "⚠️ indisponível"
-        )
-
-    # ------------------------------------------------------------
-    # Book
-    # ------------------------------------------------------------
+        print("   Preço teórico: ⚠️ indisponível")
 
     if book["disponivel"]:
-
-        print(
-            "   Market Book: "
-            f"✅ {book['quantidade_niveis']} níveis"
-        )
-
+        print(f"   Market Book: ✅ {book['quantidade_niveis']} níveis")
     else:
-
-        print(
-            "   Market Book: "
-            "⚠️ indisponível/vazio"
-        )
+        print("   Market Book: ⚠️ indisponível/vazio")
 
     return dados
 
@@ -636,10 +449,7 @@ def coletar_ativo(nome_ativo, configuracao):
 
 def salvar_json(dados):
 
-    # ------------------------------------------------------------
     # Arquivo atual
-    # ------------------------------------------------------------
-
     with open(
         ARQUIVO_ATUAL,
         "w",
@@ -653,10 +463,7 @@ def salvar_json(dados):
             indent=4
         )
 
-    # ------------------------------------------------------------
     # Histórico
-    # ------------------------------------------------------------
-
     agora_dt = datetime.now()
 
     nome_historico = (
@@ -686,15 +493,11 @@ def salvar_json(dados):
 
 
 # ================================================================
-# FUNÇÃO PARA INTEGRAÇÃO COM O PIPELINE (Coletor.py)
+# INTEGRAÇÃO COM O PIPELINE
 # ================================================================
 
 def executar_coleta_mt5_v2():
-    """
-    Função principal para ser chamada pelo Coletor.py / pipeline.
-    Retorna o dicionário completo dos dados coletados ou None em caso de falha.
-    Também grava Dados_MT5_v2_2.json e o histórico.
-    """
+
     if not conectar_mt5():
         return None
 
@@ -752,19 +555,12 @@ def executar_coleta_mt5_v2():
 
 
 # ================================================================
-# MAIN (execução direta)
+# EXECUÇÃO
 # ================================================================
 
 def main():
     executar_coleta_mt5_v2()
 
 
-# ================================================================
-# EXECUÇÃO
-# ================================================================
-
 if __name__ == "__main__":
     main()
-
-
-

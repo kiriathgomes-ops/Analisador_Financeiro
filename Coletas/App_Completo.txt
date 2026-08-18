@@ -5,10 +5,10 @@
 # GERADO AUTOMATICAMENTE
 #
 # Data geração:
-# 2026-08-18 05:19:49
+# 2026-08-18 08:22:24
 #
 # Arquivos unificados:
-# 100
+# 109
 #
 # NÃO EDITAR MANUALMENTE
 # ============================================================
@@ -342,6 +342,112 @@ if __name__ == "__main__":
     print("Arquivo gerado:")
     print(ARQUIVO_SAIDA)
     print("=" * 60)
+
+
+
+# ============================================================
+# ARQUIVO:
+# Arbitragem Pré-Market vs. Leilão B3.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-18 05:52:29
+# ============================================================
+
+
+
+import os
+import requests
+import MetaTrader5 as mt5
+import pandas as pd
+from dotenv import load_dotenv
+
+load_dotenv()
+FINNHUB_KEY = os.getenv('FINNHUB_API_KEY')
+
+# Mapeamento: Ticker B3 -> Ticker ADR em NY
+MAPEAMENTO_ADR = {
+    'VALE3': 'VALE',
+    'PETR4': 'PBR-A',
+    'PETR3': 'PBR',
+    'ITUB4': 'ITUB',
+    'BBDC4': 'BBD'
+}
+
+def obter_variacao_adr_ny(ticker_adr):
+    """Coleta o preço do pré-market/fechamento da ADR no Finnhub."""
+    url = f"https://finnhub.io/api/v1/quote?symbol={ticker_adr}&token={FINNHUB_KEY}"
+    try:
+        res = requests.get(url, timeout=5).json()
+        if 'c' in res and 'pc' in res and res['pc'] > 0:
+            var_pct = res['dp'] # Variação percentual (%)
+            return var_pct
+    except Exception as e:
+        print(f"Erro Finnhub ({ticker_adr}): {e}")
+    return None
+
+def obter_preco_leilao_b3(ticker_b3):
+    """Coleta o preço indicativo do leilão no MT5."""
+    tick = mt5.symbol_info_tick(ticker_b3)
+    symbol_info = mt5.symbol_info(ticker_b3)
+    
+    if tick is None or symbol_info is None:
+        return None, None
+    
+    # O preço do leilão no MT5 costuma ser indicado no tick 'last' 
+    # e o fechamento do dia anterior em 'session_close'
+    preco_leilao = tick.last
+    preco_fechamento_anterior = symbol_info.session_close
+    
+    if preco_fechamento_anterior > 0:
+        var_leilao_pct = ((preco_leilao / preco_fechamento_anterior) - 1) * 100
+        return preco_leilao, round(var_leilao_pct, 2)
+    
+    return preco_leilao, 0.0
+
+def analisar_descasamento_leilao(limiar_spread=0.8):
+    """
+    Compara as variações das ADRs vs Leilão B3.
+    limiar_spread: Diferença mínima em % para considerar oportunidade.
+    """
+    if not mt5.initialize():
+        print("Falha ao inicializar MetaTrader 5")
+        return
+    
+    relatorio = []
+
+    for ticker_b3, ticker_adr in MAPEAMENTO_ADR.items():
+        var_adr = obter_variacao_adr_ny(ticker_adr)
+        preco_leilao, var_b3 = obter_preco_leilao_b3(ticker_b3)
+        
+        if var_adr is not None and var_b3 is not None:
+            # Spread = Variação em NY - Variação Indicativa na B3
+            spread = var_adr - var_b3
+            
+            sinal = "NEUTRO"
+            if spread >= limiar_spread:
+                sinal = "COMPRA B3 (Ação atrasada em relação à ADR)"
+            elif spread <= -limiar_spread:
+                sinal = "VENDA B3 (Ação esticada em relação à ADR)"
+                
+            relatorio.append({
+                'Acao_B3': ticker_b3,
+                'Preco_Leilao': preco_leilao,
+                'Var_B3_%': var_b3,
+                'ADR_NY': ticker_adr,
+                'Var_ADR_%': var_adr,
+                'Spread_%': round(spread, 2),
+                'Sinal': sinal
+            })
+
+    mt5.shutdown()
+    
+    df = pd.DataFrame(relatorio)
+    return df
+
+# Exemplo de execução (ideal rodar entre 09:50 e 09:59)
+if __name__ == "__main__":
+    df_resultado = analisar_descasamento_leilao(limiar_spread=0.5)
+    print(df_resultado.to_string(index=False))
 
 
 
@@ -1721,6 +1827,79 @@ if __name__ == "__main__":
 
 # ============================================================
 # ARQUIVO:
+# ColetorFinnHub.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-18 05:48:48
+# ============================================================
+
+
+
+import os
+import requests
+import pandas as pd
+from dotenv import load_dotenv
+
+# Carrega as variáveis declaradas no arquivo .env para o ambiente
+load_dotenv()
+
+# Obtém a API Key da variável de ambiente
+API_KEY = os.getenv('FINNHUB_API_KEY')
+
+# Validação básica de segurança
+if not API_KEY:
+    raise ValueError("A chave 'FINNHUB_API_KEY' não foi encontrada no arquivo .env!")
+
+# Lista das principais ADRs brasileiras
+#ADRS_BRASIL = ['VALE', 'PBR', 'ITUB', 'BBD', 'ABEV', 'EBR', 'GGB', 'SUZ']
+# Tickers das ADRs/ETFs do seu sistema para usar na API Finnhub
+ADRS_BRASIL = [
+    'EWZ',   # ETF Principal Brasil
+    'VALE',  # Vale
+    'PBR',   # Petrobras ON
+    'ITUB',  # Itaú Unibanco
+    'BBD',   # Bradesco PN
+    'SPY',   # S&P 500 ETF
+    'QQQ',   # Nasdaq 100 ETF
+]
+
+
+
+def obter_cotacao_adr(ticker):
+    url = f"https://finnhub.io/api/v1/quote?symbol={ticker}&token={API_KEY}"
+    try:
+        response = requests.get(url, timeout=10)
+        data = response.json()
+        
+        if 'c' in data and data['c'] != 0:
+            return {
+                'Ticker': ticker,
+                'Preco': data['c'],
+                'Variacao_%': round(data['dp'], 2),
+                'Variacao_$': round(data['d'], 2),
+                'Abertura': data['o'],
+                'Maxima': data['h'],
+                'Minima': data['l'],
+                'Fechamento_Anterior': data['pc']
+            }
+    except Exception as e:
+        print(f"Erro ao coletar {ticker}: {e}")
+    return None
+
+# Loop de coleta
+resultados = []
+for adr in ADRS_BRASIL:
+    info = obter_cotacao_adr(adr)
+    if info:
+        resultados.append(info)
+
+df_adrs = pd.DataFrame(resultados)
+print(df_adrs)
+
+
+
+# ============================================================
+# ARQUIVO:
 # Coletor_MT5.py
 #
 # ÚLTIMA ALTERAÇÃO:
@@ -1977,16 +2156,14 @@ if __name__ == "__main__":
 # Coletor_MT5_v2_2.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-16 21:26:24
+# 2026-08-18 06:57:41
 # ============================================================
 
 
 
 # ================================================================
-# COLETOR MT5 v2.2
+# COLETOR MT5 v2.2 (Corrigido)
 # Mercado B3 - WINFUT / WDO / DI1
-#
-# NÃO ALTERA OS COLETORES ANTERIORES
 # ================================================================
 
 import MetaTrader5 as mt5
@@ -2080,29 +2257,8 @@ def agora():
 def obter_contratos(prefixo):
 
     """
-    Procura somente contratos reais do ativo.
-
-    Exemplos aceitos:
-
-        WINV26
-        WINZ26
-
-        WDOU26
-        WDOV26
-
-        DI1V26
-        DI1F27
-
-    Símbolos sintéticos como:
-
-        WIN$
-        WIN$D
-        WIN$N
-        WIN@
-        WIN@D
-        WIN@N
-
-    são ignorados.
+    Procura somente contratos reais do ativo no formato padrão B3.
+    Ignora símbolos sintéticos e opções.
     """
 
     simbolos = mt5.symbols_get()
@@ -2116,96 +2272,49 @@ def obter_contratos(prefixo):
 
         nome = s.name
 
-        # --------------------------------------------------------
         # Prefixo
-        # --------------------------------------------------------
-
         if not nome.startswith(prefixo):
             continue
 
-        # --------------------------------------------------------
-        # Ignora símbolos sintéticos
-        # --------------------------------------------------------
-
-        if "$" in nome:
+        # Ignora símbolos sintéticos ($ / @)
+        if "$" in nome or "@" in nome:
             continue
 
-        if "@" in nome:
-            continue
-
-        # --------------------------------------------------------
         # Ignora opções
-        # --------------------------------------------------------
-
-        if "C" in nome[len(prefixo):]:
+        if "C" in nome[len(prefixo):] or "P" in nome[len(prefixo):]:
             continue
 
-        if "P" in nome[len(prefixo):]:
-            continue
-
-        # --------------------------------------------------------
         # Informações
-        # --------------------------------------------------------
-
         info = {
             "nome": nome,
             "simbolo": s
         }
 
-        # --------------------------------------------------------
         # Data de vencimento
-        # --------------------------------------------------------
-
-        data_expiracao = getattr(
-            s,
-            "expiration_time",
-            0
-        )
+        data_expiracao = getattr(s, "expiration_time", 0)
 
         if data_expiracao:
-
             try:
-
-                data_expiracao = datetime.fromtimestamp(
-                    data_expiracao
-                )
-
+                data_expiracao = datetime.fromtimestamp(data_expiracao)
             except Exception:
-
                 data_expiracao = None
-
         else:
-
             data_expiracao = None
 
         info["expiracao"] = data_expiracao
 
-        # --------------------------------------------------------
-        # Tick
-        # --------------------------------------------------------
+        # Garantir visibilidade do símbolo no Market Watch
+        mt5.symbol_select(nome, True)
 
+        # Tick
         tick = mt5.symbol_info_tick(nome)
 
         if tick:
-
-            info["volume"] = float(
-                getattr(tick, "volume", 0) or 0
-            )
-
-            info["bid"] = float(
-                getattr(tick, "bid", 0) or 0
-            )
-
-            info["ask"] = float(
-                getattr(tick, "ask", 0) or 0
-            )
-
-            info["last"] = float(
-                getattr(tick, "last", 0) or 0
-            )
-
+            info["volume"] = float(getattr(tick, "volume", 0) or 0)
+            info["bid"] = float(getattr(tick, "bid", 0) or 0)
+            info["ask"] = float(getattr(tick, "ask", 0) or 0)
+            info["last"] = float(getattr(tick, "last", 0) or 0)
         else:
-
             info["volume"] = 0.0
             info["bid"] = 0.0
             info["ask"] = 0.0
@@ -2232,55 +2341,31 @@ def selecionar_contrato(prefixo):
 
         expiracao = c["expiracao"]
 
-        # --------------------------------------------------------
-        # Sem data de vencimento
-        # --------------------------------------------------------
-
+        # Sem data de vencimento -> Ignora
         if expiracao is None:
             continue
 
-        # --------------------------------------------------------
-        # Contrato vencido
-        # --------------------------------------------------------
-
+        # Contrato vencido -> Ignora
         if expiracao <= agora_dt:
-            continue
-
-        # --------------------------------------------------------
-        # Não considerar contratos sem mercado
-        # --------------------------------------------------------
-
-        if (
-            c["bid"] <= 0
-            and c["ask"] <= 0
-            and c["last"] <= 0
-        ):
             continue
 
         validos.append(c)
 
+    if not validos:
+        return None, []
+
     # ------------------------------------------------------------
-    # Ordenação
-    #
-    # Primeiro:
-    #   contrato vigente
-    #
-    # Depois:
-    #   maior volume
-    #
+    # ORDENAÇÃO CORRIGIDA:
+    # 1º Critério: Expiração mais próxima (Vencimento Atual Vigente)
+    # 2º Critério: Maior volume (Desempate caso vençam no mesmo dia)
     # ------------------------------------------------------------
 
     validos.sort(
         key=lambda x: (
-            x["volume"],
-            -x["expiracao"].timestamp()
-        ),
-        reverse=True
+            x["expiracao"].timestamp(),
+            -x["volume"]
+        )
     )
-
-    if not validos:
-
-        return None, []
 
     principal = validos[0]
 
@@ -2300,11 +2385,7 @@ def obter_preco_teorico(nome):
 
     try:
 
-        valor = getattr(
-            info,
-            "price_theoretical",
-            None
-        )
+        valor = getattr(info, "price_theoretical", None)
 
         if valor is None:
             return None
@@ -2336,67 +2417,32 @@ def obter_book(nome):
 
     try:
 
-        # --------------------------------------------------------
-        # Assina Market Book
-        # --------------------------------------------------------
-
         if not mt5.market_book_add(nome):
-
             return resultado
-
-        # --------------------------------------------------------
-        # Obtém Book
-        # --------------------------------------------------------
 
         book = mt5.market_book_get(nome)
 
         if not book:
-
             mt5.market_book_release(nome)
-
             return resultado
 
         resultado["disponivel"] = True
 
         for nivel in book:
 
-            tipo = getattr(
-                nivel,
-                "type",
-                None
-            )
-
-            preco = float(
-                getattr(
-                    nivel,
-                    "price",
-                    0
-                ) or 0
-            )
-
-            volume = float(
-                getattr(
-                    nivel,
-                    "volume",
-                    0
-                ) or 0
-            )
+            tipo = getattr(nivel, "type", None)
+            preco = float(getattr(nivel, "price", 0) or 0)
+            volume = float(getattr(nivel, "volume", 0) or 0)
 
             item = {
                 "preco": preco,
                 "volume": volume
             }
 
-            # ----------------------------------------------------
-            # Tipos do Market Book
-            # ----------------------------------------------------
-
             if tipo == mt5.BOOK_TYPE_BUY:
-
                 resultado["bids"].append(item)
 
             elif tipo == mt5.BOOK_TYPE_SELL:
-
                 resultado["asks"].append(item)
 
         resultado["quantidade_niveis"] = len(book)
@@ -2436,10 +2482,6 @@ def coletar_ativo(nome_ativo, configuracao):
 
     nome = principal["nome"]
 
-    # ------------------------------------------------------------
-    # Garantir símbolo selecionado
-    # ------------------------------------------------------------
-
     mt5.symbol_select(nome, True)
 
     tick = mt5.symbol_info_tick(nome)
@@ -2457,48 +2499,24 @@ def coletar_ativo(nome_ativo, configuracao):
             "contrato": nome
         }
 
-    # ------------------------------------------------------------
     # Preços
-    # ------------------------------------------------------------
-
-    bid = float(
-        getattr(tick, "bid", 0) or 0
-    )
-
-    ask = float(
-        getattr(tick, "ask", 0) or 0
-    )
-
-    last = float(
-        getattr(tick, "last", 0) or 0
-    )
-
-    volume = float(
-        getattr(tick, "volume", 0) or 0
-    )
+    bid = float(getattr(tick, "bid", 0) or 0)
+    ask = float(getattr(tick, "ask", 0) or 0)
+    last = float(getattr(tick, "last", 0) or 0)
+    volume = float(getattr(tick, "volume", 0) or 0)
 
     spread = None
 
     if bid > 0 and ask > 0:
-
         spread = ask - bid
 
-    # ------------------------------------------------------------
     # Preço teórico
-    # ------------------------------------------------------------
-
     teorico = obter_preco_teorico(nome)
 
-    # ------------------------------------------------------------
     # Book
-    # ------------------------------------------------------------
-
     book = obter_book(nome)
 
-    # ------------------------------------------------------------
     # Contratos vigentes
-    # ------------------------------------------------------------
-
     contratos_saida = []
 
     for c in contratos:
@@ -2516,10 +2534,7 @@ def coletar_ativo(nome_ativo, configuracao):
             "last": c["last"]
         })
 
-    # ------------------------------------------------------------
     # Resultado
-    # ------------------------------------------------------------
-
     dados = {
 
         "ativo": nome_ativo,
@@ -2555,22 +2570,20 @@ def coletar_ativo(nome_ativo, configuracao):
         "status": "OK"
     }
 
-    # ------------------------------------------------------------
-    # Console
-    # ------------------------------------------------------------
-
+    # Console Output
     print()
     print(f"📌 {nome_ativo}")
-    print(f"   Contrato principal: {nome}")
+    print(f"   Contrato principal selecionado: {nome} (Vencimento: {principal['expiracao'].strftime('%Y-%m-%d')})")
 
     print()
-    print("   Contratos vigentes:")
+    print("   Contratos vigentes encontrados:")
 
     for c in contratos_saida:
 
         print(
             f"      • {c['contrato']} | "
-            f"Volume: {c['volume']}"
+            f"Volume: {c['volume']} | "
+            f"Vencimento: {c['expiracao'][:10] if c['expiracao'] else 'N/A'}"
         )
 
     print()
@@ -2581,35 +2594,14 @@ def coletar_ativo(nome_ativo, configuracao):
     print(f"   Spread: {spread}")
 
     if teorico is not None:
-
-        print(
-            f"   Preço teórico: {teorico}"
-        )
-
+        print(f"   Preço teórico: {teorico}")
     else:
-
-        print(
-            "   Preço teórico: "
-            "⚠️ indisponível"
-        )
-
-    # ------------------------------------------------------------
-    # Book
-    # ------------------------------------------------------------
+        print("   Preço teórico: ⚠️ indisponível")
 
     if book["disponivel"]:
-
-        print(
-            "   Market Book: "
-            f"✅ {book['quantidade_niveis']} níveis"
-        )
-
+        print(f"   Market Book: ✅ {book['quantidade_niveis']} níveis")
     else:
-
-        print(
-            "   Market Book: "
-            "⚠️ indisponível/vazio"
-        )
+        print("   Market Book: ⚠️ indisponível/vazio")
 
     return dados
 
@@ -2620,10 +2612,7 @@ def coletar_ativo(nome_ativo, configuracao):
 
 def salvar_json(dados):
 
-    # ------------------------------------------------------------
     # Arquivo atual
-    # ------------------------------------------------------------
-
     with open(
         ARQUIVO_ATUAL,
         "w",
@@ -2637,10 +2626,7 @@ def salvar_json(dados):
             indent=4
         )
 
-    # ------------------------------------------------------------
     # Histórico
-    # ------------------------------------------------------------
-
     agora_dt = datetime.now()
 
     nome_historico = (
@@ -2670,15 +2656,11 @@ def salvar_json(dados):
 
 
 # ================================================================
-# FUNÇÃO PARA INTEGRAÇÃO COM O PIPELINE (Coletor.py)
+# INTEGRAÇÃO COM O PIPELINE
 # ================================================================
 
 def executar_coleta_mt5_v2():
-    """
-    Função principal para ser chamada pelo Coletor.py / pipeline.
-    Retorna o dicionário completo dos dados coletados ou None em caso de falha.
-    Também grava Dados_MT5_v2_2.json e o histórico.
-    """
+
     if not conectar_mt5():
         return None
 
@@ -2736,23 +2718,364 @@ def executar_coleta_mt5_v2():
 
 
 # ================================================================
-# MAIN (execução direta)
+# EXECUÇÃO
 # ================================================================
 
 def main():
     executar_coleta_mt5_v2()
 
 
-# ================================================================
-# EXECUÇÃO
-# ================================================================
-
 if __name__ == "__main__":
     main()
 
 
 
+# ============================================================
+# ARQUIVO:
+# Comparador_ADRs_Paralelo.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-18 06:28:53
+# ============================================================
 
+
+
+import os
+import json
+import urllib.request
+import requests
+import pandas as pd
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
+from dotenv import load_dotenv
+
+# Carrega variáveis do arquivo .env
+load_dotenv()
+FINNHUB_API_KEY = os.getenv('FINNHUB_API_KEY')
+
+# Mapeamento de tickers comuns para comparativo direto entre TradingView e Finnhub
+# Chave: Ticker amigável | Valor: (Ticker TradingView, Ticker Finnhub)
+MAPEAMENTO_ADRS = {
+    "VALE": ("NYSE:VALE", "VALE"),
+    "PETR4": ("NYSE:PBR", "PBR"),
+    "ITUB4": ("NYSE:ITUB", "ITUB"),
+    "BBAS3": ("OTC:BDORY", "BDORY"),
+    "BBDC4": ("NYSE:BBD", "BBD"),
+    "B3SA3": ("OTC:BOLSY", "BOLSY"),
+    "EWZ": ("AMEX:EWZ", "EWZ"),
+}
+
+# ------------------------------------------------------------
+# 1. COLETOR TRADINGVIEW (Baseado no seu Coletor.py)
+# ------------------------------------------------------------
+def coletar_tradingview_adrs():
+    """Coleta cotações via TradingView Scanner API"""
+    url = "https://scanner.tradingview.com/global/scan"
+    
+    # Inverte para busca rápida
+    tv_tickers = [v[0] for v in MAPEAMENTO_ADRS.values()]
+    
+    payload = {
+        "symbols": {"tickers": tv_tickers},
+        "columns": ["close", "change"],
+    }
+    headers = {
+        "Content-Type": "application/json",
+        "User-Agent": "Mozilla/5.0",
+    }
+
+    resultados = {}
+    try:
+        data = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(url, data=data, headers=headers)
+
+        with urllib.request.urlopen(req, timeout=10) as response:
+            res = json.loads(response.read().decode("utf-8"))
+            for item in res.get("data", []):
+                ticker_tv = item.get("s")
+                vals = item.get("d", [])
+                
+                if len(vals) >= 2 and vals[0] is not None:
+                    # Relaciona com o nome amigável
+                    for nome_amigavel, (tv_symbol, _) in MAPEAMENTO_ADRS.items():
+                        if tv_symbol == ticker_tv:
+                            resultados[nome_amigavel] = {
+                                "Preco_TV": float(vals[0]),
+                                "Var_%_TV": float(vals[1]) if vals[1] is not None else 0.0
+                            }
+    except Exception as e:
+        print(f"[ERRO] Falha na coleta TradingView: {e}")
+        
+    return resultados
+
+# ------------------------------------------------------------
+# 2. COLETOR FINNHUB (Baseado no seu segundo coletor)
+# ------------------------------------------------------------
+def coletar_single_finnhub(ticker_fh):
+    if not FINNHUB_API_KEY:
+        return None
+    url = f"https://finnhub.io/api/v1/quote?symbol={ticker_fh}&token={FINNHUB_API_KEY}"
+    try:
+        response = requests.get(url, timeout=10)
+        data = response.json()
+        if 'c' in data and data['c'] != 0:
+            return {
+                'Preco_Finnhub': float(data['c']),
+                'Var_%_Finnhub': round(float(data['dp']), 2)
+            }
+    except Exception as e:
+        print(f"Erro Finnhub ({ticker_fh}): {e}")
+    return None
+
+def coletar_finnhub_adrs():
+    """Coleta cotações via Finnhub usando ThreadPoolExecutor interno"""
+    resultados = {}
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        futures = {
+            executor.submit(coletar_single_finnhub, fh_symbol): nome_amigavel
+            for nome_amigavel, (_, fh_symbol) in MAPEAMENTO_ADRS.items()
+        }
+        for future in futures:
+            nome_amigavel = futures[future]
+            data = future.result()
+            if data:
+                resultados[nome_amigavel] = data
+    return resultados
+
+# ------------------------------------------------------------
+# 3. EXECUTOR PARALELO E COMPARADOR
+# ------------------------------------------------------------
+def executar_coleta_comparativa():
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] 🚀 Disparando coletas paralelas (TradingView vs Finnhub)...")
+    
+    # Dispara as duas fontes em threads simultâneas
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        futuro_tv = executor.submit(coletar_tradingview_adrs)
+        futuro_fh = executor.submit(coletar_finnhub_adrs)
+        
+        dados_tv = futuro_tv.result()
+        dados_fh = futuro_fh.result()
+
+    # Consolidação em uma única estrutura de dados
+    linhas = []
+    for nome_amigavel in MAPEAMENTO_ADRS.keys():
+        tv_info = dados_tv.get(nome_amigavel, {})
+        fh_info = dados_fh.get(nome_amigavel, {})
+
+        preco_tv = tv_info.get("Preco_TV", None)
+        preco_fh = fh_info.get("Preco_Finnhub", None)
+        
+        # Cálculo da divergência de preço entre as duas APIs
+        divergencia = None
+        if preco_tv and preco_fh:
+            divergencia = round(abs(preco_tv - preco_fh), 4)
+
+        linhas.append({
+            "Ativo": nome_amigavel,
+            "Preco_TradingView": preco_tv,
+            "Var_%_TV": tv_info.get("Var_%_TV", None),
+            "Preco_Finnhub": preco_fh,
+            "Var_%_Finnhub": fh_info.get("Var_%_Finnhub", None),
+            "Diff_Preco": divergencia
+        })
+
+    df_comparativo = pd.DataFrame(linhas)
+    return df_comparativo
+
+if __name__ == "__main__":
+    df_resultado = executar_coleta_comparativa()
+    print("\n=== TABELA COMPARATIVA DE ADRS (TRADINGVIEW vs FINNHUB) ===")
+    print(df_resultado.to_string(index=False))
+
+
+
+# ============================================================
+# ARQUIVO:
+# Comparador_ADRs_WINFUT_Paralelo.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-18 06:31:31
+# ============================================================
+
+
+
+import os
+import json
+import urllib.request
+import requests
+import pandas as pd
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
+from dotenv import load_dotenv
+
+# Carrega variáveis do arquivo .env
+load_dotenv()
+FINNHUB_API_KEY = os.getenv('FINNHUB_API_KEY')
+
+# Diretório de coletas do seu sistema
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+COLETAS_DIR = os.path.join(BASE_DIR, "Coletas")
+FILE_MT5_V2 = os.path.join(COLETAS_DIR, "Dados_MT5_v2_2.json")
+FILE_MT5_V1 = os.path.join(COLETAS_DIR, "Dados_MT5.json")
+
+# Mapeamento de tickers (Adicionados WIN e WDO para compatibilidade)
+MAPEAMENTO_ATIVOS = {
+    "VALE": {"tv": "NYSE:VALE", "fh": "VALE", "mt5": None},
+    "PETR4": {"tv": "NYSE:PBR", "fh": "PBR", "mt5": None},
+    "ITUB4": {"tv": "NYSE:ITUB", "fh": "ITUB", "mt5": None},
+    "BBAS3": {"tv": "OTC:BDORY", "fh": "BDORY", "mt5": None},
+    "BBDC4": {"tv": "NYSE:BBD", "fh": "BBD", "mt5": None},
+    "B3SA3": {"tv": "OTC:BOLSY", "fh": "BOLSY", "mt5": None},
+    "EWZ": {"tv": "AMEX:EWZ", "fh": "EWZ", "mt5": None},
+    # Ativos B3 / MT5
+    "WIN_FUT": {"tv": "BMFBOVESPA:WIN1!", "fh": None, "mt5": "WIN"},
+    "WDO_FUT": {"tv": "BMFBOVESPA:WDO1!", "fh": None, "mt5": "WDO"},
+}
+
+# ------------------------------------------------------------
+# 1. COLETOR TRADINGVIEW
+# ------------------------------------------------------------
+def coletar_tradingview_ativos():
+    url = "https://scanner.tradingview.com/global/scan"
+    tv_tickers = [v["tv"] for v in MAPEAMENTO_ATIVOS.values() if v["tv"]]
+    
+    payload = {"symbols": {"tickers": tv_tickers}, "columns": ["close", "change"]}
+    headers = {"Content-Type": "application/json", "User-Agent": "Mozilla/5.0"}
+
+    resultados = {}
+    try:
+        data = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(url, data=data, headers=headers)
+        with urllib.request.urlopen(req, timeout=10) as response:
+            res = json.loads(response.read().decode("utf-8"))
+            for item in res.get("data", []):
+                ticker_tv = item.get("s")
+                vals = item.get("d", [])
+                if len(vals) >= 2 and vals[0] is not None:
+                    for nome_amigavel, config in MAPEAMENTO_ATIVOS.items():
+                        if config["tv"] == ticker_tv:
+                            resultados[nome_amigavel] = {
+                                "Preco_TV": float(vals[0]),
+                                "Var_%_TV": float(vals[1]) if vals[1] is not None else 0.0
+                            }
+    except Exception as e:
+        print(f"[ERRO TradingView]: {e}")
+    return resultados
+
+# ------------------------------------------------------------
+# 2. COLETOR FINNHUB
+# ------------------------------------------------------------
+def coletar_single_finnhub(ticker_fh):
+    if not FINNHUB_API_KEY or not ticker_fh:
+        return None
+    url = f"https://finnhub.io/api/v1/quote?symbol={ticker_fh}&token={FINNHUB_API_KEY}"
+    try:
+        response = requests.get(url, timeout=10)
+        data = response.json()
+        if 'c' in data and data['c'] != 0:
+            return {
+                'Preco_FH': float(data['c']),
+                'Var_%_FH': round(float(data['dp']), 2)
+            }
+    except Exception as e:
+        pass
+    return None
+
+def coletar_finnhub_ativos():
+    resultados = {}
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        futures = {
+            executor.submit(coletar_single_finnhub, cfg["fh"]): nome
+            for nome, cfg in MAPEAMENTO_ATIVOS.items() if cfg["fh"]
+        }
+        for future in futures:
+            nome = futures[future]
+            data = future.result()
+            if data:
+                resultados[nome] = data
+    return resultados
+
+# ------------------------------------------------------------
+# 3. COLETOR METATRADER 5 (Leitura do cache v2.2 ou v1)
+# ------------------------------------------------------------
+def coletar_mt5_ativos():
+    """Lê os últimos preços salvos do WIN e WDO capturados pelo MT5"""
+    resultados = {}
+    
+    # Tenta v2.2
+    if os.path.exists(FILE_MT5_V2):
+        try:
+            with open(FILE_MT5_V2, "r", encoding="utf-8") as f:
+                dados = json.load(f).get("ativos", {})
+                if "WIN" in dados and dados["WIN"].get("last"):
+                    resultados["WIN_FUT"] = {"Preco_MT5": float(dados["WIN"]["last"])}
+                if "WDO" in dados and dados["WDO"].get("last"):
+                    resultados["WDO_FUT"] = {"Preco_MT5": float(dados["WDO"]["last"])}
+                return resultados
+        except Exception:
+            pass
+
+    # Fallback v1
+    if os.path.exists(FILE_MT5_V1):
+        try:
+            with open(FILE_MT5_V1, "r", encoding="utf-8") as f:
+                contratos = json.load(f).get("contratos", {})
+                for c_nome, c_info in contratos.items():
+                    if "WIN" in c_nome and "WIN_FUT" not in resultados:
+                        if c_info.get("last"): resultados["WIN_FUT"] = {"Preco_MT5": float(c_info["last"])}
+                    if "WDO" in c_nome and "WDO_FUT" not in resultados:
+                        if c_info.get("last"): resultados["WDO_FUT"] = {"Preco_MT5": float(c_info["last"])}
+        except Exception:
+            pass
+
+    return resultados
+
+# ------------------------------------------------------------
+# 4. EXECUTOR PARALELO MULTI-FONTE
+# ------------------------------------------------------------
+def executar_coleta_comparativa():
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] 🚀 Coletando TradingView, Finnhub e MT5 em paralelo...")
+    
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        futuro_tv = executor.submit(coletar_tradingview_ativos)
+        futuro_fh = executor.submit(coletar_finnhub_ativos)
+        futuro_mt5 = executor.submit(coletar_mt5_ativos)
+        
+        dados_tv = futuro_tv.result()
+        dados_fh = futuro_fh.result()
+        dados_mt5 = futuro_mt5.result()
+
+    linhas = []
+    for nome, cfg in MAPEAMENTO_ATIVOS.items():
+        tv_info = dados_tv.get(nome, {})
+        fh_info = dados_fh.get(nome, {})
+        mt5_info = dados_mt5.get(nome, {})
+
+        preco_tv = tv_info.get("Preco_TV", None)
+        preco_fh = fh_info.get("Preco_FH", None)
+        preco_mt5 = mt5_info.get("Preco_MT5", None)
+
+        # Cálculo de diferença de preço (se aplicável)
+        diff_tv_mt5 = None
+        if preco_tv and preco_mt5:
+            diff_tv_mt5 = round(abs(preco_tv - preco_mt5), 2)
+
+        linhas.append({
+            "Ativo": nome,
+            "Preco_TradingView": preco_tv,
+            "Preco_Finnhub": preco_fh,
+            "Preco_MT5": preco_mt5,
+            "Diff_(TV_vs_MT5)": diff_tv_mt5,
+            "Var_%_TV": tv_info.get("Var_%_TV", None),
+            "Var_%_FH": fh_info.get("Var_%_FH", None)
+        })
+
+    return pd.DataFrame(linhas)
+
+if __name__ == "__main__":
+    df_resultado = executar_coleta_comparativa()
+    print("\n=== TABELA COMPARATIVA DE ATIVOS (TV vs FINNHUB vs MT5) ===")
+    print(df_resultado.to_string(index=False))
 
 
 
@@ -3063,6 +3386,176 @@ def executar_core():
 
 if __name__ == "__main__":
     executar_core()
+
+
+
+# ============================================================
+# ARQUIVO:
+# Execução em Paralelo e Comparação.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-18 06:04:12
+# ============================================================
+
+
+
+import os
+import time
+import pandas as pd
+import MetaTrader5 as mt5
+import requests
+from concurrent.futures import ThreadPoolExecutor
+from dotenv import load_dotenv
+
+load_dotenv()
+FINNHUB_KEY = os.getenv('FINNHUB_API_KEY')
+
+# Listas de Ativos
+MAPEAMENTO_ATIVOS = {
+    'VALE3': 'VALE',
+    'PETR4': 'PBR-A',
+    'PETR3': 'PBR',
+    'ITUB4': 'ITUB',
+    'BBDC4': 'BBD'
+}
+
+# -------------------------------------------------------------------
+# 1. TAREFA PARALELA A: Coleta de Dados Globais via Finnhub (API REST)
+# -------------------------------------------------------------------
+def coletar_dados_finnhub():
+    """Coleta pré-market de EWZ, SPY e ADRs simultaneamente."""
+    tickers = ['EWZ', 'SPY', 'QQQ', 'VALE', 'PBR', 'PBR-A', 'ITUB', 'BBD']
+    resultados = {}
+    
+    def buscar_quote(ticker):
+        url = f"https://finnhub.io/api/v1/quote?symbol={ticker}&token={FINNHUB_KEY}"
+        try:
+            res = requests.get(url, timeout=5).json()
+            if 'dp' in res and res['dp'] is not None:
+                return ticker, round(res['dp'], 2)
+        except Exception:
+            pass
+        return ticker, 0.0
+
+    # Paraleliza também as requisições HTTP individuais do Finnhub
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        futures = [executor.submit(buscar_quote, t) for t in tickers]
+        for f in futures:
+            t, val = f.result()
+            resultados[t] = val
+            
+    return resultados
+
+# -------------------------------------------------------------------
+# 2. TAREFA PARALELA B: Coleta de Dados de Leilão/Mercado via MT5
+# -------------------------------------------------------------------
+def coletar_dados_mt5():
+    """Coleta o estado do leilão e preço atual do WIN e ações no MT5."""
+    if not mt5.initialize():
+        return {'erro': 'Falha MT5'}
+    
+    dados_mt5 = {}
+    
+    # Coleta WIN$
+    info_win = mt5.symbol_info("WIN$")
+    tick_win = mt5.symbol_info_tick("WIN$")
+    if info_win and tick_win and info_win.session_close > 0:
+        var_win = ((tick_win.last / info_win.session_close) - 1) * 100
+        dados_mt5['WIN$'] = {
+            'ultimo': tick_win.last,
+            'fechamento_ant': info_win.session_close,
+            'var_%': round(var_win, 2)
+        }
+    
+    # Coleta leilão/tick das ações B3
+    dados_mt5['acoes'] = {}
+    for ticker_b3 in MAPEAMENTO_ATIVOS.keys():
+        info = mt5.symbol_info(ticker_b3)
+        tick = mt5.symbol_info_tick(ticker_b3)
+        if info and tick and info.session_close > 0:
+            var_acao = ((tick.last / info.session_close) - 1) * 100
+            dados_mt5['acoes'][ticker_b3] = {
+                'preco_leilao': tick.last,
+                'var_%': round(var_acao, 2)
+            }
+
+    mt5.shutdown()
+    return dados_mt5
+
+# -------------------------------------------------------------------
+# 3. CONSOLIDADOR PARALELO (Executa A e B juntas)
+# -------------------------------------------------------------------
+def executar_analise_paralela_comparativa():
+    inicio = time.time()
+    
+    # Dispara as duas coletas em threads separadas ao mesmo tempo
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        future_finnhub = executor.submit(coletar_dados_finnhub)
+        future_mt5 = executor.submit(coletar_dados_mt5)
+        
+        dados_finnhub = future_finnhub.result()
+        dados_mt5 = future_mt5.result()
+        
+    tempo_execucao = round(time.time() - inicio, 2)
+    
+    # ---------------------------------------------------------------
+    # 4. COMPARAÇÃO E CONSOLIDAÇÃO DOS DADOS
+    # ---------------------------------------------------------------
+    # A) Métrica 1: Projeção Teórica do WIN (Baseada puramente em NY)
+    var_ewz = dados_finnhub.get('EWZ', 0.0)
+    var_spy = dados_finnhub.get('SPY', 0.0)
+    var_vale_adr = dados_finnhub.get('VALE', 0.0)
+    var_pbr_adr = dados_finnhub.get('PBR', 0.0)
+    
+    projecao_win_ny = round((var_ewz * 0.35) + (var_spy * 0.25) + (var_vale_adr * 0.20) + (var_pbr_adr * 0.20), 2)
+    
+    # B) Métrica 2: Situação Real do WIN no MT5
+    win_real_info = dados_mt5.get('WIN$', {})
+    var_win_real = win_real_info.get('var_%', 0.0)
+    
+    # C) Comparativos de Arbitragem Ações vs ADRs
+    comparativo_acoes = []
+    acoes_mt5 = dados_mt5.get('acoes', {})
+    
+    for acao_b3, adr_ny in MAPEAMENTO_ATIVOS.items():
+        var_adr = dados_finnhub.get(adr_ny, 0.0)
+        var_b3 = acoes_mt5.get(acao_b3, {}).get('var_%', 0.0)
+        spread = round(var_adr - var_b3, 2)
+        
+        comparativo_acoes.append({
+            'Ativo': acao_b3,
+            'Var_B3_%': var_b3,
+            'ADR_NY': adr_ny,
+            'Var_ADR_%': var_adr,
+            'Spread_%': spread
+        })
+
+    # Tabela final de comparação
+    df_comparativo_acoes = pd.DataFrame(comparativo_acoes)
+    
+    return {
+        'tempo_execucao_s': tempo_execucao,
+        'projecao_win_ny_%': projecao_win_ny,
+        'var_win_real_mt5_%': var_win_real,
+        'descasamento_win_%': round(projecao_win_ny - var_win_real, 2),
+        'tabela_acoes': df_comparativo_acoes,
+        'dados_brutos_finnhub': dados_finnhub
+    }
+
+# -------------------------------------------------------------------
+# TESTE DE EXECUÇÃO
+# -------------------------------------------------------------------
+if __name__ == "__main__":
+    res = executar_analise_paralela_comparativa()
+    
+    print(f"\n Análise concluída em {res['tempo_execucao_s']} segundos em paralelo!\n")
+    print("=== 1. COMPARAÇÃO DE MODELOS PARA O WIN FUTURO ===")
+    print(f"Modelo A (Projeção Externa NY): {res['projecao_win_ny_%']}%")
+    print(f"Modelo B (Preço Real/Leilão MT5): {res['var_win_real_mt5_%']}%")
+    print(f"Diferença / Descasamento WIN:  {res['descasamento_win_%']}%\n")
+    
+    print("=== 2. COMPARAÇÃO AÇÕES B3 (LEILÃO) VS ADRs (NY) ===")
+    print(res['tabela_acoes'].to_string(index=False))
 
 
 
@@ -4933,6 +5426,92 @@ def analisar_arquivos_e_gerar_comparativo():
 
 if __name__ == "__main__":
     analisar_arquivos_e_gerar_comparativo()
+
+
+
+# ============================================================
+# ARQUIVO:
+# MapearWINFUT_MT5.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-18 06:18:58
+# ============================================================
+
+
+
+import os
+import time
+import MetaTrader5 as mt5
+import pandas as pd
+from datetime import datetime
+
+ARQUIVO_LOG_LEILAO = "historico_leilao_win.csv"
+
+def obter_dados_completos_win():
+    if not mt5.initialize():
+        return None
+
+    symbol = "WIN$"
+    info = mt5.symbol_info(symbol)
+    tick = mt5.symbol_info_tick(symbol)
+
+    if info is None or tick is None:
+        mt5.shutdown()
+        return None
+
+    fechamento_ant = getattr(info, 'session_close', 0.0)
+    ajuste_ant = getattr(info, 'session_price_settlement', 0.0)
+    
+    # Fallback via candle D1 de ontem se o ajuste nativo estiver 0.0
+    if ajuste_ant == 0.0:
+        rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_D1, 1, 1)
+        if rates is not None and len(rates) > 0:
+            ajuste_ant = float(rates[0]['close'])
+
+    preco_leilao = tick.last
+
+    dados = {
+        "Data_Hora": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "Ativo": info.name,
+        "Horario_Tick_MT5": pd.to_datetime(tick.time, unit='s').strftime("%Y-%m-%d %H:%M:%S"),
+        "Fechamento_Anterior": fechamento_ant,
+        "Preco_Ajuste_Referencia": ajuste_ant,
+        "Ultimo_Preco_Leilao": preco_leilao,
+        "Bid": tick.bid,
+        "Ask": tick.ask,
+        "Gap_vs_Fechamento_Pts": round(preco_leilao - fechamento_ant) if fechamento_ant > 0 else 0,
+        "Gap_vs_Ajuste_Pts": round(preco_leilao - ajuste_ant) if ajuste_ant > 0 else 0
+    }
+
+    mt5.shutdown()
+    return dados
+
+def monitorar_e_salvar_leilao(intervalo_segundos=1):
+    """
+    Roda em loop contínuo capturando e salvando as variações do leilão no CSV.
+    """
+    print(f"Iniciando gravação de leilão no arquivo: {ARQUIVO_LOG_LEILAO}")
+    
+    try:
+        while True:
+            dados = obter_dados_completos_win()
+            if dados:
+                df = pd.DataFrame([dados])
+                
+                # Cria o CSV com cabeçalho na primeira vez ou faz append
+                escrever_cabecalho = not os.path.exists(ARQUIVO_LOG_LEILAO)
+                df.to_csv(ARQUIVO_LOG_LEILAO, mode='a', header=escrever_cabecalho, index=False)
+                
+                print(f"[{dados['Data_Hora']}] Leilão: {dados['Ultimo_Preco_Leilao']} | "
+                      f"Gap Fech: {dados['Gap_vs_Fechamento_Pts']} pts | "
+                      f"Gap Ajuste: {dados['Gap_vs_Ajuste_Pts']} pts")
+            
+            time.sleep(intervalo_segundos)
+    except KeyboardInterrupt:
+        print("\nMonitoramento encerrado pelo usuário.")
+
+if __name__ == "__main__":
+    monitorar_e_salvar_leilao(intervalo_segundos=2)
 
 
 
@@ -7111,6 +7690,104 @@ class ResultadoPrevisao:
 
 # ============================================================
 # ARQUIVO:
+# Projeção de Gap e Sinal para WIN.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-18 05:57:34
+# ============================================================
+
+
+
+import os
+import requests
+import MetaTrader5 as mt5
+import pandas as pd
+from dotenv import load_dotenv
+
+load_dotenv()
+FINNHUB_KEY = os.getenv('FINNHUB_API_KEY')
+
+# Pesos de influência para o WIN Futuro na abertura
+PESOS_WIN = {
+    'EWZ': 0.35,   # ETF Brasil em NY
+    'SPY': 0.25,   # S&P 500 Futuro/Pré-market
+    'VALE': 0.20,  # ADR Vale
+    'PBR': 0.20    # ADR Petrobras
+}
+
+def obter_variacao_finnhub(ticker):
+    """Puxa a variação % do pré-market/fechamento do ticker no Finnhub."""
+    url = f"https://finnhub.io/api/v1/quote?symbol={ticker}&token={FINNHUB_KEY}"
+    try:
+        res = requests.get(url, timeout=5).json()
+        if 'dp' in res and res['dp'] is not None:
+            return round(res['dp'], 2)
+    except Exception as e:
+        print(f"Erro Finnhub ({ticker}): {e}")
+    return 0.0
+
+def calcular_gap_win_futuro():
+    """Calcula a variação teórica (%) e a projeção em PONTOS para o WIN."""
+    if not mt5.initialize():
+        print("Erro ao inicializar MetaTrader 5")
+        return
+
+    # 1. Coleta a variação dos ativos externos
+    variacoes = {}
+    var_teorica_pct = 0.0
+
+    for ticker, peso in PESOS_WIN.items():
+        var_pct = obter_variacao_finnhub(ticker)
+        variacoes[ticker] = var_pct
+        var_teorica_pct += var_pct * peso
+
+    var_teorica_pct = round(var_teorica_pct, 2)
+
+    # 2. Puxa o último fechamento do WIN no MT5
+    # Use o ticker atual do contrato (ex: WINV26) ou a série histórica WIN$
+    info_win = mt5.symbol_info("WIN$")
+    if not info_win:
+        info_win = mt5.symbol_info("WINV26") # Exemplo de contrato vigente
+
+    preco_fechamento = info_win.session_close if info_win else 0
+
+    # 3. Calcula a estimativa de preço de abertura e GAP em pontos
+    if preco_fechamento > 0:
+        preco_abertura_estimado = preco_fechamento * (1 + (var_teorica_pct / 100))
+        gap_pontos_estimado = round(preco_abertura_estimado - preco_fechamento)
+    else:
+        gap_pontos_estimado = 0
+        preco_abertura_estimado = 0
+
+    # 4. Classificação do Viés
+    if var_teorica_pct >= 0.30:
+        vies = "COMPRADO (GAP DE ALTA)"
+    elif var_teorica_pct <= -0.30:
+        vies = "VENDIDO (GAP DE BAIXA)"
+    else:
+        vies = "NEUTRO (GAP PEQUENO / SEM TENDÊNCIA)"
+
+    mt5.shutdown()
+
+    return {
+        'Fechamento_Anterior_WIN': preco_fechamento,
+        'Var_Teorica_Projetada_%': var_teorica_pct,
+        'Gap_Estimado_Pontos': gap_pontos_estimado,
+        'Preco_Abertura_Projetado': round(preco_abertura_estimado),
+        'Vies_Abertura': vies,
+        'Detalhes_Ativos': variacoes
+    }
+
+if __name__ == "__main__":
+    resultado = calcular_gap_win_futuro()
+    print("=== PROJEÇÃO DE ABERTURA DO WIN FUTURO (09:00) ===")
+    for k, v in resultado.items():
+        print(f"{k}: {v}")
+
+
+
+# ============================================================
+# ARQUIVO:
 # Rodar_SMC_Regras.py
 #
 # ÚLTIMA ALTERAÇÃO:
@@ -7385,6 +8062,2149 @@ if __name__ == "__main__":
     print(" FASE 3: ENGINE DE VALIDAÇÃO E SANITIZAÇÃO DE DADOS (24 ATIVOS)")
     print("============================================================")
     executar_validacao()
+
+
+
+# ============================================================
+# ARQUIVO:
+# _Reservado\1_🎯_Setup_Abertura original.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-15 17:54:39
+# ============================================================
+
+
+
+"""
+Setup Abertura – Unificado
+===========================
+Página com abas para:
+- Ajuste B3 (distância do ajuste, scores, semáforo)
+- Abertura 09:00 (gap, sinal, IA de pré-abertura + Análise Gráfica SMC)
+
+Versão 6.3 - IA unificada (KeyManager + limpeza thinking + max_tokens 2500)
+             Ajuste B3 e Pré-abertura usam a mesma engine chamar_groq_texto
+"""
+
+import json
+import os
+import sys
+import re
+import subprocess
+from datetime import datetime, time
+from dataclasses import dataclass
+from typing import Optional, Dict, Any, List
+from pathlib import Path
+
+import streamlit as st
+from dotenv import load_dotenv
+from groq import Groq
+
+# ============================================================
+# CARREGAR VARIÁVEIS DE AMBIENTE E KEYMANAGER
+# ============================================================
+load_dotenv()
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+
+from utils.KeyManager import get_groq_client, key_manager
+
+# ============================================================
+# CSS UNIFICADO (mesclado de ambos os arquivos)
+# ============================================================
+CSS_CUSTOM = """
+<style>
+.stApp { background-color: #0e1117; }
+
+/* Cards de sinal */
+.card-bull {
+    background-color: #0d381e;
+    border-left: 5px solid #00c853;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+}
+.card-bear {
+    background-color: #380d0d;
+    border-left: 5px solid #ff3d00;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+}
+.card-neutral {
+    background-color: #1a1c23;
+    border-left: 5px solid #ffc107;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+}
+
+/* Cards de IA */
+.card-ai {
+    background: linear-gradient(145deg, #12141c 0%, #1a1c2a 100%);
+    border-left: 5px solid #7c5cfc;
+    padding: 20px;
+    border-radius: 8px;
+    margin-top: 12px;
+    border: 1px solid #2a2d4a;
+}
+.card-ai h4 {
+    color: #7c5cfc;
+    margin-top: 0;
+}
+.card-ai .analysis-content {
+    color: #c9d1d9;
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+.card-ai .smc-tag {
+    background: rgba(124, 92, 252, 0.15);
+    color: #a78bfa;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    display: inline-block;
+    margin: 2px 4px 2px 0;
+}
+
+/* Caixas de informação */
+.info-box {
+    background-color: #161b22;
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid #30363d;
+}
+.explicacao {
+    background-color: #1a1c2a;
+    border: 1px solid #2a2d3a;
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 0.85rem;
+    color: #cccccc;
+    margin-top: 8px;
+}
+
+/* Containers de confluência e contexto */
+.confluencia-container {
+    font-size: 0.85rem !important;
+}
+.confluencia-container .stMetric {
+    font-size: 0.85rem !important;
+}
+.confluencia-container .stMetric label {
+    font-size: 0.75rem !important;
+}
+.confluencia-container .stMetric div {
+    font-size: 0.9rem !important;
+}
+.confluencia-container .stAlert {
+    font-size: 0.85rem !important;
+    padding: 8px 12px !important;
+}
+
+.contexto-container .stMetric {
+    font-size: 0.8rem !important;
+}
+.contexto-container .stMetric label {
+    font-size: 0.7rem !important;
+}
+.contexto-container .stMetric div {
+    font-size: 0.85rem !important;
+}
+
+.classificacao-container .stMetric {
+    font-size: 1rem !important;
+}
+.classificacao-container .stMetric label {
+    font-size: 0.8rem !important;
+}
+.classificacao-container .stMetric div {
+    font-size: 1.1rem !important;
+}
+
+/* Cores de tendência (para o ajuste) */
+.tendencia-up {
+    color: #00c853;
+    font-weight: bold;
+}
+.tendencia-down {
+    color: #ff3d00;
+    font-weight: bold;
+}
+.tendencia-neutral {
+    color: #ffc107;
+    font-weight: bold;
+}
+</style>
+"""
+
+# ============================================================
+# CONFIGURAÇÕES DO SETUP 09H
+# ============================================================
+@dataclass(frozen=True)
+class ConfigSetup09:
+    janela_inicio: time = time(9, 0)
+    janela_fim: time = time(9, 15)
+    threshold_sinal: float = 1.5
+    forca_max: int = 10
+    loss_pts: int = 250
+    alvo_min_pts: int = 250
+    modelo_groq_texto: str = "llama-3.3-70b-versatile"
+    temperatura_groq: float = 0.2
+    max_tokens_groq: int = 2500  # evita corte nas 7 seções
+
+CONFIG = ConfigSetup09()
+
+# ============================================================
+# MAPEAMENTO DE TICKERS (usado pelo SetupService)
+# ============================================================
+TICKER_MAP = {
+    "BMFBOVESPA:WIN1!": "WIN_FUT",
+    "BMFBOVESPA:WDO1!": "WDO_FUT",
+    "CME_MINI:ES1!": "SP500_FUT",
+    "CME_MINI:NQ1!": "NASDAQ_FUT",
+    "TVC:VIX": "VIX",
+    "AMEX:EWZ": "EWZ",
+    "TVC:DXY": "DXY",
+    "NYSE:VALE": "VALE_ADR",
+    "NYSE:PBR": "PETR_ADR",
+    "NYSE:ITUB": "ITUB_ADR",
+    "NYSE:BBD": "BBD_ADR",
+    "OTC:BDORY": "BBAS_ADR",
+    "OTC:BOLSY": "B3_ADR",
+    "B3_AJUSTE_WIN": "WIN_AJUSTE",
+    "B3_AJUSTE_WDO": "WDO_AJUSTE",
+    "USD_PTAX": "USD_PTAX",
+    "FX_IDC:USDBRL": "USD_BRL",
+    "FX_IDC:USDMXN": "USD_MXN",
+    "SGX:FEF1!": "IRON_ORE",
+    "SGX:FEF2!": "IRON_ORE_2M",
+    "NYMEX:CL1!": "CRUDE_OIL",
+    "TVC:GOLD": "GOLD",
+    "BMFBOVESPA:DI1F2027": "DI1_2027",
+    "BMFBOVESPA:DI1F2029": "DI1_2029",
+}
+
+# ============================================================
+# CAMINHOS DOS ARQUIVOS
+# ============================================================
+COLETAS_DIR = Path(BASE_DIR) / "Coletas"
+PROMPT_DIR = Path(BASE_DIR) / "PromptIA"
+
+ARQUIVOS = {
+    "noticias_0900": COLETAS_DIR / "Noticias_Calendario_0900.json",
+    "metricas": COLETAS_DIR / "Metricas_Calculadas.json",
+    "estimativa": COLETAS_DIR / "EstimativaAbertura.json",
+    "decisao": COLETAS_DIR / "Decisao_Core.json",
+    "ativos": COLETAS_DIR / "DadosAtivosUnificados.json",
+    "tendencias": COLETAS_DIR / "Analise_Tendencias.json",
+    "resultado_operacional": COLETAS_DIR / "Resultado_Calculadora_Operacional_Abertura.json",
+    "analise_smc": COLETAS_DIR / "AnaliseGraficaSMC.json",  # visão IA (opcional)
+    "analise_smc_regras": COLETAS_DIR / "AnaliseGraficaSMC_Regras.json",  # motor regras
+}
+
+SCRIPT_TENDENCIAS = BASE_DIR / "MapearTendencia15Min.py"
+
+# ============================================================
+# FUNÇÕES AUXILIARES COMPARTILHADAS
+# ============================================================
+def executar_mapear_tendencias() -> bool:
+    try:
+        if not os.path.exists(SCRIPT_TENDENCIAS):
+            return False
+        resultado = subprocess.run(
+            [sys.executable, str(SCRIPT_TENDENCIAS)],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        return resultado.returncode == 0
+    except Exception:
+        return False
+
+def garantir_tendencias() -> tuple[bool, str]:
+    if os.path.exists(ARQUIVOS["tendencias"]):
+        try:
+            with open(ARQUIVOS["tendencias"], "r", encoding="utf-8") as f:
+                dados = json.load(f)
+                if dados and len(dados) > 0:
+                    return True, "Arquivo de tendências encontrado."
+        except Exception:
+            pass
+    
+    rom0 = COLETAS_DIR / "Coleta_rom-0.json"
+    rom5 = COLETAS_DIR / "Coleta_rom-5.json"
+    rom10 = COLETAS_DIR / "Coleta_rom-10.json"
+    
+    faltando = []
+    if not os.path.exists(rom0): faltando.append("Coleta_rom-0.json")
+    if not os.path.exists(rom5): faltando.append("Coleta_rom-5.json")
+    if not os.path.exists(rom10): faltando.append("Coleta_rom-10.json")
+    
+    if faltando:
+        return False, f"Faltando: {', '.join(faltando)}"
+    
+    with st.spinner("🔄 Gerando análise de tendência..."):
+        sucesso = executar_mapear_tendencias()
+    
+    if sucesso and os.path.exists(ARQUIVOS["tendencias"]):
+        return True, "Análise gerada!"
+    else:
+        return False, "Falha ao gerar."
+
+@st.cache_data(ttl=60, show_spinner=False)
+def carregar_json(caminho: str) -> Dict[str, Any]:
+    if not os.path.exists(caminho):
+        return {}
+    try:
+        with open(caminho, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError, UnicodeDecodeError):
+        return {}
+
+# ============================================================
+# MODELOS DE DOMÍNIO (para o SetupService)
+# ============================================================
+@dataclass
+class SinalSetup:
+    direcao: str
+    forca: float
+    classe_css: str
+    emoji: str
+    indicador_usado: str
+    valor_indicador: float
+    motivo_escolha: str
+
+@dataclass
+class DadosAbertura:
+    var_teorica: float
+    abertura_teorica: float
+    pontos_base: float
+    gap_pontos: float
+    preco_atual: Optional[float]
+
+@dataclass
+class Escoras:
+    pp: float
+    r1: float
+    r2: float
+    s1: float
+    s2: float
+
+@dataclass
+class DecisaoCore:
+    vies: str
+    score: float
+    fatores: List[str]
+
+@dataclass
+class TendenciaAtivo:
+    padrao: str
+    ultima_variacao: float
+    tendencia: str
+
+# ============================================================
+# CLASSE SETUPSERVICE (mesma do arquivo 09h)
+# ============================================================
+class SetupService:
+    def __init__(self, dados: Dict[str, Dict[str, Any]], config: ConfigSetup09 = CONFIG):
+        self.cfg = config
+        self.dados = dados
+        self._parse()
+
+    def _parse(self):
+        noticias = self.dados.get("noticias_0900", {})
+        alerta = noticias.get("alerta_noticia_0900", {})
+        self.tem_3estrelas: bool = alerta.get("tem_evento_3_estrelas", False)
+        self.eventos_3e: list = alerta.get("eventos", [])
+        self.alerta_texto: str = alerta.get("alerta", "")
+
+        metricas = self.dados.get("metricas", {})
+        indicadores = metricas.get("indicadores_compostos", {})
+        
+        self.ind_mercado_externo = 0.0
+        self.ind_adrs = 0.0
+        
+        if indicadores:
+            self.ind_mercado_externo = indicadores.get("indicador_mercado_externo", 0.0)
+            self.ind_adrs = indicadores.get("indicador_adrs_brasileiras", 0.0)
+        
+        if self.ind_mercado_externo == 0.0 or self.ind_adrs == 0.0:
+            resultado_op = self.dados.get("resultado_operacional", {})
+            indicadores_op = resultado_op.get("indicadores_compostos", {})
+            if indicadores_op:
+                if self.ind_mercado_externo == 0.0:
+                    mercado = indicadores_op.get("mercado_externo", {})
+                    self.ind_mercado_externo = mercado.get("valor_pct", 0.0)
+                if self.ind_adrs == 0.0:
+                    adrs = indicadores_op.get("adrs_brasileiras", {})
+                    self.ind_adrs = adrs.get("valor_pct", 0.0)
+        
+        if self.ind_mercado_externo == 0.0:
+            macro = metricas.get("indicadores_macro", {})
+            vix_change = macro.get("vix_change_pct")
+            crude_change = macro.get("crude_oil_change_pct")
+            iron_data = macro.get("iron_ore", {})
+            iron_change = iron_data.get("change_percent") if isinstance(iron_data, dict) else None
+            
+            if vix_change is not None and crude_change is not None and iron_change is not None:
+                self.ind_mercado_externo = (-vix_change) + crude_change + iron_change
+        
+        if self.ind_adrs == 0.0:
+            adrs_data = metricas.get("performance_relativa", {}).get("adrs_brasileiras", {})
+            if adrs_data:
+                soma = 0.0
+                count = 0
+                for adr in adrs_data.values():
+                    pct = adr.get("change_percent")
+                    if pct is not None:
+                        soma += pct
+                        count += 1
+                if count > 0:
+                    self.ind_adrs = soma
+        
+        self.adrs: dict = metricas.get("performance_relativa", {}).get("adrs_brasileiras", {})
+
+        est = self.dados.get("estimativa", {})
+        self.est_win = est.get("estimativas_abertura", {}).get("WIN_INDICE", {})
+        self.est_wdo = est.get("estimativas_abertura", {}).get("WDO_DOLAR", {})
+        self.pivot_win = est.get("pivot_points", {}).get("WIN_FUT", {})
+        self.pivot_wdo = est.get("pivot_points", {}).get("WDO_FUT", {})
+        self.resumo_macro = est.get("resumo_macro", {})
+
+        decisao = self.dados.get("decisao", {})
+        analise_op = decisao.get("analise_operacional", {})
+        self.win_core = analise_op.get("WIN_INDICE", {})
+        self.wdo_core = analise_op.get("WDO_DOLAR", {})
+
+        dados_ativos = self.dados.get("ativos", {})
+        ativos = dados_ativos.get("ativos", dados_ativos)
+        self.win_ativo = ativos.get("WIN_FUT", {})
+        self.preco_win: Optional[float] = self.win_ativo.get("preco")
+        # Não inventa dado: se não veio do JSON, permanece None.
+        # A interface já trata None exibindo "N/A" (em render_bloco_3_abertura_escoras)
+        if self.preco_win is None:
+            print("[AVISO] Preço atual do WIN não encontrado em DadosAtivosUnificados.json. Exibindo 'N/A'.")
+        #    self.preco_win = self.est_win.get("abertura_teorica_pontos") # Inventa dado
+
+        tendencias_data = self.dados.get("tendencias", {})
+        self.tendencias = self._extrair_tendencias(tendencias_data)
+
+        resultado_op = self.dados.get("resultado_operacional", {})
+        self.classificacao_mercado = resultado_op.get("indicadores_compostos", {})
+
+        # Análise gráfica SMC: visão (IA) + regras (motor local)
+        self.analise_smc = self.dados.get("analise_smc", {}) or {}
+        self.analise_smc_regras = self.dados.get("analise_smc_regras", {}) or {}
+
+    def _extrair_tendencias(self, dados_tendencias: Dict) -> Dict[str, TendenciaAtivo]:
+        tendencias = {}
+        if not dados_tendencias:
+            return tendencias
+        
+        ativos_desejados = ["WIN_FUT", "WDO_FUT", "SP500_FUT", "NASDAQ_FUT", "VIX", "EWZ"]
+        
+        for ativo_padrao in ativos_desejados:
+            ticker_original = None
+            for ticker, nome in TICKER_MAP.items():
+                if nome == ativo_padrao:
+                    ticker_original = ticker
+                    break
+            
+            if ticker_original and ticker_original in dados_tendencias:
+                info = dados_tendencias[ticker_original]
+                tendencias[ativo_padrao] = TendenciaAtivo(
+                    padrao=info.get("padrao_comportamento", "N/A"),
+                    ultima_variacao=info.get("intervalo_5_para_0", {}).get("variacao_pct", 0),
+                    tendencia=info.get("intervalo_5_para_0", {}).get("tendencia", "N/A")
+                )
+            elif ativo_padrao in dados_tendencias:
+                info = dados_tendencias[ativo_padrao]
+                tendencias[ativo_padrao] = TendenciaAtivo(
+                    padrao=info.get("padrao_comportamento", "N/A"),
+                    ultima_variacao=info.get("intervalo_5_para_0", {}).get("variacao_pct", 0),
+                    tendencia=info.get("intervalo_5_para_0", {}).get("tendencia", "N/A")
+                )
+        
+        return tendencias
+
+    def sinal(self) -> SinalSetup:
+        if self.tem_3estrelas:
+            indicador_usado = "ADRs"
+            valor = self.ind_adrs
+            motivo = "Notícia 3★ → prioridade ADRs"
+        else:
+            indicador_usado = "Mercado Ext."
+            valor = self.ind_mercado_externo
+            motivo = "Sem notícia 3★ → prioridade Mercado Ext."
+
+        th = self.cfg.threshold_sinal
+        if valor > th:
+            direcao, classe, emoji = "COMPRA", "card-bull", "🟢"
+        elif valor < -th:
+            direcao, classe, emoji = "VENDA", "card-bear", "🔴"
+        else:
+            direcao, classe, emoji = "NEUTRO", "card-neutral", "🟡"
+
+        forca = min(self.cfg.forca_max, round(abs(valor), 1))
+
+        return SinalSetup(
+            direcao=direcao,
+            forca=forca,
+            classe_css=classe,
+            emoji=emoji,
+            indicador_usado=indicador_usado,
+            valor_indicador=valor,
+            motivo_escolha=motivo,
+        )
+
+    def dados_abertura(self) -> DadosAbertura:
+        var_teorica = self.est_win.get("variacao_teorica_pct", 0.0)
+        abertura_teorica = self.est_win.get("abertura_teorica_pontos", 0.0)
+        pontos_base = self.est_win.get("pontos_ajuste_base", 0.0)
+        gap = abertura_teorica - pontos_base if abertura_teorica and pontos_base else 0.0
+        return DadosAbertura(
+            var_teorica=var_teorica,
+            abertura_teorica=abertura_teorica,
+            pontos_base=pontos_base,
+            gap_pontos=gap,
+            preco_atual=self.preco_win,
+        )
+
+    def escoras(self) -> Escoras:
+        p = self.pivot_win
+        return Escoras(
+            pp=p.get("PP", 0.0),
+            r1=p.get("R1", 0.0),
+            r2=p.get("R2", 0.0),
+            s1=p.get("S1", 0.0),
+            s2=p.get("S2", 0.0),
+        )
+
+    def core_win(self) -> DecisaoCore:
+        return DecisaoCore(
+            vies=self.win_core.get("vies_final", "N/D"),
+            score=self.win_core.get("score_numeric", 0.0),
+            fatores=self.win_core.get("fatores_relevantes", []),
+        )
+
+    def core_wdo(self) -> DecisaoCore:
+        return DecisaoCore(
+            vies=self.wdo_core.get("vies_final", "N/D"),
+            score=self.wdo_core.get("score_numeric", 0.0),
+            fatores=self.wdo_core.get("fatores_relevantes", []),
+        )
+
+    def janela_ok(self) -> bool:
+        agora = datetime.now().time()
+        return self.cfg.janela_inicio <= agora <= self.cfg.janela_fim
+
+    def dados_minimos_ok(self) -> bool:
+        return bool(self.dados.get("metricas") or self.dados.get("estimativa"))
+
+    def confluencia_tendencia(self) -> Dict[str, Any]:
+        sinal = self.sinal()
+        win_tendencia = self.tendencias.get("WIN_FUT")
+        
+        if not win_tendencia:
+            return {"confluente": False, "motivo": "Sem dados de tendência"}
+        
+        if sinal.direcao == "COMPRA" and win_tendencia.tendencia == "SUBIU":
+            return {"confluente": True, "motivo": "🟢 Tendência confirma COMPRA"}
+        elif sinal.direcao == "VENDA" and win_tendencia.tendencia == "DESCEU":
+            return {"confluente": True, "motivo": "🔴 Tendência confirma VENDA"}
+        elif sinal.direcao == "NEUTRO":
+            return {"confluente": True, "motivo": "🟡 Sinal neutro"}
+        else:
+            return {
+                "confluente": False,
+                "motivo": f"⚠️ Tendência ({win_tendencia.tendencia}) vs sinal ({sinal.direcao})"
+            }
+
+    def _resumir_bloco_smc(self, bloco: Dict[str, Any], rotulo: str) -> str:
+        """Resume um JSON SMC (visão ou regras) em texto curto."""
+        if not bloco or bloco.get("erro"):
+            return ""
+
+        partes = [f"[{rotulo}]"]
+        bias = bloco.get("bias_direcional") or bloco.get("direcao_estrutura")
+        if bias:
+            partes.append(f"Bias: {bias}")
+        if "bos" in bloco:
+            partes.append(f"BOS: {bloco.get('bos')} | CHoCH: {bloco.get('choch')}")
+        conf = bloco.get("confianca_visual")
+        if conf is not None:
+            partes.append(f"Conf: {conf}")
+        tfs = bloco.get("timeframes_identificados")
+        if tfs:
+            partes.append(f"TF: {tfs}")
+        if bloco.get("entrada_sugerida"):
+            partes.append(
+                f"Entrada: {bloco.get('entrada_sugerida')} | "
+                f"Stop: {bloco.get('stop_sugerido')} | "
+                f"Alvos: {bloco.get('alvos')}"
+            )
+        zonas = bloco.get("zonas_de_interesse_e_cenarios") or []
+        if zonas:
+            partes.append("Cenários: " + " | ".join(str(z) for z in zonas[:3]))
+        liq = bloco.get("liquidez_relevante") or []
+        if liq:
+            partes.append("Liquidez: " + " | ".join(str(l) for l in liq[:4]))
+        estruturas = bloco.get("estruturas_coletadas") or []
+        if estruturas:
+            partes.append("Estruturas: " + " | ".join(str(e) for e in estruturas[:6]))
+        # OBs/FVGs estruturados (regras)
+        obs = bloco.get("order_blocks") or []
+        if obs:
+            partes.append(
+                "OBs: "
+                + " | ".join(
+                    f"{o.get('tipo')}@{o.get('preco')}" for o in obs[:4]
+                )
+            )
+        fvgs = bloco.get("fair_value_gaps") or []
+        if fvgs:
+            abertos = [f for f in fvgs if not f.get("preenchido")]
+            partes.append(
+                "FVGs: "
+                + " | ".join(
+                    f"{f.get('tipo')}({f.get('inferior')}-{f.get('superior')})"
+                    for f in abertos[:4]
+                )
+            )
+        return " • ".join(partes)
+
+    def _resumir_analise_smc(self) -> str:
+        """
+        Junta visão IA + motor de regras para o prompt.
+        Prioriza números das regras; mantém narrativa da visão se existir.
+        """
+        partes = []
+        r_regras = self._resumir_bloco_smc(self.analise_smc_regras, "REGRAS")
+        r_visao = self._resumir_bloco_smc(self.analise_smc, "VISÃO")
+        if r_regras:
+            partes.append(r_regras)
+        if r_visao:
+            partes.append(r_visao)
+        if not partes:
+            return "Análise gráfica SMC não disponível (nem regras nem visão)."
+        # alinhamento simples
+        b1 = (self.analise_smc_regras or {}).get("bias_direcional")
+        b2 = (self.analise_smc or {}).get("bias_direcional") or (
+            self.analise_smc or {}
+        ).get("direcao_estrutura")
+        if b1 and b2:
+            if str(b1).upper() == str(b2).upper():
+                partes.append("[CONFLUÊNCIA] Regras e visão com o mesmo bias.")
+            else:
+                partes.append(
+                    f"[DIVERGÊNCIA] Regras={b1} vs Visão={b2} — priorize confirmação de preço."
+                )
+        return " || ".join(partes)
+
+    def dados_para_ia_resumido(self) -> Dict[str, Any]:
+        s = self.sinal()
+        da = self.dados_abertura()
+        e = self.escoras()
+        cw = self.core_win()
+        
+        win_tend = self.tendencias.get("WIN_FUT")
+        tend_resumo = f"{win_tend.padrao} ({win_tend.ultima_variacao:+.2f}%)" if win_tend else "N/A"
+        
+        return {
+            "sinal": f"{s.direcao} ({s.forca}/10)",
+            "indicador": f"{s.indicador_usado}: {s.valor_indicador:+.2f}%",
+            "abertura": f"{da.abertura_teorica:,.0f} pts (var: {da.var_teorica:+.2f}%, gap: {da.gap_pontos:+.0f})",
+            "preco_atual": f"{da.preco_atual:,.0f}" if da.preco_atual else "N/A",
+            "escoras": f"R2:{e.r2:,.0f} R1:{e.r1:,.0f} PP:{e.pp:,.0f} S1:{e.s1:,.0f} S2:{e.s2:,.0f}",
+            "core": f"WIN: {cw.vies} (score:{cw.score})",
+            "noticias": "🚨 3★" if self.tem_3estrelas else "Sem alerta",
+            "tendencia_win": tend_resumo,
+            "confluencia": self.confluencia_tendencia()["motivo"],
+            "analise_smc": self._resumir_analise_smc(),
+            "loss": CONFIG.loss_pts,
+            "alvo": CONFIG.alvo_min_pts,
+        }
+
+# ============================================================
+# FUNÇÕES DE IA PARA O SETUP 09H
+# ============================================================
+def montar_prompt_pre_abertura(dados: Dict[str, Any]) -> str:
+    return f"""⚠️ RESPONDA EM PORTUGUÊS DO BRASIL. SEJA DIRETO E OBJETIVO.
+
+VOCÊ É UM ESPECIALISTA EM PRÉ-ABERTURA DO MERCADO BRASILEIRO (dados quantitativos + SMC/ICT).
+
+📊 DADOS DO PIPELINE:
+
+SINAL DO SETUP: {dados['sinal']}
+INDICADOR USADO: {dados['indicador']}
+ABERTURA TEÓRICA: {dados['abertura']}
+PREÇO ATUAL: {dados['preco_atual']}
+ESCORAS (PIVOTS): {dados['escoras']}
+CORE ENGINE: {dados['core']}
+NOTÍCIAS RELEVANTES: {dados['noticias']}
+TENDÊNCIA WIN: {dados['tendencia_win']}
+CONFLUÊNCIA: {dados['confluencia']}
+ANÁLISE GRÁFICA SMC: {dados.get('analise_smc', 'Não disponível')}
+GESTÃO DE RISCO: Loss {dados['loss']}pts | Alvo >{dados['alvo']}pts
+
+---
+
+🎯 **SUA ANÁLISE DE PRÉ-ABERTURA - RESPONDA EM PORTUGUÊS:**
+
+1. **DIREÇÃO ESPERADA:** Qual a direção provável para os primeiros minutos? (COMPRA/VENDA/LATERAL)
+
+2. **ANÁLISE DO GAP:** O GAP está grande ou pequeno? Como isso impacta a abertura?
+
+3. **VOLATILIDADE:** O mercado deve abrir com alta ou baixa volatilidade?
+
+4. **NÍVEIS CHAVE:** Quais escoras (pivots) + níveis SMC são mais importantes para monitorar?
+
+5. **CENÁRIOS PROVÁVEIS:** 
+   - Cenário 1 (mais provável):
+   - Cenário 2 (alternativo):
+   - Cenário 3 (se romper):
+
+6. **RECOMENDAÇÃO:** O que fazer nos primeiros 5-10 minutos?
+
+7. **GRAU DE CONFIANÇA:** De 1 a 10 (justifique)
+
+---
+
+⚠️ **OBSERVAÇÕES:**
+- Baseie-se nos dados fornecidos (quantitativo + análise gráfica SMC)
+- Quando a análise SMC estiver alinhada com o sinal do setup, dê mais peso a ela
+- Seja prático e objetivo
+- Use termos técnicos do mercado
+- RESPONDA 100% EM PORTUGUÊS DO BRASIL
+- NÃO mostre raciocínio interno, thinking ou planejamento
+- Complete TODAS as 7 seções até o grau de confiança
+"""
+
+
+def limpar_pensamento_ia(texto: str) -> str:
+    """Remove vazamento de raciocínio interno (thinking) da IA."""
+    if not texto:
+        return texto
+
+    texto = re.sub(r"<think>.*?</think>", "", texto, flags=re.DOTALL | re.IGNORECASE)
+    texto = re.sub(r"<thought>.*?</thought>", "", texto, flags=re.DOTALL | re.IGNORECASE)
+    texto = re.sub(r"<reasoning>.*?</reasoning>", "", texto, flags=re.DOTALL | re.IGNORECASE)
+
+    padroes = [
+        r"(?is)Here's a thinking process:.*?(?=###|\Z)",
+        r"(?is)Here is a thinking process:.*?(?=###|\Z)",
+        r"(?is)Thinking process:.*?(?=###|\Z)",
+        r"(?is)\*\*Analyze User Input:\*\*.*?(?=###|\Z)",
+        r"(?is)1\.\s*\*\*Analyze User Input:\*\*.*?(?=###|\Z)",
+        r"(?is)Draft generation \(mental refinement.*?(?=###|\Z)",
+        r"(?is)Check Against Constraints:.*?(?=###|\Z)",
+        r"(?is)Map Data to Required.*?(?=###|\Z)",
+    ]
+    for p in padroes:
+        texto = re.sub(p, "", texto)
+
+    marcadores = ["### 📊 1.", "### 1.", "1. **DIREÇÃO", "1. ANÁLISE DO AJUSTE"]
+    melhor_idx = -1
+    for m in marcadores:
+        idx = texto.find(m)
+        if idx != -1 and (melhor_idx == -1 or idx < melhor_idx):
+            melhor_idx = idx
+    if melhor_idx > 0:
+        pre = texto[:melhor_idx].lower()
+        if any(
+            x in pre
+            for x in (
+                "thinking",
+                "analyze user",
+                "draft generation",
+                "check against",
+                "map data",
+                "here's a",
+                "here is a",
+            )
+        ):
+            texto = texto[melhor_idx:]
+
+    return texto.strip()
+
+
+def chamar_groq_texto(
+    api_key: str,
+    prompt: str,
+    modelo: str,
+    system_content: Optional[str] = None,
+) -> str:
+    """Chamada unificada à Groq com KeyManager, limpeza e PT-BR."""
+    try:
+        from groq import Groq  # noqa: F401
+    except ImportError as exc:
+        raise RuntimeError("Biblioteca 'groq' não instalada. Rode: pip install groq") from exc
+
+    try:
+        client, key_utilizada = get_groq_client()
+        print(f"🔑 Usando chave: {key_utilizada[:20]}...")
+    except Exception as e:
+        # Fallback: chave passada manualmente / .env
+        if api_key:
+            from groq import Groq
+            client = Groq(api_key=api_key)
+            key_utilizada = api_key
+            print("🔑 Usando chave manual (.env / input)")
+        else:
+            return f"❌ Erro ao obter chave API: {str(e)}"
+
+    if not system_content:
+        system_content = """VOCÊ É UM ESPECIALISTA EM MERCADO BRASILEIRO (B3 / WIN / WDO).
+
+REGRAS OBRIGATÓRIAS:
+1. RESPONDA 100% EM PORTUGUÊS DO BRASIL.
+2. NÃO MOSTRE RACIOCÍNIO INTERNO, THINKING OU PLANEJAMENTO.
+3. SEJA DIRETO E OBJETIVO.
+4. USE TERMOS TÉCNICOS DO MERCADO.
+5. COMPLETE TODA A ESTRUTURA PEDIDA NO PROMPT.
+6. NÃO USE INGLÊS."""
+
+    messages = [
+        {"role": "system", "content": system_content},
+        {"role": "user", "content": prompt},
+    ]
+
+    try:
+        completion = client.chat.completions.create(
+            model=modelo,
+            messages=messages,
+            temperature=CONFIG.temperatura_groq,
+            max_tokens=CONFIG.max_tokens_groq,
+        )
+
+        if hasattr(completion, "usage") and completion.usage:
+            tokens = completion.usage.total_tokens
+            try:
+                key_manager.registrar_uso(key_utilizada, tokens)
+            except Exception:
+                pass
+            print(f"📊 Tokens usados (texto): {tokens} (chave: {str(key_utilizada)[:8]}...)")
+
+        bruto = completion.choices[0].message.content or ""
+        return garantir_portugues(limpar_pensamento_ia(bruto))
+
+    except Exception as e:
+        erro_msg = str(e).lower()
+        if "429" in erro_msg or "rate_limit" in erro_msg:
+            print(f"⚠️ Rate limit detectado na chave {str(key_utilizada)[:8]}...")
+            try:
+                key_manager.marcar_rate_limit(key_utilizada)
+            except Exception:
+                pass
+            try:
+                client, key_utilizada = get_groq_client()
+                print(f"🔑 Trocando para nova chave: {key_utilizada[:20]}...")
+                return chamar_groq_texto(api_key, prompt, modelo, system_content)
+            except Exception:
+                return "❌ Todas as chaves em rate limit. Tente novamente em algumas horas."
+        raise e
+
+
+def forcar_portugues(resposta: str) -> str:
+    traducao = {
+        "Market": "Mercado", "Trend": "Tendência", "Uptrend": "Alta",
+        "Downtrend": "Baixa", "Sideways": "Lateral", "Range": "Lateral",
+        "Bullish": "Altista", "Bearish": "Baixista",
+        "Buy": "Compra", "Sell": "Venda", "Entry": "Entrada",
+        "Exit": "Saída", "Price": "Preço", "Support": "Suporte",
+        "Resistance": "Resistência", "Level": "Nível", "Target": "Alvo",
+        "Stop": "Stop", "Loss": "Perda", "Analysis": "Análise",
+        "Structure": "Estrutura", "Liquidity": "Liquidez",
+        "Confirmation": "Confirmação", "Break": "Rompimento",
+        "Retest": "Reteste", "Strong": "Forte", "Weak": "Fraco",
+        "Moderate": "Moderado", "High": "Alto", "Low": "Baixo",
+        "Open": "Abertura", "Close": "Fechamento", "Volume": "Volume",
+        "Momentum": "Momentum", "Divergence": "Divergência",
+        "is": "está", "are": "estão", "was": "estava", "were": "estavam",
+        "has": "tem", "have": "têm", "will": "vai", "would": "iria",
+        "could": "poderia", "should": "deveria",
+        "and": "e", "or": "ou", "but": "mas", "because": "porque",
+        "therefore": "portanto", "however": "no entanto",
+        "although": "embora", "while": "enquanto",
+        "when": "quando", "where": "onde",
+        "more": "mais", "less": "menos", "above": "acima",
+        "below": "abaixo", "near": "próximo", "far": "longe",
+        "between": "entre", "among": "entre",
+        "Order Block": "Order Block", "Fair Value Gap": "Fair Value Gap",
+        "FVG": "FVG", "OB": "OB",
+    }
+    palavras = resposta.split()
+    palavras_traduzidas = []
+    for palavra in palavras:
+        palavra_limpa = palavra.strip(".,!?;:")
+        traducao_palavra = traducao.get(palavra_limpa, palavra)
+        if palavra != palavra_limpa:
+            pontuacao = palavra[-1] if palavra[-1] in ".,!?;:" else ""
+            if pontuacao:
+                traducao_palavra += pontuacao
+        palavras_traduzidas.append(traducao_palavra)
+    return " ".join(palavras_traduzidas)
+
+def garantir_portugues(resposta: str) -> str:
+    """Limpa thinking residual e garante português."""
+    if not resposta:
+        return resposta
+
+    resposta = limpar_pensamento_ia(resposta)
+
+    palavras_portugues = [
+        "mercado", "tendência", "compra", "venda", "preço", "suporte",
+        "resistência", "análise", "estrutura", "liquidez", "entrada",
+        "alvo", "stop", "perda", "rompimento", "confirmação", "nível",
+        "abertura", "gap", "confiança",
+    ]
+    tem_portugues = any(p in resposta.lower() for p in palavras_portugues)
+    if tem_portugues:
+        resultado = resposta
+        traducao_simples = {
+            "Market": "Mercado", "Trend": "Tendência", "Buy": "Compra",
+            "Sell": "Venda", "Price": "Preço", "Support": "Suporte",
+            "Resistance": "Resistência", "Entry": "Entrada", "Target": "Alvo",
+            "Stop": "Stop", "Analysis": "Análise", "Structure": "Estrutura",
+            "Liquidity": "Liquidez", "Break": "Rompimento",
+            "Confirmation": "Confirmação",
+        }
+        for en, pt in traducao_simples.items():
+            resultado = resultado.replace(en, pt)
+        return resultado.strip()
+    aviso = "⚠️ RESPOSTA TRADUZIDA PARA PORTUGUÊS:\n\n"
+    return aviso + forcar_portugues(resposta)
+
+# ============================================================
+# RENDERIZAÇÃO DA ABA 09H (REORGANIZADA E NUMERADA)
+# ============================================================
+def render_sidebar_09h():
+    st.sidebar.title("🎯 Setup Abertura")
+    st.sidebar.caption("Ajuste B3 | Abertura 09:00")
+    st.sidebar.markdown("---")
+    st.sidebar.info(
+        """
+**Indicadores:**
+- Mercado Externo
+- ADRs Brasileiras
+
+**Filtro:**
+- Notícia 3★ → ADRs
+- Sem notícia → Mercado Ext.
+
+**Risco:**
+- Loss: 250 pts
+- Alvo: > 250 pts
+"""
+    )
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("### Status dos Dados")
+    arquivos_status = {
+        "Notícias": ARQUIVOS["noticias_0900"],
+        "Métricas": ARQUIVOS["metricas"],
+        "Estimativa": ARQUIVOS["estimativa"],
+        "Decisão": ARQUIVOS["decisao"],
+        "Tendências": ARQUIVOS["tendencias"],
+        "Resultado": ARQUIVOS["resultado_operacional"],
+        "SMC Visão": ARQUIVOS["analise_smc"],
+        "SMC Regras": ARQUIVOS["analise_smc_regras"],
+    }
+    for nome, caminho in arquivos_status.items():
+        existe = "✅" if os.path.exists(caminho) else "❌"
+        st.sidebar.caption(f"{existe} {nome}")
+    st.sidebar.markdown("---")
+    if st.sidebar.button("🗑️ Limpar Histórico IA", width="stretch"):
+        if "historico_pre_abertura" in st.session_state:
+            st.session_state.historico_pre_abertura = []
+        st.rerun()
+
+# ---------- Bloco 1: Filtro de Notícias e Classificação ----------
+def render_bloco_1_filtro_classificacao(service: SetupService):
+    st.markdown("---")
+    st.subheader("📌 1. Filtro de Notícias e Classificação")
+
+    # Notícias
+    if service.tem_3estrelas:
+        st.warning("🚨 **Notícia ⭐⭐⭐ detectada!**")
+        if service.alerta_texto:
+            st.info(service.alerta_texto)
+        if service.eventos_3e:
+            for ev in service.eventos_3e:
+                st.write(f"• **{ev.get('hora', '')}** | {ev.get('evento', '')} ({ev.get('pais', '')})")
+        st.caption("⚠️ Notícias de alto impacto podem aumentar a volatilidade na abertura.")
+    else:
+        st.success("✅ **Nenhuma notícia ⭐⭐⭐** para hoje. Mercado com menor risco de surpresa.")
+
+    # Explicação
+    with st.expander("📖 O que é a Classificação Operacional?", expanded=False):
+        st.markdown("""
+        <div class="explicacao">
+        <b>Classificação gerada pelo pipeline:</b><br>
+        • <b>Mercado Externo:</b> -VIX + Petróleo + Minério<br>
+        • <b>ADRs:</b> Soma das ADRs brasileiras<br><br>
+        <b>Legenda:</b><br>
+        • <b>MUITO_FORTE</b> → > 4.5%<br>
+        • <b>FORTE</b> → 2.5% a 4.5%<br>
+        • <b>MODERADA</b> → 1.5% a 2.5%<br>
+        • <b>FRACA</b> → 0.8% a 1.5%<br>
+        • <b>MUITO_FRACA</b> → 0.3% a 0.8%<br>
+        • <b>LATERAL</b> → < 0.3%<br>
+        • <b>Sinal:</b> COMPRA / VENDA / NEUTRO
+        </div>
+        """, unsafe_allow_html=True)
+
+    # Métricas
+    ind_mercado = service.ind_mercado_externo
+    ind_adrs = service.ind_adrs
+
+    # Fallback
+    if ind_mercado == 0.0 and ind_adrs == 0.0:
+        resultado_op = service.dados.get("resultado_operacional", {})
+        indicadores_op = resultado_op.get("indicadores_compostos", {})
+        if indicadores_op:
+            mercado = indicadores_op.get("mercado_externo", {})
+            ind_mercado = mercado.get("valor_pct", 0.0)
+            adrs = indicadores_op.get("adrs_brasileiras", {})
+            ind_adrs = adrs.get("valor_pct", 0.0)
+
+    def classificar_valor(valor):
+        abs_valor = abs(valor)
+        if abs_valor < 0.3: intensidade = "LATERAL"
+        elif abs_valor < 0.8: intensidade = "MUITO_FRACA"
+        elif abs_valor < 1.5: intensidade = "FRACA"
+        elif abs_valor < 2.5: intensidade = "MODERADA"
+        elif abs_valor < 4.5: intensidade = "FORTE"
+        else: intensidade = "MUITO_FORTE"
+        if valor > 0.05: sinal = "COMPRA"
+        elif valor < -0.05: sinal = "VENDA"
+        else: sinal = "NEUTRO"
+        return {"valor_pct": round(valor, 4), "rotulo": f"{intensidade}_{sinal}"}
+
+    mercado_class = classificar_valor(ind_mercado)
+    adrs_class = classificar_valor(ind_adrs)
+
+    col1, col2 = st.columns(2)
+    with col1:
+        rotulo = mercado_class.get("rotulo", "N/A")
+        delta_color = "normal" if "COMPRA" in rotulo else "inverse" if "VENDA" in rotulo else "off"
+        st.metric("🌍 Mercado Externo", f"{ind_mercado:+.2f}%", rotulo, delta_color=delta_color)
+    with col2:
+        rotulo = adrs_class.get("rotulo", "N/A")
+        delta_color = "normal" if "COMPRA" in rotulo else "inverse" if "VENDA" in rotulo else "off"
+        st.metric("🇧🇷 ADRs Brasileiras", f"{ind_adrs:+.2f}%", rotulo, delta_color=delta_color)
+
+    # Interpretação
+    st.markdown("**Interpretação:**")
+    def extrair_direcao(rotulo):
+        if "COMPRA" in rotulo: return "COMPRA"
+        elif "VENDA" in rotulo: return "VENDA"
+        return "NEUTRO"
+
+    dir_mercado = extrair_direcao(mercado_class.get("rotulo", ""))
+    dir_adrs = extrair_direcao(adrs_class.get("rotulo", ""))
+
+    if service.tem_3estrelas:
+        st.warning("⚠️ **Filtro ativado:** Notícia 3★ → Prioridade às ADRs.")
+
+    if dir_mercado == "COMPRA" and dir_adrs == "COMPRA":
+        st.success("✅ Ambos COMPRA – Confluência positiva!")
+    elif dir_mercado == "VENDA" and dir_adrs == "VENDA":
+        st.error("🔴 Ambos VENDA – Confluência negativa!")
+    elif dir_mercado == "NEUTRO" and dir_adrs == "NEUTRO":
+        st.warning("🟡 Ambos neutros – Aguardar definição!")
+    elif dir_mercado != dir_adrs:
+        st.warning(f"⚠️ Divergência: Mercado Externo ({dir_mercado}) vs ADRs ({dir_adrs})")
+    else:
+        st.info(f"ℹ️ Mercado: {dir_mercado} | ADRs: {dir_adrs}")
+
+    st.caption(f"📌 Filtro aplicado: {'Notícia 3★ → ADRs' if service.tem_3estrelas else 'Sem notícia 3★ → Mercado Externo'}")
+
+# ---------- Bloco 2: Decisão do Setup e Gestão de Risco ----------
+def render_bloco_2_decisao_risco(service: SetupService):
+    st.markdown("---")
+    st.subheader("📌 2. Decisão do Setup e Gestão de Risco")
+
+    s = service.sinal()
+    da = service.dados_abertura()
+    cw = service.core_win()
+    cwdo = service.core_wdo()
+
+    col_sinal, col_risco, col_core = st.columns([1.4, 1, 1])
+
+    with col_sinal:
+        st.markdown(
+            f"""
+            <div class="{s.classe_css}">
+                <h3>{s.emoji} SINAL: {s.direcao}</h3>
+                <b>Indicador:</b> {s.indicador_usado}<br>
+                <b>Valor:</b> {s.valor_indicador:+.2f} &nbsp;|&nbsp; <b>Força:</b> {s.forca}/10<br><br>
+                <small>{s.motivo_escolha}</small>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    with col_risco:
+        st.markdown("#### Gestão de Risco")
+        st.metric("Loss", f"{CONFIG.loss_pts} pts")
+        st.metric("Alvo mínimo", f"> {CONFIG.alvo_min_pts} pts")
+        if s.direcao == "COMPRA" and da.preco_atual is not None:
+            st.caption(f"Stop ≈ {da.preco_atual - CONFIG.loss_pts:,.0f}")
+            st.caption(f"Alvo ≈ {da.preco_atual + CONFIG.alvo_min_pts:,.0f}+")
+        elif s.direcao == "VENDA" and da.preco_atual is not None:
+            st.caption(f"Stop ≈ {da.preco_atual + CONFIG.loss_pts:,.0f}")
+            st.caption(f"Alvo ≈ {da.preco_atual - CONFIG.alvo_min_pts:,.0f}-")
+
+    with col_core:
+        st.markdown("#### Core Engine")
+        st.info(f"""
+**WIN:** `{cw.vies}` (score: {cw.score})
+**WDO:** `{cwdo.vies}` (score: {cwdo.score})
+        """)
+
+    if cw.fatores:
+        with st.expander("Fatores relevantes"):
+            for f in cw.fatores:
+                st.write(f"• {f}")
+
+# ---------- Bloco 3: Abertura Teórica e Escoras ----------
+def render_bloco_3_abertura_escoras(service: SetupService):
+    st.markdown("---")
+    st.subheader("📌 3. Abertura Teórica e Escoras (Pivots)")
+
+    da = service.dados_abertura()
+    e = service.escoras()
+
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        st.metric("Abertura WIN", f"{da.abertura_teorica:,.0f}")
+    with c2:
+        st.metric("Variação", f"{da.var_teorica:+.2f}%")
+    with c3:
+        st.metric("Gap", f"{da.gap_pontos:+.0f}")
+    with c4:
+        st.metric("Preço Atual", f"{da.preco_atual:,.0f}" if da.preco_atual is not None else "—")
+
+    st.markdown("##### Escoras WIN")
+    e1, e2, e3, e4, e5 = st.columns(5)
+    with e1:
+        st.metric("R2", f"{e.r2:,.0f}")
+    with e2:
+        st.metric("R1", f"{e.r1:,.0f}")
+    with e3:
+        st.metric("PP", f"{e.pp:,.0f}")
+    with e4:
+        st.metric("S1", f"{e.s1:,.0f}")
+    with e5:
+        st.metric("S2", f"{e.s2:,.0f}")
+
+    if da.preco_atual is not None and e.pp:
+        st.caption(
+            f"Distância ao PP: {da.preco_atual - e.pp:+.0f} pts  |  "
+            f"ao R1: {e.r1 - da.preco_atual:+.0f} pts  |  "
+            f"ao S1: {da.preco_atual - e.s1:+.0f} pts"
+        )
+
+# ---------- Bloco 4: Contexto Macro e Confluência ----------
+def render_bloco_4_contexto_confluencia(service: SetupService, dados: Dict):
+    st.markdown("---")
+    st.subheader("📌 4. Contexto Macro e Confluência")
+
+    # Sub-blocos: ADRs e Macro
+    resumo = service.resumo_macro
+    metricas = dados.get("metricas", {})
+    ativos_brutos = dados.get("ativos", {})
+
+    if service.adrs:
+        st.markdown("**ADRs Brasileiras**")
+        cols_adr = st.columns(min(6, len(service.adrs)))
+        for i, (ticker, dados_adr) in enumerate(service.adrs.items()):
+            with cols_adr[i % len(cols_adr)]:
+                st.metric(
+                    ticker.replace("_ADR", ""),
+                    f"{dados_adr.get('close', 0):.2f}",
+                    f"{dados_adr.get('change_percent', 0):+.2f}%",
+                )
+
+    st.markdown("**Macro & Taxas**")
+    m1, m2, m3, m4, m5 = st.columns(5)
+
+    def buscar_preco_e_variacao(nome_padrao, chave_resumo=None, chave_metricas=None):
+        if chave_resumo:
+            item = resumo.get(chave_resumo, {})
+            if isinstance(item, dict):
+                close = item.get("close")
+                change = item.get("change_percent")
+                if close is not None:
+                    return close, change
+        macro = metricas.get("indicadores_macro", {})
+        if macro and chave_metricas:
+            if chave_metricas == "iron_ore":
+                iron_data = macro.get("iron_ore", {})
+                if isinstance(iron_data, dict):
+                    close = iron_data.get("close")
+                    change = iron_data.get("change_percent")
+                    if close is not None:
+                        return close, change
+            else:
+                close = macro.get(chave_metricas)
+                change_var = f"{chave_metricas}_change_pct"
+                change = macro.get(change_var)
+                if close is not None:
+                    return close, change
+        if isinstance(ativos_brutos, dict):
+            ativos_data = ativos_brutos.get("ativos", ativos_brutos)
+            ativo = ativos_data.get(nome_padrao, {})
+            if isinstance(ativo, dict):
+                close = ativo.get("preco") or ativo.get("close")
+                change = ativo.get("variacao_pct") or ativo.get("change_percent")
+                if close is not None:
+                    return close, change
+        return None, None
+
+    vix_val, vix_var = buscar_preco_e_variacao("VIX", "vix", "vix")
+    crude_val, crude_var = buscar_preco_e_variacao("CRUDE_OIL", "crude_oil", "crude_oil")
+    iron_val, iron_var = buscar_preco_e_variacao("IRON_ORE", "iron_ore", "iron_ore")
+
+    di27 = resumo.get("di1_2027", 0)
+    di29 = resumo.get("di1_2029", 0)
+    if not di27:
+        di27 = metricas.get("curva_juros_b3", {}).get("di1_2027_taxa", 0)
+    if not di29:
+        di29 = metricas.get("curva_juros_b3", {}).get("di1_2029_taxa", 0)
+
+    with m1:
+        if vix_val is not None:
+            st.metric("VIX", f"{vix_val:.2f}", f"{vix_var:+.2f}%" if vix_var is not None else None, delta_color="inverse")
+        else:
+            st.metric("VIX", "N/A")
+    with m2:
+        if crude_val is not None:
+            st.metric("Petróleo", f"{crude_val:.2f}", f"{crude_var:+.2f}%" if crude_var is not None else None)
+        else:
+            st.metric("Petróleo", "N/A")
+    with m3:
+        if iron_val is not None:
+            st.metric("Minério", f"{iron_val:.2f}", f"{iron_var:+.2f}%" if iron_var is not None else None)
+        else:
+            st.metric("Minério", "N/A")
+    with m4:
+        st.metric("DI 2027", f"{di27:.2f}%" if di27 else "N/A")
+    with m5:
+        st.metric("DI 2029", f"{di29:.2f}%" if di29 else "N/A")
+
+    # Confluência de tendência (bolinhas)
+    st.markdown("**Confluência com Tendência (últimos 15min)**")
+    arquivo_tendencias = ARQUIVOS["tendencias"]
+
+    def padrao_para_bola(padrao: str) -> str:
+        mapa = {"Alta": "🟢", "Baixa": "🔴", "Estavel": "🟡"}
+        partes = padrao.split("_E_")
+        if len(partes) != 2:
+            return f"⚪ {padrao}"
+        return f"{mapa.get(partes[0], '⚪')} → {mapa.get(partes[1], '⚪')}"
+
+    if os.path.exists(arquivo_tendencias):
+        try:
+            with open(arquivo_tendencias, "r", encoding="utf-8") as f:
+                dados_tendencias = json.load(f)
+            if dados_tendencias and len(dados_tendencias) > 0:
+                tendencias = service.tendencias
+                if tendencias:
+                    cols = st.columns(min(4, len(tendencias)))
+                    for i, (ativo, tend) in enumerate(tendencias.items()):
+                        with cols[i % len(cols)]:
+                            bolas = padrao_para_bola(tend.padrao)
+                            delta_color = "normal" if tend.ultima_variacao > 0 else "inverse" if tend.ultima_variacao < 0 else "off"
+                            st.metric(
+                                label=f"{ativo}",
+                                value=bolas,
+                                delta=f"{tend.ultima_variacao:+.2f}%",
+                                delta_color=delta_color
+                            )
+                    # Exibe a confluência
+                    confluencia = service.confluencia_tendencia()
+                    if confluencia["confluente"]:
+                        st.success(f"✅ {confluencia['motivo']}")
+                    else:
+                        st.warning(f"⚠️ {confluencia['motivo']}")
+                else:
+                    st.info("Nenhuma tendência disponível.")
+            else:
+                st.info("Arquivo de tendências vazio.")
+        except Exception as e:
+            st.error(f"Erro ao carregar tendências: {e}")
+    else:
+        st.info("📊 Analise_Tendencias.json não encontrado.")
+        sucesso, mensagem = garantir_tendencias()
+        if sucesso:
+            st.success(f"✅ {mensagem}")
+            st.rerun()
+        else:
+            st.warning(f"⚠️ {mensagem}")
+
+# ---------- Bloco 5: Análise IA – Pré-Abertura ----------
+def render_bloco_5_ia_pre_abertura(service: SetupService):
+    st.markdown("---")
+    st.subheader("📌 5. Análise IA – Pré-Abertura")
+    st.caption("Previsão de direção, GAP, SMC e cenário para os primeiros minutos do pregão")
+
+    # Status SMC (regras + visão)
+    smc_regras_ok = bool(service.analise_smc_regras) and not service.analise_smc_regras.get("erro")
+    smc_visao_ok = bool(service.analise_smc)
+    if smc_regras_ok and smc_visao_ok:
+        st.success("✅ SMC Regras + Visão carregados (prompt unificado)")
+    elif smc_regras_ok:
+        st.success("✅ SMC Regras carregado (visão IA ausente)")
+    elif smc_visao_ok:
+        st.info("ℹ️ Só Visão IA disponível (rode o motor de regras no pipeline)")
+    else:
+        st.info("ℹ️ Sem SMC (regras/visão) — IA usará só dados quantitativos")
+    smc_ok = smc_regras_ok or smc_visao_ok
+
+    groq_key = os.getenv("GROQ_API_KEY", "")
+    if not groq_key:
+        try:
+            from dotenv import load_dotenv
+            load_dotenv(BASE_DIR / ".env")
+            groq_key = os.getenv("GROQ_API_KEY", "")
+        except Exception:
+            pass
+
+    with st.expander("⚙️ Configurações da IA", expanded=False):
+        groq_key_input = st.text_input(
+            "Groq API Key (opcional se KeyManager estiver configurado)",
+            type="password",
+            value=groq_key,
+            help="KeyManager tem prioridade. Use este campo só como fallback.",
+            key="groq_key_pre_abertura",
+        )
+        modelo_texto = st.selectbox(
+            "Modelo (texto)",
+            ["llama-3.3-70b-versatile", "llama-3.1-70b-versatile", "llama-3.1-8b-instant"],
+            index=0,
+            key="modelo_pre_abertura",
+        )
+        st.caption("💡 KeyManager faz rotação automática de chaves. max_tokens=2500.")
+
+    if not service.dados_minimos_ok():
+        st.warning("⚠️ Dados insuficientes. Execute `rodar_pipeline_3x.bat`")
+        return
+
+    if st.button("📊 Analisar Pré-Abertura (Texto)", type="primary", key="btn_pre_abertura"):
+        key_final = groq_key_input or groq_key or ""
+        with st.spinner("📊 Analisando pré-abertura (pipeline + SMC)..."):
+            try:
+                dados_ia = service.dados_para_ia_resumido()
+                prompt = montar_prompt_pre_abertura(dados_ia)
+                resposta_limpa = chamar_groq_texto(key_final, prompt, modelo_texto)
+                tag_smc = "SMC" if smc_ok else "Sem SMC"
+                st.markdown(
+                    f"""
+                    <div class="card-ai" style="border-left-color: #00d4ff;">
+                        <h4 style="color:#00d4ff;">📊 Análise de Pré-Abertura</h4>
+                        <div style="color:#a78bfa; font-size:0.85rem; margin-bottom:8px;">
+                            ⚡ Pipeline + SMC • KeyManager
+                            <span style="margin-left:12px; background:rgba(0,212,255,0.15); padding:2px 10px; border-radius:12px; font-size:0.7rem;">{modelo_texto}</span>
+                            <span style="margin-left:12px; background:rgba(0,200,83,0.15); padding:2px 10px; border-radius:12px; font-size:0.7rem;">🇧🇷 PT-BR</span>
+                            <span style="margin-left:12px; background:rgba(124,92,252,0.15); padding:2px 10px; border-radius:12px; font-size:0.7rem;">{tag_smc}</span>
+                        </div>
+                        <div class="analysis-content">
+                            {resposta_limpa.replace(chr(10), '<br>')}
+                        </div>
+                        <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+                            <span class="smc-tag">📊 Pré-Abertura</span>
+                            <span class="smc-tag">🎯 Direção</span>
+                            <span class="smc-tag">📈 GAP</span>
+                            <span class="smc-tag">🔷 SMC</span>
+                            <span class="smc-tag">🎯 Níveis</span>
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+                if "historico_pre_abertura" not in st.session_state:
+                    st.session_state.historico_pre_abertura = []
+                st.session_state.historico_pre_abertura.append({
+                    "hora": datetime.now().strftime("%H:%M:%S"),
+                    "sinal": service.sinal().direcao,
+                    "modelo": modelo_texto,
+                    "resposta": resposta_limpa,
+                    "smc": smc_ok,
+                })
+            except Exception as e:
+                st.error(f"❌ Erro ao chamar IA: {e}")
+
+# ---------- Bloco 6: Checklist Final ----------
+def render_bloco_6_checklist():
+    st.markdown("---")
+    st.subheader("📌 6. Checklist Final")
+
+    keys = ["ck_09h_1", "ck_09h_2", "ck_09h_3", "ck_09h_4", "ck_09h_5"]
+    labels = [
+        "Indicador alinhado com Core Engine",
+        "Abertura real observada",
+        "Escora próxima identificada",
+        "Loss e Alvo definidos",
+        "Análise IA revisada",
+    ]
+
+    todos = True
+    for key, label in zip(keys, labels):
+        if key not in st.session_state:
+            st.session_state[key] = False
+        val = st.checkbox(label, key=key)
+        if not val:
+            todos = False
+
+    if todos:
+        st.success("🚀 SETUP VALIDADO")
+    else:
+        st.info("⏳ Complete o checklist")
+
+# ============================================================
+# RENDERIZAÇÃO DO SETUP AJUSTE B3 (extraído do arquivo original)
+# ============================================================
+def render_ajuste_metricas(ativos):
+    st.markdown("---")
+    st.subheader("📌 1. Ajuste Oficial x Preço Atual x Last (Candle Anterior)")
+
+    def obter_preco(nome):
+        ativo = ativos.get(nome, {})
+        if isinstance(ativo, dict):
+            return ativo.get("preco", ativo.get("valor", 0.0))
+        return 0.0
+
+    # 🔥 NOVA FUNÇÃO: busca o last diretamente no Dados_MT5.json
+    def obter_last_mt5(prefixo):
+        """
+        Retorna o 'last' do primeiro contrato que começa com o prefixo (WIN ou WDO)
+        no arquivo Dados_MT5.json.
+        """
+        import json
+        from pathlib import Path
+        caminho = Path(__file__).resolve().parent.parent / "Coletas" / "Dados_MT5.json"
+        if not caminho.exists():
+            return None
+        try:
+            with open(caminho, "r", encoding="utf-8") as f:
+                dados = json.load(f)
+            contratos = dados.get("contratos", {})
+            for nome, info in contratos.items():
+                if nome.startswith(prefixo):
+                    last = info.get("last")
+                    if last is not None and last > 0:
+                        return last
+        except:
+            pass
+        return None
+
+    # --- Dados do WIN ---
+    win_ajuste = obter_preco("WIN_AJUSTE")
+    win_atual = obter_preco("WIN_FUT")      # Futuro (Close) – preço atual
+    win_last = obter_last_mt5("WIN")        # Last (Candle) – fechamento do pregão anterior via MT5
+
+    # --- Dados do WDO ---
+    wdo_ajuste = obter_preco("WDO_AJUSTE")
+    wdo_atual = obter_preco("WDO_FUT")
+    wdo_last = obter_last_mt5("WDO")
+
+    ptax = obter_preco("USD_PTAX")
+
+    # --- Cálculo das distâncias e spreads (mesmo de antes) ---
+    def calcular_distancia(preco, ajuste):
+        if not preco or not ajuste:
+            return 0, 0
+        pontos = preco - ajuste
+        percentual = (pontos / ajuste) * 100 if ajuste != 0 else 0
+        return pontos, percentual
+
+    dist_win_pts, dist_win_pct = calcular_distancia(win_atual, win_ajuste)
+    dist_wdo_pts, dist_wdo_pct = calcular_distancia(wdo_atual, wdo_ajuste)
+
+    spread_win_last = win_ajuste - win_last if win_last and win_ajuste else None
+    spread_wdo_last = wdo_ajuste - wdo_last if wdo_last and wdo_ajuste else None
+
+    # --- Exibição (cards) ---
+    st.write("**📍 Mini Índice WIN**")
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("🎯 Ajuste", f"{win_ajuste:,.0f} pts")
+    with col2:
+        st.metric("📊 Futuro (Close)", f"{win_atual:,.0f} pts", f"{dist_win_pct:+.2f}%")
+    with col3:
+        if win_last:
+            st.metric("🕯️ Last (Candle)", f"{win_last:,.0f} pts")
+        else:
+            st.metric("🕯️ Last (Candle)", "N/A")
+    with col4:
+        if spread_win_last is not None:
+            cor_spread = "inverse" if spread_win_last > 0 else "normal"
+            st.metric("📏 Spread (Ajuste - Last)", f"{spread_win_last:+,.0f} pts", delta_color=cor_spread)
+        else:
+            st.metric("📏 Spread", "N/A")
+
+    st.write("**📍 Mini Dólar WDO**")
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("🎯 Ajuste", f"{wdo_ajuste:,.2f}")
+    with col2:
+        st.metric("📊 Futuro (Close)", f"{wdo_atual:,.2f}", f"{dist_wdo_pct:+.2f}%")
+    with col3:
+        if wdo_last:
+            st.metric("🕯️ Last (Candle)", f"{wdo_last:,.2f}")
+        else:
+            st.metric("🕯️ Last (Candle)", "N/A")
+    with col4:
+        if spread_wdo_last is not None:
+            cor_spread = "inverse" if spread_wdo_last > 0 else "normal"
+            st.metric("📏 Spread (Ajuste - Last)", f"{spread_wdo_last:+,.2f} pts", delta_color=cor_spread)
+        else:
+            st.metric("📏 Spread", "N/A")
+
+    st.caption("💡 O 'Last' é o fechamento da última vela do pregão anterior (capturado via MT5). O 'Futuro (Close)' é o preço atual (TradingView).")
+
+def render_ajuste_macro(ativos):
+    st.markdown("---")
+    st.subheader("🌐 2. Termômetro Macro (com %)")
+
+    def variacao(ativo):
+        if isinstance(ativo, dict):
+            return ativo.get("variacao_pct", ativo.get("var_pct", 0))
+        return 0
+
+    sp500 = ativos.get("SP500_FUT", {})
+    nasdaq = ativos.get("NASDAQ_FUT", {})
+    ewz = ativos.get("EWZ", {})
+    vix = ativos.get("VIX", {})
+    dxy = ativos.get("DXY", {})
+    iron = ativos.get("IRON_ORE", {})
+    petr = ativos.get("PETR_ADR", {})
+
+    m1, m2, m3, m4, m5, m6 = st.columns(6)
+    with m1:
+        st.metric("🇺🇸 S&P500", f"{sp500.get('preco', 0):,.2f}", f"{variacao(sp500):+.2f}%")
+    with m2:
+        st.metric("💻 Nasdaq", f"{nasdaq.get('preco', 0):,.2f}", f"{variacao(nasdaq):+.2f}%")
+    with m3:
+        st.metric("🇧🇷 EWZ", f"${ewz.get('preco', 0):,.2f}", f"{variacao(ewz):+.2f}%")
+    with m4:
+        st.metric("⚠️ VIX", f"{vix.get('preco', 0):,.2f}", f"{variacao(vix):+.2f}%", delta_color="inverse")
+    with m5:
+        st.metric("💵 DXY", f"{dxy.get('preco', 0):,.2f}", f"{variacao(dxy):+.2f}%", delta_color="inverse")
+    with m6:
+        st.metric("⛏️ Minério", f"${iron.get('preco', 0):,.2f}", f"{variacao(iron):+.2f}%")
+
+####
+def render_ajuste_tendencia(ativos, dados_tendencias):
+    st.markdown("---")
+    st.subheader("📈 3. Confluência com Tendência")
+
+    # --- Função para transformar padrão em bolinhas (igual à aba 09:00) ---
+    def padrao_para_bola(padrao: str) -> str:
+        mapa = {"Alta": "🟢", "Baixa": "🔴", "Estavel": "🟡"}
+        partes = padrao.split("_E_")
+        if len(partes) != 2:
+            return f"⚪ {padrao}"
+        return f"{mapa.get(partes[0], '⚪')} → {mapa.get(partes[1], '⚪')}"
+
+    # --- Função auxiliar para buscar preço (já existente) ---
+    def obter_preco(nome):
+        ativo = ativos.get(nome, {})
+        if isinstance(ativo, dict):
+            return ativo.get("preco", ativo.get("valor", 0.0))
+        return 0.0
+
+    def calcular_distancia(preco, ajuste):
+        if not preco or not ajuste:
+            return 0, 0
+        pontos = preco - ajuste
+        percentual = (pontos / ajuste) * 100 if ajuste != 0 else 0
+        return pontos, percentual
+
+    # --- EXTRAÇÃO DE TENDÊNCIAS (MESMA LÓGICA DO SetupService) ---
+    def extrair_tendencias():
+        if not dados_tendencias:
+            return {}
+        tendencias = {}
+        # Mapeamento: nome padronizado -> label para exibição
+        ativos_desejados = {
+            "WIN_FUT": "WIN",
+            "WDO_FUT": "WDO",
+            "SP500_FUT": "S&P500",
+            "NASDAQ_FUT": "Nasdaq",
+            "VIX": "VIX",
+            "EWZ": "EWZ"
+        }
+        # Possíveis tickers originais que podem aparecer no JSON
+        ticker_map = {
+            "WIN_FUT": ["WIN_FUT", "BMFBOVESPA:WIN1!"],
+            "WDO_FUT": ["WDO_FUT", "BMFBOVESPA:WDO1!"],
+            "SP500_FUT": ["SP500_FUT", "CME_MINI:ES1!"],
+            "NASDAQ_FUT": ["NASDAQ_FUT", "CME_MINI:NQ1!"],
+            "VIX": ["VIX", "TVC:VIX"],
+            "EWZ": ["EWZ", "AMEX:EWZ"]
+        }
+
+        for ativo_padrao, label in ativos_desejados.items():
+            info = None
+            # Tenta encontrar pelas chaves mapeadas
+            for chave in ticker_map.get(ativo_padrao, [ativo_padrao]):
+                if chave in dados_tendencias:
+                    info = dados_tendencias[chave]
+                    break
+            # Se não encontrou, tenta buscar por qualquer chave que contenha o nome padronizado
+            if not info:
+                for chave, valor in dados_tendencias.items():
+                    if ativo_padrao in chave:
+                        info = valor
+                        break
+            if info:
+                tendencias[label] = {
+                    "padrao": info.get("padrao_comportamento", "N/A"),
+                    "variacao": info.get("intervalo_5_para_0", {}).get("variacao_pct", 0),
+                    "tendencia": info.get("intervalo_5_para_0", {}).get("tendencia", "N/A")
+                }
+        return tendencias
+
+    tendencias = extrair_tendencias()
+
+    # --- Se não houver tendências, tenta gerar (fallback) ---
+    if not tendencias:
+        st.info("📊 Analise_Tendencias.json não encontrado ou sem dados.")
+        sucesso, mensagem = garantir_tendencias()
+        if sucesso:
+            st.success(f"✅ {mensagem}")
+            st.rerun()
+        else:
+            st.warning(f"⚠️ {mensagem}")
+        return
+
+    # --- Exibe cards de tendência (igual à aba 09:00) ---
+    cols = st.columns(min(4, len(tendencias)))
+    for i, (label, tend) in enumerate(tendencias.items()):
+        with cols[i % len(cols)]:
+            bolas = padrao_para_bola(tend["padrao"])
+            delta_color = "normal" if tend["variacao"] > 0 else "inverse" if tend["variacao"] < 0 else "off"
+            st.metric(
+                label=label,
+                value=bolas,
+                delta=f"{tend['variacao']:+.2f}%",
+                delta_color=delta_color
+            )
+
+    # --- Diagnóstico de confluência (igual à aba 09:00) ---
+    win_ajuste = obter_preco("WIN_AJUSTE")
+    win_atual = obter_preco("WIN_FUT")
+    dist_win_pts, _ = calcular_distancia(win_atual, win_ajuste) if win_ajuste and win_atual else (0, 0)
+
+    tend_win = tendencias.get("WIN")
+    if tend_win and win_ajuste and win_atual:
+        if dist_win_pts > 300 and tend_win["tendencia"] == "SUBIU":
+            st.success("✅ WIN distante do ajuste e tendência de alta - Viés Comprador")
+        elif dist_win_pts < -300 and tend_win["tendencia"] == "DESCEU":
+            st.error("🔴 WIN distante do ajuste e tendência de baixa - Viés Vendedor")
+        elif abs(dist_win_pts) > 300:
+            st.warning(f"⚠️ WIN distante do ajuste ({dist_win_pts:+.0f} pts) - Aguardar confirmação")
+        else:
+            st.info("ℹ️ WIN próximo do ajuste - Aguardar definição")
+    else:
+        st.info("ℹ️ Dados insuficientes para diagnóstico de confluência.")
+####
+def render_ajuste_score_win(ativos, dados_tendencias):
+    st.markdown("---")
+    st.subheader("📊 4. Score Quantitativo WIN")
+
+    def variacao(ativo):
+        if isinstance(ativo, dict):
+            return ativo.get("variacao_pct", ativo.get("var_pct", 0))
+        return 0
+
+    def obter_preco(nome):
+        ativo = ativos.get(nome, {})
+        if isinstance(ativo, dict):
+            return ativo.get("preco", ativo.get("valor", 0.0))
+        return 0.0
+
+    def calcular_distancia(preco, ajuste):
+        if not preco or not ajuste:
+            return 0, 0
+        pontos = preco - ajuste
+        return pontos, (pontos / ajuste) * 100 if ajuste != 0 else 0
+
+    def extrair_tendencia_win():
+        if not dados_tendencias:
+            return None
+        for chave in ["WIN_FUT", "BMFBOVESPA:WIN1!"]:
+            if chave in dados_tendencias:
+                info = dados_tendencias[chave]
+                return {
+                    "padrao": info.get("padrao_comportamento", "N/A"),
+                    "variacao": info.get("intervalo_5_para_0", {}).get("variacao_pct", 0),
+                    "tendencia": info.get("intervalo_5_para_0", {}).get("tendencia", "N/A")
+                }
+        return None
+
+    sp500 = ativos.get("SP500_FUT", {})
+    nasdaq = ativos.get("NASDAQ_FUT", {})
+    ewz = ativos.get("EWZ", {})
+    vix = ativos.get("VIX", {})
+    iron = ativos.get("IRON_ORE", {})
+    win_ajuste = obter_preco("WIN_AJUSTE")
+    win_atual = obter_preco("WIN_FUT")
+    dist_win_pts, _ = calcular_distancia(win_atual, win_ajuste)
+    tendencia_win = extrair_tendencia_win()
+
+    score_win = 0
+    criterios_win = []
+    if variacao(sp500) > 0:
+        score_win += 1
+        criterios_win.append("✅ S&P500 positivo")
+    else:
+        criterios_win.append("❌ S&P500 negativo")
+    if variacao(iron) > 0:
+        score_win += 1
+        criterios_win.append("✅ Minério positivo")
+    else:
+        criterios_win.append("❌ Minério negativo")
+    if variacao(ewz) > 0:
+        score_win += 1
+        criterios_win.append("✅ EWZ positivo")
+    else:
+        criterios_win.append("❌ EWZ negativo")
+    if variacao(vix) < 0:
+        score_win += 1
+        criterios_win.append("✅ VIX reduzindo risco")
+    else:
+        criterios_win.append("❌ VIX pressionando")
+    if variacao(nasdaq) > 0:
+        score_win += 1
+        criterios_win.append("✅ Nasdaq positivo")
+    else:
+        criterios_win.append("❌ Nasdaq negativo")
+    if tendencia_win and tendencia_win["tendencia"] == "SUBIU" and dist_win_pts > 300:
+        score_win += 1
+        criterios_win.append("✅ Tendência confirma ajuste")
+
+    col_score, col_lista = st.columns(2)
+    with col_score:
+        st.metric("Score WIN", f"{score_win}/6")
+        if score_win >= 5:
+            st.success("🟢 VIÉS COMPRADOR FORTE")
+        elif score_win >= 3:
+            st.warning("🟡 VIÉS NEUTRO/MODERADO")
+        else:
+            st.error("🔴 VIÉS VENDEDOR")
+    with col_lista:
+        for item in criterios_win:
+            st.write(item)
+
+def render_ajuste_score_wdo(ativos):
+    st.markdown("---")
+    st.subheader("💵 5. Score Quantitativo WDO")
+
+    def variacao(ativo):
+        if isinstance(ativo, dict):
+            return ativo.get("variacao_pct", ativo.get("var_pct", 0))
+        return 0
+
+    usd_mxn = ativos.get("USD_MXN", {})
+    dxy = ativos.get("DXY", {})
+    vix = ativos.get("VIX", {})
+
+    score_wdo = 0
+    criterios_wdo = []
+    if variacao(dxy) > 0:
+        score_wdo += 1
+        criterios_wdo.append("✅ DXY fortalecendo dólar")
+    else:
+        criterios_wdo.append("❌ DXY enfraquecendo dólar")
+    if variacao(usd_mxn) > 0:
+        score_wdo += 1
+        criterios_wdo.append("✅ USD/MXN favorece dólar")
+    else:
+        criterios_wdo.append("❌ USD/MXN favorece moedas emergentes")
+    if variacao(vix) > 0:
+        score_wdo += 1
+        criterios_wdo.append("✅ VIX em alta (proteção)")
+    else:
+        criterios_wdo.append("❌ VIX em queda")
+
+    c_score, c_lista = st.columns(2)
+    with c_score:
+        st.metric("Score WDO", f"{score_wdo}/3")
+        if score_wdo >= 2:
+            st.success("🟢 VIÉS COMPRADOR DÓLAR")
+        elif score_wdo == 0:
+            st.error("🔴 VIÉS VENDEDOR DÓLAR")
+        else:
+            st.warning("🟡 DÓLAR NEUTRO")
+    with c_lista:
+        for item in criterios_wdo:
+            st.write(item)
+
+def render_ajuste_checklist():
+    st.markdown("---")
+    st.subheader("📋 6. Checklist de Execução")
+    col_check1, col_check2 = st.columns(2)
+    with col_check1:
+        st.markdown("### 📈 WIN Ajuste")
+        check_win_dist = st.checkbox("WIN distante do ajuste (>300 pontos)", key="ajuste_win_dist")
+        check_win_fluxo = st.checkbox("Fluxo confirmou defesa/rejeição no ajuste", key="ajuste_win_fluxo")
+        check_win_noticia = st.checkbox("Sem notícia de alto impacto próxima", key="ajuste_win_noticia")
+    with col_check2:
+        st.markdown("### 💵 WDO Ajuste")
+        check_wdo_dist = st.checkbox("WDO distante do ajuste (>10 pontos)", key="ajuste_wdo_dist")
+        check_wdo_fluxo = st.checkbox("Tape Reading confirmou absorção", key="ajuste_wdo_fluxo")
+        check_wdo_noticia = st.checkbox("Sem evento macro imediato", key="ajuste_wdo_noticia")
+
+    check_win_total = sum([check_win_dist, check_win_fluxo, check_win_noticia])
+    check_wdo_total = sum([check_wdo_dist, check_wdo_fluxo, check_wdo_noticia])
+    return check_win_total, check_wdo_total
+
+def render_ajuste_semaforo(score_win, check_win_total, score_wdo, check_wdo_total):
+    st.markdown("---")
+    st.subheader("🚦 7. Semáforo Operacional")
+
+    def gerar_status(score, checklist):
+        pontos = score + checklist
+        if pontos >= 7:
+            return "🟢", "SETUP LIBERADO", "Alta confluência"
+        elif pontos >= 4:
+            return "🟡", "AGUARDAR CONFIRMAÇÃO", "Confluência parcial"
+        else:
+            return "🔴", "NÃO OPERAR", "Risco elevado"
+
+    status_win = gerar_status(score_win, check_win_total)
+    status_wdo = gerar_status(score_wdo, check_wdo_total)
+
+    cwin, cwdo = st.columns(2)
+    with cwin:
+        st.markdown(f"""
+        <div class="info-box">
+            <h3>📈 SETUP WIN</h3>
+            <h2>{status_win[0]} {status_win[1]}</h2>
+            <p>Score: {score_win}/6<br>Checklist: {check_win_total}/3<br>{status_win[2]}</p>
+        </div>
+        """, unsafe_allow_html=True)
+    with cwdo:
+        st.markdown(f"""
+        <div class="info-box">
+            <h3>💵 SETUP WDO</h3>
+            <h2>{status_wdo[0]} {status_wdo[1]}</h2>
+            <p>Score: {score_wdo}/3<br>Checklist: {check_wdo_total}/3<br>{status_wdo[2]}</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+def render_ajuste_ia(win_ajuste, win_atual, dist_win_pts, wdo_ajuste, wdo_atual, dist_wdo_pts, ptax, score_win, score_wdo, status_win, status_wdo, tendencia_win, sp500, nasdaq, vix, dxy, iron):
+    st.markdown("---")
+    st.subheader("🧠 8. Análise IA - Ajuste B3")
+
+    groq_key = os.getenv("GROQ_API_KEY", "")
+    if not groq_key:
+        try:
+            from dotenv import load_dotenv
+            load_dotenv(os.path.join(BASE_DIR, ".env"))
+            groq_key = os.getenv("GROQ_API_KEY", "")
+        except Exception:
+            pass
+
+    with st.expander("⚙️ Configurações da IA", expanded=False):
+        groq_key_input = st.text_input(
+            "Groq API Key (opcional se KeyManager estiver configurado)",
+            type="password",
+            value=groq_key,
+            help="KeyManager tem prioridade.",
+            key="groq_key_ajuste_unificado",
+        )
+        modelo_texto = st.selectbox(
+            "Modelo (texto)",
+            ["llama-3.3-70b-versatile", "llama-3.1-70b-versatile", "llama-3.1-8b-instant"],
+            index=0,
+            key="modelo_ajuste_unificado",
+        )
+        st.caption("💡 Mesma engine da pré-abertura: KeyManager + limpeza PT-BR + max_tokens=2500")
+
+    if st.button("📊 Analisar Ajuste B3 (IA)", type="primary", key="btn_ajuste_unificado"):
+        key_final = groq_key_input or groq_key or ""
+        with st.spinner("🧠 Analisando setup de ajuste..."):
+            try:
+                def variacao(ativo):
+                    return ativo.get("variacao_pct", ativo.get("var_pct", 0)) if isinstance(ativo, dict) else 0
+
+                dados_ia = {
+                    "win_ajuste": f"{win_ajuste:,.0f}",
+                    "win_atual": f"{win_atual:,.0f}",
+                    "dist_win": f"{dist_win_pts:+,.0f}",
+                    "wdo_ajuste": f"{wdo_ajuste:,.2f}",
+                    "wdo_atual": f"{wdo_atual:,.2f}",
+                    "dist_wdo": f"{dist_wdo_pts:+,.2f}",
+                    "ptax": f"{ptax:,.4f}" if ptax else "N/A",
+                    "score_win": f"{score_win}/6",
+                    "score_wdo": f"{score_wdo}/3",
+                    "status_win": status_win,
+                    "status_wdo": status_wdo,
+                    "tendencia_win": tendencia_win["padrao"] if tendencia_win else "N/A",
+                    "sp500": f"{variacao(sp500):+.2f}%",
+                    "nasdaq": f"{variacao(nasdaq):+.2f}%",
+                    "vix": f"{variacao(vix):+.2f}%",
+                    "dxy": f"{variacao(dxy):+.2f}%",
+                    "iron": f"{variacao(iron):+.2f}%",
+                }
+                prompt = f"""⚠️ RESPONDA EM PORTUGUÊS DO BRASIL. SEJA DIRETO.
+NÃO mostre raciocínio interno. Complete todas as 6 seções.
+
+VOCÊ É UM ESPECIALISTA EM AJUSTE B3.
+
+DADOS DO SETUP:
+
+WIN: Ajuste {dados_ia['win_ajuste']} | Atual {dados_ia['win_atual']} | Distância {dados_ia['dist_win']}
+WDO: Ajuste {dados_ia['wdo_ajuste']} | Atual {dados_ia['wdo_atual']} | Distância {dados_ia['dist_wdo']}
+PTAX: {dados_ia['ptax']}
+Score WIN: {dados_ia['score_win']} | Status: {dados_ia['status_win']}
+Score WDO: {dados_ia['score_wdo']} | Status: {dados_ia['status_wdo']}
+Tendência WIN: {dados_ia['tendencia_win']}
+S&P500: {dados_ia['sp500']} | Nasdaq: {dados_ia['nasdaq']}
+VIX: {dados_ia['vix']} | DXY: {dados_ia['dxy']} | Minério: {dados_ia['iron']}
+
+---
+
+RESPONDA EM PORTUGUÊS:
+
+1. ANÁLISE DO AJUSTE WIN: O ajuste está distante ou próximo? O que esperar?
+2. ANÁLISE DO AJUSTE WDO: O ajuste está distante ou próximo? O que esperar?
+3. CONFLUÊNCIA MACRO: O cenário macro favorece ou atrapalha o ajuste?
+4. OPORTUNIDADE: Vale a pena operar o ajuste? (SIM/NÃO/PARCIAL)
+5. RECOMENDAÇÃO: Qual ativo (WIN/WDO) tem melhor setup?
+6. CONFIANÇA: De 1 a 10 (justifique)
+
+SEJA DIRETO. PORTUGUÊS APENAS. SEM THINKING."""
+
+                system_ajuste = """VOCÊ É UM ESPECIALISTA EM AJUSTE B3 (WIN/WDO).
+REGRAS: 100% português do Brasil; sem raciocínio interno; completo e objetivo."""
+
+                resposta_limpa = chamar_groq_texto(
+                    key_final,
+                    prompt,
+                    modelo_texto,
+                    system_content=system_ajuste,
+                )
+                st.markdown(f"""
+                <div class="card-ai">
+                    <h4>🤖 Análise IA - Ajuste B3</h4>
+                    <div style="color:#a78bfa; font-size:0.85rem; margin-bottom:8px;">
+                        ⚡ Pipeline • KeyManager • PT-BR
+                        <span style="margin-left:12px; background:rgba(124,92,252,0.15); padding:2px 10px; border-radius:12px; font-size:0.7rem;">{modelo_texto}</span>
+                    </div>
+                    <div class="analysis-content">
+                        {resposta_limpa.replace(chr(10), '<br>')}
+                    </div>
+                    <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+                        <span class="smc-tag">🎯 Ajuste B3</span>
+                        <span class="smc-tag">📊 WIN/WDO</span>
+                        <span class="smc-tag">🏦 Fluxo</span>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+                if "historico_ia_ajuste" not in st.session_state:
+                    st.session_state.historico_ia_ajuste = []
+                st.session_state.historico_ia_ajuste.append({
+                    "hora": datetime.now().strftime("%H:%M:%S"),
+                    "resposta": resposta_limpa,
+                })
+            except Exception as e:
+                st.error(f"❌ Erro ao chamar IA: {e}")
+
+    if st.session_state.get("historico_ia_ajuste"):
+        with st.expander("📜 Histórico de análises IA"):
+            for i, h in enumerate(reversed(st.session_state.historico_ia_ajuste), 1):
+                st.markdown(f"**#{i} • {h['hora']}**")
+                st.markdown(h["resposta"])
+                st.markdown("---")
+
+def render_ajuste_core_json(score_win, check_win_total, status_win, score_wdo, check_wdo_total, status_wdo, fonte_dados, tendencia_win):
+    st.markdown("---")
+    st.subheader("🤖 9. Dados Preparados para Core Engine")
+    decisao_setup = {
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "ativo_principal": "WIN/WDO",
+        "win": {"score": score_win, "checklist": check_win_total, "status": status_win},
+        "wdo": {"score": score_wdo, "checklist": check_wdo_total, "status": status_wdo},
+        "fonte": fonte_dados,
+        "tendencia_win": tendencia_win["padrao"] if tendencia_win else "N/A",
+    }
+    with st.expander("📄 Visualizar JSON de decisão"):
+        st.json(decisao_setup)
+
+# ============================================================
+# MAIN - PÁGINA UNIFICADA COM ABAS
+# ============================================================
+def main():
+    st.set_page_config(
+        page_title="Setup Abertura",
+        page_icon="🎯",
+        layout="wide",
+    )
+    st.markdown(CSS_CUSTOM, unsafe_allow_html=True)
+
+    # Sidebar comum
+    render_sidebar_09h()
+
+    st.title("🎯 Setup Abertura")
+    st.caption("Unificado: Ajuste B3 | Abertura 09:00")
+
+    # Carregamento de dados compartilhado
+    @st.cache_data(ttl=60, show_spinner=False)
+    def carregar_dados_unificados():
+        dados = {}
+        for chave, caminho in ARQUIVOS.items():
+            dados[chave] = carregar_json(str(caminho))
+        return dados
+
+    dados = carregar_dados_unificados()
+
+    # Dados para o ajuste
+    ativos_data = dados.get("ativos", {})
+    ativos = ativos_data.get("ativos", ativos_data)
+    dados_tendencias = dados.get("tendencias", {})
+    fonte_dados = "DadosAtivosUnificados.json" if ativos else "N/A"
+
+    # Dados para o 09h
+    dados_09h = {
+        "noticias_0900": dados.get("noticias_0900", {}),
+        "metricas": dados.get("metricas", {}),
+        "estimativa": dados.get("estimativa", {}),
+        "decisao": dados.get("decisao", {}),
+        "ativos": ativos_data,
+        "tendencias": dados_tendencias,
+        "resultado_operacional": dados.get("resultado_operacional", {}),
+        "analise_smc": dados.get("analise_smc", {}),
+        "analise_smc_regras": dados.get("analise_smc_regras", {}),
+    }
+    service = SetupService(dados_09h)
+
+    # Abas
+    tab_ajuste, tab_09h = st.tabs(["🎯 Ajuste B3", "🎯 Abertura 09:00"])
+
+    # ------------------------------------------------------------
+    # ABA 1: AJUSTE B3 (mantido igual)
+    # ------------------------------------------------------------
+    with tab_ajuste:
+        if not ativos:
+            st.warning("⚠️ Dados de ativos não encontrados. Execute o pipeline.")
+        else:
+            render_ajuste_metricas(ativos)
+            render_ajuste_macro(ativos)
+            render_ajuste_tendencia(ativos, dados_tendencias)
+
+            def obter_preco(nome):
+                ativo = ativos.get(nome, {})
+                return ativo.get("preco", ativo.get("valor", 0.0)) if isinstance(ativo, dict) else 0.0
+
+            def variacao(ativo):
+                return ativo.get("variacao_pct", ativo.get("var_pct", 0)) if isinstance(ativo, dict) else 0
+
+            def calcular_distancia(preco, ajuste):
+                if not preco or not ajuste:
+                    return 0, 0
+                pontos = preco - ajuste
+                percentual = (pontos / ajuste) * 100 if ajuste != 0 else 0
+                return pontos, percentual
+
+            def extrair_tendencia_win():
+                for chave in ["WIN_FUT", "BMFBOVESPA:WIN1!"]:
+                    if chave in dados_tendencias:
+                        info = dados_tendencias[chave]
+                        return {
+                            "padrao": info.get("padrao_comportamento", "N/A"),
+                            "variacao": info.get("intervalo_5_para_0", {}).get("variacao_pct", 0),
+                            "tendencia": info.get("intervalo_5_para_0", {}).get("tendencia", "N/A")
+                        }
+                return None
+
+            win_ajuste = obter_preco("WIN_AJUSTE")
+            win_atual = obter_preco("WIN_FUT")
+            wdo_ajuste = obter_preco("WDO_AJUSTE")
+            wdo_atual = obter_preco("WDO_FUT")
+            ptax = obter_preco("USD_PTAX")
+            dist_win_pts, _ = calcular_distancia(win_atual, win_ajuste)
+            dist_wdo_pts, _ = calcular_distancia(wdo_atual, wdo_ajuste)
+            sp500 = ativos.get("SP500_FUT", {})
+            nasdaq = ativos.get("NASDAQ_FUT", {})
+            ewz = ativos.get("EWZ", {})
+            vix = ativos.get("VIX", {})
+            dxy = ativos.get("DXY", {})
+            iron = ativos.get("IRON_ORE", {})
+            tendencia_win = extrair_tendencia_win()
+
+            score_win = 0
+            if variacao(sp500) > 0: score_win += 1
+            if variacao(iron) > 0: score_win += 1
+            if variacao(ewz) > 0: score_win += 1
+            if variacao(vix) < 0: score_win += 1
+            if variacao(nasdaq) > 0: score_win += 1
+            if tendencia_win and tendencia_win["tendencia"] == "SUBIU" and dist_win_pts > 300:
+                score_win += 1
+
+            score_wdo = 0
+            if variacao(dxy) > 0: score_wdo += 1
+            if variacao(ativos.get("USD_MXN", {})) > 0: score_wdo += 1
+            if variacao(vix) > 0: score_wdo += 1
+
+            render_ajuste_score_win(ativos, dados_tendencias)
+            render_ajuste_score_wdo(ativos)
+            check_win_total, check_wdo_total = render_ajuste_checklist()
+
+            def gerar_status(score, checklist):
+                pontos = score + checklist
+                if pontos >= 7: return "SETUP LIBERADO"
+                elif pontos >= 4: return "AGUARDAR CONFIRMAÇÃO"
+                else: return "NÃO OPERAR"
+
+            status_win = gerar_status(score_win, check_win_total)
+            status_wdo = gerar_status(score_wdo, check_wdo_total)
+
+            render_ajuste_semaforo(score_win, check_win_total, score_wdo, check_wdo_total)
+            render_ajuste_ia(win_ajuste, win_atual, dist_win_pts, wdo_ajuste, wdo_atual, dist_wdo_pts, ptax, score_win, score_wdo, status_win, status_wdo, tendencia_win, sp500, nasdaq, vix, dxy, iron)
+            render_ajuste_core_json(score_win, check_win_total, status_win, score_wdo, check_wdo_total, status_wdo, fonte_dados, tendencia_win)
+
+            st.caption("Setup Ajuste B3 - módulo quantitativo")
+
+    # ------------------------------------------------------------
+    # ABA 2: ABERTURA 09:00 (REORGANIZADA)
+    # ------------------------------------------------------------
+    with tab_09h:
+        st.header("Setup Abertura 09:00 – 09:15")
+        st.caption("Análise com IA e dados quantitativos")
+
+        if not service.dados_minimos_ok():
+            st.error("⚠️ Dados não encontrados.\n\nExecute: `rodar_pipeline_3x.bat`")
+        else:
+            if service.janela_ok():
+                st.success("🟢 DENTRO DA JANELA (09:00 – 09:15)")
+            else:
+                st.warning(f"⏰ Fora da janela • {datetime.now().strftime('%H:%M:%S')}")
+
+            # Nova ordem numerada
+            render_bloco_1_filtro_classificacao(service)
+            render_bloco_2_decisao_risco(service)
+            render_bloco_3_abertura_escoras(service)
+            render_bloco_4_contexto_confluencia(service, dados_09h)
+            render_bloco_5_ia_pre_abertura(service)
+            render_bloco_6_checklist()
+
+            st.caption("Setup Abertura 09:00 • v6.4 • SMC Regras+Visão + KeyManager")
+
+    st.markdown("---")
+    st.caption("Setup Abertura Unificado • v6.4 • Quant + SMC regras/visão + IA")
+
+if __name__ == "__main__":
+    main()
+
+
 
 
 
@@ -13394,79 +16214,6 @@ st.caption(
 
 # ============================================================
 # ARQUIVO:
-# pages\16_🔑_Status_Chaves.py
-#
-# ÚLTIMA ALTERAÇÃO:
-# 2026-08-10 10:47:02
-# ============================================================
-
-
-
-# pages/16_🔑_Status_Chaves.py
-import streamlit as st
-import pandas as pd
-from datetime import datetime
-from utils.KeyManager import key_manager
-
-st.set_page_config(
-    page_title="Status das Chaves API",
-    page_icon="🔑",
-    layout="wide"
-)
-
-st.title("🔑 Status das Chaves API")
-
-# Carrega status
-status = key_manager.get_status()
-
-if status:
-    # Converte para DataFrame
-    df = pd.DataFrame.from_dict(status, orient='index')
-    df.index.name = "Chave"
-    df = df.reset_index()
-    
-    # Formata colunas
-    df["total_tokens"] = df["total_tokens"].apply(lambda x: f"{x:,}")
-    df["rate_limit_ate"] = df["rate_limit_ate"].fillna("Disponível")
-    
-    st.dataframe(
-        df,
-        width="stretch",
-        hide_index=True,
-        column_config={
-            "Chave": "Chave",
-            "ativa": st.column_config.CheckboxColumn("Ativa"),
-            "total_tokens": "Total Tokens",
-            "rate_limit_ate": "Rate Limit Até",
-            "ultimo_uso": "Último Uso"
-        }
-    )
-    
-    # Métricas
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("Total de Chaves", len(status))
-    with col2:
-        ativas = sum(1 for k in status.values() if k["ativa"])
-        st.metric("Chaves Ativas", ativas)
-    with col3:
-        em_rate = sum(1 for k in status.values() if k["rate_limit_ate"] is not None)
-        st.metric("Em Rate Limit", em_rate)
-    
-    # Botão para resetar rate limit (forçar)
-    if st.button("🔄 Resetar Status de Rate Limit"):
-        for k in key_manager.keys:
-            k["rate_limit_ate"] = None
-        st.success("✅ Rate limits resetados!")
-        st.rerun()
-else:
-    st.warning("⚠️ Nenhuma chave configurada!")
-    st.info("Adicione GROQ_API_KEY_1, GROQ_API_KEY_2, ... no arquivo .env")
-
-
-
-# ============================================================
-# ARQUIVO:
 # pages\18_🔮_Previsao_Inteligente_Abertura.py
 #
 # ÚLTIMA ALTERAÇÃO:
@@ -14228,7 +16975,7 @@ st.markdown(
 # pages\1_🎯_Setup_Abertura.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-15 17:54:39
+# 2026-08-18 07:10:56
 # ============================================================
 
 
@@ -14240,7 +16987,7 @@ Página com abas para:
 - Ajuste B3 (distância do ajuste, scores, semáforo)
 - Abertura 09:00 (gap, sinal, IA de pré-abertura + Análise Gráfica SMC)
 
-Versão 6.3 - IA unificada (KeyManager + limpeza thinking + max_tokens 2500)
+Versão 6.4 - IA unificada (KeyManager + limpeza thinking + max_tokens 2500)
              Ajuste B3 e Pré-abertura usam a mesma engine chamar_groq_texto
 """
 
@@ -14564,7 +17311,7 @@ class TendenciaAtivo:
     tendencia: str
 
 # ============================================================
-# CLASSE SETUPSERVICE (mesma do arquivo 09h)
+# CLASSE SETUPSERVICE
 # ============================================================
 class SetupService:
     def __init__(self, dados: Dict[str, Dict[str, Any]], config: ConfigSetup09 = CONFIG):
@@ -14641,11 +17388,9 @@ class SetupService:
         ativos = dados_ativos.get("ativos", dados_ativos)
         self.win_ativo = ativos.get("WIN_FUT", {})
         self.preco_win: Optional[float] = self.win_ativo.get("preco")
-        # Não inventa dado: se não veio do JSON, permanece None.
-        # A interface já trata None exibindo "N/A" (em render_bloco_3_abertura_escoras)
+        
         if self.preco_win is None:
             print("[AVISO] Preço atual do WIN não encontrado em DadosAtivosUnificados.json. Exibindo 'N/A'.")
-        #    self.preco_win = self.est_win.get("abertura_teorica_pontos") # Inventa dado
 
         tendencias_data = self.dados.get("tendencias", {})
         self.tendencias = self._extrair_tendencias(tendencias_data)
@@ -14653,7 +17398,6 @@ class SetupService:
         resultado_op = self.dados.get("resultado_operacional", {})
         self.classificacao_mercado = resultado_op.get("indicadores_compostos", {})
 
-        # Análise gráfica SMC: visão (IA) + regras (motor local)
         self.analise_smc = self.dados.get("analise_smc", {}) or {}
         self.analise_smc_regras = self.dados.get("analise_smc_regras", {}) or {}
 
@@ -14782,7 +17526,6 @@ class SetupService:
             }
 
     def _resumir_bloco_smc(self, bloco: Dict[str, Any], rotulo: str) -> str:
-        """Resume um JSON SMC (visão ou regras) em texto curto."""
         if not bloco or bloco.get("erro"):
             return ""
 
@@ -14813,7 +17556,7 @@ class SetupService:
         estruturas = bloco.get("estruturas_coletadas") or []
         if estruturas:
             partes.append("Estruturas: " + " | ".join(str(e) for e in estruturas[:6]))
-        # OBs/FVGs estruturados (regras)
+        
         obs = bloco.get("order_blocks") or []
         if obs:
             partes.append(
@@ -14835,10 +17578,6 @@ class SetupService:
         return " • ".join(partes)
 
     def _resumir_analise_smc(self) -> str:
-        """
-        Junta visão IA + motor de regras para o prompt.
-        Prioriza números das regras; mantém narrativa da visão se existir.
-        """
         partes = []
         r_regras = self._resumir_bloco_smc(self.analise_smc_regras, "REGRAS")
         r_visao = self._resumir_bloco_smc(self.analise_smc, "VISÃO")
@@ -14848,7 +17587,7 @@ class SetupService:
             partes.append(r_visao)
         if not partes:
             return "Análise gráfica SMC não disponível (nem regras nem visão)."
-        # alinhamento simples
+        
         b1 = (self.analise_smc_regras or {}).get("bias_direcional")
         b2 = (self.analise_smc or {}).get("bias_direcional") or (
             self.analise_smc or {}
@@ -14941,7 +17680,6 @@ GESTÃO DE RISCO: Loss {dados['loss']}pts | Alvo >{dados['alvo']}pts
 - Complete TODAS as 7 seções até o grau de confiança
 """
 
-
 def limpar_pensamento_ia(texto: str) -> str:
     """Remove vazamento de raciocínio interno (thinking) da IA."""
     if not texto:
@@ -14988,7 +17726,6 @@ def limpar_pensamento_ia(texto: str) -> str:
 
     return texto.strip()
 
-
 def chamar_groq_texto(
     api_key: str,
     prompt: str,
@@ -15005,7 +17742,6 @@ def chamar_groq_texto(
         client, key_utilizada = get_groq_client()
         print(f"🔑 Usando chave: {key_utilizada[:20]}...")
     except Exception as e:
-        # Fallback: chave passada manualmente / .env
         if api_key:
             from groq import Groq
             client = Groq(api_key=api_key)
@@ -15064,7 +17800,6 @@ REGRAS OBRIGATÓRIAS:
             except Exception:
                 return "❌ Todas as chaves em rate limit. Tente novamente em algumas horas."
         raise e
-
 
 def forcar_portugues(resposta: str) -> str:
     traducao = {
@@ -15179,12 +17914,10 @@ def render_sidebar_09h():
             st.session_state.historico_pre_abertura = []
         st.rerun()
 
-# ---------- Bloco 1: Filtro de Notícias e Classificação ----------
 def render_bloco_1_filtro_classificacao(service: SetupService):
     st.markdown("---")
     st.subheader("📌 1. Filtro de Notícias e Classificação")
 
-    # Notícias
     if service.tem_3estrelas:
         st.warning("🚨 **Notícia ⭐⭐⭐ detectada!**")
         if service.alerta_texto:
@@ -15196,7 +17929,6 @@ def render_bloco_1_filtro_classificacao(service: SetupService):
     else:
         st.success("✅ **Nenhuma notícia ⭐⭐⭐** para hoje. Mercado com menor risco de surpresa.")
 
-    # Explicação
     with st.expander("📖 O que é a Classificação Operacional?", expanded=False):
         st.markdown("""
         <div class="explicacao">
@@ -15214,11 +17946,9 @@ def render_bloco_1_filtro_classificacao(service: SetupService):
         </div>
         """, unsafe_allow_html=True)
 
-    # Métricas
     ind_mercado = service.ind_mercado_externo
     ind_adrs = service.ind_adrs
 
-    # Fallback
     if ind_mercado == 0.0 and ind_adrs == 0.0:
         resultado_op = service.dados.get("resultado_operacional", {})
         indicadores_op = resultado_op.get("indicadores_compostos", {})
@@ -15254,7 +17984,6 @@ def render_bloco_1_filtro_classificacao(service: SetupService):
         delta_color = "normal" if "COMPRA" in rotulo else "inverse" if "VENDA" in rotulo else "off"
         st.metric("🇧🇷 ADRs Brasileiras", f"{ind_adrs:+.2f}%", rotulo, delta_color=delta_color)
 
-    # Interpretação
     st.markdown("**Interpretação:**")
     def extrair_direcao(rotulo):
         if "COMPRA" in rotulo: return "COMPRA"
@@ -15280,7 +18009,6 @@ def render_bloco_1_filtro_classificacao(service: SetupService):
 
     st.caption(f"📌 Filtro aplicado: {'Notícia 3★ → ADRs' if service.tem_3estrelas else 'Sem notícia 3★ → Mercado Externo'}")
 
-# ---------- Bloco 2: Decisão do Setup e Gestão de Risco ----------
 def render_bloco_2_decisao_risco(service: SetupService):
     st.markdown("---")
     st.subheader("📌 2. Decisão do Setup e Gestão de Risco")
@@ -15328,7 +18056,6 @@ def render_bloco_2_decisao_risco(service: SetupService):
             for f in cw.fatores:
                 st.write(f"• {f}")
 
-# ---------- Bloco 3: Abertura Teórica e Escoras ----------
 def render_bloco_3_abertura_escoras(service: SetupService):
     st.markdown("---")
     st.subheader("📌 3. Abertura Teórica e Escoras (Pivots)")
@@ -15366,12 +18093,10 @@ def render_bloco_3_abertura_escoras(service: SetupService):
             f"ao S1: {da.preco_atual - e.s1:+.0f} pts"
         )
 
-# ---------- Bloco 4: Contexto Macro e Confluência ----------
 def render_bloco_4_contexto_confluencia(service: SetupService, dados: Dict):
     st.markdown("---")
     st.subheader("📌 4. Contexto Macro e Confluência")
 
-    # Sub-blocos: ADRs e Macro
     resumo = service.resumo_macro
     metricas = dados.get("metricas", {})
     ativos_brutos = dados.get("ativos", {})
@@ -15454,7 +18179,6 @@ def render_bloco_4_contexto_confluencia(service: SetupService, dados: Dict):
     with m5:
         st.metric("DI 2029", f"{di29:.2f}%" if di29 else "N/A")
 
-    # Confluência de tendência (bolinhas)
     st.markdown("**Confluência com Tendência (últimos 15min)**")
     arquivo_tendencias = ARQUIVOS["tendencias"]
 
@@ -15483,7 +18207,6 @@ def render_bloco_4_contexto_confluencia(service: SetupService, dados: Dict):
                                 delta=f"{tend.ultima_variacao:+.2f}%",
                                 delta_color=delta_color
                             )
-                    # Exibe a confluência
                     confluencia = service.confluencia_tendencia()
                     if confluencia["confluente"]:
                         st.success(f"✅ {confluencia['motivo']}")
@@ -15504,13 +18227,11 @@ def render_bloco_4_contexto_confluencia(service: SetupService, dados: Dict):
         else:
             st.warning(f"⚠️ {mensagem}")
 
-# ---------- Bloco 5: Análise IA – Pré-Abertura ----------
 def render_bloco_5_ia_pre_abertura(service: SetupService):
     st.markdown("---")
     st.subheader("📌 5. Análise IA – Pré-Abertura")
     st.caption("Previsão de direção, GAP, SMC e cenário para os primeiros minutos do pregão")
 
-    # Status SMC (regras + visão)
     smc_regras_ok = bool(service.analise_smc_regras) and not service.analise_smc_regras.get("erro")
     smc_visao_ok = bool(service.analise_smc)
     if smc_regras_ok and smc_visao_ok:
@@ -15596,7 +18317,6 @@ def render_bloco_5_ia_pre_abertura(service: SetupService):
             except Exception as e:
                 st.error(f"❌ Erro ao chamar IA: {e}")
 
-# ---------- Bloco 6: Checklist Final ----------
 def render_bloco_6_checklist():
     st.markdown("---")
     st.subheader("📌 6. Checklist Final")
@@ -15624,7 +18344,7 @@ def render_bloco_6_checklist():
         st.info("⏳ Complete o checklist")
 
 # ============================================================
-# RENDERIZAÇÃO DO SETUP AJUSTE B3 (extraído do arquivo original)
+# RENDERIZAÇÃO DO SETUP AJUSTE B3
 # ============================================================
 def render_ajuste_metricas(ativos):
     st.markdown("---")
@@ -15636,15 +18356,8 @@ def render_ajuste_metricas(ativos):
             return ativo.get("preco", ativo.get("valor", 0.0))
         return 0.0
 
-    # 🔥 NOVA FUNÇÃO: busca o last diretamente no Dados_MT5.json
     def obter_last_mt5(prefixo):
-        """
-        Retorna o 'last' do primeiro contrato que começa com o prefixo (WIN ou WDO)
-        no arquivo Dados_MT5.json.
-        """
-        import json
-        from pathlib import Path
-        caminho = Path(__file__).resolve().parent.parent / "Coletas" / "Dados_MT5.json"
+        caminho = BASE_DIR / "Coletas" / "Dados_MT5.json"
         if not caminho.exists():
             return None
         try:
@@ -15656,23 +18369,20 @@ def render_ajuste_metricas(ativos):
                     last = info.get("last")
                     if last is not None and last > 0:
                         return last
-        except:
+        except (FileNotFoundError, json.JSONDecodeError, KeyError, OSError):
             pass
         return None
 
-    # --- Dados do WIN ---
     win_ajuste = obter_preco("WIN_AJUSTE")
-    win_atual = obter_preco("WIN_FUT")      # Futuro (Close) – preço atual
-    win_last = obter_last_mt5("WIN")        # Last (Candle) – fechamento do pregão anterior via MT5
+    win_atual = obter_preco("WIN_FUT")
+    win_last = obter_last_mt5("WIN")
 
-    # --- Dados do WDO ---
     wdo_ajuste = obter_preco("WDO_AJUSTE")
     wdo_atual = obter_preco("WDO_FUT")
     wdo_last = obter_last_mt5("WDO")
 
     ptax = obter_preco("USD_PTAX")
 
-    # --- Cálculo das distâncias e spreads (mesmo de antes) ---
     def calcular_distancia(preco, ajuste):
         if not preco or not ajuste:
             return 0, 0
@@ -15686,7 +18396,6 @@ def render_ajuste_metricas(ativos):
     spread_win_last = win_ajuste - win_last if win_last and win_ajuste else None
     spread_wdo_last = wdo_ajuste - wdo_last if wdo_last and wdo_ajuste else None
 
-    # --- Exibição (cards) ---
     st.write("**📍 Mini Índice WIN**")
     col1, col2, col3, col4 = st.columns(4)
     with col1:
@@ -15740,7 +18449,6 @@ def render_ajuste_macro(ativos):
     vix = ativos.get("VIX", {})
     dxy = ativos.get("DXY", {})
     iron = ativos.get("IRON_ORE", {})
-    petr = ativos.get("PETR_ADR", {})
 
     m1, m2, m3, m4, m5, m6 = st.columns(6)
     with m1:
@@ -15756,12 +18464,10 @@ def render_ajuste_macro(ativos):
     with m6:
         st.metric("⛏️ Minério", f"${iron.get('preco', 0):,.2f}", f"{variacao(iron):+.2f}%")
 
-####
 def render_ajuste_tendencia(ativos, dados_tendencias):
     st.markdown("---")
     st.subheader("📈 3. Confluência com Tendência")
 
-    # --- Função para transformar padrão em bolinhas (igual à aba 09:00) ---
     def padrao_para_bola(padrao: str) -> str:
         mapa = {"Alta": "🟢", "Baixa": "🔴", "Estavel": "🟡"}
         partes = padrao.split("_E_")
@@ -15769,7 +18475,6 @@ def render_ajuste_tendencia(ativos, dados_tendencias):
             return f"⚪ {padrao}"
         return f"{mapa.get(partes[0], '⚪')} → {mapa.get(partes[1], '⚪')}"
 
-    # --- Função auxiliar para buscar preço (já existente) ---
     def obter_preco(nome):
         ativo = ativos.get(nome, {})
         if isinstance(ativo, dict):
@@ -15783,12 +18488,10 @@ def render_ajuste_tendencia(ativos, dados_tendencias):
         percentual = (pontos / ajuste) * 100 if ajuste != 0 else 0
         return pontos, percentual
 
-    # --- EXTRAÇÃO DE TENDÊNCIAS (MESMA LÓGICA DO SetupService) ---
     def extrair_tendencias():
         if not dados_tendencias:
             return {}
         tendencias = {}
-        # Mapeamento: nome padronizado -> label para exibição
         ativos_desejados = {
             "WIN_FUT": "WIN",
             "WDO_FUT": "WDO",
@@ -15797,7 +18500,6 @@ def render_ajuste_tendencia(ativos, dados_tendencias):
             "VIX": "VIX",
             "EWZ": "EWZ"
         }
-        # Possíveis tickers originais que podem aparecer no JSON
         ticker_map = {
             "WIN_FUT": ["WIN_FUT", "BMFBOVESPA:WIN1!"],
             "WDO_FUT": ["WDO_FUT", "BMFBOVESPA:WDO1!"],
@@ -15809,12 +18511,10 @@ def render_ajuste_tendencia(ativos, dados_tendencias):
 
         for ativo_padrao, label in ativos_desejados.items():
             info = None
-            # Tenta encontrar pelas chaves mapeadas
             for chave in ticker_map.get(ativo_padrao, [ativo_padrao]):
                 if chave in dados_tendencias:
                     info = dados_tendencias[chave]
                     break
-            # Se não encontrou, tenta buscar por qualquer chave que contenha o nome padronizado
             if not info:
                 for chave, valor in dados_tendencias.items():
                     if ativo_padrao in chave:
@@ -15830,7 +18530,6 @@ def render_ajuste_tendencia(ativos, dados_tendencias):
 
     tendencias = extrair_tendencias()
 
-    # --- Se não houver tendências, tenta gerar (fallback) ---
     if not tendencias:
         st.info("📊 Analise_Tendencias.json não encontrado ou sem dados.")
         sucesso, mensagem = garantir_tendencias()
@@ -15841,7 +18540,6 @@ def render_ajuste_tendencia(ativos, dados_tendencias):
             st.warning(f"⚠️ {mensagem}")
         return
 
-    # --- Exibe cards de tendência (igual à aba 09:00) ---
     cols = st.columns(min(4, len(tendencias)))
     for i, (label, tend) in enumerate(tendencias.items()):
         with cols[i % len(cols)]:
@@ -15854,7 +18552,6 @@ def render_ajuste_tendencia(ativos, dados_tendencias):
                 delta_color=delta_color
             )
 
-    # --- Diagnóstico de confluência (igual à aba 09:00) ---
     win_ajuste = obter_preco("WIN_AJUSTE")
     win_atual = obter_preco("WIN_FUT")
     dist_win_pts, _ = calcular_distancia(win_atual, win_ajuste) if win_ajuste and win_atual else (0, 0)
@@ -15871,7 +18568,7 @@ def render_ajuste_tendencia(ativos, dados_tendencias):
             st.info("ℹ️ WIN próximo do ajuste - Aguardar definição")
     else:
         st.info("ℹ️ Dados insuficientes para diagnóstico de confluência.")
-####
+
 def render_ajuste_score_win(ativos, dados_tendencias):
     st.markdown("---")
     st.subheader("📊 4. Score Quantitativo WIN")
@@ -16208,13 +18905,11 @@ def main():
     )
     st.markdown(CSS_CUSTOM, unsafe_allow_html=True)
 
-    # Sidebar comum
     render_sidebar_09h()
 
     st.title("🎯 Setup Abertura")
     st.caption("Unificado: Ajuste B3 | Abertura 09:00")
 
-    # Carregamento de dados compartilhado
     @st.cache_data(ttl=60, show_spinner=False)
     def carregar_dados_unificados():
         dados = {}
@@ -16224,13 +18919,11 @@ def main():
 
     dados = carregar_dados_unificados()
 
-    # Dados para o ajuste
     ativos_data = dados.get("ativos", {})
     ativos = ativos_data.get("ativos", ativos_data)
     dados_tendencias = dados.get("tendencias", {})
     fonte_dados = "DadosAtivosUnificados.json" if ativos else "N/A"
 
-    # Dados para o 09h
     dados_09h = {
         "noticias_0900": dados.get("noticias_0900", {}),
         "metricas": dados.get("metricas", {}),
@@ -16244,11 +18937,10 @@ def main():
     }
     service = SetupService(dados_09h)
 
-    # Abas
     tab_ajuste, tab_09h = st.tabs(["🎯 Ajuste B3", "🎯 Abertura 09:00"])
 
     # ------------------------------------------------------------
-    # ABA 1: AJUSTE B3 (mantido igual)
+    # ABA 1: AJUSTE B3
     # ------------------------------------------------------------
     with tab_ajuste:
         if not ativos:
@@ -16332,7 +19024,7 @@ def main():
             st.caption("Setup Ajuste B3 - módulo quantitativo")
 
     # ------------------------------------------------------------
-    # ABA 2: ABERTURA 09:00 (REORGANIZADA)
+    # ABA 2: ABERTURA 09:00
     # ------------------------------------------------------------
     with tab_09h:
         st.header("Setup Abertura 09:00 – 09:15")
@@ -16346,7 +19038,6 @@ def main():
             else:
                 st.warning(f"⏰ Fora da janela • {datetime.now().strftime('%H:%M:%S')}")
 
-            # Nova ordem numerada
             render_bloco_1_filtro_classificacao(service)
             render_bloco_2_decisao_risco(service)
             render_bloco_3_abertura_escoras(service)
@@ -16361,8 +19052,6 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
 
 
 
@@ -17202,6 +19891,539 @@ for i, (_, row) in enumerate(df_ultimo.iterrows()):
 
 st.markdown("---")
 st.caption(f"{len(df)} registros • Última: {ultimo_ts.strftime('%d/%m/%Y %H:%M:%S')}")
+
+
+
+# ============================================================
+# ARQUIVO:
+# pages\22_⚡_Monitor_Abertura_Leilao_V3.2.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-18 07:24:13
+# ============================================================
+
+
+
+# ============================================================
+# ARQUIVO: pages/22_⚡_Monitor_Abertura_Leilao.py
+# VERSÃO: 3.2 (Corrigida) - Projeção Avançada com MT5 Estável
+# ============================================================
+
+from __future__ import annotations
+
+import json
+import os
+import time
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
+from pathlib import Path
+
+import pandas as pd
+import plotly.express as px
+import requests
+import streamlit as st
+from dotenv import load_dotenv
+
+# Carrega variáveis de ambiente (.env)
+load_dotenv()
+FINNHUB_KEY = os.getenv("FINNHUB_API_KEY")
+
+# Tenta importar MetaTrader5 defensivamente
+try:
+    import MetaTrader5 as mt5
+    MT5_DISPONIVEL = True
+except ImportError:
+    MT5_DISPONIVEL = False
+
+# ------------------------------------------------------------
+# CONFIGURAÇÃO DA PÁGINA
+# ------------------------------------------------------------
+st.set_page_config(
+    page_title="Monitor de Abertura & Leilão - Analisador Financeiro",
+    page_icon="⚡",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+# Estilização em Dark Theme
+st.markdown("""
+<style>
+    .stApp { background: linear-gradient(180deg, #0a0e17 0%, #0e1117 50%, #121620 100%); }
+    .metric-card {
+        background: #161b22;
+        border-radius: 10px;
+        padding: 16px;
+        border: 1px solid #2a2d4a;
+        margin-bottom: 12px;
+    }
+    .separator { border: none; height: 2px; background: linear-gradient(90deg, #2a2d4a, transparent); margin: 20px 0; }
+    .badge-vies-compra { color: #00e676; font-weight: bold; font-size: 1.1rem; }
+    .badge-vies-venda { color: #ff5252; font-weight: bold; font-size: 1.1rem; }
+    .badge-vies-neutro { color: #ffe66d; font-weight: bold; font-size: 1.1rem; }
+</style>
+""", unsafe_allow_html=True)
+
+# ------------------------------------------------------------
+# DIRETÓRIOS E CONSTANTES
+# ------------------------------------------------------------
+BASE_DIR = Path(__file__).resolve().parent.parent
+COLETAS_DIR = BASE_DIR / "Coletas"
+COLETAS_DIR.mkdir(parents=True, exist_ok=True)
+
+ARQUIVO_HISTORICO_LEILAO = COLETAS_DIR / "historico_leilao_win.csv"
+
+MAPEAMENTO_ADR = {
+    "VALE3": "VALE",
+    "PETR4": "PBR-A",
+    "PETR3": "PBR",
+    "ITUB4": "ITUB",
+    "BBDC4": "BBD",
+}
+
+PESOS_WIN = {
+    "EWZ": 0.35,
+    "SPY": 0.25,
+    "VALE": 0.20,
+    "PBR": 0.20,
+}
+
+# ------------------------------------------------------------
+# FUNÇÕES AUXILIARES E DE MERCADO
+# ------------------------------------------------------------
+def obter_simbolo_win_ativo() -> str:
+    """Retorna o símbolo de Mini Índice ativo no MT5 sem interromper a sessão."""
+    if not MT5_DISPONIVEL:
+        return "WIN$"
+    
+    simbolos = ["WIN$", "WIN1!"]
+    for s in simbolos:
+        info = mt5.symbol_info(s)
+        if info is not None:
+            return s
+            
+    return "WIN$"
+
+def buscar_referencias_win_coletas() -> tuple[float | None, float | None]:
+    """Varre os arquivos JSON na pasta Coletas."""
+    ajuste = None
+    fechamento = None
+
+    arquivos_json = sorted(list(COLETAS_DIR.glob("*.json")), reverse=True)
+    for arq in arquivos_json:
+        try:
+            with open(arq, "r", encoding="utf-8") as f:
+                dados = json.load(f)
+
+            if "ativos" in dados and "WIN" in dados["ativos"]:
+                win_data = dados["ativos"]["WIN"]
+                if win_data.get("status") == "OK":
+                    if fechamento is None and win_data.get("last", 0) > 0:
+                        fechamento = float(win_data["last"])
+
+            coletas = dados.get("coletas", [])
+            for item in coletas:
+                ativo = item.get("ativo")
+                val_close = item.get("dados_reais", {}).get("close")
+                
+                if val_close is not None:
+                    if ativo == "B3_AJUSTE_WIN" and ajuste is None:
+                        ajuste = float(val_close)
+                    elif ativo in ["WIN_LAST_TICK", "WIN1!", "WIN_FUT"] and fechamento is None:
+                        fechamento = float(val_close)
+
+            if ajuste is not None and fechamento is not None:
+                break
+        except Exception:
+            continue
+
+    return ajuste, fechamento
+
+def obter_quote_finnhub(ticker: str) -> dict | None:
+    """Coleta o quote individual do Finnhub com fallback de tratamento."""
+    if not FINNHUB_KEY or not ticker:
+        return None
+    url = f"https://finnhub.io/api/v1/quote?symbol={ticker}&token={FINNHUB_KEY}"
+    try:
+        res = requests.get(url, timeout=5).json()
+        if "c" in res and res["c"] != 0:
+            return {
+                "Preco": float(res["c"]),
+                "Var_%": round(float(res.get("dp", 0.0)), 2),
+                "Var_$": round(float(res.get("d", 0.0)), 2),
+            }
+    except Exception:
+        pass
+    return None
+
+def calcular_gap_win_projecao() -> dict:
+    """Calcula a variação teórica e a projeção de abertura utilizando Ajuste e Fechamento."""
+    variacoes = {}
+    var_teorica_pct = 0.0
+
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        futures = {executor.submit(obter_quote_finnhub, t): t for t in PESOS_WIN.keys()}
+        for future in futures:
+            ticker = futures[future]
+            q = future.result()
+            var_pct = q["Var_%"] if q else 0.0
+            variacoes[ticker] = var_pct
+            var_teorica_pct += var_pct * PESOS_WIN[ticker]
+
+    var_teorica_pct = round(var_teorica_pct, 2)
+
+    preco_ajuste, preco_fechamento = buscar_referencias_win_coletas()
+
+    if (not preco_ajuste or not preco_fechamento) and MT5_DISPONIVEL and mt5.initialize():
+        simbolo_ativo = obter_simbolo_win_ativo()
+        info_win = mt5.symbol_info(simbolo_ativo)
+        if info_win:
+            if not preco_fechamento and getattr(info_win, "session_close", 0) > 0:
+                preco_fechamento = float(info_win.session_close)
+            if not preco_ajuste and getattr(info_win, "session_price_settlement", 0) > 0:
+                preco_ajuste = float(info_win.session_price_settlement)
+        mt5.shutdown()
+
+    preco_ref = preco_ajuste if (preco_ajuste and preco_ajuste > 0) else (preco_fechamento or 0.0)
+
+    if preco_ref > 0:
+        preco_abertura_est = preco_ref * (1 + (var_teorica_pct / 100))
+        gap_pts_ajuste = round(preco_abertura_est - preco_ajuste) if preco_ajuste else 0
+        gap_pts_fech = round(preco_abertura_est - preco_fechamento) if preco_fechamento else 0
+    else:
+        gap_pts_ajuste = 0
+        gap_pts_fech = 0
+        preco_abertura_est = 0.0
+
+    # Classificação do Viés
+    if var_teorica_pct >= 0.60:
+        vies = "FORTE COMPRA 🟢🟢"
+    elif var_teorica_pct >= 0.20:
+        vies = "COMPRA MODERADA 🟢"
+    elif var_teorica_pct <= -0.60:
+        vies = "FORTE VENDA 🔴🔴"
+    elif var_teorica_pct <= -0.20:
+        vies = "VENDA MODERADA 🔴"
+    else:
+        vies = "NEUTRO / CONSOLIDADO 🟡"
+
+    return {
+        "Preco_Ajuste_B3": preco_ajuste or 0.0,
+        "Fechamento_Anterior_WIN": preco_fechamento or 0.0,
+        "Preco_Referencia_Usado": preco_ref,
+        "Var_Teorica_Projetada_%": var_teorica_pct,
+        "Gap_vs_Ajuste_Pts": gap_pts_ajuste,
+        "Gap_vs_Fechamento_Pts": gap_pts_fech,
+        "Preco_Abertura_Projetado": round(preco_abertura_est),
+        "Vies_Abertura": vies,
+        "Detalhes_Ativos": variacoes,
+    }
+
+def analisar_descasamento_leilao(limiar_spread=0.5) -> pd.DataFrame:
+    """Compara variações das ADRs vs Leilão B3."""
+    relatorio = []
+    mt5_ok = MT5_DISPONIVEL and mt5.initialize()
+
+    for ticker_b3, ticker_adr in MAPEAMENTO_ADR.items():
+        quote_adr = obter_quote_finnhub(ticker_adr)
+        var_adr = quote_adr["Var_%"] if quote_adr else 0.0
+
+        preco_leilao = 0.0
+        var_b3 = 0.0
+
+        if mt5_ok:
+            mt5.symbol_select(ticker_b3, True)
+            tick = mt5.symbol_info_tick(ticker_b3)
+            info = mt5.symbol_info(ticker_b3)
+            if tick and info and getattr(info, "session_close", 0) > 0:
+                teorico = getattr(info, "price_theoretical", 0.0)
+                preco_leilao = teorico if (teorico and teorico > 0) else tick.last
+                
+                if preco_leilao > 0:
+                    var_b3 = round(((preco_leilao / info.session_close) - 1) * 100, 2)
+
+        spread = round(var_adr - var_b3, 2)
+        sinal = "NEUTRO"
+        if spread >= limiar_spread:
+            sinal = "🟢 COMPRA B3 (Atrás da ADR)"
+        elif spread <= -limiar_spread:
+            sinal = "🔴 VENDA B3 (Esticada vs ADR)"
+
+        relatorio.append({
+            "Ação B3": ticker_b3,
+            "Preço Leilão B3": preco_leilao if preco_leilao > 0 else "Em Leilão/Sem Tick",
+            "Var B3 %": var_b3,
+            "ADR (NY)": ticker_adr,
+            "Var ADR %": var_adr,
+            "Spread %": spread,
+            "Sinal Operacional": sinal,
+        })
+
+    if mt5_ok:
+        mt5.shutdown()
+
+    return pd.DataFrame(relatorio)
+
+def obter_snapshot_leilao_win() -> dict | None:
+    """Captura tick/preço teórico do leilão em tempo real no MT5."""
+    if not MT5_DISPONIVEL:
+        st.error("Biblioteca MetaTrader5 não está disponível.")
+        return None
+
+    if not mt5.initialize():
+        st.error(f"Falha ao conectar no MT5: {mt5.last_error()}")
+        return None
+
+    symbol = obter_simbolo_win_ativo()
+    mt5.symbol_select(symbol, True)
+
+    info = mt5.symbol_info(symbol)
+    tick = mt5.symbol_info_tick(symbol)
+
+    if info is None or tick is None:
+        st.error(f"Símbolo '{symbol}' não respondeu no MT5. Verifique se ele está no Market Watch.")
+        mt5.shutdown()
+        return None
+
+    ajuste_coleta, fechamento_coleta = buscar_referencias_win_coletas()
+    fechamento_ant = fechamento_coleta or getattr(info, "session_close", 0.0)
+    ajuste_ant = ajuste_coleta or getattr(info, "session_price_settlement", 0.0)
+
+    teorico = getattr(info, "price_theoretical", 0.0)
+    preco_leilao = float(teorico) if (teorico and teorico > 0) else float(tick.last)
+
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    dados = {
+        "Data_Hora": now_str,
+        "Ativo": info.name,
+        "Fechamento_Anterior": fechamento_ant,
+        "Preco_Ajuste_Referencia": ajuste_ant,
+        "Ultimo_Preco_Leilao": preco_leilao,
+        "Bid": tick.bid,
+        "Ask": tick.ask,
+        "Gap_vs_Fechamento_Pts": round(preco_leilao - fechamento_ant) if fechamento_ant > 0 else 0,
+        "Gap_vs_Ajuste_Pts": round(preco_leilao - ajuste_ant) if ajuste_ant > 0 else 0,
+    }
+
+    mt5.shutdown()
+
+    # Gravação no arquivo CSV
+    df_row = pd.DataFrame([dados])
+    escrever_cabecalho = not ARQUIVO_HISTORICO_LEILAO.exists()
+    df_row.to_csv(ARQUIVO_HISTORICO_LEILAO, mode="a", header=escrever_cabecalho, index=False)
+
+    return dados
+
+# ------------------------------------------------------------
+# INTERFACE PRINCIPAL STREAMLIT
+# ------------------------------------------------------------
+st.title("⚡ Monitor de Abertura & Leilão")
+st.caption("Visão Integrada: Projeção de GAP • Ajuste B3 vs Fechamento • Arbitragem B3 vs ADRs")
+
+# Sidebar
+st.sidebar.title("⚙️ Painel de Controle")
+auto_refresh = st.sidebar.checkbox("Atualização Automática (5s)", value=False)
+limiar_spread = st.sidebar.slider("Sensibilidade do Spread (%)", 0.2, 2.0, 0.5, 0.1)
+
+if st.sidebar.button("🔄 Atualizar Agora"):
+    st.rerun()
+
+st.sidebar.markdown("---")
+st.sidebar.caption(f"Status MT5: {'🟢 Conectado' if MT5_DISPONIVEL else '🔴 Indisponível'}")
+st.sidebar.caption(f"Status Finnhub: {'🟢 Conectado' if FINNHUB_KEY else '🔴 Chave Ausente'}")
+
+# ============================================================
+# SEÇÃO 1: PROJEÇÃO DE ABERTURA
+# ============================================================
+st.markdown("### 🎯 Projeção Teórica de Abertura (WIN)")
+
+with st.spinner("Calculando modelo estatístico de GAP..."):
+    gap_info = calcular_gap_win_projecao()
+
+col1, col2, col3, col4, col5 = st.columns(5)
+
+vies_str = gap_info["Vies_Abertura"]
+if "COMPRA" in vies_str:
+    badge_class = "badge-vies-compra"
+elif "VENDA" in vies_str:
+    badge_class = "badge-vies-venda"
+else:
+    badge_class = "badge-vies-neutro"
+
+with col1:
+    st.markdown("<div class='metric-card'>", unsafe_allow_html=True)
+    st.caption("Viés do Mercado")
+    st.markdown(f"<span class='{badge_class}'>{vies_str}</span>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+with col2:
+    st.metric(
+        "Var. Teórica Global",
+        f"{gap_info['Var_Teorica_Projetada_%']:+.2f}%",
+        delta=f"{gap_info['Gap_vs_Ajuste_Pts']} pts (vs Ajuste)",
+    )
+
+with col3:
+    fmt_ajuste = f"{gap_info['Preco_Ajuste_B3']:,.0f}" if gap_info['Preco_Ajuste_B3'] > 0 else "N/A"
+    st.metric("Ajuste B3 (Anterior)", fmt_ajuste)
+
+with col4:
+    fmt_fech = f"{gap_info['Fechamento_Anterior_WIN']:,.0f}" if gap_info['Fechamento_Anterior_WIN'] > 0 else "N/A"
+    st.metric("Fechamento B3", fmt_fech, delta=f"{gap_info['Gap_vs_Fechamento_Pts']} pts (vs Fech)")
+
+with col5:
+    fmt_proj = f"{gap_info['Preco_Abertura_Projetado']:,.0f}" if gap_info['Preco_Abertura_Projetado'] > 0 else "N/A"
+    st.metric("Preço Teórico Estimado", fmt_proj)
+
+st.markdown("**Pesos dos Ativos Internacionais:**")
+detalhes_cols = st.columns(len(gap_info["Detalhes_Ativos"]))
+for i, (k_ticker, v_var) in enumerate(gap_info["Detalhes_Ativos"].items()):
+    peso_pct = int(PESOS_WIN.get(k_ticker, 0) * 100)
+    detalhes_cols[i].metric(f"{k_ticker} ({peso_pct}%)", f"{v_var:+.2f}%")
+
+st.markdown('<hr class="separator">', unsafe_allow_html=True)
+
+# ============================================================
+# SEÇÃO 2: LEILÃO DE ABERTURA B3 VS ADRS NY
+# ============================================================
+st.markdown("### ⚖️ Oportunidades de Arbitragem (Ações B3 vs ADRs NY)")
+
+df_descasamento = analisar_descasamento_leilao(limiar_spread=limiar_spread)
+
+if not df_descasamento.empty:
+    st.dataframe(
+        df_descasamento,
+        column_config={
+            "Var B3 %": st.column_config.NumberColumn(format="%.2f%%"),
+            "Var ADR %": st.column_config.NumberColumn(format="%.2f%%"),
+            "Spread %": st.column_config.NumberColumn(format="%.2f%%"),
+        },
+        use_container_width=True,
+        hide_index=True,
+    )
+
+st.markdown('<hr class="separator">', unsafe_allow_html=True)
+
+# ============================================================
+# SEÇÃO 3: MONITORAMENTO & SNAPSHOT DO LEILÃO
+# ============================================================
+st.markdown("### ⏱️ Leilão em Tempo Real (MT5)")
+
+col_left, col_right = st.columns([1, 2])
+
+with col_left:
+    st.markdown("#### Snapshot do Leilão")
+    if st.button("📸 Gravar Snapshot do Leilão"):
+        snapshot = obter_snapshot_leilao_win()
+        if snapshot:
+            st.success("Snapshot gravado com sucesso!")
+            st.json(snapshot)
+
+with col_right:
+    st.markdown("#### Histórico do Leilão Registrado")
+    if ARQUIVO_HISTORICO_LEILAO.exists():
+        try:
+            df_hist = pd.read_csv(ARQUIVO_HISTORICO_LEILAO)
+            if not df_hist.empty:
+                st.dataframe(df_hist.tail(8), use_container_width=True, hide_index=True)
+                
+                if len(df_hist) >= 2:
+                    fig_leilao = px.line(
+                        df_hist,
+                        x="Data_Hora",
+                        y=["Ultimo_Preco_Leilao", "Preco_Ajuste_Referencia", "Fechamento_Anterior"],
+                        title="Formação de Preço do Leilão vs Referências",
+                        labels={"value": "Pontos", "Data_Hora": "Horário"},
+                    )
+                    fig_leilao.update_layout(
+                        plot_bgcolor="#0e1117",
+                        paper_bgcolor="#0e1117",
+                        font_color="#e6edf3",
+                        height=300,
+                        margin=dict(l=10, r=10, t=30, b=10),
+                    )
+                    st.plotly_chart(fig_leilao, use_container_width=True)
+        except Exception as e:
+            st.error(f"Erro ao ler o histórico: {e}")
+
+st.caption(f"Última execução: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
+
+if auto_refresh:
+    time.sleep(5)
+    st.rerun()
+
+
+
+# ============================================================
+# ARQUIVO:
+# pages\30_🔑_Status_Chaves.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-10 10:47:02
+# ============================================================
+
+
+
+# pages/16_🔑_Status_Chaves.py
+import streamlit as st
+import pandas as pd
+from datetime import datetime
+from utils.KeyManager import key_manager
+
+st.set_page_config(
+    page_title="Status das Chaves API",
+    page_icon="🔑",
+    layout="wide"
+)
+
+st.title("🔑 Status das Chaves API")
+
+# Carrega status
+status = key_manager.get_status()
+
+if status:
+    # Converte para DataFrame
+    df = pd.DataFrame.from_dict(status, orient='index')
+    df.index.name = "Chave"
+    df = df.reset_index()
+    
+    # Formata colunas
+    df["total_tokens"] = df["total_tokens"].apply(lambda x: f"{x:,}")
+    df["rate_limit_ate"] = df["rate_limit_ate"].fillna("Disponível")
+    
+    st.dataframe(
+        df,
+        width="stretch",
+        hide_index=True,
+        column_config={
+            "Chave": "Chave",
+            "ativa": st.column_config.CheckboxColumn("Ativa"),
+            "total_tokens": "Total Tokens",
+            "rate_limit_ate": "Rate Limit Até",
+            "ultimo_uso": "Último Uso"
+        }
+    )
+    
+    # Métricas
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Total de Chaves", len(status))
+    with col2:
+        ativas = sum(1 for k in status.values() if k["ativa"])
+        st.metric("Chaves Ativas", ativas)
+    with col3:
+        em_rate = sum(1 for k in status.values() if k["rate_limit_ate"] is not None)
+        st.metric("Em Rate Limit", em_rate)
+    
+    # Botão para resetar rate limit (forçar)
+    if st.button("🔄 Resetar Status de Rate Limit"):
+        for k in key_manager.keys:
+            k["rate_limit_ate"] = None
+        st.success("✅ Rate limits resetados!")
+        st.rerun()
+else:
+    st.warning("⚠️ Nenhuma chave configurada!")
+    st.info("Adicione GROQ_API_KEY_1, GROQ_API_KEY_2, ... no arquivo .env")
 
 
 
