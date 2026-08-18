@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Relatório de Coleta e Consumo de Dados - Terminal Quant</title>
+<style>
+  @page {
+    size: A4 portrait;
+    margin: 15mm 15mm 15mm 15mm;
+  }
+  
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 10pt;
+    line-height: 1.4;
+    color: #222222;
+    margin: 0;
+    padding: 0;
+  }
+
+  h1 {
+    font-size: 16pt;
+    color: #1a365d;
+    border-bottom: 2px solid #1a365d;
+    padding-bottom: 5px;
+    margin-top: 0;
+    margin-bottom: 15px;
+  }
+
+  h2 {
+    font-size: 12pt;
+    color: #2b6cb0;
+    margin-top: 20px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 3px;
+    page-break-after: avoid;
+  }
+
+  .block-container {
+    page-break-inside: avoid;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 15px;
+    table-layout: fixed;
+    word-wrap: break-word;
+  }
+
+  th, td {
+    border: 1px solid #cbd5e0;
+    padding: 6px 8px;
+    text-align: left;
+    vertical-align: top;
+    font-size: 8.5pt;
+  }
+
+  th {
+    background-color: #f7fafc;
+    color: #2d3748;
+    font-weight: bold;
+  }
+
+  tr:nth-child(even) {
+    background-color: #f8fafc;
+  }
+
+  code {
+    font-family: "Courier New", Courier, monospace;
+    background-color: #edf2f7;
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 8pt;
+  }
+
+  ul {
+    margin: 0;
+    padding-left: 18px;
+  }
+
+  li {
+    margin-bottom: 6px;
+  }
+
+  .badge-unused {
+    color: #c53030;
+    font-weight: bold;
+  }
+
+  .badge-used {
+    color: #2f855a;
+    font-weight: bold;
+  }
+</style>
+</head>
+<body>
+
+  <h1>Relatório Mapeado: Coleta, Consumo e Arquivos do Sistema</h1>
+
+  <div class="block-container">
+    <h2>1. Matriz de Coleta e Consumo de Dados</h2>
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 20%;">Script Coletor</th>
+          <th style="width: 20%;">Fontes / Origens</th>
+          <th style="width: 15%;">Frequência</th>
+          <th style="width: 25%;">Arquivos Gerados</th>
+          <th style="width: 20%;">Quem Consome</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>main_pipeline.py</code> (Fase 2)</td>
+          <td>APIs/Web Scraping (Mercados Globais / Notícias)</td>
+          <td>Disparo do Pipeline (3x no boot via batch)</td>
+          <td>
+            <code>Coleta_rom-0.json</code><br>
+            <code>Coleta_rom-5.json</code><br>
+            <code>Coleta_rom-10.json</code>
+          </td>
+          <td>
+            <code>MapearTendencia15Min.py</code><br>
+            <code>Validador.py</code>
+          </td>
+        </tr>
+        <tr>
+          <td><code>Validador.py</code></td>
+          <td><code>Coleta_rom-0.json</code></td>
+          <td>A cada ciclo do pipeline</td>
+          <td><code>Dados_Validados.json</code></td>
+          <td>
+            <code>Calculo_Macro_e_Viés.py</code><br>
+            <code>v2_gravar_sessao_win.py</code>
+          </td>
+        </tr>
+        <tr>
+          <td><code>MapearTendencia15Min.py</code></td>
+          <td>Snapshots <code>rom-10</code>, <code>rom-5</code> e <code>rom-0</code></td>
+          <td>A cada ciclo do pipeline</td>
+          <td><code>Tendencia_15Min.json</code></td>
+          <td>Pipeline principal e Dashboard Streamlit</td>
+        </tr>
+        <tr>
+          <td><code>Rodar_SMC_Regras.py</code> / <code>Motor_SMC_Regras.py</code></td>
+          <td>MetaTrader 5 (Candles 5m - Ativos WIN)</td>
+          <td>A cada ciclo do pipeline</td>
+          <td><code>AnaliseGraficaSMC_Regras.json</code></td>
+          <td>Pipeline principal e Relatórios de Viés</td>
+        </tr>
+        <tr>
+          <td><code>Monitor_Leilao_WIN.py</code></td>
+          <td>MetaTrader 5 (Book WINFUT)</td>
+          <td>Tempo Real (Intervalo de 1s)</td>
+          <td><code>Monitor_Leilao_WIN.csv</code></td>
+          <td>Streamlit / Módulos de Leilão</td>
+        </tr>
+        <tr>
+          <td><code>v2_gravar_sessao_win.py</code></td>
+          <td><code>Dados_Validados.json</code>, MT5 e Notícias</td>
+          <td>Encerramento do pipeline</td>
+          <td>Histórico de Sessões / Banco V2</td>
+          <td>Módulos de Auditoria e Dashboard V2</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="block-container">
+    <h2>2. Status dos Arquivos Gerados</h2>
+    <ul>
+      <li>
+        <span class="badge-used">[EM USO]</span> <code>Coletas/Coleta_rom-0.json</code>, <code>rom-5.json</code> e <code>rom-10.json</code>: 
+        Snapshots temporais continuos para cálculo de rotação e variação de ativos em janelas de 15 minutos.
+      </li>
+      <li>
+        <span class="badge-used">[EM USO]</span> <code>Coletas/Dados_Validados.json</code>: 
+        Base higienizada e auditada contendo os 24 ativos essenciais para o cálculo macro/viés.
+      </li>
+      <li>
+        <span class="badge-used">[EM USO]</span> <code>Coletas/Tendencia_15Min.json</code>: 
+        Mapeamento compilado do direcionamento dos ativos (Alta, Baixa ou Estável).
+      </li>
+      <li>
+        <span class="badge-used">[EM USO]</span> <code>Coletas/AnaliseGraficaSMC_Regras.json</code>: 
+        Estrutura gráfica contendo Fair Value Gaps, Order Blocks, Liquidez (BSL/SSL) e alvos SMC.
+      </li>
+      <li>
+        <span class="badge-used">[EM USO]</span> <code>Monitor_Leilao_WIN.csv</code>: 
+        Log sequencial em tempo real da microestrutura de leilão.
+      </li>
+    </ul>
+  </div>
+
+  <div class="block-container">
+    <h2>3. Diagnóstico de Arquivos e Execuções Não Utilizados / Redundantes</h2>
+    <ul>
+      <li>
+        <span class="badge-unused">[REDUNDANTE]</span> <strong>Coleta de Calendário Econômico:</strong> 
+        O <code>main_pipeline.py</code> implementa a flag <code>calendario_ja_coletado_hoje</code> em memória. Como os arquivos batch iniciam novos processos Python a cada ciclo, essa flag é zerada e a raspagem do calendário é executada novamente de forma desnecessária.
+      </li>
+      <li>
+        <span class="badge-unused">[NÃO UTILIZADO / LEGADO]</span> <strong><code>Launcher.bat</code> (Versão Paralela):</strong> 
+        Existe uma versão do script <code>Launcher.bat</code> configurada para abrir janelas externas chamando scripts como <code>Mapa_de_Inventario</code> e <code>Mapa_de_Fluxo</code>. Esses rotinas não estão integradas ao fluxo modular V2 da pipeline principal.
+      </li>
+    </ul>
+  </div>
+
+</body>
+</html>

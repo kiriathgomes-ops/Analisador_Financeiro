@@ -5,10 +5,10 @@
 # GERADO AUTOMATICAMENTE
 #
 # Data geração:
-# 2026-08-17 07:57:28
+# 2026-08-17 15:36:51
 #
 # Arquivos unificados:
-# 99
+# 100
 #
 # NÃO EDITAR MANUALMENTE
 # ============================================================
@@ -5778,7 +5778,7 @@ finally:
 # Motor_SMC_Regras.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-15 17:54:39
+# 2026-08-17 11:00:15
 # ============================================================
 
 
@@ -5818,10 +5818,25 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 from dataclasses import dataclass, asdict, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+
+##############
+# ============================================================
+# FIX: FORÇA UTF-8 NO TERMINAL WINDOWS PARA EVITAR UnicodeEncodeError
+# ============================================================
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except AttributeError:
+        pass  # versão antiga do Python que não tem reconfigure
+
+###############
+
+
 
 # ============================================================
 # CONFIGURAÇÃO
@@ -7784,7 +7799,7 @@ class ResultadoPrevisao:
 # Rodar_SMC_Regras.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-15 17:54:39
+# 2026-08-17 11:06:11
 # ============================================================
 
 
@@ -7821,7 +7836,9 @@ if str(BASE_DIR) not in sys.path:
 
 
 def log(msg: str, ok: bool = True):
-    icone = "✅" if ok else "⚠️"
+    icone = "[Ok]" if ok else "[ERRO]"
+     # Remove qualquer caractere não-ASCII para evitar UnicodeEncodeError
+    safe_msg = msg.encode('ascii', 'ignore').decode('ascii')
     print(f"[{datetime.now().strftime('%H:%M:%S')}] {icone} {msg}")
 
 
@@ -9615,6 +9632,194 @@ print("=" * 60)
 
 # ============================================================
 # ARQUIVO:
+# gerar_relatorio_pdf.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-17 15:27:17
+# ============================================================
+
+
+
+# ============================================================
+# gerar_relatorio_pdf_final.py
+# Gera PDF com reportlab, removendo tags HTML problemáticas
+# ============================================================
+
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_LEFT, TA_CENTER
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+import os
+from datetime import datetime
+
+# ------------------------------------------------------------
+# CONTEÚDO DO RELATÓRIO (MESMO TEXTO)
+# ------------------------------------------------------------
+CONTEUDO = """
+Perfeito. O entendimento está confirmado. Com base no `App_Completo.txt` (que contém todos os seus módulos) e no JSON de exemplo, mapeei integralmente o fluxo de dados, as dependências e os scripts órfãos.
+
+Abaixo está o **relatório completo em tabelas**, estruturado em quatro blocos:
+1. **Coleta** – origens brutas e periodicidade.
+2. **Processamento** – transformações e encadeamento.
+3. **Consumidores Finais (UI)** – quais páginas utilizam quais JSONs.
+4. **Scripts Inativos / Órfãos** – com sugestão de ação (deletar ou mover para reserva).
+
+---
+
+## 1. TABELA DE COLETA (DADOS BRUTOS)
+
+| Script | O que coleta | Fonte (De onde) | Frequência | Quem consome (próximo elo) |
+| :--- | :--- | :--- | :--- | :--- |
+| `Coletor.py` | • PTAX oficial (USD_BRL) <br> • Ajuste B3 (WIN_AJUSTE / WDO_AJUSTE) <br> • 21 ativos globais (VIX, S&P, NASDAQ, DXY, ADRs, Minério, Petróleo, etc.) <br> • Último tick (last) via MT5 (WIN/WDO) – na janela de ajuste | BACEN SGS (API), TradingView Scanner API, MetaTrader 5 (v2.2 preferencial / v1 fallback) | A cada 5 min (disparado pelo Agendador) | `Validador.py` e `Limpar_Imagens_TradingView.py` (paralelo) |
+| `Coleta_Noticias_Calendario.py` | Calendário econômico Brasil e EUA (eventos 2★ e 3★) | TradingView Economic Calendar API | 1 vez ao dia (cache reutilizado se já coletado hoje) | `Analise_Noticias.py` |
+| `Coletor_MT5_v2_2.py` (preferencial) <br> `Coletor_MT5.py` (fallback) | Last / Bid / Ask / Volume dos contratos WIN, WDO, DI1 (seleção dinâmica do contrato mais líquido) | MetaTrader 5 (terminal) | Apenas quando chamado pelo `Coletor.py` (dentro da janela de ajuste 19:00–08:50) | `Coletor.py` (integração via `capturar_last_do_mt5()`) |
+
+---
+
+## 2. TABELA DE PROCESSAMENTO (TRANSFORMAÇÕES E AGREGAÇÕES)
+
+| Script | Informação gerada | Insumos (dependências) | Frequência | Quem consome o resultado |
+| :--- | :--- | :--- | :--- | :--- |
+| `Limpar_Imagens_TradingView.py` | Gerencia imagens de gráficos (move as 2 mais recentes para `Coletas/WIN_1min.png` e `WIN_5min.png`) | Imagens baixadas na pasta `Downloads` do usuário | Executado no pipeline (etapa 0) | Páginas de análise visual (UI) – `7_🤖_IA_Imagem.py`, `7_🤖_IA_Gemini.py`, `8_📥_Gerador_Profit_Pro.py` |
+| `Validador.py` | `Dados_Validados.json` (sanitiza e padroniza os 24 ativos) | `Coleta_rom-0.json` | A cada 5 min (pipeline) | `Calculadora.py`, `CalculadoraEstimativaAbertura.py` |
+| `Analise_Noticias.py` | `Noticias_Impacto_Dia.json` (classificação de risco, alertas 3★, múltiplas 2★) | `Noticias_Calendario.json` | 1x ao dia (ou quando chamado) | `Engine_Vies.py`, UI (`pages/13_📅_Noticias.py`) |
+| `MapearTendencia15Min.py` | `Analise_Tendencias.json` (comportamento das últimas 3 coletas: rom-10 → rom-5 → rom-0) | `Coleta_rom-10.json`, `Coleta_rom-5.json`, `Coleta_rom-0.json` | A cada 5 min (pipeline) | `Engine_Vies.py`, UI (`pages/6_🔬_Analise_Tendencia.py`, `pages/1_🎯_Setup_Abertura.py`) |
+| `Calculadora.py` | `Metricas_Calculadas.json` (spreads, curva DI, VIX, indicador mercado externo, indicador ADRs) | `Dados_Validados.json` | A cada 5 min (pipeline) | `Engine_Vies.py`, UI (`pages/4_🔢_Calculadora.py`, `pages/5_⚙️_Core_Engine.py`) |
+| `CalculadoraEstimativaAbertura.py` | `EstimativaAbertura.json` (abertura teórica WIN/WDO, pivôs, resumo macro) | `Dados_Validados.json` | A cada 5 min (pipeline) | `Engine_Vies.py`, `Gerar_Resultado_Operacional_Abertura.py`, UI (`pages/4_🔢_Calculadora.py`) |
+| `Motor_SMC_Regras.py` (via `Rodar_SMC_Regras.py`) | `AnaliseGraficaSMC_Regras.json` (OB, FVG, BOS/CHoCH, liquidez, níveis) | MetaTrader 5 (candles 5min) | A cada 5 min (pipeline) | `Engine_Vies.py` (via UI/prompt), UI (`pages/9_📊_SMC_Regras.py`, `pages/1_🎯_Setup_Abertura.py`) |
+| `Engine_Vies.py` | `Decisao_Core.json` (viés final e score para WIN e WDO, com fatores relevantes) | `EstimativaAbertura.json`, `Metricas_Calculadas.json`, `Noticias_Impacto_Dia.json`, `DadosAtivosUnificados.json`, `Analise_Tendencias.json`, `AnaliseGraficaSMC_Regras.json` | A cada 5 min (pipeline) | UI (`pages/5_⚙️_Core_Engine.py`, `pages/1_🎯_Setup_Abertura.py`), `Gerar_Resultado_Operacional_Abertura.py` |
+| `Gerar_Resultado_Operacional_Abertura.py` | `Resultado_Calculadora_Operacional_Abertura.json` (consolida todos os indicadores + classificação operacional) | `Metricas_Calculadas.json`, `EstimativaAbertura.json`, `Decisao_Core.json`, `DadosAtivosUnificados.json`, `Analise_Tendencias.json`, `Noticias_Calendario_0900.json` | A cada 5 min (pipeline) | UI (`pages/1_🎯_Setup_Abertura.py`, `pages/4_🔢_Calculadora.py`) |
+| `Gerar_Relatorio.py` | `Relatorio_Executivo.md` (relatório macro em Markdown) | `Metricas_Calculadas.json` | A cada 5 min (pipeline) | UI (exibição textual) |
+| `Gerar_Relatorio_Mensagem.py` | Relatório de abertura (texto) | `EstimativaAbertura.json` | A cada 5 min (pipeline) | UI (utilizado em algumas páginas como resumo) |
+| `v2_gravar_sessao_win.py` | Histórico de sessão em `Coletas/Historico_Aberturas/YYYY-MM-DD.json` (usando a nova arquitetura V2) | Todos os dados via `build_win_session()` + `opening_scenario_engine` | A cada 5 min (pipeline) | UI V2 (`pages/20_📈_Previsao_Abertura_WINFUT.py`, `pages/21_📈_Historico_Macro.py`) |
+| `Gerar_Mapa_Projeto.py`, `Gerar_Mapa_Fluxo.py`, `Gerar_ArquivosApp.py` | Mapas de documentação (`Mapa_Projeto.json`, `Mapa_Fluxo.json`, `ArquivosApp.py`) | Escaneamento do sistema de arquivos (sem insumos de dados) | **Manual / sob demanda** (não está no pipeline operacional) | UI (`pages/15_🗺️_Mapa_da_Aplicacao.py`) |
+
+---
+
+## 3. TABELA DE CONSUMIDORES FINAIS (INTERFACE / DASHBOARDS)
+
+Estas páginas **não produzem dados para outras etapas**; apenas leem os JSONs gerados para exibição.
+
+| Página Streamlit | JSONs / Dados que consome |
+| :--- | :--- |
+| `pages/1_🎯_Setup_Abertura.py` | `Noticias_Calendario_0900.json`, `Metricas_Calculadas.json`, `EstimativaAbertura.json`, `Decisao_Core.json`, `DadosAtivosUnificados.json`, `Analise_Tendencias.json`, `Resultado_Calculadora_Operacional_Abertura.json`, `AnaliseGraficaSMC_Regras.json` |
+| `pages/4_🔢_Calculadora.py` | `EstimativaAbertura.json`, `Resultado_Calculadora_Operacional_Abertura.json`, `Metricas_Calculadas.json`, `DadosAtivosUnificados.json`, `Analise_Tendencias.json` |
+| `pages/5_⚙️_Core_Engine.py` | `Decisao_Core.json`, `Dados_Validados.json`, `Noticias_Impacto_Dia.json`, `Metricas_Calculadas.json`, `Analise_Tendencias.json`, `EstimativaAbertura.json` |
+| `pages/6_🔬_Analise_Tendencia.py` | `Analise_Tendencias.json` |
+| `pages/9_📊_SMC_Regras.py` | `AnaliseGraficaSMC_Regras.json`, `AnaliseGraficaSMC.json` (visão IA, se existir) |
+| `pages/13_📅_Noticias.py` | `Noticias_Impacto_Dia.json`, `Noticias_Calendario.json` |
+| `pages/14_📡_Ativos_Monitorados.py` | `DadosAtivosUnificados.json` |
+| `pages/15_🗺️_Mapa_da_Aplicacao.py` | `Mapa_Projeto.json`, `Mapa_Fluxo.json`, `Pipeline_Log.json` |
+| `pages/16_📊_Dados_MT5.py` | `Dados_MT5.json` (via `Coletor_MT5`) |
+| `pages/18_🔮_Previsao_Inteligente_Abertura.py` | Dados do novo motor (via `NOVO_MOTOR_PREVISAO_ABERTURA/core/motor_previsao.py`) |
+| `pages/19_🔮_Previsao_Inteligente_Abertura_Comparador.py` | Mesmo do 18 + comparação com legado (`Decisao_Core.json`) |
+| `pages/20_📈_Previsao_Abertura_WINFUT.py` | V2 (`build_win_session()`, `opening_scenario_engine`) |
+| `pages/21_📈_Historico_Macro.py` | `Coleta_rom-*.json` (leitura direta dos ROMs) |
+| `pages/7_🤖_IA_Gemini.py` | Imagens (`WIN_1min.png`, `WIN_5min.png`) – gera `AnaliseGraficaSMC.json` (visão IA) |
+| `pages/7_🤖_IA_Imagem.py` | Imagens + dados do pipeline (via `KeyManager` e leitura dos JSONs) |
+| `pages/8_📥_Gerador_Profit_Pro.py` | `AnaliseGraficaSMC_Regras.json`, `AnaliseGraficaSMC.json` ou texto colado |
+
+---
+
+## 4. TABELA DE SCRIPTS INATIVOS / ÓRFÃOS (NÃO UTILIZADOS NO PIPELINE OPERACIONAL)
+
+| Script | Motivo / Status | Ação sugerida |
+| :--- | :--- | :--- |
+| `Coletor copy.py` | Cópia exata do `Coletor.py`. Não é chamado por ninguém. | 🗑️ **Deletar** (redundante) |
+| `Monitor_WIN_Leilao.py` | Monitor avulso de leilão (não integrado ao pipeline). | 📁 **Mover para pasta `_reservados/`** |
+| `Teste_Book_WIN.py`, `Teste_Historico_Ticks_WIN.py`, `Teste_Leilao_MT5.py`, `Teste_MT5.py`, `Teste_Vencimento_MT5.py` | Scripts de teste/debug do MT5. Não chamados por nenhum módulo. | 📁 **Mover para `_reservados/testes/`** |
+| `test_import.py`, `teste_motor.py` | Testes de importação do `KeyManager` e do novo motor. | 📁 **Mover para `_reservados/testes/`** |
+| `diagnostico_env.py` | Diagnóstico de variáveis de ambiente (.env). | 📁 **Mover para `_reservados/utilitarios/`** |
+| `Gerar_ArquivosApp.py`, `Gerar_Mapa_Inventario_Tecnico.py` | Geradores de inventário (substituídos por `Gerar_Mapa_Projeto.py` e `Gerar_Mapa_Fluxo.py`). | 🗑️ **Deletar** ou 📁 **Mover para `_reservados/legado/`** |
+| `pages/3_🎯_Setup_Abertura_10h.py` | Página separada para setup das 10h (não linkada no menu principal do `app_home.py`). Aparentemente obsoleta (unificada na `pages/1_...`). | 📁 **Mover para `_reservados/pages_antigas/`** |
+| `pages/8_📥_Gerador_Profit_Pro_Orignal.py` | Cópia antiga do gerador Profit Pro (substituída pela versão atual `8_📥_Gerador_Profit_Pro.py`). | 🗑️ **Deletar** |
+| `pages/20_📈_Previsao_Abertura_WINFUTa.py` e `...s.py` | Versões intermediárias da página V2 (não linkadas). | 📁 **Mover para `_reservados/pages_antigas/`** |
+| `pages/21_📈_Historico_Macro copy.py` e `copy 2.py` | Cópias antigas da página de histórico macro. | 🗑️ **Deletar** ou 📁 **Mover para `_reservados/pages_antigas/`** |
+
+---
+
+**Resumo executivo**:
+- O pipeline tem **8 etapas de coleta/processamento ativas** que se encadeiam corretamente.
+- A maioria dos scripts órfãos são **testes, duplicatas ou utilitários de documentação** que não afetam a operação.
+- Recomendo criar a pasta `_reservados/` na raiz e mover todos os listados como "📁 Mover" para manter o projeto limpo, sem perdê-los.
+"""
+
+# ------------------------------------------------------------
+# FUNÇÃO PARA LIMPAR TAGS HTML E CARACTERES PROBLEMÁTICOS
+# ------------------------------------------------------------
+def limpar_texto(texto):
+    # Remove tags <br> e <br /> (substitui por espaço)
+    texto = texto.replace('<br>', ' ').replace('<br />', ' ')
+    # Remove outros caracteres de controle
+    texto = texto.replace('\x00', '')
+    return texto
+
+# ------------------------------------------------------------
+# GERAR PDF
+# ------------------------------------------------------------
+def gerar_pdf():
+    nome_arquivo = f"Relatorio_Fluxo_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
+    doc = SimpleDocTemplate(nome_arquivo, pagesize=A4,
+                            rightMargin=40, leftMargin=40,
+                            topMargin=40, bottomMargin=30)
+
+    styles = getSampleStyleSheet()
+    style_normal = styles['Normal']
+    style_normal.fontSize = 9
+    style_normal.leading = 12
+
+    style_title = ParagraphStyle(
+        'Title',
+        parent=styles['Title'],
+        fontSize=14,
+        leading=16,
+        alignment=TA_CENTER,
+        spaceAfter=12
+    )
+
+    style_subtitle = ParagraphStyle(
+        'Subtitle',
+        parent=styles['Heading2'],
+        fontSize=11,
+        leading=14,
+        spaceAfter=6,
+        spaceBefore=10
+    )
+
+    story = []
+    story.append(Paragraph("RELATÓRIO DE FLUXO - ANALISADOR FINANCEIRO", style_title))
+    story.append(Paragraph(f"Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M')}", style_normal))
+    story.append(Spacer(1, 12))
+
+    # Processa o conteúdo linha a linha
+    linhas = CONTEUDO.split('\n')
+    for linha in linhas:
+        linha_limpa = linha.strip()
+        if not linha_limpa:
+            story.append(Spacer(1, 6))
+            continue
+
+        # Limpa tags HTML
+        linha_limpa = limpar_texto(linha_limpa)
+
+        # Detecta cabeçalhos
+        if linha_limpa.startswith('##') or linha_limpa.startswith('**'):
+            texto = linha_limpa.replace('##', '').replace('**', '').strip()
+            story.append(Paragraph(texto, style_subtitle))
+        else:
+            story.append(Paragraph(linha_limpa, style_normal))
+
+    doc.build(story)
+    print(f"✅ PDF gerado com sucesso: {nome_arquivo}")
+    print(f"   Local: {os.path.abspath(nome_arquivo)}")
+
+if __name__ == "__main__":
+    gerar_pdf()
+
+
+
+# ============================================================
+# ARQUIVO:
 # main_pipeline.py
 #
 # ÚLTIMA ALTERAÇÃO:
@@ -11298,137 +11503,6 @@ st.divider()
 st.caption(
     f"Gerado automaticamente pelo Analisador Financeiro - {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}"
 )
-
-
-
-# ============================================================
-# ARQUIVO:
-# pages\16_📊_Dados_MT5.py
-#
-# ÚLTIMA ALTERAÇÃO:
-# 2026-08-10 10:47:02
-# ============================================================
-
-
-
-# pages/16_📊_Dados_MT5.py
-import streamlit as st
-from pathlib import Path
-import sys
-import json
-
-BASE_DIR = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(BASE_DIR))
-
-from Coletor_MT5 import executar_coleta_mt5, carregar_dados_mt5, obter_melhor_contrato
-
-st.set_page_config(
-    page_title="Dados MT5 - B3",
-    page_icon="📊",
-    layout="wide"
-)
-
-st.title("📊 Dados MetaTrader5 - B3")
-st.caption("Coleta de dados dos contratos B3 via MT5")
-
-# ============================================================
-# SIDEBAR
-# ============================================================
-
-st.sidebar.title("📊 MT5")
-st.sidebar.caption("Dados B3")
-
-if st.sidebar.button("🔄 Coletar Agora", width="stretch"):
-    with st.spinner("Coletando dados do MT5..."):
-        dados = executar_coleta_mt5()
-        if dados:
-            st.success("✅ Coleta realizada com sucesso!")
-        st.rerun()
-
-# ============================================================
-# MAIN
-# ============================================================
-
-dados = carregar_dados_mt5()
-
-if not dados:
-    st.warning("⚠️ Nenhum dado MT5 encontrado. Clique em 'Coletar Agora'.")
-    st.stop()
-
-# Timestamp
-timestamp = dados.get("timestamp", "N/A")
-st.info(f"🕒 Última coleta: {timestamp}")
-
-# Status
-status = dados.get("status", "UNKNOWN")
-if status == "OK":
-    st.success("✅ Conexão MT5 OK")
-else:
-    st.error(f"❌ Erro: {dados.get('mensagem', 'Desconhecido')}")
-
-# Contratos
-st.subheader("📊 Contratos Coletados")
-
-contratos = dados.get("contratos", {})
-if contratos:
-    # Cria tabela
-    dados_tabela = []
-    for contrato, info in contratos.items():
-        dados_tabela.append({
-            "Contrato": contrato,
-            "Último": f"{info['last']:.2f}",
-            "Bid": f"{info['bid']:.2f}",
-            "Ask": f"{info['ask']:.2f}",
-            "Volume": info['volume'],
-            "Horário": info['time'][11:16] if info.get('time') else "N/A"
-        })
-    
-    st.dataframe(dados_tabela, width="stretch")
-    
-    # ============================================================
-    # 🔥 CORREÇÃO: Removido o parâmetro 'contrato'
-    # ============================================================
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        win = obter_melhor_contrato("WIN")
-        if win:
-            st.metric("WIN (Melhor Contrato)", f"{win['last']:.0f}")
-            st.caption(f"📌 Contrato: {win['contrato']}")
-        else:
-            st.metric("WIN (Melhor Contrato)", "N/A")
-    
-    with col2:
-        wdo = obter_melhor_contrato("WDO")
-        if wdo:
-            st.metric("WDO (Melhor Contrato)", f"{wdo['last']:.2f}")
-            st.caption(f"📌 Contrato: {wdo['contrato']}")
-        else:
-            st.metric("WDO (Melhor Contrato)", "N/A")
-    
-    with col3:
-        st.metric("Total Contratos", len(contratos))
-else:
-    st.warning("Nenhum contrato encontrado")
-
-# ============================================================
-# BOTÃO PARA ATUALIZAR
-# ============================================================
-
-st.markdown("---")
-if st.button("🔄 Atualizar Dados", width="stretch"):
-    with st.spinner("Coletando dados do MT5..."):
-        dados = executar_coleta_mt5()
-        if dados:
-            st.success("✅ Coleta realizada com sucesso!")
-        st.rerun()
-
-# ============================================================
-# DADOS BRUTOS (para debug)
-# ============================================================
-
-with st.expander("📄 Ver Dados Brutos (JSON)"):
-    st.json(dados)
 
 
 
@@ -21410,6 +21484,389 @@ except ImportError as e:
     print("  └── test_import.py")
 except Exception as e:
     print(f"❌ Outro erro: {e}")
+
+
+
+# ============================================================
+# ARQUIVO:
+# testar_mt5_vs_tradingview.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-17 11:25:48
+# ============================================================
+
+
+
+# ============================================================
+# testar_mt5_vs_tradingview.py
+# 
+# OBJETIVO: Testar se os ativos atualmente coletados via 
+#           TradingView estão disponíveis no MetaTrader 5 (MT5)
+#           com dados em tempo real.
+#
+# USO: python testar_mt5_vs_tradingview.py
+# ============================================================
+
+import sys
+import json
+import csv
+import time
+from datetime import datetime
+from pathlib import Path
+
+# ============================================================
+# FIX: FORÇA UTF-8 NO TERMINAL WINDOWS (SE POSSÍVEL)
+# ============================================================
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except AttributeError:
+        pass
+
+# ============================================================
+# TENTA IMPORTAR MT5
+# ============================================================
+try:
+    import MetaTrader5 as mt5
+    MT5_DISPONIVEL = True
+except ImportError:
+    MT5_DISPONIVEL = False
+    print("[ERRO] Biblioteca MetaTrader5 não instalada.")
+    print("       Execute: pip install MetaTrader5")
+    sys.exit(1)
+
+# ============================================================
+# MAPEAMENTO: TradingView Ticker -> Possíveis nomes no MT5
+# ============================================================
+# A ordem importa: o script testa do primeiro ao último,
+# e usa o primeiro que encontrar com dados válidos.
+# 
+# Adapte esta lista conforme os símbolos disponíveis na 
+# sua corretora (XP, Clear, BTG, etc.)
+# ============================================================
+
+MAPEAMENTO = {
+    # ---------- ADRs Brasileiras (US Stocks / OTC) ----------
+    "VALE_ADR": {
+        "tv_ticker": "NYSE:VALE",
+        "mt5_candidatos": ["VALE", "VALE3", "VALE.US", "VALE.N", "VALE3.US", "VALE3.N"]
+    },
+    "PETR_ADR": {
+        "tv_ticker": "NYSE:PBR",
+        "mt5_candidatos": ["PETR", "PETR4", "PBR", "PETR.US", "PETR.N", "PETR4.US"]
+    },
+    "ITUB_ADR": {
+        "tv_ticker": "NYSE:ITUB",
+        "mt5_candidatos": ["ITUB", "ITUB4", "ITUB.US", "ITUB.N", "ITUB4.US"]
+    },
+    "BBD_ADR": {
+        "tv_ticker": "NYSE:BBD",
+        "mt5_candidatos": ["BBD", "BBDC4", "BBD.US", "BBD.N", "BBDC4.US"]
+    },
+    "BBAS_ADR": {
+        "tv_ticker": "OTC:BDORY",
+        "mt5_candidatos": ["BBAS", "BBAS3", "BDORY", "BBAS.US"]  # OTC raramente existe no MT5
+    },
+    "B3_ADR": {
+        "tv_ticker": "OTC:BOLSY",
+        "mt5_candidatos": ["B3", "B3SA3", "BOLSY", "B3.US"]      # OTC raramente existe no MT5
+    },
+
+    # ---------- ETFs & Índices ----------
+    "EWZ": {
+        "tv_ticker": "AMEX:EWZ",
+        "mt5_candidatos": ["EWZ", "EWZ.US"]
+    },
+    "SP500_FUT": {
+        "tv_ticker": "CME_MINI:ES1!",
+        "mt5_candidatos": ["ES1!", "ES", "SPX", "US500", "SP500"]
+    },
+    "NASDAQ_FUT": {
+        "tv_ticker": "CME_MINI:NQ1!",
+        "mt5_candidatos": ["NQ1!", "NQ", "NAS100", "US100", "NASDAQ"]
+    },
+    "VIX": {
+        "tv_ticker": "TVC:VIX",
+        "mt5_candidatos": ["VIX", "VIX.US", "VIX.IND"]
+    },
+
+    # ---------- Commodities ----------
+    "CRUDE_OIL": {
+        "tv_ticker": "NYMEX:CL1!",
+        "mt5_candidatos": ["CL1!", "CL", "WTI", "USOIL", "OIL"]
+    },
+    "GOLD": {
+        "tv_ticker": "TVC:GOLD",
+        "mt5_candidatos": ["XAUUSD", "GOLD", "XAU", "GOLD.USD"]
+    },
+    "IRON_ORE": {
+        "tv_ticker": "SGX:FEF1!",
+        "mt5_candidatos": ["FEF1!", "FEF", "FE", "SGX:FE"]  # MUITO difícil de ter no MT5 BR
+    },
+    "IRON_ORE_2M": {
+        "tv_ticker": "SGX:FEF2!",
+        "mt5_candidatos": ["FEF2!", "FEFU2026", "FE"]      # MUITO difícil de ter no MT5 BR
+    },
+
+    # ---------- Moedas (Forex / DXY) ----------
+    "USD_BRL": {
+        "tv_ticker": "FX_IDC:USDBRL",
+        "mt5_candidatos": ["USDBRL", "USD/BRL", "USD.BRL", "BRL"]
+    },
+    "USD_MXN": {
+        "tv_ticker": "FX_IDC:USDMXN",
+        "mt5_candidatos": ["USDMXN", "USD/MXN", "USD.MXN"]
+    },
+    "DXY": {
+        "tv_ticker": "TVC:DXY",
+        "mt5_candidatos": ["DXY", "USDOLLAR", "USDX", "DX"]
+    },
+
+    # ---------- Juros (DI) - Já existem no MT5, mas vamos testar ----------
+    "DI1_2027": {
+        "tv_ticker": "BMFBOVESPA:DI1F2027",
+        "mt5_candidatos": ["DI1F27", "DI1V26", "DI1Z26"]  # meses variam
+    },
+    "DI1_2029": {
+        "tv_ticker": "BMFBOVESPA:DI1F2029",
+        "mt5_candidatos": ["DI1F29", "DI1V28", "DI1Z28"]
+    },
+}
+
+# ============================================================
+# FUNÇÃO PARA TESTAR UM SÍMBOLO NO MT5
+# ============================================================
+
+def testar_simbolo_mt5(simbolo: str) -> dict:
+    """
+    Tenta selecionar um símbolo no MT5 e obter o último tick.
+    Retorna: {
+        "encontrado": bool,
+        "selecionado": bool,
+        "preco": float or None,
+        "bid": float or None,
+        "ask": float or None,
+        "volume": float or None,
+        "time": str or None,
+        "erro": str or None
+    }
+    """
+    resultado = {
+        "encontrado": False,
+        "selecionado": False,
+        "preco": None,
+        "bid": None,
+        "ask": None,
+        "volume": None,
+        "time": None,
+        "erro": None
+    }
+
+    try:
+        # Verifica se o símbolo existe
+        info = mt5.symbol_info(simbolo)
+        if info is None:
+            resultado["encontrado"] = False
+            resultado["erro"] = "Símbolo não encontrado"
+            return resultado
+
+        resultado["encontrado"] = True
+
+        # Tenta selecionar o símbolo (adicionar ao Market Watch)
+        if not mt5.symbol_select(simbolo, True):
+            resultado["selecionado"] = False
+            resultado["erro"] = "Não foi possível selecionar (Market Watch)"
+            # Mesmo assim, tenta pegar o tick
+        else:
+            resultado["selecionado"] = True
+
+        # Obtém o tick
+        tick = mt5.symbol_info_tick(simbolo)
+        if tick is None:
+            resultado["preco"] = None
+            resultado["erro"] = "Tick indisponível (pode estar fora do pregão)"
+            return resultado
+
+        # Preenche os dados
+        resultado["bid"] = tick.bid
+        resultado["ask"] = tick.ask
+        resultado["preco"] = tick.last if tick.last > 0 else tick.bid if tick.bid > 0 else tick.ask
+        resultado["volume"] = tick.volume
+        if tick.time:
+            resultado["time"] = datetime.fromtimestamp(tick.time).strftime("%Y-%m-%d %H:%M:%S")
+
+        return resultado
+
+    except Exception as e:
+        resultado["encontrado"] = False
+        resultado["erro"] = f"Exceção: {str(e)}"
+        return resultado
+
+
+# ============================================================
+# FUNÇÃO PRINCIPAL
+# ============================================================
+
+def main():
+    print("=" * 70)
+    print(" TESTE: MT5 vs TRADINGVIEW - DISPONIBILIDADE DE ATIVOS")
+    print("=" * 70)
+    print(f"Início: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print()
+
+    if not MT5_DISPONIVEL:
+        print("[ERRO] MetaTrader5 não instalado.")
+        return
+
+    # Inicializa MT5
+    print("[INFO] Conectando ao MetaTrader 5...")
+    if not mt5.initialize():
+        print(f"[ERRO] Falha ao inicializar MT5. Código: {mt5.last_error()}")
+        print("       Verifique se o MetaTrader 5 está aberto e logado.")
+        return
+
+    print("[INFO] MT5 conectado com sucesso!")
+    versao = mt5.version()
+    print(f"[INFO] Versão MT5: {versao}")
+    print()
+
+    # Dicionário para armazenar os resultados
+    resultados = {}
+    total_encontrados = 0
+    total_com_preco = 0
+    total_nao_encontrados = 0
+
+    # Testa cada ativo
+    for ativo_id, config in MAPEAMENTO.items():
+        tv_ticker = config["tv_ticker"]
+        candidatos = config["mt5_candidatos"]
+
+        print(f"📌 Testando: {ativo_id} (TV: {tv_ticker})")
+        print(f"   Candidatos MT5: {', '.join(candidatos)}")
+
+        melhor_resultado = None
+        simbolo_usado = None
+
+        for candidato in candidatos:
+            res = testar_simbolo_mt5(candidato)
+
+            # Critério de aceitação: encontrado E tem preço > 0
+            if res["encontrado"] and res["preco"] is not None and res["preco"] > 0:
+                melhor_resultado = res
+                simbolo_usado = candidato
+                break  # usa o primeiro com preço válido
+
+            # Fallback: se não achou com preço, mas achou o símbolo, guarda
+            if res["encontrado"] and melhor_resultado is None:
+                melhor_resultado = res
+                simbolo_usado = candidato
+
+        # Se ainda não achou nada, pega o primeiro erro (ou None)
+        if melhor_resultado is None:
+            melhor_resultado = {"encontrado": False, "erro": "Nenhum candidato funcionou"}
+            simbolo_usado = "N/A"
+
+        # Classifica o resultado
+        status = "❌ NAO_ENCONTRADO"
+        if melhor_resultado.get("encontrado"):
+            if melhor_resultado.get("preco") and melhor_resultado["preco"] > 0:
+                status = f"✅ ENCONTRADO (preço: {melhor_resultado['preco']:.2f})"
+                total_com_preco += 1
+            else:
+                status = "⚠️ ENCONTRADO_SEM_PRECO"
+            total_encontrados += 1
+        else:
+            total_nao_encontrados += 1
+
+        # Exibe o resultado
+        print(f"   -> {status} | Símbolo usado: {simbolo_usado}")
+        if melhor_resultado.get("erro") and melhor_resultado["erro"] != "Nenhum candidato funcionou":
+            print(f"      Obs: {melhor_resultado['erro']}")
+        if melhor_resultado.get("time"):
+            print(f"      Último tick: {melhor_resultado['time']}")
+        print()
+
+        # Salva no dicionário de resultados
+        resultados[ativo_id] = {
+            "tv_ticker": tv_ticker,
+            "mt5_simbolo_usado": simbolo_usado,
+            "candidatos_testados": candidatos,
+            "status": status,
+            "preco": melhor_resultado.get("preco"),
+            "bid": melhor_resultado.get("bid"),
+            "ask": melhor_resultado.get("ask"),
+            "volume": melhor_resultado.get("volume"),
+            "time": melhor_resultado.get("time"),
+            "erro": melhor_resultado.get("erro"),
+        }
+
+    # Desconecta MT5
+    mt5.shutdown()
+    print("[INFO] MT5 desconectado.")
+
+    # ============================================================
+    # RESUMO FINAL
+    # ============================================================
+    print("=" * 70)
+    print(" RESUMO")
+    print("=" * 70)
+    print(f"Total de ativos testados : {len(resultados)}")
+    print(f"✅ Encontrados com preço   : {total_com_preco}")
+    print(f"⚠️ Encontrados sem preço   : {total_encontrados - total_com_preco}")
+    print(f"❌ Não encontrados         : {total_nao_encontrados}")
+    print()
+
+    # ============================================================
+    # SALVA RELATÓRIO EM JSON
+    # ============================================================
+    output_dir = Path(__file__).resolve().parent / "Coletas"
+    output_dir.mkdir(exist_ok=True)
+
+    json_path = output_dir / "Diagnostico_MT5_vs_TradingView.json"
+    with open(json_path, "w", encoding="utf-8") as f:
+        json.dump({
+            "timestamp": datetime.now().isoformat(),
+            "total_ativos": len(resultados),
+            "encontrados_com_preco": total_com_preco,
+            "encontrados_sem_preco": total_encontrados - total_com_preco,
+            "nao_encontrados": total_nao_encontrados,
+            "detalhes": resultados
+        }, f, indent=2, ensure_ascii=False)
+
+    print(f"[INFO] Relatório JSON salvo em: {json_path}")
+
+    # ============================================================
+    # SALVA RELATÓRIO EM CSV (para abrir no Excel)
+    # ============================================================
+    csv_path = output_dir / "Diagnostico_MT5_vs_TradingView.csv"
+    with open(csv_path, "w", newline="", encoding="utf-8-sig") as f:
+        writer = csv.writer(f)
+        writer.writerow([
+            "Ativo", "TV_Ticker", "MT5_Simbolo_Usado", "Status", 
+            "Preco", "Bid", "Ask", "Volume", "Ultimo_Tick", "Erro"
+        ])
+        for ativo_id, dados in resultados.items():
+            writer.writerow([
+                ativo_id,
+                dados["tv_ticker"],
+                dados["mt5_simbolo_usado"],
+                dados["status"],
+                dados["preco"],
+                dados["bid"],
+                dados["ask"],
+                dados["volume"],
+                dados["time"],
+                dados["erro"]
+            ])
+
+    print(f"[INFO] Relatório CSV salvo em: {csv_path}")
+    print("=" * 70)
+    print(" FIM DO DIAGNÓSTICO")
+    print("=" * 70)
+
+
+if __name__ == "__main__":
+    main()
 
 
 

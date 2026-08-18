@@ -1,9 +1,9 @@
 {
-  "timestamp": "2026-08-17T15:29:02.300635",
+  "timestamp": "2026-08-17T15:34:02.474048",
   "ativo": "WIN",
   "timeframe": "5m",
   "fonte": "regras_smc",
-  "preco_atual": 169780.0,
+  "preco_atual": 169845.0,
   "timeframes_identificados": "5m",
   "bias_direcional": "BAIXA",
   "direcao_estrutura": "BAIXA",

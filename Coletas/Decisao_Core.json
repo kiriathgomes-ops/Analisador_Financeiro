@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "timestamp": "2026-08-17T15:29:02.050593",
+    "timestamp": "2026-08-17T15:34:02.147071",
     "status_pipeline": "OK"
   },
   "analise_operacional": {
@@ -8,16 +8,15 @@
       "score_numeric": -4.5,
       "vies_final": "FORTE_VENDA",
       "fatores_relevantes": [
-        "Aumento de Risco Global / VIX em alta (+5.9%)",
-        "Commodities e Mercado Externo pressionados (-3.14%)"
+        "Aumento de Risco Global / VIX em alta (+6.3%)",
+        "Commodities e Mercado Externo pressionados (-3.54%)"
       ]
     },
     "WDO_DOLAR": {
-      "score_numeric": 0.0,
-      "vies_final": "NEUTRO",
+      "score_numeric": 2.0,
+      "vies_final": "MODERADO_COMPRA",
       "fatores_relevantes": [
-        "Spread WDO x PTAX esticado (+18.2 pts)",
-        "Curva de Juros (DI) abrindo (+57.0 bps)"
+        "Curva de Juros (DI) abrindo (+56.0 bps)"
       ]
     }
   }
