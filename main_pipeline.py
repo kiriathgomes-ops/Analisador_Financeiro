@@ -113,10 +113,7 @@ def executar_pipeline():
         ("3 - ANALISE IMPACTO NOTICIAS", "Analise_Noticias.py"),
         ("4 - VALIDACAO DOS DADOS", "Validador.py"),
         ("5 - CALCULOS MACRO E INDICADORES", "Calculadora.py"),
-        (
-            "6 - ESTIMATIVA ABERTURA WIN/WDO",
-            "CalculadoraEstimativaAbertura.py",
-        ),
+        ("6 - ESTIMATIVA ABERTURA WIN/WDO", "CalculadoraEstimativaAbertura.py"),
         ("7 - RESULTADO OPERACIONAL", "Gerar_Resultado_Operacional_Abertura.py"),
         ("8 - ENGINE DE VIES INSTITUCIONAL", "Engine_Vies.py"),
         ("8.1 - MOTOR SMC POR REGRAS (MT5)", "Rodar_SMC_Regras.py"),
