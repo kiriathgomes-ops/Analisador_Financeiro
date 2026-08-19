@@ -1,0 +1,83 @@
+{
+  "metadata": {
+    "timestamp": "2026-08-19T08:19:18.232923",
+    "origem": "Pipeline_Completo_V3",
+    "versao": "3.0",
+    "dados_carregados": {
+      "metricas": true,
+      "estimativa": true,
+      "decisao": true,
+      "ativos": true,
+      "tendencias": true,
+      "noticias": true
+    }
+  },
+  "alerta_calendario_0900": {
+    "tem_evento_3_estrelas": false,
+    "quantidade_eventos": 0,
+    "eventos": [],
+    "fonte": "Noticias_Calendario_0900.json"
+  },
+  "indicadores_compostos": {
+    "indicador_mercado_externo": {
+      "valor_pct": 1.4144,
+      "classificacao": "FRACA",
+      "sinal_operacional": "COMPRA",
+      "rotulo_completo": "FRACA_COMPRA",
+      "valido": true,
+      "observacao": "OK"
+    },
+    "indicador_adrs_brasileiras": {
+      "valor_pct": -5.03,
+      "classificacao": "MUITO_FORTE",
+      "sinal_operacional": "VENDA",
+      "rotulo_completo": "MUITO_FORTE_VENDA",
+      "valido": true,
+      "observacao": "OK"
+    }
+  },
+  "analise_tendencias": {},
+  "estimativas_abertura": {
+    "WIN_INDICE": {
+      "variacao_teorica_pct": -0.467,
+      "pontos_ajuste_base": 169311.0,
+      "abertura_teorica_pontos": 168520.0
+    },
+    "WDO_DOLAR": {
+      "variacao_teorica_pct": -0.0874,
+      "pontos_ajuste_base": 5230.0,
+      "abertura_teorica_pontos": 5225.427
+    }
+  },
+  "pivot_points": {
+    "WIN_FUT": null,
+    "WDO_FUT": null
+  },
+  "resumo_macro": {
+    "vix": 15.76,
+    "di1_2027": 13.745,
+    "di1_2029": 14.315,
+    "iron_ore": 95.35,
+    "crude_oil": 84.99,
+    "gold": 4370.31
+  },
+  "decisao_core": {
+    "win": {
+      "score_numeric": 2.0,
+      "vies_final": "MODERADO_COMPRA",
+      "fatores_relevantes": [
+        "ADRs fracas no exterior (-5.03%)",
+        "Commodities e Mercado Externo favoráveis (+1.26%)",
+        "🔺 Last acima do ajuste em 329 pts (viés comprador)"
+      ]
+    },
+    "wdo": {
+      "score_numeric": 0.0,
+      "vies_final": "NEUTRO",
+      "fatores_relevantes": [
+        "Spread WDO x PTAX esticado (+26.3 pts)",
+        "Curva de Juros (DI) abrindo (+57.0 bps)"
+      ]
+    }
+  }
+}

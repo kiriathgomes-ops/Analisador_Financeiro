@@ -1,0 +1,30 @@
+{
+  "metadata_calculo": {
+    "timestamp_calculo": "2026-08-19T08:19:18.047947",
+    "total_ativos_processados": 30
+  },
+  "estimativas_abertura": {
+    "WIN_INDICE": {
+      "variacao_teorica_pct": -0.467,
+      "pontos_ajuste_base": 169311.0,
+      "abertura_teorica_pontos": 168520.0
+    },
+    "WDO_DOLAR": {
+      "variacao_teorica_pct": -0.0874,
+      "pontos_ajuste_base": 5230.0,
+      "abertura_teorica_pontos": 5225.427
+    }
+  },
+  "pivot_points": {
+    "WIN_FUT": null,
+    "WDO_FUT": null
+  },
+  "resumo_macro": {
+    "vix": 15.76,
+    "di1_2027": 13.745,
+    "di1_2029": 14.315,
+    "iron_ore": 95.35,
+    "crude_oil": 84.99,
+    "gold": 4370.31
+  }
+}

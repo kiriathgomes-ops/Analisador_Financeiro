@@ -1,0 +1,83 @@
+{
+    "data_execucao": "2026-08-19 08:19:19",
+    "status_geral": "ERRO",
+    "etapas": [
+        {
+            "etapa": "0 - LIMPEZA DE IMAGENS TRADINGVIEW",
+            "script": "Limpar_Imagens_TradingView.py",
+            "inicio": "2026-08-19 08:19:00",
+            "fim": "2026-08-19 08:19:00",
+            "status": "OK"
+        },
+        {
+            "etapa": "1 - COLETA MERCADO GLOBAL",
+            "script": "Coletor.py",
+            "inicio": "2026-08-19 08:19:00",
+            "fim": "2026-08-19 08:19:17",
+            "status": "OK"
+        },
+        {
+            "etapa": "2 - COLETA NOTICIAS ECONOMICAS",
+            "script": "Coleta_Noticias_Calendario.py",
+            "inicio": "2026-08-19 08:19:17",
+            "fim": "2026-08-19 08:19:17",
+            "status": "OK"
+        },
+        {
+            "etapa": "3 - ANALISE IMPACTO NOTICIAS",
+            "script": "Analise_Noticias.py",
+            "inicio": "2026-08-19 08:19:17",
+            "fim": "2026-08-19 08:19:17",
+            "status": "OK"
+        },
+        {
+            "etapa": "4 - VALIDACAO DOS DADOS",
+            "script": "Validador.py",
+            "inicio": "2026-08-19 08:19:17",
+            "fim": "2026-08-19 08:19:17",
+            "status": "OK"
+        },
+        {
+            "etapa": "5 - CALCULOS MACRO E INDICADORES",
+            "script": "Calculadora.py",
+            "inicio": "2026-08-19 08:19:17",
+            "fim": "2026-08-19 08:19:17",
+            "status": "OK"
+        },
+        {
+            "etapa": "6 - ESTIMATIVA ABERTURA WIN/WDO",
+            "script": "CalculadoraEstimativaAbertura.py",
+            "inicio": "2026-08-19 08:19:17",
+            "fim": "2026-08-19 08:19:18",
+            "status": "OK"
+        },
+        {
+            "etapa": "7 - RESULTADO OPERACIONAL",
+            "script": "Gerar_Resultado_Operacional_Abertura.py",
+            "inicio": "2026-08-19 08:19:18",
+            "fim": "2026-08-19 08:19:18",
+            "status": "OK"
+        },
+        {
+            "etapa": "8 - ENGINE DE VIES INSTITUCIONAL",
+            "script": "Engine_Vies.py",
+            "inicio": "2026-08-19 08:19:18",
+            "fim": "2026-08-19 08:19:18",
+            "status": "OK"
+        },
+        {
+            "etapa": "8.1 - MOTOR SMC POR REGRAS (MT5)",
+            "script": "Rodar_SMC_Regras.py",
+            "inicio": "2026-08-19 08:19:18",
+            "fim": "2026-08-19 08:19:18",
+            "status": "OK"
+        },
+        {
+            "etapa": "9 - GERADOR RELATORIO FINAL",
+            "script": "Gerar_Relatorio_Mensagem.py",
+            "inicio": "2026-08-19 08:19:18",
+            "fim": "2026-08-19 08:19:19",
+            "status": "ERRO"
+        }
+    ]
+}
