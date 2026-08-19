@@ -1,16 +1,6 @@
 # ================================================================
-# COLETOR MT5 v2.2
-# Mercado B3 - WINFUT / DI1
-# ================================================================
-#
-# Descrição:
-#   Coleta dados dos contratos futuros da B3 (WIN e DI1) via MetaTrader 5.
-#   Seleciona dinamicamente o contrato principal com base no vencimento
-#   mais próximo e maior volume, gerando arquivos JSON atuais e históricos.
-#
-#   Esta versão é integrada ao pipeline principal (Coletor.py) e substitui
-#   a coleta anterior baseada em TradingView para os ativos B3.
-#
+# COLETOR MT5 v2.2 (Atualizado com Open, High, Low, Close e Prev Close)
+# Mercado B3 - WINFUT / DI1 / WDO
 # ================================================================
 
 import json
@@ -45,12 +35,10 @@ ATIVOS = {
         "prefixo": "DI1",
         "descricao": "DI Futuro B3",
     },
-    "WDO": {                     # <-- NOVO
+    "WDO": {
         "prefixo": "WDO",
         "descricao": "Mini Dólar Futuro B3",
     },
-
-
 }
 
 # ================================================================
@@ -66,12 +54,9 @@ def agora() -> str:
 # ================================================================
 
 def conectar_mt5() -> bool:
-    """
-    Inicializa a conexão com o MetaTrader 5.
-    Exibe status no console.
-    """
+    """Inicializa a conexão com o MetaTrader 5."""
     print("\n" + "=" * 70)
-    print("🚀 INICIANDO COLETOR MT5 v2.2")
+    print("🚀 INICIANDO COLETOR MT5 v2.2 (OHLC Direct)")
     print("=" * 70)
 
     if not mt5.initialize():
@@ -90,11 +75,6 @@ def conectar_mt5() -> bool:
 # ================================================================
 
 def obter_contratos(prefixo: str) -> list:
-    """
-    Retorna lista de contratos reais para o prefixo informado.
-    Filtra símbolos sintéticos ($/@) e opções (C/P).
-    Cada contrato contém nome, expiração, tick (bid/ask/last) e volume.
-    """
     simbolos = mt5.symbols_get()
     if simbolos is None:
         return []
@@ -103,27 +83,22 @@ def obter_contratos(prefixo: str) -> list:
     for s in simbolos:
         nome = s.name
 
-        # Filtro: deve começar com o prefixo
         if not nome.startswith(prefixo):
             continue
 
-        # Ignora símbolos sintéticos e opções
         if "$" in nome or "@" in nome:
             continue
         if "C" in nome[len(prefixo):] or "P" in nome[len(prefixo):]:
             continue
 
-        # Garante que o símbolo está visível no Market Watch
         mt5.symbol_select(nome, True)
 
-        # Obtém tick atual
         tick = mt5.symbol_info_tick(nome)
         volume = float(tick.volume) if tick and tick.volume else 0.0
         bid = float(tick.bid) if tick and tick.bid else 0.0
         ask = float(tick.ask) if tick and tick.ask else 0.0
         last = float(tick.last) if tick and tick.last else 0.0
 
-        # Data de vencimento
         expiracao = getattr(s, "expiration_time", 0)
         if expiracao:
             try:
@@ -150,21 +125,14 @@ def obter_contratos(prefixo: str) -> list:
 # ================================================================
 
 def selecionar_contrato(prefixo: str) -> tuple:
-    """
-    Seleciona o contrato principal com base no vencimento mais próximo
-    e, em caso de empate, o de maior volume.
-    Retorna (contrato_principal, lista_de_contratos_validos).
-    """
     contratos = obter_contratos(prefixo)
     agora_dt = datetime.now()
 
-    # Filtra apenas contratos com expiração futura
     validos = [c for c in contratos if c["expiracao"] and c["expiracao"] > agora_dt]
 
     if not validos:
         return None, []
 
-    # Ordenação: expiração mais próxima (ascendente) e volume decrescente
     validos.sort(key=lambda x: (x["expiracao"].timestamp(), -x["volume"]))
 
     return validos[0], validos
@@ -174,7 +142,6 @@ def selecionar_contrato(prefixo: str) -> tuple:
 # ================================================================
 
 def obter_preco_teorico(nome: str) -> float:
-    """Retorna o preço teórico do contrato (se disponível)."""
     info = mt5.symbol_info(nome)
     if info is None:
         return None
@@ -189,7 +156,6 @@ def obter_preco_teorico(nome: str) -> float:
 # ================================================================
 
 def obter_book(nome: str) -> dict:
-    """Retorna os níveis de Book (Bids e Asks) para o contrato."""
     resultado = {
         "disponivel": False,
         "quantidade_niveis": 0,
@@ -230,14 +196,10 @@ def obter_book(nome: str) -> dict:
     return resultado
 
 # ================================================================
-# COLETA DE UM ATIVO
+# COLETA DE UM ATIVO (COM OHLC INTEGRADO)
 # ================================================================
 
 def coletar_ativo(nome_ativo: str, configuracao: dict) -> dict:
-    """
-    Executa a coleta completa para um ativo (WIN ou DI1).
-    Retorna dicionário com todos os dados (contrato, preços, book, etc.).
-    """
     prefixo = configuracao["prefixo"]
     principal, contratos_validos = selecionar_contrato(prefixo)
 
@@ -250,23 +212,38 @@ def coletar_ativo(nome_ativo: str, configuracao: dict) -> dict:
     mt5.symbol_select(nome, True)
 
     tick = mt5.symbol_info_tick(nome)
-    if tick is None:
+    info_symbol = mt5.symbol_info(nome)
+
+    if tick is None or info_symbol is None:
         print(f"\n📌 {nome_ativo}")
         print(f"   Contrato: {nome}")
-        print("   ❌ Não foi possível obter tick")
+        print("   ❌ Não foi possível obter tick ou informações do símbolo")
         return {"ativo": nome_ativo, "status": "sem_tick", "contrato": nome}
 
-    # Extrai preços
+    # Preços de book/tick
     bid = float(tick.bid or 0.0)
     ask = float(tick.ask or 0.0)
     last = float(tick.last or 0.0)
     volume = float(tick.volume or 0.0)
 
+    # Extração das barras diárias para Abertura, Máxima, Mínima e Volume do dia
+    rates = mt5.copy_rates_from_pos(nome, mt5.TIMEFRAME_D1, 0, 1)
+    
+    open_val = float(rates[0][1]) if rates is not None and len(rates) > 0 else None
+    high_val = float(rates[0][2]) if rates is not None and len(rates) > 0 else None
+    low_val = float(rates[0][3]) if rates is not None and len(rates) > 0 else None
+    
+    # Preço do fechamento anterior
+    prev_close = float(getattr(info_symbol, "session_close", 0.0))
+    
+    # Variações
     spread = ask - bid if (bid > 0 and ask > 0) else None
+    var_abs = round(last - prev_close, 2) if prev_close > 0 else 0.0
+    var_pct = round(((last / prev_close) - 1) * 100, 2) if prev_close > 0 else 0.0
+
     teorico = obter_preco_teorico(nome)
     book = obter_book(nome)
 
-    # Lista de contratos vigentes para saída
     contratos_saida = []
     for c in contratos_validos:
         contratos_saida.append({
@@ -278,7 +255,7 @@ def coletar_ativo(nome_ativo: str, configuracao: dict) -> dict:
             "last": c["last"],
         })
 
-    # Monta o dicionário de saída
+    # Monta o dicionário de saída expandido
     dados = {
         "ativo": nome_ativo,
         "descricao": configuracao["descricao"],
@@ -287,6 +264,12 @@ def coletar_ativo(nome_ativo: str, configuracao: dict) -> dict:
         "bid": bid,
         "ask": ask,
         "last": last,
+        "open": open_val,
+        "high": high_val,
+        "low": low_val,
+        "session_close": prev_close,
+        "change_percent": var_pct,
+        "change_abs": var_abs,
         "volume": volume,
         "spread": spread,
         "preco_teorico": teorico,
@@ -296,19 +279,14 @@ def coletar_ativo(nome_ativo: str, configuracao: dict) -> dict:
         "status": "OK",
     }
 
-    # Exibe resumo no console
-    print(f"\n📌 {nome_ativo}")
-    print(f"   Contrato principal: {nome} (Venc: {principal['expiracao'].strftime('%Y-%m-%d')})")
-    print("   Contratos vigentes:")
-    for c in contratos_saida:
-        print(f"      • {c['contrato']} | Volume: {c['volume']} | Venc: {c['expiracao'][:10] if c['expiracao'] else 'N/A'}")
-    print(f"   Bid:    {bid}")
-    print(f"   Ask:    {ask}")
+    # Console output
+    print(f"\n📌 {nome_ativo} ({nome})")
+    print(f"   Open:   {open_val}")
+    print(f"   High:   {high_val}")
+    print(f"   Low:    {low_val}")
     print(f"   Last:   {last}")
-    print(f"   Volume: {volume}")
-    print(f"   Spread: {spread}")
-    print(f"   Preço teórico: {teorico if teorico is not None else '⚠️ indisponível'}")
-    print(f"   Market Book: {'✅ ' + str(book['quantidade_niveis']) + ' níveis' if book['disponivel'] else '⚠️ indisponível/vazio'}")
+    print(f"   Prev C: {prev_close}")
+    print(f"   Var %:  {var_pct}%")
 
     return dados
 
@@ -317,16 +295,9 @@ def coletar_ativo(nome_ativo: str, configuracao: dict) -> dict:
 # ================================================================
 
 def salvar_json(dados: dict) -> str:
-    """
-    Salva os dados no arquivo atual (Dados_MT5_v2_2.json) e também
-    em um arquivo histórico com timestamp no nome.
-    Retorna o caminho do arquivo histórico.
-    """
-    # Arquivo atual (sobrescreve)
     with open(ARQUIVO_ATUAL, "w", encoding="utf-8") as f:
         json.dump(dados, f, ensure_ascii=False, indent=4)
 
-    # Arquivo histórico
     agora_dt = datetime.now()
     nome_historico = f"MT5_v2_2_{agora_dt.strftime('%Y%m%d_%H%M%S_%f')}.json"
     caminho_historico = os.path.join(HISTORICO_DIR, nome_historico)
@@ -336,21 +307,15 @@ def salvar_json(dados: dict) -> str:
     return caminho_historico
 
 # ================================================================
-# FUNÇÃO PRINCIPAL (INTEGRAÇÃO COM PIPELINE)
+# FUNÇÃO PRINCIPAL
 # ================================================================
 
 def executar_coleta_mt5_v2() -> dict:
-    """Função chamada pelo pipeline principal (Coletor.py). Retorna os dados coletados."""
     if not conectar_mt5():
         return None
 
     try:
         timestamp = agora()
-        print("\n" + "=" * 70)
-        print("📊 COLETOR MT5 v2.2 (integração pipeline)")
-        print("=" * 70)
-        print(f"🕒 Coleta: {timestamp}")
-
         dados = {
             "versao_coletor": "2.2",
             "timestamp": timestamp,
@@ -362,29 +327,16 @@ def executar_coleta_mt5_v2() -> dict:
         for nome_ativo, config in ATIVOS.items():
             dados["ativos"][nome_ativo] = coletar_ativo(nome_ativo, config)
 
-        print("\n" + "=" * 70)
-
         caminho_historico = salvar_json(dados)
-        print("\n💾 Arquivo atual:", ARQUIVO_ATUAL)
-        print("\n📚 Histórico:", caminho_historico)
-
         return dados
 
     except Exception as erro:
-        print("\n❌ ERRO DURANTE A COLETA v2.2")
-        print(f"   {erro}")
+        print(f"\n❌ ERRO DURANTE A COLETA v2.2: {erro}")
         return None
 
     finally:
         mt5.shutdown()
         print("\n🔌 MT5 desconectado.\n")
 
-# ================================================================
-# EXECUÇÃO DIRETA (TESTE)
-# ================================================================
-
-def main():
-    executar_coleta_mt5_v2()
-
 if __name__ == "__main__":
-    main()
+    executar_coleta_mt5_v2()

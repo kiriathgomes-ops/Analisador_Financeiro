@@ -1,5 +1,5 @@
 # NOVO_MOTOR_PREVISAO_ABERTURA/dados/schemas.py
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 
@@ -28,7 +28,8 @@ class DadosContexto:
     iron_var: Optional[float] = None
     crude_oil: Optional[float] = None
     crude_var: Optional[float] = None
-    adrs: Dict[str, Dict[str, float]] = field(default_factory=dict)
+    # Permite Optional[float] internamente para evitar quebras quando 'close' ou 'change_percent' for None
+    adrs: Dict[str, Dict[str, Optional[float]]] = field(default_factory=dict)
     indicador_mercado_externo: Optional[float] = None
     indicador_adrs_brasileiras: Optional[float] = None
 
@@ -36,10 +37,10 @@ class DadosContexto:
 @dataclass
 class DadosAberturaTeorica:
     """Estimativa de abertura calculada pelo sistema legado."""
-    variacao_teorica_pct: float
-    abertura_teorica_pontos: float
-    pontos_ajuste_base: float
-    gap_teorico: float = 0.0  # calculado posteriormente
+    variacao_teorica_pct: float = 0.0
+    abertura_teorica_pontos: float = 0.0
+    pontos_ajuste_base: float = 0.0
+    gap_teorico: float = 0.0  # Calculado posteriormente pelo motor
 
 
 @dataclass
@@ -72,7 +73,7 @@ class DadosNoticias:
 @dataclass
 class DadosEntrada:
     """Todos os dados necessários para a previsão."""
-    timestamp: str
+    timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
     fechamento_anterior_win: Optional[float] = None
     ajuste_win: Optional[float] = None
     preco_atual_win: Optional[float] = None
@@ -86,6 +87,10 @@ class DadosEntrada:
     core_win_vies: Optional[str] = None
     core_win_score: Optional[float] = None
 
+    def to_dict(self) -> Dict[str, Any]:
+        """Converte o objeto e suas sub-estruturas em um dicionário puro."""
+        return asdict(self)
+
 
 # ============================================================
 # SAÍDAS DO NOVO MOTOR
@@ -94,20 +99,20 @@ class DadosEntrada:
 @dataclass
 class ClassificacaoGAP:
     """Resultado da análise do GAP."""
-    gap_pontos: float
-    gap_percentual: float
-    gap_contra_fechamento: float
-    gap_contra_ajuste: float
-    intensidade: str  # MICRO, PEQUENO, MODERADO, FORTE, EXTREMO
-    classificacao: str  # descrição textual
+    gap_pontos: float = 0.0
+    gap_percentual: float = 0.0
+    gap_contra_fechamento: float = 0.0
+    gap_contra_ajuste: float = 0.0
+    intensidade: str = "NEUTRO"  # MICRO, PEQUENO, MODERADO, FORTE, EXTREMO
+    classificacao: str = ""       # Descrição textual
 
 
 @dataclass
 class AnaliseAjuste:
     """Posição relativa ao ajuste."""
-    distancia_pontos: float
-    distancia_percentual: float
-    posicao: str  # "ACIMA", "ABAIXO", "NEUTRO"
+    distancia_pontos: float = 0.0
+    distancia_percentual: float = 0.0
+    posicao: str = "NEUTRO"  # "ACIMA", "ABAIXO", "NEUTRO"
     # Para pós-abertura:
     testou_ajuste: bool = False
     rejeitou: bool = False
@@ -119,35 +124,42 @@ class AnaliseAjuste:
 @dataclass
 class Cenario:
     """Cenário principal ou alternativo."""
-    nome: str  # "CONTINUACAO", "TESTE_REJEICAO", "PERDA_RECUPERACAO"
-    descricao: str
-    condicao: str
-    gatilho_entrada: str
-    confirmacao: str
-    invalidacao: str
-    probabilidade_estimada: float = 0.0  # futuramente calibrada
+    nome: str = "INDEFINIDO"  # "CONTINUACAO", "TESTE_REJEICAO", "PERDA_RECUPERACAO"
+    descricao: str = ""
+    condicao: str = ""
+    gatilho_entrada: str = ""
+    confirmacao: str = ""
+    invalidacao: str = ""
+    probabilidade_estimada: float = 0.0
 
 
 @dataclass
 class ScorePrevisao:
     """Score de confiança normalizado (0-100)."""
-    valor: float
-    classificacao: str  # FRACO, MODERADO, FORTE, MUITO FORTE
+    valor: float = 0.0
+    classificacao: str = "FRACO"  # FRACO, MODERADO, FORTE, MUITO FORTE
     detalhes: Dict[str, float] = field(default_factory=dict)
 
 
 @dataclass
 class ResultadoPrevisao:
     """Saída final do motor."""
-    timestamp: datetime
-    ativo: str  # "WIN"
-    abertura_projetada: float
-    faixa_provavel_inferior: float
-    faixa_provavel_superior: float
-    gap: ClassificacaoGAP
-    direcao_prevista: str  # "COMPRA", "VENDA", "NEUTRO"
-    analise_ajuste: AnaliseAjuste
-    cenario_principal: Cenario
-    cenario_alternativo: Cenario
-    score: ScorePrevisao
+    timestamp: datetime = field(default_factory=datetime.now)
+    ativo: str = "WIN"
+    abertura_projetada: float = 0.0
+    faixa_provavel_inferior: float = 0.0
+    faixa_provavel_superior: float = 0.0
+    gap: ClassificacaoGAP = field(default_factory=ClassificacaoGAP)
+    direcao_prevista: str = "NEUTRO"  # "COMPRA", "VENDA", "NEUTRO"
+    analise_ajuste: AnaliseAjuste = field(default_factory=AnaliseAjuste)
+    cenario_principal: Cenario = field(default_factory=Cenario)
+    cenario_alternativo: Cenario = field(default_factory=Cenario)
+    score: ScorePrevisao = field(default_factory=ScorePrevisao)
     metadados: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Converte para dicionário com tratamento para o campo datetime."""
+        dados = asdict(self)
+        if isinstance(dados.get("timestamp"), datetime):
+            dados["timestamp"] = dados["timestamp"].isoformat()
+        return dados

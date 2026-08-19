@@ -1,24 +1,25 @@
 {
   "metadata": {
-    "timestamp": "2026-08-19T08:19:18.400477",
+    "timestamp": "2026-08-19T15:52:44.761117",
     "status_pipeline": "OK"
   },
   "analise_operacional": {
     "WIN_INDICE": {
-      "score_numeric": 2.0,
-      "vies_final": "MODERADO_COMPRA",
+      "score_numeric": 9.5,
+      "vies_final": "FORTE_COMPRA",
       "fatores_relevantes": [
-        "ADRs fracas no exterior (-5.03%)",
-        "Commodities e Mercado Externo favoráveis (+1.41%)",
-        "🔺 Last acima do ajuste em 329 pts (viés comprador)"
+        "Teórico WIN positivo (+1.43%)",
+        "ADRs fortes no exterior (+7.45%)",
+        "Queda de Risco Global / VIX caindo (-5.0%)",
+        "Commodities e Mercado Externo favoráveis (+5.09%)"
       ]
     },
     "WDO_DOLAR": {
-      "score_numeric": 0.0,
-      "vies_final": "NEUTRO",
+      "score_numeric": -1.5,
+      "vies_final": "MODERADO_VENDA",
       "fatores_relevantes": [
-        "Spread WDO x PTAX esticado (+26.3 pts)",
-        "Curva de Juros (DI) abrindo (+57.0 bps)"
+        "Teórico WDO em baixa (-0.77%)",
+        "Curva de Juros (DI) abrindo (+50.0 bps)"
       ]
     }
   }

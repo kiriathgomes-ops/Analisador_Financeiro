@@ -110,7 +110,7 @@ def executar_pipeline():
         ("0 - LIMPEZA DE IMAGENS TRADINGVIEW", "Limpar_Imagens_TradingView.py"),
         ("1 - COLETA MERCADO GLOBAL", "Coletor.py"),
         ("2 - COLETA NOTICIAS ECONOMICAS", "Coleta_Noticias_Calendario.py"),
-    
+           
         ("3 - ANALISE IMPACTO NOTICIAS", "Analise_Noticias.py"),
         ("4 - VALIDACAO DOS DADOS", "Validador.py"),
         ("5 - CALCULOS MACRO E INDICADORES", "Calculadora.py"),

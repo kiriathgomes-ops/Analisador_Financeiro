@@ -1,7 +1,7 @@
 {
   "metadata": {
     "fonte": "TradingView API",
-    "timestamp": "2026-08-19T08:03:09.537957",
+    "timestamp": "2026-08-19T15:35:01.708602",
     "data_referencia": "2026-08-19",
     "filtros": "Brasil e EUA (2 e 3 Estrelas)"
   },
@@ -26,7 +26,7 @@
         "importancia": 2,
         "anterior": "17.422",
         "previsao": "-0.6",
-        "atual": ""
+        "atual": "4.405"
       },
       {
         "hora": "11:30",
@@ -36,7 +36,7 @@
         "importancia": 2,
         "anterior": "-0.968",
         "previsao": "-1.2",
-        "atual": ""
+        "atual": "0.688"
       },
       {
         "hora": "15:00",
