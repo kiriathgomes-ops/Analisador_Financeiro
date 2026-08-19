@@ -772,49 +772,30 @@ def executar_pipeline_coleta():
     else:
         print("   ⚠️ WDO_FUT MT5 falhou. Adicionando com status ERRO.")
         coletas.append(wdo_fut)
-    
+
     # 6. LAST TICK (apenas na janela de ajuste)
     if esta_na_janela_ajuste():
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] Capturando LAST TICK via MT5...")
-        # Tenta executar o coletor v2.2 para gerar o arquivo atualizado
-        mt5_ok = False
-        try:
-            from Coletor_MT5_v2_2 import executar_coleta_mt5_v2
-            dados_mt5 = executar_coleta_mt5_v2()
-            if dados_mt5 and dados_mt5.get("status") == "OK":
-                print("   ✅ MT5 v2.2 coletado com sucesso.")
-                mt5_ok = True
-        except ImportError:
-            print("   ⚠️ Módulo Coletor_MT5_v2_2 não encontrado.")
-        except Exception as e:
-            print(f"   ⚠️ Erro ao executar Coletor_MT5_v2_2: {e}")
-
-        if not mt5_ok:
-            try:
-                from Coletor_MT5 import executar_coleta_mt5
-                dados_mt5 = executar_coleta_mt5()
-                if dados_mt5 and dados_mt5.get("status") == "OK":
-                    print("   ✅ MT5 v1 (fallback) coletado com sucesso.")
-            except Exception as e:
-                print(f"   ⚠️ Erro ao executar Coletor_MT5 (v1): {e}")
-
-        # Extrai o last dos arquivos
-        lasts = capturar_last_do_mt5()
-        if lasts and "WIN" in lasts:
-            coletas.append({
-                "ativo": "WIN_LAST_TICK",
-                "fonte": lasts["WIN"].get("fonte", "MT5"),
-                "timestamp": datetime.now().isoformat(),
-                "status": "OK",
-                "dados_reais": {
-                    "close": lasts["WIN"]["last"],
-                    "open": None,
-                    "high": None,
-                    "low": None,
-                    "change_percent": None,
-                    "volume": None,
-                },
-            })
+      print(f"[{datetime.now().strftime('%H:%M:%S')}] Capturando LAST TICK via MT5...")
+    
+    # Em vez de chamar executar_coleta_mt5_v2() novamente,
+    # apenas leia o resultado que a Etapa 5.5 já gerou e salvou no disco.
+    lasts = capturar_last_do_mt5()
+    
+    if lasts and "WIN" in lasts:
+        coletas.append({
+            "ativo": "WIN_LAST_TICK",
+            "fonte": lasts["WIN"].get("fonte", "MT5"),
+            "timestamp": datetime.now().isoformat(),
+            "status": "OK",
+            "dados_reais": {
+                "close": lasts["WIN"]["last"],
+                "open": None,
+                "high": None,
+                "low": None,
+                "change_percent": None,
+                "volume": None,
+            },
+        })
     else:
         print(f"[{datetime.now().strftime('%H:%M:%S')}] Fora da janela. LAST TICK NÃO coletado.")
 
