@@ -5,39 +5,74 @@
 # MOTIVO: Fase 4 - Cálculo de Spreads, Curva DI, Mercado Externo
 #         e Indicadores Compostos alinhados aos IDs do Validador.
 # ============================================================
+#
+# Descrição:
+#   Esta engine processa os dados validados (Dados_Validados.json)
+#   e calcula métricas financeiras essenciais:
+#     - Spread WDO vs PTAX (arbitragem câmbio)
+#     - Inclinação da curva de juros (DI1 2027 vs 2029)
+#     - Indicador de Mercado Externo (VIX, Petróleo, Minério)
+#     - Indicador de ADRs Brasileiras (média das variações)
+#     - Resumo de desempenho de ADRs e índices globais
+#
+#   O resultado é salvo em Metricas_Calculadas.json.
+#
+# ============================================================
 
 import json
 import os
 from datetime import datetime
+
+# ============================================================
+# CONFIGURAÇÃO DE DIRETÓRIOS E ARQUIVOS
+# ============================================================
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 COLETAS_DIR = os.path.join(BASE_DIR, "Coletas")
 FILE_INPUT = os.path.join(COLETAS_DIR, "Dados_Validados.json")
 FILE_OUTPUT = os.path.join(COLETAS_DIR, "Metricas_Calculadas.json")
 
+# ============================================================
+# FUNÇÕES AUXILIARES
+# ============================================================
 
-def carregar_dados():
+def carregar_dados_validados() -> dict:
+    """
+    Carrega o arquivo Dados_Validados.json e o converte em um dicionário
+    indexado pelo campo 'ativo_id' para fácil acesso.
+    Retorna o dicionário ou None em caso de erro.
+    """
     if not os.path.exists(FILE_INPUT):
         print(f"[ERRO] Arquivo não encontrado: {FILE_INPUT}")
         return None
+
     with open(FILE_INPUT, "r", encoding="utf-8") as f:
         data = json.load(f)
 
-    # Transforma a lista em dicionário chaveado pelo ativo_id padronizado
-    mapa = {
-        item["ativo_id"]: item for item in data.get("ativos_validados", [])
-    }
+    # Transforma a lista em dicionário chaveado pelo ativo_id
+    mapa = {item["ativo_id"]: item for item in data.get("ativos_validados", [])}
     return mapa
 
+# ============================================================
+# FUNÇÃO PRINCIPAL DE CÁLCULO
+# ============================================================
 
-def calcular_metricas():
-    mapa = carregar_dados()
+def calcular_metricas() -> None:
+    """
+    Executa a engine de cálculos:
+      1. Carrega os dados validados.
+      2. Calcula spreads, inclinação da curva, indicadores compostos.
+      3. Gera o arquivo de saída com todas as métricas.
+    """
+    mapa = carregar_dados_validados()
     if not mapa:
         return
 
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Iniciando engine de cálculos...")
 
-    # 1. SPREAD DÓLAR FUTURO VS PTAX
+    # ------------------------------------------------------------
+    # 1. SPREAD DÓLAR FUTURO (WDO) VS PTAX
+    # ------------------------------------------------------------
     ptax = mapa.get("USD_PTAX", {}).get("close")
     wdo = mapa.get("WDO_FUT", {}).get("close")
 
@@ -48,15 +83,20 @@ def calcular_metricas():
         spread_wdo_ptax_pts = round(wdo - ptax_em_pontos, 2)
         spread_wdo_ptax_pct = round(((wdo / ptax_em_pontos) - 1) * 100, 4)
 
-    # 2. INCLINAÇÃO DA CURVA DE JUROS (DI1)
+    # ------------------------------------------------------------
+    # 2. INCLINAÇÃO DA CURVA DE JUROS (DI1 2027 vs 2029)
+    # ------------------------------------------------------------
     di27 = mapa.get("DI1_2027", {}).get("close")
     di29 = mapa.get("DI1_2029", {}).get("close")
 
     inclinacao_di_bps = None
     if di27 and di29:
-        inclinacao_di_bps = round((di29 - di27) * 100, 1)
+        inclinacao_di_bps = round((di29 - di27) * 100, 1)   # em pontos base (bps)
 
-    # 3. MÉTRICA DE RISCO GLOBAL & INDICADOR MERCADO EXTERNO
+    # ------------------------------------------------------------
+    # 3. INDICADOR DE MERCADO EXTERNO
+    #    Fórmula: -(VIX_pct) + CRUDE_OIL_pct + IRON_ORE_2M_pct
+    # ------------------------------------------------------------
     vix_obj = mapa.get("VIX", {})
     vix_close = vix_obj.get("close")
     vix_pct = vix_obj.get("change_percent")
@@ -67,22 +107,22 @@ def calcular_metricas():
     crude_close = crude_obj.get("close")
     crude_pct = crude_obj.get("change_percent")
 
-    # Minério FEF2! (Utilizando a chave padronizada pelo Validador: IRON_ORE_2M)
     fef2_obj = mapa.get("IRON_ORE_2M", {})
     iron_fef2_close = fef2_obj.get("close")
     iron_fef2_pct = fef2_obj.get("change_percent")
 
-    # --- CÁLCULO 1: Indicador Mercado Externo ---
-    # Fórmula: -(VIX_pct) + CL1!_pct + FEF2!_pct
     ind_mercado_externo = None
     if vix_pct is not None and crude_pct is not None and iron_fef2_pct is not None:
         ind_mercado_externo = round((-vix_pct) + crude_pct + iron_fef2_pct, 4)
 
-    # 4. RESUMO DE ADRs & INDICADOR ADRs BRASILEIRAS
+    # ------------------------------------------------------------
+    # 4. DESEMPENHO DE ADRs E ÍNDICES GLOBAIS
+    # ------------------------------------------------------------
     ewz_var = mapa.get("EWZ", {}).get("change_percent")
     sp_var = mapa.get("SP500_FUT", {}).get("change_percent")
     nq_var = mapa.get("NASDAQ_FUT", {}).get("change_percent")
 
+    # Lista de ADRs brasileiras monitoradas
     adrs_chaves = [
         "BBD_ADR",
         "ITUB_ADR",
@@ -111,12 +151,12 @@ def calcular_metricas():
                 soma_variacoes_adrs += pct_val
                 qtd_adrs_validas += 1
 
-    # --- CÁLCULO 2: Indicador ADRs Brasileiras ---
-    ind_adrs_brasileiras = None
-    if qtd_adrs_validas > 0:
-        ind_adrs_brasileiras = round(soma_variacoes_adrs, 4)
+    # Indicador ADRs Brasileiras = soma das variações (sem média)
+    ind_adrs_brasileiras = round(soma_variacoes_adrs, 4) if qtd_adrs_validas > 0 else None
 
-    # Estrutura de Métricas Consolidadas
+    # ------------------------------------------------------------
+    # 5. MONTAGEM DO RESULTADO FINAL
+    # ------------------------------------------------------------
     metricas = {
         "metadata_calculo": {
             "timestamp": datetime.now().isoformat(),
@@ -156,9 +196,13 @@ def calcular_metricas():
         },
     }
 
+    # Salva o arquivo de saída
     with open(FILE_OUTPUT, "w", encoding="utf-8") as f:
         json.dump(metricas, f, indent=2, ensure_ascii=False)
 
+    # ------------------------------------------------------------
+    # 6. EXIBIÇÃO DO PAINEL NO CONSOLE
+    # ------------------------------------------------------------
     print("\n" + "=" * 60)
     print(" PAINEL DE MÉTRICAS CALCULADAS ")
     print("=" * 60)
@@ -178,6 +222,9 @@ def calcular_metricas():
         f" {os.path.basename(FILE_OUTPUT)}\n"
     )
 
+# ============================================================
+# EXECUÇÃO DIRETA
+# ============================================================
 
 if __name__ == "__main__":
     print("============================================================")

@@ -1,12 +1,8 @@
 """
-Setup Abertura – Unificado
-===========================
-Página com abas para:
-- Ajuste B3 (distância do ajuste, scores, semáforo)
-- Abertura 09:00 (gap, sinal, IA de pré-abertura + Análise Gráfica SMC)
-
-Versão 6.4 - IA unificada (KeyManager + limpeza thinking + max_tokens 2500)
-             Ajuste B3 e Pré-abertura usam a mesma engine chamar_groq_texto
+Setup Abertura – Organizado
+============================
+Fluxo: Filtro → Decisão → Suporte → IA
+Versão: 7.2 - Correção de tipos no resumo_macro
 """
 
 import json
@@ -16,26 +12,27 @@ import re
 import subprocess
 from datetime import datetime, time
 from dataclasses import dataclass
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Union
 from pathlib import Path
 
 import streamlit as st
 from dotenv import load_dotenv
-from groq import Groq
 
 # ============================================================
 # CARREGAR VARIÁVEIS DE AMBIENTE E KEYMANAGER
 # ============================================================
-load_dotenv()
-
 BASE_DIR = Path(__file__).resolve().parent.parent
-if str(BASE_DIR) not in sys.path:
-    sys.path.insert(0, str(BASE_DIR))
+sys.path.insert(0, str(BASE_DIR))
 
-from utils.KeyManager import get_groq_client, key_manager
+try:
+    from utils.KeyManager import get_groq_client, key_manager
+except ImportError:
+    key_manager = None
+
+load_dotenv(BASE_DIR / ".env")
 
 # ============================================================
-# CSS UNIFICADO (mesclado de ambos os arquivos)
+# CSS UNIFICADO
 # ============================================================
 CSS_CUSTOM = """
 <style>
@@ -92,7 +89,6 @@ CSS_CUSTOM = """
     margin: 2px 4px 2px 0;
 }
 
-/* Caixas de informação */
 .info-box {
     background-color: #161b22;
     padding: 15px;
@@ -107,58 +103,6 @@ CSS_CUSTOM = """
     font-size: 0.85rem;
     color: #cccccc;
     margin-top: 8px;
-}
-
-/* Containers de confluência e contexto */
-.confluencia-container {
-    font-size: 0.85rem !important;
-}
-.confluencia-container .stMetric {
-    font-size: 0.85rem !important;
-}
-.confluencia-container .stMetric label {
-    font-size: 0.75rem !important;
-}
-.confluencia-container .stMetric div {
-    font-size: 0.9rem !important;
-}
-.confluencia-container .stAlert {
-    font-size: 0.85rem !important;
-    padding: 8px 12px !important;
-}
-
-.contexto-container .stMetric {
-    font-size: 0.8rem !important;
-}
-.contexto-container .stMetric label {
-    font-size: 0.7rem !important;
-}
-.contexto-container .stMetric div {
-    font-size: 0.85rem !important;
-}
-
-.classificacao-container .stMetric {
-    font-size: 1rem !important;
-}
-.classificacao-container .stMetric label {
-    font-size: 0.8rem !important;
-}
-.classificacao-container .stMetric div {
-    font-size: 1.1rem !important;
-}
-
-/* Cores de tendência (para o ajuste) */
-.tendencia-up {
-    color: #00c853;
-    font-weight: bold;
-}
-.tendencia-down {
-    color: #ff3d00;
-    font-weight: bold;
-}
-.tendencia-neutral {
-    color: #ffc107;
-    font-weight: bold;
 }
 </style>
 """
@@ -176,12 +120,12 @@ class ConfigSetup09:
     alvo_min_pts: int = 250
     modelo_groq_texto: str = "llama-3.3-70b-versatile"
     temperatura_groq: float = 0.2
-    max_tokens_groq: int = 2500  # evita corte nas 7 seções
+    max_tokens_groq: int = 2500
 
 CONFIG = ConfigSetup09()
 
 # ============================================================
-# MAPEAMENTO DE TICKERS (usado pelo SetupService)
+# MAPEAMENTO DE TICKERS
 # ============================================================
 TICKER_MAP = {
     "BMFBOVESPA:WIN1!": "WIN_FUT",
@@ -213,9 +157,7 @@ TICKER_MAP = {
 # ============================================================
 # CAMINHOS DOS ARQUIVOS
 # ============================================================
-COLETAS_DIR = Path(BASE_DIR) / "Coletas"
-PROMPT_DIR = Path(BASE_DIR) / "PromptIA"
-
+COLETAS_DIR = BASE_DIR / "Coletas"
 ARQUIVOS = {
     "noticias_0900": COLETAS_DIR / "Noticias_Calendario_0900.json",
     "metricas": COLETAS_DIR / "Metricas_Calculadas.json",
@@ -224,15 +166,70 @@ ARQUIVOS = {
     "ativos": COLETAS_DIR / "DadosAtivosUnificados.json",
     "tendencias": COLETAS_DIR / "Analise_Tendencias.json",
     "resultado_operacional": COLETAS_DIR / "Resultado_Calculadora_Operacional_Abertura.json",
-    "analise_smc": COLETAS_DIR / "AnaliseGraficaSMC.json",  # visão IA (opcional)
-    "analise_smc_regras": COLETAS_DIR / "AnaliseGraficaSMC_Regras.json",  # motor regras
+    "analise_smc": COLETAS_DIR / "AnaliseGraficaSMC.json",
+    "analise_smc_regras": COLETAS_DIR / "AnaliseGraficaSMC_Regras.json",
 }
-
 SCRIPT_TENDENCIAS = BASE_DIR / "MapearTendencia15Min.py"
 
 # ============================================================
-# FUNÇÕES AUXILIARES COMPARTILHADAS
+# FUNÇÕES AUXILIARES
 # ============================================================
+@st.cache_data(ttl=60, show_spinner=False)
+def carregar_json(caminho: str) -> Dict[str, Any]:
+    if not os.path.exists(caminho):
+        return {}
+    try:
+        with open(caminho, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+def obter_preco(ativos: Dict, nome: str) -> Optional[float]:
+    ativo = ativos.get(nome, {})
+    if isinstance(ativo, dict):
+        return ativo.get("preco", ativo.get("valor", 0.0))
+    return None
+
+def variacao(ativo: Dict) -> float:
+    if isinstance(ativo, dict):
+        return ativo.get("variacao_pct", ativo.get("var_pct", 0.0))
+    return 0.0
+
+def calcular_distancia(preco, ajuste):
+    if not preco or not ajuste:
+        return 0, 0
+    pontos = preco - ajuste
+    pct = (pontos / ajuste) * 100 if ajuste != 0 else 0
+    return pontos, pct
+
+def classificar_valor(valor: float) -> Dict[str, str]:
+    abs_valor = abs(valor)
+    if abs_valor < 0.3: intensidade = "LATERAL"
+    elif abs_valor < 0.8: intensidade = "MUITO_FRACA"
+    elif abs_valor < 1.5: intensidade = "FRACA"
+    elif abs_valor < 2.5: intensidade = "MODERADA"
+    elif abs_valor < 4.5: intensidade = "FORTE"
+    else: intensidade = "MUITO_FORTE"
+
+    if valor > 0.05: sinal = "COMPRA"
+    elif valor < -0.05: sinal = "VENDA"
+    else: sinal = "NEUTRO"
+    return {"valor_pct": round(valor, 4), "rotulo": f"{intensidade}_{sinal}"}
+
+def extrair_valor_macro(item: Union[Dict, float, str, None]) -> str:
+    """Extrai o valor numérico de um item de macro que pode ser dict, float ou string."""
+    if item is None:
+        return "N/A"
+    if isinstance(item, dict):
+        # Tenta 'close' ou 'valor'
+        val = item.get("close", item.get("valor", "N/A"))
+        if isinstance(val, (int, float)):
+            return f"{val:.2f}"
+        return str(val) if val is not None else "N/A"
+    if isinstance(item, (int, float)):
+        return f"{item:.2f}"
+    return str(item) if item else "N/A"
+
 def executar_mapear_tendencias() -> bool:
     try:
         if not os.path.exists(SCRIPT_TENDENCIAS):
@@ -256,39 +253,29 @@ def garantir_tendencias() -> tuple[bool, str]:
                     return True, "Arquivo de tendências encontrado."
         except Exception:
             pass
-    
+
     rom0 = COLETAS_DIR / "Coleta_rom-0.json"
     rom5 = COLETAS_DIR / "Coleta_rom-5.json"
     rom10 = COLETAS_DIR / "Coleta_rom-10.json"
-    
+
     faltando = []
     if not os.path.exists(rom0): faltando.append("Coleta_rom-0.json")
     if not os.path.exists(rom5): faltando.append("Coleta_rom-5.json")
     if not os.path.exists(rom10): faltando.append("Coleta_rom-10.json")
-    
+
     if faltando:
         return False, f"Faltando: {', '.join(faltando)}"
-    
+
     with st.spinner("🔄 Gerando análise de tendência..."):
         sucesso = executar_mapear_tendencias()
-    
+
     if sucesso and os.path.exists(ARQUIVOS["tendencias"]):
         return True, "Análise gerada!"
     else:
         return False, "Falha ao gerar."
 
-@st.cache_data(ttl=60, show_spinner=False)
-def carregar_json(caminho: str) -> Dict[str, Any]:
-    if not os.path.exists(caminho):
-        return {}
-    try:
-        with open(caminho, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except (json.JSONDecodeError, OSError, UnicodeDecodeError):
-        return {}
-
 # ============================================================
-# MODELOS DE DOMÍNIO (para o SetupService)
+# DATACLASSES
 # ============================================================
 @dataclass
 class SinalSetup:
@@ -329,7 +316,7 @@ class TendenciaAtivo:
     tendencia: str
 
 # ============================================================
-# CLASSE SETUPSERVICE
+# CLASSE SETUPSERVICE (CORE)
 # ============================================================
 class SetupService:
     def __init__(self, dados: Dict[str, Dict[str, Any]], config: ConfigSetup09 = CONFIG):
@@ -346,14 +333,9 @@ class SetupService:
 
         metricas = self.dados.get("metricas", {})
         indicadores = metricas.get("indicadores_compostos", {})
-        
-        self.ind_mercado_externo = 0.0
-        self.ind_adrs = 0.0
-        
-        if indicadores:
-            self.ind_mercado_externo = indicadores.get("indicador_mercado_externo", 0.0)
-            self.ind_adrs = indicadores.get("indicador_adrs_brasileiras", 0.0)
-        
+        self.ind_mercado_externo = indicadores.get("indicador_mercado_externo", 0.0)
+        self.ind_adrs = indicadores.get("indicador_adrs_brasileiras", 0.0)
+
         if self.ind_mercado_externo == 0.0 or self.ind_adrs == 0.0:
             resultado_op = self.dados.get("resultado_operacional", {})
             indicadores_op = resultado_op.get("indicadores_compostos", {})
@@ -364,17 +346,16 @@ class SetupService:
                 if self.ind_adrs == 0.0:
                     adrs = indicadores_op.get("adrs_brasileiras", {})
                     self.ind_adrs = adrs.get("valor_pct", 0.0)
-        
+
         if self.ind_mercado_externo == 0.0:
             macro = metricas.get("indicadores_macro", {})
             vix_change = macro.get("vix_change_pct")
             crude_change = macro.get("crude_oil_change_pct")
-            iron_data = macro.get("iron_ore", {})
+            iron_data = macro.get("iron_ore_fef2", {}) if "iron_ore_fef2" in macro else macro.get("iron_ore", {})
             iron_change = iron_data.get("change_percent") if isinstance(iron_data, dict) else None
-            
             if vix_change is not None and crude_change is not None and iron_change is not None:
                 self.ind_mercado_externo = (-vix_change) + crude_change + iron_change
-        
+
         if self.ind_adrs == 0.0:
             adrs_data = metricas.get("performance_relativa", {}).get("adrs_brasileiras", {})
             if adrs_data:
@@ -387,14 +368,14 @@ class SetupService:
                         count += 1
                 if count > 0:
                     self.ind_adrs = soma
-        
+
         self.adrs: dict = metricas.get("performance_relativa", {}).get("adrs_brasileiras", {})
 
         est = self.dados.get("estimativa", {})
         self.est_win = est.get("estimativas_abertura", {}).get("WIN_INDICE", {})
         self.est_wdo = est.get("estimativas_abertura", {}).get("WDO_DOLAR", {})
-        self.pivot_win = est.get("pivot_points", {}).get("WIN_FUT", {})
-        self.pivot_wdo = est.get("pivot_points", {}).get("WDO_FUT", {})
+        self.pivot_win = est.get("pivot_points", {}).get("WIN_FUT") or {}
+        self.pivot_wdo = est.get("pivot_points", {}).get("WDO_FUT") or {}
         self.resumo_macro = est.get("resumo_macro", {})
 
         decisao = self.dados.get("decisao", {})
@@ -405,16 +386,10 @@ class SetupService:
         dados_ativos = self.dados.get("ativos", {})
         ativos = dados_ativos.get("ativos", dados_ativos)
         self.win_ativo = ativos.get("WIN_FUT", {})
-        self.preco_win: Optional[float] = self.win_ativo.get("preco")
-        
-        if self.preco_win is None:
-            print("[AVISO] Preço atual do WIN não encontrado em DadosAtivosUnificados.json. Exibindo 'N/A'.")
+        self.preco_win = self.win_ativo.get("preco")
 
         tendencias_data = self.dados.get("tendencias", {})
         self.tendencias = self._extrair_tendencias(tendencias_data)
-
-        resultado_op = self.dados.get("resultado_operacional", {})
-        self.classificacao_mercado = resultado_op.get("indicadores_compostos", {})
 
         self.analise_smc = self.dados.get("analise_smc", {}) or {}
         self.analise_smc_regras = self.dados.get("analise_smc_regras", {}) or {}
@@ -423,16 +398,16 @@ class SetupService:
         tendencias = {}
         if not dados_tendencias:
             return tendencias
-        
+
         ativos_desejados = ["WIN_FUT", "WDO_FUT", "SP500_FUT", "NASDAQ_FUT", "VIX", "EWZ"]
-        
+
         for ativo_padrao in ativos_desejados:
             ticker_original = None
             for ticker, nome in TICKER_MAP.items():
                 if nome == ativo_padrao:
                     ticker_original = ticker
                     break
-            
+
             if ticker_original and ticker_original in dados_tendencias:
                 info = dados_tendencias[ticker_original]
                 tendencias[ativo_padrao] = TendenciaAtivo(
@@ -447,7 +422,7 @@ class SetupService:
                     ultima_variacao=info.get("intervalo_5_para_0", {}).get("variacao_pct", 0),
                     tendencia=info.get("intervalo_5_para_0", {}).get("tendencia", "N/A")
                 )
-        
+
         return tendencias
 
     def sinal(self) -> SinalSetup:
@@ -527,10 +502,10 @@ class SetupService:
     def confluencia_tendencia(self) -> Dict[str, Any]:
         sinal = self.sinal()
         win_tendencia = self.tendencias.get("WIN_FUT")
-        
+
         if not win_tendencia:
             return {"confluente": False, "motivo": "Sem dados de tendência"}
-        
+
         if sinal.direcao == "COMPRA" and win_tendencia.tendencia == "SUBIU":
             return {"confluente": True, "motivo": "🟢 Tendência confirma COMPRA"}
         elif sinal.direcao == "VENDA" and win_tendencia.tendencia == "DESCEU":
@@ -574,7 +549,7 @@ class SetupService:
         estruturas = bloco.get("estruturas_coletadas") or []
         if estruturas:
             partes.append("Estruturas: " + " | ".join(str(e) for e in estruturas[:6]))
-        
+
         obs = bloco.get("order_blocks") or []
         if obs:
             partes.append(
@@ -605,7 +580,7 @@ class SetupService:
             partes.append(r_visao)
         if not partes:
             return "Análise gráfica SMC não disponível (nem regras nem visão)."
-        
+
         b1 = (self.analise_smc_regras or {}).get("bias_direcional")
         b2 = (self.analise_smc or {}).get("bias_direcional") or (
             self.analise_smc or {}
@@ -624,10 +599,10 @@ class SetupService:
         da = self.dados_abertura()
         e = self.escoras()
         cw = self.core_win()
-        
+
         win_tend = self.tendencias.get("WIN_FUT")
         tend_resumo = f"{win_tend.padrao} ({win_tend.ultima_variacao:+.2f}%)" if win_tend else "N/A"
-        
+
         return {
             "sinal": f"{s.direcao} ({s.forca}/10)",
             "indicador": f"{s.indicador_usado}: {s.valor_indicador:+.2f}%",
@@ -644,62 +619,9 @@ class SetupService:
         }
 
 # ============================================================
-# FUNÇÕES DE IA PARA O SETUP 09H
+# FUNÇÕES DE IA (com KeyManager e limpeza PT-BR)
 # ============================================================
-def montar_prompt_pre_abertura(dados: Dict[str, Any]) -> str:
-    return f"""⚠️ RESPONDA EM PORTUGUÊS DO BRASIL. SEJA DIRETO E OBJETIVO.
-
-VOCÊ É UM ESPECIALISTA EM PRÉ-ABERTURA DO MERCADO BRASILEIRO (dados quantitativos + SMC/ICT).
-
-📊 DADOS DO PIPELINE:
-
-SINAL DO SETUP: {dados['sinal']}
-INDICADOR USADO: {dados['indicador']}
-ABERTURA TEÓRICA: {dados['abertura']}
-PREÇO ATUAL: {dados['preco_atual']}
-ESCORAS (PIVOTS): {dados['escoras']}
-CORE ENGINE: {dados['core']}
-NOTÍCIAS RELEVANTES: {dados['noticias']}
-TENDÊNCIA WIN: {dados['tendencia_win']}
-CONFLUÊNCIA: {dados['confluencia']}
-ANÁLISE GRÁFICA SMC: {dados.get('analise_smc', 'Não disponível')}
-GESTÃO DE RISCO: Loss {dados['loss']}pts | Alvo >{dados['alvo']}pts
-
----
-
-🎯 **SUA ANÁLISE DE PRÉ-ABERTURA - RESPONDA EM PORTUGUÊS:**
-
-1. **DIREÇÃO ESPERADA:** Qual a direção provável para os primeiros minutos? (COMPRA/VENDA/LATERAL)
-
-2. **ANÁLISE DO GAP:** O GAP está grande ou pequeno? Como isso impacta a abertura?
-
-3. **VOLATILIDADE:** O mercado deve abrir com alta ou baixa volatilidade?
-
-4. **NÍVEIS CHAVE:** Quais escoras (pivots) + níveis SMC são mais importantes para monitorar?
-
-5. **CENÁRIOS PROVÁVEIS:** 
-   - Cenário 1 (mais provável):
-   - Cenário 2 (alternativo):
-   - Cenário 3 (se romper):
-
-6. **RECOMENDAÇÃO:** O que fazer nos primeiros 5-10 minutos?
-
-7. **GRAU DE CONFIANÇA:** De 1 a 10 (justifique)
-
----
-
-⚠️ **OBSERVAÇÕES:**
-- Baseie-se nos dados fornecidos (quantitativo + análise gráfica SMC)
-- Quando a análise SMC estiver alinhada com o sinal do setup, dê mais peso a ela
-- Seja prático e objetivo
-- Use termos técnicos do mercado
-- RESPONDA 100% EM PORTUGUÊS DO BRASIL
-- NÃO mostre raciocínio interno, thinking ou planejamento
-- Complete TODAS as 7 seções até o grau de confiança
-"""
-
 def limpar_pensamento_ia(texto: str) -> str:
-    """Remove vazamento de raciocínio interno (thinking) da IA."""
     if not texto:
         return texto
 
@@ -744,81 +666,6 @@ def limpar_pensamento_ia(texto: str) -> str:
 
     return texto.strip()
 
-def chamar_groq_texto(
-    api_key: str,
-    prompt: str,
-    modelo: str,
-    system_content: Optional[str] = None,
-) -> str:
-    """Chamada unificada à Groq com KeyManager, limpeza e PT-BR."""
-    try:
-        from groq import Groq  # noqa: F401
-    except ImportError as exc:
-        raise RuntimeError("Biblioteca 'groq' não instalada. Rode: pip install groq") from exc
-
-    try:
-        client, key_utilizada = get_groq_client()
-        print(f"🔑 Usando chave: {key_utilizada[:20]}...")
-    except Exception as e:
-        if api_key:
-            from groq import Groq
-            client = Groq(api_key=api_key)
-            key_utilizada = api_key
-            print("🔑 Usando chave manual (.env / input)")
-        else:
-            return f"❌ Erro ao obter chave API: {str(e)}"
-
-    if not system_content:
-        system_content = """VOCÊ É UM ESPECIALISTA EM MERCADO BRASILEIRO (B3 / WIN / WDO).
-
-REGRAS OBRIGATÓRIAS:
-1. RESPONDA 100% EM PORTUGUÊS DO BRASIL.
-2. NÃO MOSTRE RACIOCÍNIO INTERNO, THINKING OU PLANEJAMENTO.
-3. SEJA DIRETO E OBJETIVO.
-4. USE TERMOS TÉCNICOS DO MERCADO.
-5. COMPLETE TODA A ESTRUTURA PEDIDA NO PROMPT.
-6. NÃO USE INGLÊS."""
-
-    messages = [
-        {"role": "system", "content": system_content},
-        {"role": "user", "content": prompt},
-    ]
-
-    try:
-        completion = client.chat.completions.create(
-            model=modelo,
-            messages=messages,
-            temperature=CONFIG.temperatura_groq,
-            max_tokens=CONFIG.max_tokens_groq,
-        )
-
-        if hasattr(completion, "usage") and completion.usage:
-            tokens = completion.usage.total_tokens
-            try:
-                key_manager.registrar_uso(key_utilizada, tokens)
-            except Exception:
-                pass
-            print(f"📊 Tokens usados (texto): {tokens} (chave: {str(key_utilizada)[:8]}...)")
-
-        bruto = completion.choices[0].message.content or ""
-        return garantir_portugues(limpar_pensamento_ia(bruto))
-
-    except Exception as e:
-        erro_msg = str(e).lower()
-        if "429" in erro_msg or "rate_limit" in erro_msg:
-            print(f"⚠️ Rate limit detectado na chave {str(key_utilizada)[:8]}...")
-            try:
-                key_manager.marcar_rate_limit(key_utilizada)
-            except Exception:
-                pass
-            try:
-                client, key_utilizada = get_groq_client()
-                print(f"🔑 Trocando para nova chave: {key_utilizada[:20]}...")
-                return chamar_groq_texto(api_key, prompt, modelo, system_content)
-            except Exception:
-                return "❌ Todas as chaves em rate limit. Tente novamente em algumas horas."
-        raise e
-
 def forcar_portugues(resposta: str) -> str:
     traducao = {
         "Market": "Mercado", "Trend": "Tendência", "Uptrend": "Alta",
@@ -860,7 +707,6 @@ def forcar_portugues(resposta: str) -> str:
     return " ".join(palavras_traduzidas)
 
 def garantir_portugues(resposta: str) -> str:
-    """Limpa thinking residual e garante português."""
     if not resposta:
         return resposta
 
@@ -889,12 +735,132 @@ def garantir_portugues(resposta: str) -> str:
     aviso = "⚠️ RESPOSTA TRADUZIDA PARA PORTUGUÊS:\n\n"
     return aviso + forcar_portugues(resposta)
 
+def chamar_groq_texto(
+    api_key: str,
+    prompt: str,
+    modelo: str,
+    system_content: Optional[str] = None,
+) -> str:
+    try:
+        from groq import Groq
+    except ImportError as exc:
+        raise RuntimeError("Biblioteca 'groq' não instalada. Rode: pip install groq") from exc
+
+    try:
+        if key_manager:
+            client, key_utilizada = get_groq_client()
+        else:
+            client = Groq(api_key=api_key) if api_key else None
+            key_utilizada = api_key
+            if not client:
+                return "❌ Nenhuma chave API fornecida e KeyManager não disponível."
+    except Exception as e:
+        if api_key:
+            client = Groq(api_key=api_key)
+            key_utilizada = api_key
+        else:
+            return f"❌ Erro ao obter chave API: {str(e)}"
+
+    if not system_content:
+        system_content = """VOCÊ É UM ESPECIALISTA EM MERCADO BRASILEIRO (B3 / WIN / WDO).
+
+REGRAS OBRIGATÓRIAS:
+1. RESPONDA 100% EM PORTUGUÊS DO BRASIL.
+2. NÃO MOSTRE RACIOCÍNIO INTERNO, THINKING OU PLANEJAMENTO.
+3. SEJA DIRETO E OBJETIVO.
+4. USE TERMOS TÉCNICOS DO MERCADO.
+5. COMPLETE TODA A ESTRUTURA PEDIDA NO PROMPT.
+6. NÃO USE INGLÊS."""
+
+    messages = [
+        {"role": "system", "content": system_content},
+        {"role": "user", "content": prompt},
+    ]
+
+    try:
+        completion = client.chat.completions.create(
+            model=modelo,
+            messages=messages,
+            temperature=CONFIG.temperatura_groq,
+            max_tokens=CONFIG.max_tokens_groq,
+        )
+
+        if hasattr(completion, "usage") and completion.usage:
+            tokens = completion.usage.total_tokens
+            if key_manager:
+                try:
+                    key_manager.registrar_uso(key_utilizada, tokens)
+                except Exception:
+                    pass
+            print(f"📊 Tokens usados (texto): {tokens}")
+
+        bruto = completion.choices[0].message.content or ""
+        return garantir_portugues(limpar_pensamento_ia(bruto))
+
+    except Exception as e:
+        erro_msg = str(e).lower()
+        if "429" in erro_msg or "rate_limit" in erro_msg:
+            if key_manager:
+                try:
+                    key_manager.marcar_rate_limit(key_utilizada)
+                except Exception:
+                    pass
+                try:
+                    client, key_utilizada = get_groq_client()
+                    return chamar_groq_texto(api_key, prompt, modelo, system_content)
+                except Exception:
+                    return "❌ Todas as chaves em rate limit. Tente novamente em algumas horas."
+        raise e
+
+def montar_prompt_unificado(dados: Dict[str, Any]) -> str:
+    return f"""⚠️ RESPONDA EM PORTUGUÊS DO BRASIL. SEJA DIRETO E OBJETIVO.
+
+VOCÊ É UM ESPECIALISTA EM PRÉ-ABERTURA E AJUSTE B3.
+
+📊 DADOS DO PIPELINE:
+
+SINAL DO SETUP: {dados['sinal']}
+INDICADOR USADO: {dados['indicador']}
+ABERTURA TEÓRICA: {dados['abertura']}
+PREÇO ATUAL: {dados['preco_atual']}
+ESCORAS (PIVOTS): {dados['escoras']}
+CORE ENGINE: {dados['core']}
+NOTÍCIAS RELEVANTES: {dados['noticias']}
+TENDÊNCIA WIN: {dados['tendencia_win']}
+CONFLUÊNCIA: {dados['confluencia']}
+ANÁLISE GRÁFICA SMC: {dados.get('analise_smc', 'Não disponível')}
+GESTÃO DE RISCO: Loss {dados['loss']}pts | Alvo >{dados['alvo']}pts
+
+---
+
+🎯 SUA ANÁLISE CONSOLIDADA - RESPONDA EM PORTUGUÊS:
+
+1. ANÁLISE DO AJUSTE B3: O ajuste do WIN está distante ou próximo? O que esperar?
+2. DIREÇÃO ESPERADA NA ABERTURA: Qual a direção provável para os primeiros minutos? (COMPRA/VENDA/LATERAL)
+3. ANÁLISE DO GAP: O GAP está grande ou pequeno? Como isso impacta?
+4. VOLATILIDADE E NÍVEIS CHAVE: O mercado deve abrir com alta ou baixa volatilidade? Quais níveis (pivots + SMC) são mais importantes?
+5. CENÁRIOS PROVÁVEIS:
+   - Cenário 1 (mais provável):
+   - Cenário 2 (alternativo):
+   - Cenário 3 (se romper):
+6. RECOMENDAÇÃO: O que fazer nos primeiros 5-10 minutos?
+7. GRAU DE CONFIANÇA: De 1 a 10 (justifique)
+
+⚠️ OBSERVAÇÕES:
+- Baseie-se nos dados fornecidos (quantitativo + SMC)
+- Quando a análise SMC estiver alinhada com o sinal do setup, dê mais peso a ela
+- Seja prático e objetivo
+- RESPONDA 100% EM PORTUGUÊS DO BRASIL
+- NÃO mostre raciocínio interno
+- Complete TODAS as 7 seções
+"""
+
 # ============================================================
-# RENDERIZAÇÃO DA ABA 09H (REORGANIZADA E NUMERADA)
+# SIDEBAR
 # ============================================================
-def render_sidebar_09h():
+def render_sidebar():
     st.sidebar.title("🎯 Setup Abertura")
-    st.sidebar.caption("Ajuste B3 | Abertura 09:00")
+    st.sidebar.caption("Filtro → Decisão → Suporte → IA")
     st.sidebar.markdown("---")
     st.sidebar.info(
         """
@@ -926,396 +892,233 @@ def render_sidebar_09h():
     for nome, caminho in arquivos_status.items():
         existe = "✅" if os.path.exists(caminho) else "❌"
         st.sidebar.caption(f"{existe} {nome}")
+
     st.sidebar.markdown("---")
-    if st.sidebar.button("🗑️ Limpar Histórico IA", width="stretch"):
+    if st.sidebar.button("🗑️ Limpar Histórico IA", use_container_width=True):
         if "historico_pre_abertura" in st.session_state:
             st.session_state.historico_pre_abertura = []
         st.rerun()
 
-def render_bloco_1_filtro_classificacao(service: SetupService):
+# ============================================================
+# RENDERIZAÇÃO PRINCIPAL
+# ============================================================
+def main():
+    st.set_page_config(page_title="Setup Abertura", page_icon="🎯", layout="wide")
+    st.markdown(CSS_CUSTOM, unsafe_allow_html=True)
+
+    render_sidebar()
+
+    st.title("🎯 Setup Abertura")
+    st.caption("Fluxo: Filtro → Decisão → Suporte → IA")
+
+    # Carrega dados
+    dados = {}
+    for chave, caminho in ARQUIVOS.items():
+        dados[chave] = carregar_json(str(caminho))
+
+    ativos_data = dados.get("ativos", {})
+    ativos = ativos_data.get("ativos", ativos_data)
+
+    dados_service = {
+        "noticias_0900": dados.get("noticias_0900", {}),
+        "metricas": dados.get("metricas", {}),
+        "estimativa": dados.get("estimativa", {}),
+        "decisao": dados.get("decisao", {}),
+        "ativos": ativos_data,
+        "tendencias": dados.get("tendencias", {}),
+        "resultado_operacional": dados.get("resultado_operacional", {}),
+        "analise_smc": dados.get("analise_smc", {}),
+        "analise_smc_regras": dados.get("analise_smc_regras", {}),
+    }
+    service = SetupService(dados_service)
+
+    if not service.dados_minimos_ok():
+        st.warning("⚠️ Dados insuficientes. Execute o pipeline.")
+        return
+
+    # ============================================================
+    # 1. FILTRO E DECISÃO
+    # ============================================================
     st.markdown("---")
-    st.subheader("📌 1. Filtro de Notícias e Classificação")
+    st.subheader("📌 1. Filtro e Decisão")
 
-    if service.tem_3estrelas:
-        st.warning("🚨 **Notícia ⭐⭐⭐ detectada!**")
-        if service.alerta_texto:
-            st.info(service.alerta_texto)
-        if service.eventos_3e:
-            for ev in service.eventos_3e:
-                st.write(f"• **{ev.get('hora', '')}** | {ev.get('evento', '')} ({ev.get('pais', '')})")
-        st.caption("⚠️ Notícias de alto impacto podem aumentar a volatilidade na abertura.")
-    else:
-        st.success("✅ **Nenhuma notícia ⭐⭐⭐** para hoje. Mercado com menor risco de surpresa.")
+    col_filtro, col_sinal, col_class = st.columns([1, 1.5, 1.5])
 
-    with st.expander("📖 O que é a Classificação Operacional?", expanded=False):
-        st.markdown("""
-        <div class="explicacao">
-        <b>Classificação gerada pelo pipeline:</b><br>
-        • <b>Mercado Externo:</b> -VIX + Petróleo + Minério<br>
-        • <b>ADRs:</b> Soma das ADRs brasileiras<br><br>
-        <b>Legenda:</b><br>
-        • <b>MUITO_FORTE</b> → > 4.5%<br>
-        • <b>FORTE</b> → 2.5% a 4.5%<br>
-        • <b>MODERADA</b> → 1.5% a 2.5%<br>
-        • <b>FRACA</b> → 0.8% a 1.5%<br>
-        • <b>MUITO_FRACA</b> → 0.3% a 0.8%<br>
-        • <b>LATERAL</b> → < 0.3%<br>
-        • <b>Sinal:</b> COMPRA / VENDA / NEUTRO
-        </div>
-        """, unsafe_allow_html=True)
-
-    ind_mercado = service.ind_mercado_externo
-    ind_adrs = service.ind_adrs
-
-    if ind_mercado == 0.0 and ind_adrs == 0.0:
-        resultado_op = service.dados.get("resultado_operacional", {})
-        indicadores_op = resultado_op.get("indicadores_compostos", {})
-        if indicadores_op:
-            mercado = indicadores_op.get("mercado_externo", {})
-            ind_mercado = mercado.get("valor_pct", 0.0)
-            adrs = indicadores_op.get("adrs_brasileiras", {})
-            ind_adrs = adrs.get("valor_pct", 0.0)
-
-    def classificar_valor(valor):
-        abs_valor = abs(valor)
-        if abs_valor < 0.3: intensidade = "LATERAL"
-        elif abs_valor < 0.8: intensidade = "MUITO_FRACA"
-        elif abs_valor < 1.5: intensidade = "FRACA"
-        elif abs_valor < 2.5: intensidade = "MODERADA"
-        elif abs_valor < 4.5: intensidade = "FORTE"
-        else: intensidade = "MUITO_FORTE"
-        if valor > 0.05: sinal = "COMPRA"
-        elif valor < -0.05: sinal = "VENDA"
-        else: sinal = "NEUTRO"
-        return {"valor_pct": round(valor, 4), "rotulo": f"{intensidade}_{sinal}"}
-
-    mercado_class = classificar_valor(ind_mercado)
-    adrs_class = classificar_valor(ind_adrs)
-
-    col1, col2 = st.columns(2)
-    with col1:
-        rotulo = mercado_class.get("rotulo", "N/A")
-        delta_color = "normal" if "COMPRA" in rotulo else "inverse" if "VENDA" in rotulo else "off"
-        st.metric("🌍 Mercado Externo", f"{ind_mercado:+.2f}%", rotulo, delta_color=delta_color)
-    with col2:
-        rotulo = adrs_class.get("rotulo", "N/A")
-        delta_color = "normal" if "COMPRA" in rotulo else "inverse" if "VENDA" in rotulo else "off"
-        st.metric("🇧🇷 ADRs Brasileiras", f"{ind_adrs:+.2f}%", rotulo, delta_color=delta_color)
-
-    st.markdown("**Interpretação:**")
-    def extrair_direcao(rotulo):
-        if "COMPRA" in rotulo: return "COMPRA"
-        elif "VENDA" in rotulo: return "VENDA"
-        return "NEUTRO"
-
-    dir_mercado = extrair_direcao(mercado_class.get("rotulo", ""))
-    dir_adrs = extrair_direcao(adrs_class.get("rotulo", ""))
-
-    if service.tem_3estrelas:
-        st.warning("⚠️ **Filtro ativado:** Notícia 3★ → Prioridade às ADRs.")
-
-    if dir_mercado == "COMPRA" and dir_adrs == "COMPRA":
-        st.success("✅ Ambos COMPRA – Confluência positiva!")
-    elif dir_mercado == "VENDA" and dir_adrs == "VENDA":
-        st.error("🔴 Ambos VENDA – Confluência negativa!")
-    elif dir_mercado == "NEUTRO" and dir_adrs == "NEUTRO":
-        st.warning("🟡 Ambos neutros – Aguardar definição!")
-    elif dir_mercado != dir_adrs:
-        st.warning(f"⚠️ Divergência: Mercado Externo ({dir_mercado}) vs ADRs ({dir_adrs})")
-    else:
-        st.info(f"ℹ️ Mercado: {dir_mercado} | ADRs: {dir_adrs}")
-
-    st.caption(f"📌 Filtro aplicado: {'Notícia 3★ → ADRs' if service.tem_3estrelas else 'Sem notícia 3★ → Mercado Externo'}")
-
-def render_bloco_2_decisao_risco(service: SetupService):
-    st.markdown("---")
-    st.subheader("📌 2. Decisão do Setup e Gestão de Risco")
-
-    s = service.sinal()
-    da = service.dados_abertura()
-    cw = service.core_win()
-    cwdo = service.core_wdo()
-
-    col_sinal, col_risco, col_core = st.columns([1.4, 1, 1])
+    with col_filtro:
+        if service.tem_3estrelas:
+            st.warning("🚨 Notícia ⭐⭐⭐ detectada → Prioridade: ADRs")
+            if service.eventos_3e:
+                for ev in service.eventos_3e:
+                    st.caption(f"• {ev.get('hora', '')} | {ev.get('evento', '')}")
+        else:
+            st.success("✅ Sem notícia ⭐⭐⭐ → Prioridade: Mercado Externo")
 
     with col_sinal:
+        s = service.sinal()
         st.markdown(
             f"""
             <div class="{s.classe_css}">
                 <h3>{s.emoji} SINAL: {s.direcao}</h3>
-                <b>Indicador:</b> {s.indicador_usado}<br>
-                <b>Valor:</b> {s.valor_indicador:+.2f} &nbsp;|&nbsp; <b>Força:</b> {s.forca}/10<br><br>
-                <small>{s.motivo_escolha}</small>
+                <b>Indicador:</b> {s.indicador_usado} ({s.valor_indicador:+.2f}%)
+                <br><b>Força:</b> {s.forca}/10
+                <br><small>{s.motivo_escolha}</small>
             </div>
             """,
             unsafe_allow_html=True,
         )
 
-    with col_risco:
-        st.markdown("#### Gestão de Risco")
-        st.metric("Loss", f"{CONFIG.loss_pts} pts")
-        st.metric("Alvo mínimo", f"> {CONFIG.alvo_min_pts} pts")
-        if s.direcao == "COMPRA" and da.preco_atual is not None:
-            st.caption(f"Stop ≈ {da.preco_atual - CONFIG.loss_pts:,.0f}")
-            st.caption(f"Alvo ≈ {da.preco_atual + CONFIG.alvo_min_pts:,.0f}+")
-        elif s.direcao == "VENDA" and da.preco_atual is not None:
-            st.caption(f"Stop ≈ {da.preco_atual + CONFIG.loss_pts:,.0f}")
-            st.caption(f"Alvo ≈ {da.preco_atual - CONFIG.alvo_min_pts:,.0f}-")
+    with col_class:
+        valor_usado = service.ind_adrs if service.tem_3estrelas else service.ind_mercado_externo
+        classificacao = classificar_valor(valor_usado)
+        st.metric("Classificação", classificacao["rotulo"], f"{valor_usado:+.2f}%")
 
-    with col_core:
-        st.markdown("#### Core Engine")
-        st.info(f"""
-**WIN:** `{cw.vies}` (score: {cw.score})
-**WDO:** `{cwdo.vies}` (score: {cwdo.score})
-        """)
-
-    if cw.fatores:
-        with st.expander("Fatores relevantes"):
-            for f in cw.fatores:
-                st.write(f"• {f}")
-
-def render_bloco_3_abertura_escoras(service: SetupService):
+    # ============================================================
+    # 2. PAINEL DE SUPORTE (AJUSTE + ESCORAS + MACRO)
+    # ============================================================
     st.markdown("---")
-    st.subheader("📌 3. Abertura Teórica e Escoras (Pivots)")
+    st.subheader("📊 2. Suporte Técnico e Macro")
 
+    win_ajuste = obter_preco(ativos, "WIN_AJUSTE")
+    win_atual = obter_preco(ativos, "WIN_FUT")
+    wdo_ajuste = obter_preco(ativos, "WDO_AJUSTE")
+    wdo_atual = obter_preco(ativos, "WDO_FUT")
+    dist_win, _ = calcular_distancia(win_atual, win_ajuste)
+    dist_wdo, _ = calcular_distancia(wdo_atual, wdo_ajuste)
+
+    col_ajuste, col_escoras, col_macro = st.columns(3)
+
+    with col_ajuste:
+        st.markdown("**📐 Ajuste B3**")
+        st.metric("WIN distância", f"{dist_win:+.0f} pts")
+        st.metric("WDO distância", f"{dist_wdo:+.2f}")
+
+    with col_escoras:
+        e = service.escoras()
+        st.markdown("**📍 Pivots WIN**")
+        r1, r2, pp, s1, s2 = st.columns(5)
+        with r1: st.metric("R2", f"{e.r2:,.0f}")
+        with r2: st.metric("R1", f"{e.r1:,.0f}")
+        with pp: st.metric("PP", f"{e.pp:,.0f}")
+        with s1: st.metric("S1", f"{e.s1:,.0f}")
+        with s2: st.metric("S2", f"{e.s2:,.0f}")
+
+    with col_macro:
+        st.markdown("**🌍 Macro**")
+        resumo = service.resumo_macro
+
+        # Usa a função extrair_valor_macro para cada item
+        vix_val = extrair_valor_macro(resumo.get("vix"))
+        crude_val = extrair_valor_macro(resumo.get("crude_oil"))
+        iron_val = extrair_valor_macro(resumo.get("iron_ore"))
+        dxy_val = extrair_valor_macro(resumo.get("dxy"))
+
+        m1, m2, m3, m4 = st.columns(4)
+        with m1: st.metric("VIX", vix_val)
+        with m2: st.metric("Petróleo", crude_val)
+        with m3: st.metric("Minério", iron_val)
+        with m4: st.metric("DXY", dxy_val)
+
+    # ============================================================
+    # 3. TENDÊNCIA E SMC
+    # ============================================================
+    st.markdown("---")
+    st.subheader("📈 3. Tendência e SMC")
+
+    col_tend, col_smc = st.columns(2)
+
+    with col_tend:
+        tendencias = service.tendencias
+        if tendencias:
+            cols = st.columns(min(4, len(tendencias)))
+            for i, (ativo, tend) in enumerate(tendencias.items()):
+                with cols[i % len(cols)]:
+                    delta_color = "normal" if tend.ultima_variacao > 0 else "inverse"
+                    st.metric(
+                        ativo,
+                        f"{tend.padrao}",
+                        f"{tend.ultima_variacao:+.2f}%",
+                        delta_color=delta_color,
+                    )
+            confluencia = service.confluencia_tendencia()
+            if confluencia["confluente"]:
+                st.success(f"✅ {confluencia['motivo']}")
+            else:
+                st.warning(f"⚠️ {confluencia['motivo']}")
+
+    with col_smc:
+        st.markdown("**🔷 SMC (Smart Money)**")
+        smc_resumo = service._resumir_analise_smc()
+        st.info(smc_resumo)
+
+    # ============================================================
+    # 4. GESTÃO DE RISCO
+    # ============================================================
+    st.markdown("---")
+    st.subheader("🛡️ 4. Gestão de Risco")
+
+    col_loss, col_alvo, col_stop = st.columns(3)
     da = service.dados_abertura()
-    e = service.escoras()
+    with col_loss:
+        st.metric("Loss", f"{CONFIG.loss_pts} pts")
+    with col_alvo:
+        st.metric("Alvo mínimo", f"> {CONFIG.alvo_min_pts} pts")
+    with col_stop:
+        preco = da.preco_atual
+        if preco and s.direcao == "COMPRA":
+            st.metric("Stop sugerido", f"{preco - CONFIG.loss_pts:,.0f}")
+        elif preco and s.direcao == "VENDA":
+            st.metric("Stop sugerido", f"{preco + CONFIG.loss_pts:,.0f}")
+        else:
+            st.metric("Stop sugerido", "N/A")
 
-    c1, c2, c3, c4 = st.columns(4)
-    with c1:
-        st.metric("Abertura WIN", f"{da.abertura_teorica:,.0f}")
-    with c2:
-        st.metric("Variação", f"{da.var_teorica:+.2f}%")
-    with c3:
-        st.metric("Gap", f"{da.gap_pontos:+.0f}")
-    with c4:
-        st.metric("Preço Atual", f"{da.preco_atual:,.0f}" if da.preco_atual is not None else "—")
-
-    st.markdown("##### Escoras WIN")
-    e1, e2, e3, e4, e5 = st.columns(5)
-    with e1:
-        st.metric("R2", f"{e.r2:,.0f}")
-    with e2:
-        st.metric("R1", f"{e.r1:,.0f}")
-    with e3:
-        st.metric("PP", f"{e.pp:,.0f}")
-    with e4:
-        st.metric("S1", f"{e.s1:,.0f}")
-    with e5:
-        st.metric("S2", f"{e.s2:,.0f}")
-
-    if da.preco_atual is not None and e.pp:
-        st.caption(
-            f"Distância ao PP: {da.preco_atual - e.pp:+.0f} pts  |  "
-            f"ao R1: {e.r1 - da.preco_atual:+.0f} pts  |  "
-            f"ao S1: {da.preco_atual - e.s1:+.0f} pts"
-        )
-
-def render_bloco_4_contexto_confluencia(service: SetupService, dados: Dict):
+    # ============================================================
+    # 5. IA DE CONFIRMAÇÃO
+    # ============================================================
     st.markdown("---")
-    st.subheader("📌 4. Contexto Macro e Confluência")
-
-    resumo = service.resumo_macro
-    metricas = dados.get("metricas", {})
-    ativos_brutos = dados.get("ativos", {})
-
-    if service.adrs:
-        st.markdown("**ADRs Brasileiras**")
-        cols_adr = st.columns(min(6, len(service.adrs)))
-        for i, (ticker, dados_adr) in enumerate(service.adrs.items()):
-            with cols_adr[i % len(cols_adr)]:
-                st.metric(
-                    ticker.replace("_ADR", ""),
-                    f"{dados_adr.get('close', 0):.2f}",
-                    f"{dados_adr.get('change_percent', 0):+.2f}%",
-                )
-
-    st.markdown("**Macro & Taxas**")
-    m1, m2, m3, m4, m5 = st.columns(5)
-
-    def buscar_preco_e_variacao(nome_padrao, chave_resumo=None, chave_metricas=None):
-        if chave_resumo:
-            item = resumo.get(chave_resumo, {})
-            if isinstance(item, dict):
-                close = item.get("close")
-                change = item.get("change_percent")
-                if close is not None:
-                    return close, change
-        macro = metricas.get("indicadores_macro", {})
-        if macro and chave_metricas:
-            if chave_metricas == "iron_ore":
-                iron_data = macro.get("iron_ore", {})
-                if isinstance(iron_data, dict):
-                    close = iron_data.get("close")
-                    change = iron_data.get("change_percent")
-                    if close is not None:
-                        return close, change
-            else:
-                close = macro.get(chave_metricas)
-                change_var = f"{chave_metricas}_change_pct"
-                change = macro.get(change_var)
-                if close is not None:
-                    return close, change
-        if isinstance(ativos_brutos, dict):
-            ativos_data = ativos_brutos.get("ativos", ativos_brutos)
-            ativo = ativos_data.get(nome_padrao, {})
-            if isinstance(ativo, dict):
-                close = ativo.get("preco") or ativo.get("close")
-                change = ativo.get("variacao_pct") or ativo.get("change_percent")
-                if close is not None:
-                    return close, change
-        return None, None
-
-    vix_val, vix_var = buscar_preco_e_variacao("VIX", "vix", "vix")
-    crude_val, crude_var = buscar_preco_e_variacao("CRUDE_OIL", "crude_oil", "crude_oil")
-    iron_val, iron_var = buscar_preco_e_variacao("IRON_ORE", "iron_ore", "iron_ore")
-
-    di27 = resumo.get("di1_2027", 0)
-    di29 = resumo.get("di1_2029", 0)
-    if not di27:
-        di27 = metricas.get("curva_juros_b3", {}).get("di1_2027_taxa", 0)
-    if not di29:
-        di29 = metricas.get("curva_juros_b3", {}).get("di1_2029_taxa", 0)
-
-    with m1:
-        if vix_val is not None:
-            st.metric("VIX", f"{vix_val:.2f}", f"{vix_var:+.2f}%" if vix_var is not None else None, delta_color="inverse")
-        else:
-            st.metric("VIX", "N/A")
-    with m2:
-        if crude_val is not None:
-            st.metric("Petróleo", f"{crude_val:.2f}", f"{crude_var:+.2f}%" if crude_var is not None else None)
-        else:
-            st.metric("Petróleo", "N/A")
-    with m3:
-        if iron_val is not None:
-            st.metric("Minério", f"{iron_val:.2f}", f"{iron_var:+.2f}%" if iron_var is not None else None)
-        else:
-            st.metric("Minério", "N/A")
-    with m4:
-        st.metric("DI 2027", f"{di27:.2f}%" if di27 else "N/A")
-    with m5:
-        st.metric("DI 2029", f"{di29:.2f}%" if di29 else "N/A")
-
-    st.markdown("**Confluência com Tendência (últimos 15min)**")
-    arquivo_tendencias = ARQUIVOS["tendencias"]
-
-    def padrao_para_bola(padrao: str) -> str:
-        mapa = {"Alta": "🟢", "Baixa": "🔴", "Estavel": "🟡"}
-        partes = padrao.split("_E_")
-        if len(partes) != 2:
-            return f"⚪ {padrao}"
-        return f"{mapa.get(partes[0], '⚪')} → {mapa.get(partes[1], '⚪')}"
-
-    if os.path.exists(arquivo_tendencias):
-        try:
-            with open(arquivo_tendencias, "r", encoding="utf-8") as f:
-                dados_tendencias = json.load(f)
-            if dados_tendencias and len(dados_tendencias) > 0:
-                tendencias = service.tendencias
-                if tendencias:
-                    cols = st.columns(min(4, len(tendencias)))
-                    for i, (ativo, tend) in enumerate(tendencias.items()):
-                        with cols[i % len(cols)]:
-                            bolas = padrao_para_bola(tend.padrao)
-                            delta_color = "normal" if tend.ultima_variacao > 0 else "inverse" if tend.ultima_variacao < 0 else "off"
-                            st.metric(
-                                label=f"{ativo}",
-                                value=bolas,
-                                delta=f"{tend.ultima_variacao:+.2f}%",
-                                delta_color=delta_color
-                            )
-                    confluencia = service.confluencia_tendencia()
-                    if confluencia["confluente"]:
-                        st.success(f"✅ {confluencia['motivo']}")
-                    else:
-                        st.warning(f"⚠️ {confluencia['motivo']}")
-                else:
-                    st.info("Nenhuma tendência disponível.")
-            else:
-                st.info("Arquivo de tendências vazio.")
-        except Exception as e:
-            st.error(f"Erro ao carregar tendências: {e}")
-    else:
-        st.info("📊 Analise_Tendencias.json não encontrado.")
-        sucesso, mensagem = garantir_tendencias()
-        if sucesso:
-            st.success(f"✅ {mensagem}")
-            st.rerun()
-        else:
-            st.warning(f"⚠️ {mensagem}")
-
-def render_bloco_5_ia_pre_abertura(service: SetupService):
-    st.markdown("---")
-    st.subheader("📌 5. Análise IA – Pré-Abertura")
-    st.caption("Previsão de direção, GAP, SMC e cenário para os primeiros minutos do pregão")
-
-    smc_regras_ok = bool(service.analise_smc_regras) and not service.analise_smc_regras.get("erro")
-    smc_visao_ok = bool(service.analise_smc)
-    if smc_regras_ok and smc_visao_ok:
-        st.success("✅ SMC Regras + Visão carregados (prompt unificado)")
-    elif smc_regras_ok:
-        st.success("✅ SMC Regras carregado (visão IA ausente)")
-    elif smc_visao_ok:
-        st.info("ℹ️ Só Visão IA disponível (rode o motor de regras no pipeline)")
-    else:
-        st.info("ℹ️ Sem SMC (regras/visão) — IA usará só dados quantitativos")
-    smc_ok = smc_regras_ok or smc_visao_ok
+    st.subheader("🧠 5. Análise IA – Confirmação Final")
 
     groq_key = os.getenv("GROQ_API_KEY", "")
     if not groq_key:
-        try:
-            from dotenv import load_dotenv
-            load_dotenv(BASE_DIR / ".env")
-            groq_key = os.getenv("GROQ_API_KEY", "")
-        except Exception:
-            pass
+        load_dotenv(BASE_DIR / ".env")
+        groq_key = os.getenv("GROQ_API_KEY", "")
 
     with st.expander("⚙️ Configurações da IA", expanded=False):
         groq_key_input = st.text_input(
-            "Groq API Key (opcional se KeyManager estiver configurado)",
+            "Groq API Key (opcional)",
             type="password",
             value=groq_key,
-            help="KeyManager tem prioridade. Use este campo só como fallback.",
-            key="groq_key_pre_abertura",
+            key="groq_key_organizado",
         )
-        modelo_texto = st.selectbox(
-            "Modelo (texto)",
+        modelo = st.selectbox(
+            "Modelo",
             ["llama-3.3-70b-versatile", "llama-3.1-70b-versatile", "llama-3.1-8b-instant"],
             index=0,
-            key="modelo_pre_abertura",
+            key="modelo_organizado",
         )
-        st.caption("💡 KeyManager faz rotação automática de chaves. max_tokens=2500.")
+        st.caption("💡 KeyManager + limpeza PT-BR")
 
-    if not service.dados_minimos_ok():
-        st.warning("⚠️ Dados insuficientes. Execute `rodar_pipeline_3x.bat`")
-        return
-
-    if st.button("📊 Analisar Pré-Abertura (Texto)", type="primary", key="btn_pre_abertura"):
+    if st.button("📊 Gerar Análise Consolidada", type="primary", key="btn_ia_organizado"):
         key_final = groq_key_input or groq_key or ""
-        with st.spinner("📊 Analisando pré-abertura (pipeline + SMC)..."):
+        with st.spinner("🧠 Gerando análise..."):
             try:
                 dados_ia = service.dados_para_ia_resumido()
-                prompt = montar_prompt_pre_abertura(dados_ia)
-                resposta_limpa = chamar_groq_texto(key_final, prompt, modelo_texto)
-                tag_smc = "SMC" if smc_ok else "Sem SMC"
+                prompt = montar_prompt_unificado(dados_ia)
+                resposta = chamar_groq_texto(key_final, prompt, modelo)
+
                 st.markdown(
                     f"""
-                    <div class="card-ai" style="border-left-color: #00d4ff;">
-                        <h4 style="color:#00d4ff;">📊 Análise de Pré-Abertura</h4>
+                    <div class="card-ai">
+                        <h4>🤖 Análise Consolidada</h4>
                         <div style="color:#a78bfa; font-size:0.85rem; margin-bottom:8px;">
-                            ⚡ Pipeline + SMC • KeyManager
-                            <span style="margin-left:12px; background:rgba(0,212,255,0.15); padding:2px 10px; border-radius:12px; font-size:0.7rem;">{modelo_texto}</span>
-                            <span style="margin-left:12px; background:rgba(0,200,83,0.15); padding:2px 10px; border-radius:12px; font-size:0.7rem;">🇧🇷 PT-BR</span>
-                            <span style="margin-left:12px; background:rgba(124,92,252,0.15); padding:2px 10px; border-radius:12px; font-size:0.7rem;">{tag_smc}</span>
+                            ⚡ Pipeline • KeyManager • PT-BR
+                            <span style="margin-left:12px; background:rgba(124,92,252,0.15); padding:2px 10px; border-radius:12px; font-size:0.7rem;">{modelo}</span>
                         </div>
                         <div class="analysis-content">
-                            {resposta_limpa.replace(chr(10), '<br>')}
+                            {resposta.replace(chr(10), '<br>')}
                         </div>
                         <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+                            <span class="smc-tag">🎯 Ajuste B3</span>
                             <span class="smc-tag">📊 Pré-Abertura</span>
-                            <span class="smc-tag">🎯 Direção</span>
-                            <span class="smc-tag">📈 GAP</span>
                             <span class="smc-tag">🔷 SMC</span>
                             <span class="smc-tag">🎯 Níveis</span>
                         </div>
@@ -1323,750 +1126,51 @@ def render_bloco_5_ia_pre_abertura(service: SetupService):
                     """,
                     unsafe_allow_html=True,
                 )
+
                 if "historico_pre_abertura" not in st.session_state:
                     st.session_state.historico_pre_abertura = []
                 st.session_state.historico_pre_abertura.append({
                     "hora": datetime.now().strftime("%H:%M:%S"),
                     "sinal": service.sinal().direcao,
-                    "modelo": modelo_texto,
-                    "resposta": resposta_limpa,
-                    "smc": smc_ok,
+                    "modelo": modelo,
+                    "resposta": resposta,
                 })
+
             except Exception as e:
-                st.error(f"❌ Erro ao chamar IA: {e}")
-
-def render_bloco_6_checklist():
-    st.markdown("---")
-    st.subheader("📌 6. Checklist Final")
-
-    keys = ["ck_09h_1", "ck_09h_2", "ck_09h_3", "ck_09h_4", "ck_09h_5"]
-    labels = [
-        "Indicador alinhado com Core Engine",
-        "Abertura real observada",
-        "Escora próxima identificada",
-        "Loss e Alvo definidos",
-        "Análise IA revisada",
-    ]
-
-    todos = True
-    for key, label in zip(keys, labels):
-        if key not in st.session_state:
-            st.session_state[key] = False
-        val = st.checkbox(label, key=key)
-        if not val:
-            todos = False
-
-    if todos:
-        st.success("🚀 SETUP VALIDADO")
-    else:
-        st.info("⏳ Complete o checklist")
-
-# ============================================================
-# RENDERIZAÇÃO DO SETUP AJUSTE B3
-# ============================================================
-def render_ajuste_metricas(ativos):
-    st.markdown("---")
-    st.subheader("📌 1. Ajuste Oficial x Preço Atual x Last (Candle Anterior)")
-
-    def obter_preco(nome):
-        ativo = ativos.get(nome, {})
-        if isinstance(ativo, dict):
-            return ativo.get("preco", ativo.get("valor", 0.0))
-        return 0.0
-
-    def obter_last_mt5(prefixo):
-        caminho = BASE_DIR / "Coletas" / "Dados_MT5.json"
-        if not caminho.exists():
-            return None
-        try:
-            with open(caminho, "r", encoding="utf-8") as f:
-                dados = json.load(f)
-            contratos = dados.get("contratos", {})
-            for nome, info in contratos.items():
-                if nome.startswith(prefixo):
-                    last = info.get("last")
-                    if last is not None and last > 0:
-                        return last
-        except (FileNotFoundError, json.JSONDecodeError, KeyError, OSError):
-            pass
-        return None
-
-    win_ajuste = obter_preco("WIN_AJUSTE")
-    win_atual = obter_preco("WIN_FUT")
-    win_last = obter_last_mt5("WIN")
-
-    wdo_ajuste = obter_preco("WDO_AJUSTE")
-    wdo_atual = obter_preco("WDO_FUT")
-    wdo_last = obter_last_mt5("WDO")
-
-    ptax = obter_preco("USD_PTAX")
-
-    def calcular_distancia(preco, ajuste):
-        if not preco or not ajuste:
-            return 0, 0
-        pontos = preco - ajuste
-        percentual = (pontos / ajuste) * 100 if ajuste != 0 else 0
-        return pontos, percentual
-
-    dist_win_pts, dist_win_pct = calcular_distancia(win_atual, win_ajuste)
-    dist_wdo_pts, dist_wdo_pct = calcular_distancia(wdo_atual, wdo_ajuste)
-
-    spread_win_last = win_ajuste - win_last if win_last and win_ajuste else None
-    spread_wdo_last = wdo_ajuste - wdo_last if wdo_last and wdo_ajuste else None
-
-    st.write("**📍 Mini Índice WIN**")
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.metric("🎯 Ajuste", f"{win_ajuste:,.0f} pts")
-    with col2:
-        st.metric("📊 Futuro (Close)", f"{win_atual:,.0f} pts", f"{dist_win_pct:+.2f}%")
-    with col3:
-        if win_last:
-            st.metric("🕯️ Last (Candle)", f"{win_last:,.0f} pts")
-        else:
-            st.metric("🕯️ Last (Candle)", "N/A")
-    with col4:
-        if spread_win_last is not None:
-            cor_spread = "inverse" if spread_win_last > 0 else "normal"
-            st.metric("📏 Spread (Ajuste - Last)", f"{spread_win_last:+,.0f} pts", delta_color=cor_spread)
-        else:
-            st.metric("📏 Spread", "N/A")
-
-    st.write("**📍 Mini Dólar WDO**")
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.metric("🎯 Ajuste", f"{wdo_ajuste:,.2f}")
-    with col2:
-        st.metric("📊 Futuro (Close)", f"{wdo_atual:,.2f}", f"{dist_wdo_pct:+.2f}%")
-    with col3:
-        if wdo_last:
-            st.metric("🕯️ Last (Candle)", f"{wdo_last:,.2f}")
-        else:
-            st.metric("🕯️ Last (Candle)", "N/A")
-    with col4:
-        if spread_wdo_last is not None:
-            cor_spread = "inverse" if spread_wdo_last > 0 else "normal"
-            st.metric("📏 Spread (Ajuste - Last)", f"{spread_wdo_last:+,.2f} pts", delta_color=cor_spread)
-        else:
-            st.metric("📏 Spread", "N/A")
-
-    st.caption("💡 O 'Last' é o fechamento da última vela do pregão anterior (capturado via MT5). O 'Futuro (Close)' é o preço atual (TradingView).")
-
-def render_ajuste_macro(ativos):
-    st.markdown("---")
-    st.subheader("🌐 2. Termômetro Macro (com %)")
-
-    def variacao(ativo):
-        if isinstance(ativo, dict):
-            return ativo.get("variacao_pct", ativo.get("var_pct", 0))
-        return 0
-
-    sp500 = ativos.get("SP500_FUT", {})
-    nasdaq = ativos.get("NASDAQ_FUT", {})
-    ewz = ativos.get("EWZ", {})
-    vix = ativos.get("VIX", {})
-    dxy = ativos.get("DXY", {})
-    iron = ativos.get("IRON_ORE", {})
-
-    m1, m2, m3, m4, m5, m6 = st.columns(6)
-    with m1:
-        st.metric("🇺🇸 S&P500", f"{sp500.get('preco', 0):,.2f}", f"{variacao(sp500):+.2f}%")
-    with m2:
-        st.metric("💻 Nasdaq", f"{nasdaq.get('preco', 0):,.2f}", f"{variacao(nasdaq):+.2f}%")
-    with m3:
-        st.metric("🇧🇷 EWZ", f"${ewz.get('preco', 0):,.2f}", f"{variacao(ewz):+.2f}%")
-    with m4:
-        st.metric("⚠️ VIX", f"{vix.get('preco', 0):,.2f}", f"{variacao(vix):+.2f}%", delta_color="inverse")
-    with m5:
-        st.metric("💵 DXY", f"{dxy.get('preco', 0):,.2f}", f"{variacao(dxy):+.2f}%", delta_color="inverse")
-    with m6:
-        st.metric("⛏️ Minério", f"${iron.get('preco', 0):,.2f}", f"{variacao(iron):+.2f}%")
-
-def render_ajuste_tendencia(ativos, dados_tendencias):
-    st.markdown("---")
-    st.subheader("📈 3. Confluência com Tendência")
-
-    def padrao_para_bola(padrao: str) -> str:
-        mapa = {"Alta": "🟢", "Baixa": "🔴", "Estavel": "🟡"}
-        partes = padrao.split("_E_")
-        if len(partes) != 2:
-            return f"⚪ {padrao}"
-        return f"{mapa.get(partes[0], '⚪')} → {mapa.get(partes[1], '⚪')}"
-
-    def obter_preco(nome):
-        ativo = ativos.get(nome, {})
-        if isinstance(ativo, dict):
-            return ativo.get("preco", ativo.get("valor", 0.0))
-        return 0.0
-
-    def calcular_distancia(preco, ajuste):
-        if not preco or not ajuste:
-            return 0, 0
-        pontos = preco - ajuste
-        percentual = (pontos / ajuste) * 100 if ajuste != 0 else 0
-        return pontos, percentual
-
-    def extrair_tendencias():
-        if not dados_tendencias:
-            return {}
-        tendencias = {}
-        ativos_desejados = {
-            "WIN_FUT": "WIN",
-            "WDO_FUT": "WDO",
-            "SP500_FUT": "S&P500",
-            "NASDAQ_FUT": "Nasdaq",
-            "VIX": "VIX",
-            "EWZ": "EWZ"
-        }
-        ticker_map = {
-            "WIN_FUT": ["WIN_FUT", "BMFBOVESPA:WIN1!"],
-            "WDO_FUT": ["WDO_FUT", "BMFBOVESPA:WDO1!"],
-            "SP500_FUT": ["SP500_FUT", "CME_MINI:ES1!"],
-            "NASDAQ_FUT": ["NASDAQ_FUT", "CME_MINI:NQ1!"],
-            "VIX": ["VIX", "TVC:VIX"],
-            "EWZ": ["EWZ", "AMEX:EWZ"]
-        }
-
-        for ativo_padrao, label in ativos_desejados.items():
-            info = None
-            for chave in ticker_map.get(ativo_padrao, [ativo_padrao]):
-                if chave in dados_tendencias:
-                    info = dados_tendencias[chave]
-                    break
-            if not info:
-                for chave, valor in dados_tendencias.items():
-                    if ativo_padrao in chave:
-                        info = valor
-                        break
-            if info:
-                tendencias[label] = {
-                    "padrao": info.get("padrao_comportamento", "N/A"),
-                    "variacao": info.get("intervalo_5_para_0", {}).get("variacao_pct", 0),
-                    "tendencia": info.get("intervalo_5_para_0", {}).get("tendencia", "N/A")
-                }
-        return tendencias
-
-    tendencias = extrair_tendencias()
-
-    if not tendencias:
-        st.info("📊 Analise_Tendencias.json não encontrado ou sem dados.")
-        sucesso, mensagem = garantir_tendencias()
-        if sucesso:
-            st.success(f"✅ {mensagem}")
-            st.rerun()
-        else:
-            st.warning(f"⚠️ {mensagem}")
-        return
-
-    cols = st.columns(min(4, len(tendencias)))
-    for i, (label, tend) in enumerate(tendencias.items()):
-        with cols[i % len(cols)]:
-            bolas = padrao_para_bola(tend["padrao"])
-            delta_color = "normal" if tend["variacao"] > 0 else "inverse" if tend["variacao"] < 0 else "off"
-            st.metric(
-                label=label,
-                value=bolas,
-                delta=f"{tend['variacao']:+.2f}%",
-                delta_color=delta_color
-            )
-
-    win_ajuste = obter_preco("WIN_AJUSTE")
-    win_atual = obter_preco("WIN_FUT")
-    dist_win_pts, _ = calcular_distancia(win_atual, win_ajuste) if win_ajuste and win_atual else (0, 0)
-
-    tend_win = tendencias.get("WIN")
-    if tend_win and win_ajuste and win_atual:
-        if dist_win_pts > 300 and tend_win["tendencia"] == "SUBIU":
-            st.success("✅ WIN distante do ajuste e tendência de alta - Viés Comprador")
-        elif dist_win_pts < -300 and tend_win["tendencia"] == "DESCEU":
-            st.error("🔴 WIN distante do ajuste e tendência de baixa - Viés Vendedor")
-        elif abs(dist_win_pts) > 300:
-            st.warning(f"⚠️ WIN distante do ajuste ({dist_win_pts:+.0f} pts) - Aguardar confirmação")
-        else:
-            st.info("ℹ️ WIN próximo do ajuste - Aguardar definição")
-    else:
-        st.info("ℹ️ Dados insuficientes para diagnóstico de confluência.")
-
-def render_ajuste_score_win(ativos, dados_tendencias):
-    st.markdown("---")
-    st.subheader("📊 4. Score Quantitativo WIN")
-
-    def variacao(ativo):
-        if isinstance(ativo, dict):
-            return ativo.get("variacao_pct", ativo.get("var_pct", 0))
-        return 0
-
-    def obter_preco(nome):
-        ativo = ativos.get(nome, {})
-        if isinstance(ativo, dict):
-            return ativo.get("preco", ativo.get("valor", 0.0))
-        return 0.0
-
-    def calcular_distancia(preco, ajuste):
-        if not preco or not ajuste:
-            return 0, 0
-        pontos = preco - ajuste
-        return pontos, (pontos / ajuste) * 100 if ajuste != 0 else 0
-
-    def extrair_tendencia_win():
-        if not dados_tendencias:
-            return None
-        for chave in ["WIN_FUT", "BMFBOVESPA:WIN1!"]:
-            if chave in dados_tendencias:
-                info = dados_tendencias[chave]
-                return {
-                    "padrao": info.get("padrao_comportamento", "N/A"),
-                    "variacao": info.get("intervalo_5_para_0", {}).get("variacao_pct", 0),
-                    "tendencia": info.get("intervalo_5_para_0", {}).get("tendencia", "N/A")
-                }
-        return None
-
-    sp500 = ativos.get("SP500_FUT", {})
-    nasdaq = ativos.get("NASDAQ_FUT", {})
-    ewz = ativos.get("EWZ", {})
-    vix = ativos.get("VIX", {})
-    iron = ativos.get("IRON_ORE", {})
-    win_ajuste = obter_preco("WIN_AJUSTE")
-    win_atual = obter_preco("WIN_FUT")
-    dist_win_pts, _ = calcular_distancia(win_atual, win_ajuste)
-    tendencia_win = extrair_tendencia_win()
-
-    score_win = 0
-    criterios_win = []
-    if variacao(sp500) > 0:
-        score_win += 1
-        criterios_win.append("✅ S&P500 positivo")
-    else:
-        criterios_win.append("❌ S&P500 negativo")
-    if variacao(iron) > 0:
-        score_win += 1
-        criterios_win.append("✅ Minério positivo")
-    else:
-        criterios_win.append("❌ Minério negativo")
-    if variacao(ewz) > 0:
-        score_win += 1
-        criterios_win.append("✅ EWZ positivo")
-    else:
-        criterios_win.append("❌ EWZ negativo")
-    if variacao(vix) < 0:
-        score_win += 1
-        criterios_win.append("✅ VIX reduzindo risco")
-    else:
-        criterios_win.append("❌ VIX pressionando")
-    if variacao(nasdaq) > 0:
-        score_win += 1
-        criterios_win.append("✅ Nasdaq positivo")
-    else:
-        criterios_win.append("❌ Nasdaq negativo")
-    if tendencia_win and tendencia_win["tendencia"] == "SUBIU" and dist_win_pts > 300:
-        score_win += 1
-        criterios_win.append("✅ Tendência confirma ajuste")
-
-    col_score, col_lista = st.columns(2)
-    with col_score:
-        st.metric("Score WIN", f"{score_win}/6")
-        if score_win >= 5:
-            st.success("🟢 VIÉS COMPRADOR FORTE")
-        elif score_win >= 3:
-            st.warning("🟡 VIÉS NEUTRO/MODERADO")
-        else:
-            st.error("🔴 VIÉS VENDEDOR")
-    with col_lista:
-        for item in criterios_win:
-            st.write(item)
-
-def render_ajuste_score_wdo(ativos):
-    st.markdown("---")
-    st.subheader("💵 5. Score Quantitativo WDO")
-
-    def variacao(ativo):
-        if isinstance(ativo, dict):
-            return ativo.get("variacao_pct", ativo.get("var_pct", 0))
-        return 0
-
-    usd_mxn = ativos.get("USD_MXN", {})
-    dxy = ativos.get("DXY", {})
-    vix = ativos.get("VIX", {})
-
-    score_wdo = 0
-    criterios_wdo = []
-    if variacao(dxy) > 0:
-        score_wdo += 1
-        criterios_wdo.append("✅ DXY fortalecendo dólar")
-    else:
-        criterios_wdo.append("❌ DXY enfraquecendo dólar")
-    if variacao(usd_mxn) > 0:
-        score_wdo += 1
-        criterios_wdo.append("✅ USD/MXN favorece dólar")
-    else:
-        criterios_wdo.append("❌ USD/MXN favorece moedas emergentes")
-    if variacao(vix) > 0:
-        score_wdo += 1
-        criterios_wdo.append("✅ VIX em alta (proteção)")
-    else:
-        criterios_wdo.append("❌ VIX em queda")
-
-    c_score, c_lista = st.columns(2)
-    with c_score:
-        st.metric("Score WDO", f"{score_wdo}/3")
-        if score_wdo >= 2:
-            st.success("🟢 VIÉS COMPRADOR DÓLAR")
-        elif score_wdo == 0:
-            st.error("🔴 VIÉS VENDEDOR DÓLAR")
-        else:
-            st.warning("🟡 DÓLAR NEUTRO")
-    with c_lista:
-        for item in criterios_wdo:
-            st.write(item)
-
-def render_ajuste_checklist():
-    st.markdown("---")
-    st.subheader("📋 6. Checklist de Execução")
-    col_check1, col_check2 = st.columns(2)
-    with col_check1:
-        st.markdown("### 📈 WIN Ajuste")
-        check_win_dist = st.checkbox("WIN distante do ajuste (>300 pontos)", key="ajuste_win_dist")
-        check_win_fluxo = st.checkbox("Fluxo confirmou defesa/rejeição no ajuste", key="ajuste_win_fluxo")
-        check_win_noticia = st.checkbox("Sem notícia de alto impacto próxima", key="ajuste_win_noticia")
-    with col_check2:
-        st.markdown("### 💵 WDO Ajuste")
-        check_wdo_dist = st.checkbox("WDO distante do ajuste (>10 pontos)", key="ajuste_wdo_dist")
-        check_wdo_fluxo = st.checkbox("Tape Reading confirmou absorção", key="ajuste_wdo_fluxo")
-        check_wdo_noticia = st.checkbox("Sem evento macro imediato", key="ajuste_wdo_noticia")
-
-    check_win_total = sum([check_win_dist, check_win_fluxo, check_win_noticia])
-    check_wdo_total = sum([check_wdo_dist, check_wdo_fluxo, check_wdo_noticia])
-    return check_win_total, check_wdo_total
-
-def render_ajuste_semaforo(score_win, check_win_total, score_wdo, check_wdo_total):
-    st.markdown("---")
-    st.subheader("🚦 7. Semáforo Operacional")
-
-    def gerar_status(score, checklist):
-        pontos = score + checklist
-        if pontos >= 7:
-            return "🟢", "SETUP LIBERADO", "Alta confluência"
-        elif pontos >= 4:
-            return "🟡", "AGUARDAR CONFIRMAÇÃO", "Confluência parcial"
-        else:
-            return "🔴", "NÃO OPERAR", "Risco elevado"
-
-    status_win = gerar_status(score_win, check_win_total)
-    status_wdo = gerar_status(score_wdo, check_wdo_total)
-
-    cwin, cwdo = st.columns(2)
-    with cwin:
-        st.markdown(f"""
-        <div class="info-box">
-            <h3>📈 SETUP WIN</h3>
-            <h2>{status_win[0]} {status_win[1]}</h2>
-            <p>Score: {score_win}/6<br>Checklist: {check_win_total}/3<br>{status_win[2]}</p>
-        </div>
-        """, unsafe_allow_html=True)
-    with cwdo:
-        st.markdown(f"""
-        <div class="info-box">
-            <h3>💵 SETUP WDO</h3>
-            <h2>{status_wdo[0]} {status_wdo[1]}</h2>
-            <p>Score: {score_wdo}/3<br>Checklist: {check_wdo_total}/3<br>{status_wdo[2]}</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-def render_ajuste_ia(win_ajuste, win_atual, dist_win_pts, wdo_ajuste, wdo_atual, dist_wdo_pts, ptax, score_win, score_wdo, status_win, status_wdo, tendencia_win, sp500, nasdaq, vix, dxy, iron):
-    st.markdown("---")
-    st.subheader("🧠 8. Análise IA - Ajuste B3")
-
-    groq_key = os.getenv("GROQ_API_KEY", "")
-    if not groq_key:
-        try:
-            from dotenv import load_dotenv
-            load_dotenv(os.path.join(BASE_DIR, ".env"))
-            groq_key = os.getenv("GROQ_API_KEY", "")
-        except Exception:
-            pass
-
-    with st.expander("⚙️ Configurações da IA", expanded=False):
-        groq_key_input = st.text_input(
-            "Groq API Key (opcional se KeyManager estiver configurado)",
-            type="password",
-            value=groq_key,
-            help="KeyManager tem prioridade.",
-            key="groq_key_ajuste_unificado",
-        )
-        modelo_texto = st.selectbox(
-            "Modelo (texto)",
-            ["llama-3.3-70b-versatile", "llama-3.1-70b-versatile", "llama-3.1-8b-instant"],
-            index=0,
-            key="modelo_ajuste_unificado",
-        )
-        st.caption("💡 Mesma engine da pré-abertura: KeyManager + limpeza PT-BR + max_tokens=2500")
-
-    if st.button("📊 Analisar Ajuste B3 (IA)", type="primary", key="btn_ajuste_unificado"):
-        key_final = groq_key_input or groq_key or ""
-        with st.spinner("🧠 Analisando setup de ajuste..."):
-            try:
-                def variacao(ativo):
-                    return ativo.get("variacao_pct", ativo.get("var_pct", 0)) if isinstance(ativo, dict) else 0
-
-                dados_ia = {
-                    "win_ajuste": f"{win_ajuste:,.0f}",
-                    "win_atual": f"{win_atual:,.0f}",
-                    "dist_win": f"{dist_win_pts:+,.0f}",
-                    "wdo_ajuste": f"{wdo_ajuste:,.2f}",
-                    "wdo_atual": f"{wdo_atual:,.2f}",
-                    "dist_wdo": f"{dist_wdo_pts:+,.2f}",
-                    "ptax": f"{ptax:,.4f}" if ptax else "N/A",
-                    "score_win": f"{score_win}/6",
-                    "score_wdo": f"{score_wdo}/3",
-                    "status_win": status_win,
-                    "status_wdo": status_wdo,
-                    "tendencia_win": tendencia_win["padrao"] if tendencia_win else "N/A",
-                    "sp500": f"{variacao(sp500):+.2f}%",
-                    "nasdaq": f"{variacao(nasdaq):+.2f}%",
-                    "vix": f"{variacao(vix):+.2f}%",
-                    "dxy": f"{variacao(dxy):+.2f}%",
-                    "iron": f"{variacao(iron):+.2f}%",
-                }
-                prompt = f"""⚠️ RESPONDA EM PORTUGUÊS DO BRASIL. SEJA DIRETO.
-NÃO mostre raciocínio interno. Complete todas as 6 seções.
-
-VOCÊ É UM ESPECIALISTA EM AJUSTE B3.
-
-DADOS DO SETUP:
-
-WIN: Ajuste {dados_ia['win_ajuste']} | Atual {dados_ia['win_atual']} | Distância {dados_ia['dist_win']}
-WDO: Ajuste {dados_ia['wdo_ajuste']} | Atual {dados_ia['wdo_atual']} | Distância {dados_ia['dist_wdo']}
-PTAX: {dados_ia['ptax']}
-Score WIN: {dados_ia['score_win']} | Status: {dados_ia['status_win']}
-Score WDO: {dados_ia['score_wdo']} | Status: {dados_ia['status_wdo']}
-Tendência WIN: {dados_ia['tendencia_win']}
-S&P500: {dados_ia['sp500']} | Nasdaq: {dados_ia['nasdaq']}
-VIX: {dados_ia['vix']} | DXY: {dados_ia['dxy']} | Minério: {dados_ia['iron']}
-
----
-
-RESPONDA EM PORTUGUÊS:
-
-1. ANÁLISE DO AJUSTE WIN: O ajuste está distante ou próximo? O que esperar?
-2. ANÁLISE DO AJUSTE WDO: O ajuste está distante ou próximo? O que esperar?
-3. CONFLUÊNCIA MACRO: O cenário macro favorece ou atrapalha o ajuste?
-4. OPORTUNIDADE: Vale a pena operar o ajuste? (SIM/NÃO/PARCIAL)
-5. RECOMENDAÇÃO: Qual ativo (WIN/WDO) tem melhor setup?
-6. CONFIANÇA: De 1 a 10 (justifique)
-
-SEJA DIRETO. PORTUGUÊS APENAS. SEM THINKING."""
-
-                system_ajuste = """VOCÊ É UM ESPECIALISTA EM AJUSTE B3 (WIN/WDO).
-REGRAS: 100% português do Brasil; sem raciocínio interno; completo e objetivo."""
-
-                resposta_limpa = chamar_groq_texto(
-                    key_final,
-                    prompt,
-                    modelo_texto,
-                    system_content=system_ajuste,
-                )
-                st.markdown(f"""
-                <div class="card-ai">
-                    <h4>🤖 Análise IA - Ajuste B3</h4>
-                    <div style="color:#a78bfa; font-size:0.85rem; margin-bottom:8px;">
-                        ⚡ Pipeline • KeyManager • PT-BR
-                        <span style="margin-left:12px; background:rgba(124,92,252,0.15); padding:2px 10px; border-radius:12px; font-size:0.7rem;">{modelo_texto}</span>
-                    </div>
-                    <div class="analysis-content">
-                        {resposta_limpa.replace(chr(10), '<br>')}
-                    </div>
-                    <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
-                        <span class="smc-tag">🎯 Ajuste B3</span>
-                        <span class="smc-tag">📊 WIN/WDO</span>
-                        <span class="smc-tag">🏦 Fluxo</span>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-                if "historico_ia_ajuste" not in st.session_state:
-                    st.session_state.historico_ia_ajuste = []
-                st.session_state.historico_ia_ajuste.append({
-                    "hora": datetime.now().strftime("%H:%M:%S"),
-                    "resposta": resposta_limpa,
-                })
-            except Exception as e:
-                st.error(f"❌ Erro ao chamar IA: {e}")
-
-    if st.session_state.get("historico_ia_ajuste"):
-        with st.expander("📜 Histórico de análises IA"):
-            for i, h in enumerate(reversed(st.session_state.historico_ia_ajuste), 1):
+                st.error(f"❌ Erro: {e}")
+
+    if st.session_state.get("historico_pre_abertura"):
+        with st.expander("📜 Histórico de Análises"):
+            for i, h in enumerate(reversed(st.session_state.historico_pre_abertura), 1):
                 st.markdown(f"**#{i} • {h['hora']}**")
                 st.markdown(h["resposta"])
                 st.markdown("---")
 
-def render_ajuste_core_json(score_win, check_win_total, status_win, score_wdo, check_wdo_total, status_wdo, fonte_dados, tendencia_win):
+    # ============================================================
+    # 6. CHECKLIST FINAL
+    # ============================================================
     st.markdown("---")
-    st.subheader("🤖 9. Dados Preparados para Core Engine")
-    decisao_setup = {
-        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "ativo_principal": "WIN/WDO",
-        "win": {"score": score_win, "checklist": check_win_total, "status": status_win},
-        "wdo": {"score": score_wdo, "checklist": check_wdo_total, "status": status_wdo},
-        "fonte": fonte_dados,
-        "tendencia_win": tendencia_win["padrao"] if tendencia_win else "N/A",
-    }
-    with st.expander("📄 Visualizar JSON de decisão"):
-        st.json(decisao_setup)
+    st.subheader("✅ 6. Checklist de Execução")
 
-# ============================================================
-# MAIN - PÁGINA UNIFICADA COM ABAS
-# ============================================================
-def main():
-    st.set_page_config(
-        page_title="Setup Abertura",
-        page_icon="🎯",
-        layout="wide",
-    )
-    st.markdown(CSS_CUSTOM, unsafe_allow_html=True)
+    col_check1, col_check2 = st.columns(2)
+    with col_check1:
+        st.markdown("**📈 WIN**")
+        c1 = st.checkbox("Sinal alinhado com tendência", key="ck_win_1")
+        c2 = st.checkbox("Stop e alvo definidos", key="ck_win_2")
+        c3 = st.checkbox("Sem notícia de alto impacto iminente", key="ck_win_3")
+    with col_check2:
+        st.markdown("**💵 WDO**")
+        c4 = st.checkbox("DXY e USD/MXN alinhados", key="ck_wdo_1")
+        c5 = st.checkbox("Stop e alvo definidos", key="ck_wdo_2")
+        c6 = st.checkbox("Fluxo observado", key="ck_wdo_3")
 
-    render_sidebar_09h()
+    if all([c1, c2, c3, c4, c5, c6]):
+        st.success("🚀 SETUP VALIDADO – PRONTO PARA OPERAR")
+    else:
+        st.info("⏳ Complete o checklist antes de operar")
 
-    st.title("🎯 Setup Abertura")
-    st.caption("Unificado: Ajuste B3 | Abertura 09:00")
+    st.caption("Setup Abertura v7.2 • Correção de tipos no resumo_macro")
 
-    @st.cache_data(ttl=60, show_spinner=False)
-    def carregar_dados_unificados():
-        dados = {}
-        for chave, caminho in ARQUIVOS.items():
-            dados[chave] = carregar_json(str(caminho))
-        return dados
-
-    dados = carregar_dados_unificados()
-
-    ativos_data = dados.get("ativos", {})
-    ativos = ativos_data.get("ativos", ativos_data)
-    dados_tendencias = dados.get("tendencias", {})
-    fonte_dados = "DadosAtivosUnificados.json" if ativos else "N/A"
-
-    dados_09h = {
-        "noticias_0900": dados.get("noticias_0900", {}),
-        "metricas": dados.get("metricas", {}),
-        "estimativa": dados.get("estimativa", {}),
-        "decisao": dados.get("decisao", {}),
-        "ativos": ativos_data,
-        "tendencias": dados_tendencias,
-        "resultado_operacional": dados.get("resultado_operacional", {}),
-        "analise_smc": dados.get("analise_smc", {}),
-        "analise_smc_regras": dados.get("analise_smc_regras", {}),
-    }
-    service = SetupService(dados_09h)
-
-    tab_ajuste, tab_09h = st.tabs(["🎯 Ajuste B3", "🎯 Abertura 09:00"])
-
-    # ------------------------------------------------------------
-    # ABA 1: AJUSTE B3
-    # ------------------------------------------------------------
-    with tab_ajuste:
-        if not ativos:
-            st.warning("⚠️ Dados de ativos não encontrados. Execute o pipeline.")
-        else:
-            render_ajuste_metricas(ativos)
-            render_ajuste_macro(ativos)
-            render_ajuste_tendencia(ativos, dados_tendencias)
-
-            def obter_preco(nome):
-                ativo = ativos.get(nome, {})
-                return ativo.get("preco", ativo.get("valor", 0.0)) if isinstance(ativo, dict) else 0.0
-
-            def variacao(ativo):
-                return ativo.get("variacao_pct", ativo.get("var_pct", 0)) if isinstance(ativo, dict) else 0
-
-            def calcular_distancia(preco, ajuste):
-                if not preco or not ajuste:
-                    return 0, 0
-                pontos = preco - ajuste
-                percentual = (pontos / ajuste) * 100 if ajuste != 0 else 0
-                return pontos, percentual
-
-            def extrair_tendencia_win():
-                for chave in ["WIN_FUT", "BMFBOVESPA:WIN1!"]:
-                    if chave in dados_tendencias:
-                        info = dados_tendencias[chave]
-                        return {
-                            "padrao": info.get("padrao_comportamento", "N/A"),
-                            "variacao": info.get("intervalo_5_para_0", {}).get("variacao_pct", 0),
-                            "tendencia": info.get("intervalo_5_para_0", {}).get("tendencia", "N/A")
-                        }
-                return None
-
-            win_ajuste = obter_preco("WIN_AJUSTE")
-            win_atual = obter_preco("WIN_FUT")
-            wdo_ajuste = obter_preco("WDO_AJUSTE")
-            wdo_atual = obter_preco("WDO_FUT")
-            ptax = obter_preco("USD_PTAX")
-            dist_win_pts, _ = calcular_distancia(win_atual, win_ajuste)
-            dist_wdo_pts, _ = calcular_distancia(wdo_atual, wdo_ajuste)
-            sp500 = ativos.get("SP500_FUT", {})
-            nasdaq = ativos.get("NASDAQ_FUT", {})
-            ewz = ativos.get("EWZ", {})
-            vix = ativos.get("VIX", {})
-            dxy = ativos.get("DXY", {})
-            iron = ativos.get("IRON_ORE", {})
-            tendencia_win = extrair_tendencia_win()
-
-            score_win = 0
-            if variacao(sp500) > 0: score_win += 1
-            if variacao(iron) > 0: score_win += 1
-            if variacao(ewz) > 0: score_win += 1
-            if variacao(vix) < 0: score_win += 1
-            if variacao(nasdaq) > 0: score_win += 1
-            if tendencia_win and tendencia_win["tendencia"] == "SUBIU" and dist_win_pts > 300:
-                score_win += 1
-
-            score_wdo = 0
-            if variacao(dxy) > 0: score_wdo += 1
-            if variacao(ativos.get("USD_MXN", {})) > 0: score_wdo += 1
-            if variacao(vix) > 0: score_wdo += 1
-
-            render_ajuste_score_win(ativos, dados_tendencias)
-            render_ajuste_score_wdo(ativos)
-            check_win_total, check_wdo_total = render_ajuste_checklist()
-
-            def gerar_status(score, checklist):
-                pontos = score + checklist
-                if pontos >= 7: return "SETUP LIBERADO"
-                elif pontos >= 4: return "AGUARDAR CONFIRMAÇÃO"
-                else: return "NÃO OPERAR"
-
-            status_win = gerar_status(score_win, check_win_total)
-            status_wdo = gerar_status(score_wdo, check_wdo_total)
-
-            render_ajuste_semaforo(score_win, check_win_total, score_wdo, check_wdo_total)
-            render_ajuste_ia(win_ajuste, win_atual, dist_win_pts, wdo_ajuste, wdo_atual, dist_wdo_pts, ptax, score_win, score_wdo, status_win, status_wdo, tendencia_win, sp500, nasdaq, vix, dxy, iron)
-            render_ajuste_core_json(score_win, check_win_total, status_win, score_wdo, check_wdo_total, status_wdo, fonte_dados, tendencia_win)
-
-            st.caption("Setup Ajuste B3 - módulo quantitativo")
-
-    # ------------------------------------------------------------
-    # ABA 2: ABERTURA 09:00
-    # ------------------------------------------------------------
-    with tab_09h:
-        st.header("Setup Abertura 09:00 – 09:15")
-        st.caption("Análise com IA e dados quantitativos")
-
-        if not service.dados_minimos_ok():
-            st.error("⚠️ Dados não encontrados.\n\nExecute: `rodar_pipeline_3x.bat`")
-        else:
-            if service.janela_ok():
-                st.success("🟢 DENTRO DA JANELA (09:00 – 09:15)")
-            else:
-                st.warning(f"⏰ Fora da janela • {datetime.now().strftime('%H:%M:%S')}")
-
-            render_bloco_1_filtro_classificacao(service)
-            render_bloco_2_decisao_risco(service)
-            render_bloco_3_abertura_escoras(service)
-            render_bloco_4_contexto_confluencia(service, dados_09h)
-            render_bloco_5_ia_pre_abertura(service)
-            render_bloco_6_checklist()
-
-            st.caption("Setup Abertura 09:00 • v6.4 • SMC Regras+Visão + KeyManager")
-
-    st.markdown("---")
-    st.caption("Setup Abertura Unificado • v6.4 • Quant + SMC regras/visão + IA")
 
 if __name__ == "__main__":
     main()

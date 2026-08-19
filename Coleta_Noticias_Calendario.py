@@ -3,6 +3,17 @@
 # MOTIVO: Coletar eventos econômicos Brasil e EUA (2 e 3 estrelas)
 # FONTE: TradingView Economic Calendar API (Sem necessidade de Playwright)
 # ============================================================
+#
+# Descrição:
+#   Este script consulta a API pública do calendário econômico do TradingView
+#   para obter eventos de alto e médio impacto (2 e 3 estrelas) para Brasil e EUA.
+#   Gera dois arquivos JSON:
+#     1. Noticias_Calendario_0900.json → alerta específico para eventos
+#        brasileiros de 3 estrelas às 09:00 (horário de Brasília).
+#     2. Noticias_Calendario.json → lista completa de todos os eventos
+#        de 2 e 3 estrelas para Brasil e EUA.
+#
+# ============================================================
 
 import json
 import os
@@ -11,7 +22,7 @@ import urllib.request
 from datetime import datetime, timedelta
 
 # ============================================================
-# CONFIGURAÇÕES DE ARQUIVOS DE SAÍDA
+# CONFIGURAÇÕES DE DIRETÓRIOS E ARQUIVOS
 # ============================================================
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -20,27 +31,31 @@ COLETAS_DIR = os.path.join(BASE_DIR, "Coletas")
 FILE_OUTPUT_0900 = os.path.join(COLETAS_DIR, "Noticias_Calendario_0900.json")
 FILE_OUTPUT_GERAL = os.path.join(COLETAS_DIR, "Noticias_Calendario.json")
 
-HORA_ALERTA = "09:00"
-
+HORA_ALERTA = "09:00"   # Horário de Brasília para o alerta especial
 
 # ============================================================
-# EXTRAÇÃO VIA API DO TRADINGVIEW
+# CONSULTA À API DO TRADINGVIEW
 # ============================================================
 
+def consultar_api_tradingview(data_inicio: str, data_fim: str) -> list:
+    """
+    Consulta a API pública de calendário econômico do TradingView.
 
-def consultar_api_tradingview(data_inicio, data_fim):
-    """Consulta diretamente a API pública de Calendário Econômico do TradingView."""
+    Parâmetros:
+        data_inicio (str): Data de início no formato YYYY-MM-DD.
+        data_fim (str): Data de fim no formato YYYY-MM-DD.
+
+    Retorna:
+        list: Lista de eventos brutos retornados pela API.
+              Retorna lista vazia em caso de erro.
+    """
     url = "https://economic-calendar.tradingview.com/events"
-
-    # Monta a Query String apontando para BRL e USD
     params = f"?from={data_inicio}T00:00:00.000Z&to={data_fim}T23:59:59.000Z&countries=BR,US"
 
     req = urllib.request.Request(
         url + params,
         headers={
-            "User-Agent": (
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0"
-            ),
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0",
             "Origin": "https://www.tradingview.com",
             "Referer": "https://www.tradingview.com/",
         },
@@ -57,58 +72,46 @@ def consultar_api_tradingview(data_inicio, data_fim):
 
     return []
 
-
 # ============================================================
 # PROCESSAMENTO DOS EVENTOS
 # ============================================================
 
+def processar_eventos(eventos_raw: list) -> tuple:
+    """
+    Processa os eventos brutos da API, aplicando filtros e classificações.
 
-def processar_eventos(eventos_raw):
+    Parâmetros:
+        eventos_raw (list): Lista de eventos brutos da API.
+
+    Retorna:
+        tuple: (eventos_geral, eventos_0900)
+            - eventos_geral: todos os eventos de 2 e 3 estrelas (Brasil e EUA)
+            - eventos_0900: eventos brasileiros de 3 estrelas às 09:00
+    """
     eventos_geral = []
     eventos_0900 = []
 
-    # Palavras-chave essenciais de 3 Estrelas (Alto Impacto no Mercado)
+    # Palavras-chave para classificação manual (3 estrelas - alto impacto)
     TERMOS_3_ESTRELAS = [
-        # Inflação & Juros (BR / EUA)
-        "inflation rate",
-        "ipca",
-        "cpi",
-        "ppi",
-        "interest rate",
-        "selic",
-        "fed interest rate",
-        "fomc",
-        "copom",
-        # Emprego & Atividade (BR / EUA)
-        "non farm payrolls",
-        "unemployment rate",
-        "gdp",
-        "pib",
-        "pnad",
-        "caged",
-        "core cpi",
-        "pce price index",
+        "inflation rate", "ipca", "cpi", "ppi",
+        "interest rate", "selic", "fed interest rate", "fomc", "copom",
+        "non farm payrolls", "unemployment rate",
+        "gdp", "pib", "pnad", "caged",
+        "core cpi", "pce price index",
     ]
 
-    # Palavras-chave de 2 Estrelas (Médio Impacto)
+    # Palavras-chave para classificação manual (2 estrelas - médio impacto)
     TERMOS_2_ESTRELAS = [
-        "retail sales",
-        "industrial production",
-        "pmi",
-        "trade balance",
-        "balance of trade",
-        "consumer confidence",
-        "business confidence",
-        "s&p global",
-        "fgv",
-        "igp-m",
-        "durable goods",
-        "building permits",
+        "retail sales", "industrial production", "pmi",
+        "trade balance", "balance of trade",
+        "consumer confidence", "business confidence",
+        "s&p global", "fgv", "igp-m",
+        "durable goods", "building permits",
     ]
 
     for item in eventos_raw:
         try:
-            # Captura Moeda / País
+            # Identificação do país
             country = item.get("country", "")
             if country == "BR":
                 moeda = "BRL"
@@ -122,9 +125,8 @@ def processar_eventos(eventos_raw):
             nome_evento = item.get("title", "")
             nome_lower = nome_evento.lower()
 
-            # Mapeamento base da API TradingView: -1 = 1★, 0 = 2★, 1 = 3★
+            # Classificação original da API: -1 = 1★, 0 = 2★, 1 = 3★
             importance_raw = item.get("importance", -1)
-
             if importance_raw == 1:
                 estrelas = 3
             elif importance_raw == 0:
@@ -132,46 +134,30 @@ def processar_eventos(eventos_raw):
             else:
                 estrelas = 1
 
-            # Ajuste de Relevância por Palavras-Chave (Reconhece o que o TradingView subestima)
+            # Ajuste manual por palavras-chave (corrige subavaliações da API)
             if any(term in nome_lower for term in TERMOS_3_ESTRELAS):
                 estrelas = 3
-            elif estrelas < 2 and any(
-                term in nome_lower for term in TERMOS_2_ESTRELAS
-            ):
+            elif estrelas < 2 and any(term in nome_lower for term in TERMOS_2_ESTRELAS):
                 estrelas = 2
 
-            # Filtra apenas 2 e 3 estrelas
+            # Filtra apenas eventos de 2 ou 3 estrelas
             if estrelas < 2:
                 continue
 
-            # Ajusta Horário (TradingView devolve UTC ISO 8601 ex: 2026-08-05T12:00:00.000Z)
+            # Conversão do horário (UTC → Brasília)
             date_utc_str = item.get("date", "")
             hora_br = ""
             if date_utc_str:
-                dt_utc = datetime.fromisoformat(
-                    date_utc_str.replace("Z", "+00:00")
-                )
-                # Converte UTC para Horário de Brasília (-3)
+                dt_utc = datetime.fromisoformat(date_utc_str.replace("Z", "+00:00"))
                 dt_br = dt_utc - timedelta(hours=3)
                 hora_br = dt_br.strftime("%H:%M")
 
-            # Demais campos
-            atual = (
-                str(item.get("actual", ""))
-                if item.get("actual") is not None
-                else ""
-            )
-            previsao = (
-                str(item.get("forecast", ""))
-                if item.get("forecast") is not None
-                else ""
-            )
-            anterior = (
-                str(item.get("previous", ""))
-                if item.get("previous") is not None
-                else ""
-            )
+            # Valores (atual, previsão, anterior)
+            atual = str(item.get("actual", "")) if item.get("actual") is not None else ""
+            previsao = str(item.get("forecast", "")) if item.get("forecast") is not None else ""
+            anterior = str(item.get("previous", "")) if item.get("previous") is not None else ""
 
+            # Monta o dicionário do evento
             item_evento = {
                 "hora": hora_br,
                 "pais": pais,
@@ -185,12 +171,8 @@ def processar_eventos(eventos_raw):
 
             eventos_geral.append(item_evento)
 
-            # Regra para a saída 09:00 (Apenas Brasil | 3 Estrelas | 09:00)
-            if (
-                pais == "Brazil"
-                and estrelas == 3
-                and hora_br.startswith(HORA_ALERTA)
-            ):
+            # Alerta especial: Brasil + 3 estrelas + horário 09:00
+            if pais == "Brazil" and estrelas == 3 and hora_br.startswith(HORA_ALERTA):
                 eventos_0900.append(item_evento)
 
         except Exception:
@@ -198,14 +180,24 @@ def processar_eventos(eventos_raw):
 
     return eventos_geral, eventos_0900
 
-
 # ============================================================
 # FUNÇÃO PRINCIPAL
 # ============================================================
 
+def obter_noticias_hoje(data_alvo: str = None) -> tuple:
+    """
+    Obtém o calendário econômico para a data alvo (hoje por padrão).
 
-def obter_noticias_hoje(data_alvo=None):
-    if not data_alvo:
+    Parâmetros:
+        data_alvo (str, opcional): Data no formato YYYY-MM-DD.
+                                   Se None, usa a data atual.
+
+    Retorna:
+        tuple: (res_geral, res_0900)
+            - res_geral: dicionário completo com todos os eventos.
+            - res_0900: dicionário com o alerta específico para 09:00.
+    """
+    if data_alvo is None:
         data_referencia = datetime.now().strftime("%Y-%m-%d")
     else:
         data_referencia = data_alvo
@@ -221,7 +213,7 @@ def obter_noticias_hoje(data_alvo=None):
 
     timestamp_iso = datetime.now().isoformat()
 
-    # Estrutura 1: Noticias_Calendario_0900.json
+    # Arquivo 1: alerta específico para 09:00
     res_0900 = {
         "metadata": {
             "fonte": "TradingView API",
@@ -235,7 +227,7 @@ def obter_noticias_hoje(data_alvo=None):
         },
     }
 
-    # Estrutura 2: Noticias_Calendario.json
+    # Arquivo 2: calendário completo
     res_geral = {
         "metadata": {
             "fonte": "TradingView API",
@@ -249,6 +241,7 @@ def obter_noticias_hoje(data_alvo=None):
         },
     }
 
+    # Garante que a pasta de saída existe
     os.makedirs(COLETAS_DIR, exist_ok=True)
 
     with open(FILE_OUTPUT_0900, "w", encoding="utf-8") as f1:
@@ -259,14 +252,14 @@ def obter_noticias_hoje(data_alvo=None):
 
     return res_geral, res_0900
 
-
 # ============================================================
-# EXECUÇÃO
+# EXECUÇÃO DIRETA
 # ============================================================
 
 if __name__ == "__main__":
     data_argumento = None
 
+    # Suporte ao argumento --data YYYY-MM-DD
     if len(sys.argv) > 1:
         if "--data" in sys.argv:
             idx = sys.argv.index("--data")
@@ -279,11 +272,10 @@ if __name__ == "__main__":
 
     data_exibida = res_geral["metadata"]["data_referencia"]
 
+    # Exibe resumo no console
     print()
     print("============================================================")
-    print(
-        f" CALENDÁRIO ECONÔMICO BRASIL E EUA - TRADINGVIEW ({data_exibida})"
-    )
+    print(f" CALENDÁRIO ECONÔMICO BRASIL E EUA - TRADINGVIEW ({data_exibida})")
     print("============================================================")
     print(
         f" Total de eventos 2/3★ (BRL/USD): {res_geral['calendario_eventos']['quantidade_eventos']}"
