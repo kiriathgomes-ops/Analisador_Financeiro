@@ -384,6 +384,38 @@ with col_alt:
     </div>
     """, unsafe_allow_html=True)
 
+
+# ============================================================
+# SETUPS DE ABERTURA - WIN FUTURO
+# ============================================================
+st.markdown("---")
+st.subheader("⚡ Setups de Abertura (WIN Futuro)")
+
+col_s1, col_s2 = st.columns(2)
+
+with col_s1:
+    st.markdown("""
+    <div class="card-cenario" style="border-left-color: #00c853;">
+        <div class="titulo">🚀 Setup 1: Trade de Vácuo / Fechamento de GAP</div>
+        <div class="descricao"><b>Condição:</b> GAP entre 150 e 400 pontos com score > 60%.</div>
+        <div class="detalhe">📌 <b>Entrada:</b> Violação da máxima/mínima da 1ª barra de 5 min.</div>
+        <div class="detalhe">🎯 <b>Alvo:</b> Preço de Ajuste / Fechamento Anterior.</div>
+        <div class="detalhe">🛑 <b>Stop:</b> Atrás da barra de sinal.</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col_s2:
+    st.markdown("""
+    <div class="card-cenario" style="border-left-color: #ff3d00;">
+        <div class="titulo">🛡️ Setup 2: Defesa de Ajuste na Abertura</div>
+        <div class="descricao"><b>Condição:</b> Abertura projetada a menos de 100 pts do Ajuste.</div>
+        <div class="detalhe">📌 <b>Entrada:</b> Padrão de rejeição (Pinbar/Gatilho) no toque do Ajuste.</div>
+        <div class="detalhe">🎯 <b>Alvo:</b> 250 a 400 pontos a favor da tendência HTF.</div>
+        <div class="detalhe">🛑 <b>Stop:</b> 150 pontos do ponto de entrada.</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+
 # ============================================================
 # SCORE – DETALHES
 # ============================================================

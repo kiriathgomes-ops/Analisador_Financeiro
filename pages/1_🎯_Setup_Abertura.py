@@ -1,5 +1,4 @@
 
-
 """
 Setup Abertura – Unificado
 ===========================
