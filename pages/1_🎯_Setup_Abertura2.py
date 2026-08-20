@@ -5,7 +5,7 @@ Página com abas para:
 - Ajuste B3 (distância do ajuste, scores, semáforo)
 - Abertura 09:00 (gap, sinal, IA de pré-abertura + Análise Gráfica SMC)
 
-Versão 6.7 - Leilão + Ajuste (500/100) + Explosão (ADRs/Macro) + Decisão V2
+Versão 6.6 - Operacionais Ajuste (500/100) + Explosão (ADRs/Macro) + Decisão V2
 """
 
 import json
@@ -720,125 +720,6 @@ class SetupService:
             "iron_pct": round(iron_pct, 3),
         }
 
-
-    def operacional_leilao(self) -> Dict[str, Any]:
-        """
-        Fase de leilão: gap projetado (teórico/last vs ajuste) cruzado com drivers.
-        Não substitui abertura — prepara o lado (AJUSTE vs EXPLOSÃO vs AGUARDAR).
-        """
-        ctx = self.contexto_ajuste()
-        exp = self.operacional_explosao()
-
-        ajuste = ctx.get("ajuste")
-        last = ctx.get("last")
-        dist = ctx.get("dist_pts")
-        pos = ctx.get("posicao")
-
-        # Preço teórico do leilão: preferir last MT5 / pre_abertura se existir
-        teorico = last
-        d2 = self.decisao_v2_raw.get("win_session") or {}
-        precos = d2.get("precos") or {}
-        if precos.get("pre_abertura"):
-            try:
-                teorico = float(precos["pre_abertura"])
-                if ajuste:
-                    dist = round(teorico - float(ajuste), 0)
-                    if dist > 20:
-                        pos = "ACIMA"
-                    elif dist < -20:
-                        pos = "ABAIXO"
-                    else:
-                        pos = "NO_AJUSTE"
-            except (TypeError, ValueError):
-                pass
-
-        # Classificação do gap no leilão
-        if dist is None:
-            gap_classe = "INDEFINIDO"
-        elif abs(dist) < 80:
-            gap_classe = "MORNO"
-        elif abs(dist) < 150:
-            gap_classe = "MODERADO"
-        elif abs(dist) < 400:
-            gap_classe = "RELEVANTE"
-        else:
-            gap_classe = "EXTREMO"
-
-        # Alinhamento drivers x gap
-        direcao_gap = "ALTA" if (dist or 0) > 20 else ("BAIXA" if (dist or 0) < -20 else "NEUTRO")
-        dir_exp = exp.get("direcao") or "NEUTRO"
-        forca = exp.get("forca") or "FRACA"
-
-        alinhado = False
-        divergente = False
-        if direcao_gap == "ALTA" and dir_exp == "COMPRA" and forca in ("ALTA", "MODERADA"):
-            alinhado = True
-        elif direcao_gap == "BAIXA" and dir_exp == "VENDA" and forca in ("ALTA", "MODERADA"):
-            alinhado = True
-        elif direcao_gap == "ALTA" and dir_exp == "VENDA" and forca in ("ALTA", "MODERADA"):
-            divergente = True
-        elif direcao_gap == "BAIXA" and dir_exp == "COMPRA" and forca in ("ALTA", "MODERADA"):
-            divergente = True
-
-        # Notícia 3★
-        noticias = self.dados.get("noticias_0900") or {}
-        alerta = (noticias.get("alerta_noticia_0900") or {})
-        tem_3est = bool(alerta.get("tem_evento_3_estrelas"))
-
-        bloqueios = []
-        if tem_3est:
-            bloqueios.append("Notícia ⭐⭐⭐ Brasil 09:00 — leilão pode ser sujo")
-        if gap_classe == "MORNO":
-            bloqueios.append("Gap projetado pequeno — leilão sem edge claro")
-        if gap_classe == "INDEFINIDO":
-            bloqueios.append("Sem preço teórico/ajuste confiável")
-
-        # Recomendação de preparação
-        if bloqueios and (tem_3est or gap_classe in ("MORNO", "INDEFINIDO")):
-            recomendacao = "AGUARDAR"
-            lado = "NEUTRO"
-            motivo = bloqueios[0]
-        elif alinhado and gap_classe in ("RELEVANTE", "EXTREMO", "MODERADO"):
-            recomendacao = "PREPARAR_EXPLOSAO"
-            lado = "COMPRA" if direcao_gap == "ALTA" else "VENDA"
-            motivo = f"Leilão {direcao_gap} alinhado com drivers ({forca}) — não fade"
-        elif divergente:
-            recomendacao = "PREPARAR_AJUSTE"
-            lado = "VENDA" if direcao_gap == "ALTA" else "COMPRA"
-            motivo = f"Leilão {direcao_gap} mas drivers contra — candidato a retorno ao ajuste"
-        elif direcao_gap != "NEUTRO" and forca == "FRACA":
-            recomendacao = "PREPARAR_AJUSTE"
-            lado = "VENDA" if direcao_gap == "ALTA" else "COMPRA"
-            motivo = f"Drivers fracos — gap {direcao_gap} candidato a devolver no ajuste"
-        elif direcao_gap == "NEUTRO":
-            recomendacao = "AGUARDAR"
-            lado = "NEUTRO"
-            motivo = "Leilão próximo do ajuste"
-        else:
-            recomendacao = "AGUARDAR"
-            lado = "NEUTRO"
-            motivo = "Sem confluência clara no leilão"
-
-        return {
-            "nome": "Operacional de Leilão",
-            "teorico": teorico,
-            "ajuste": ajuste,
-            "dist_pts": dist,
-            "posicao": pos,
-            "gap_classe": gap_classe,
-            "direcao_gap": direcao_gap,
-            "drivers_direcao": dir_exp,
-            "drivers_forca": forca,
-            "score_drivers": exp.get("score"),
-            "alinhado": alinhado,
-            "divergente": divergente,
-            "recomendacao": recomendacao,
-            "lado_preparar": lado,
-            "motivo": motivo,
-            "bloqueios": bloqueios,
-            "tem_noticia_3est": tem_3est,
-        }
-
     def resumo_operacional(self) -> Dict[str, Any]:
         """Conflito / prioridade entre os dois operacionais."""
         aj = self.operacional_ajuste()
@@ -866,15 +747,12 @@ class SetupService:
             preferencia = "AGUARDAR"
             texto = aj.get("motivo") or ex.get("motivo") or "Sem setup claro"
 
-        lei = self.operacional_leilao()
-
         return {
             "preferencia": preferencia,
             "conflito": conflito,
             "texto": texto,
             "ajuste": aj,
             "explosao": ex,
-            "leilao": lei,
         }
 
 
@@ -1347,80 +1225,6 @@ def render_bloco_1_filtro_classificacao(service: SetupService):
     st.caption(f"📌 Filtro aplicado: {'Notícia 3★ → ADRs' if service.tem_3estrelas else 'Sem notícia 3★ → Mercado Externo'}")
 
 # ---------- Bloco 2: Decisão do Setup e Gestão de Risco ----------
-
-
-
-def render_bloco_leilao(service: SetupService):
-    """Operacional de leilão: gap projetado x drivers → preparar Ajuste ou Explosão."""
-    st.markdown("---")
-    st.subheader("🔔 Operacional de Leilão")
-    st.caption(
-        "Usa preço teórico/last vs ajuste + Σ ADRs/Macro para preparar o lado "
-        "antes da abertura (não substitui o operacional pós-abertura)."
-    )
-
-    lei = service.operacional_leilao()
-    rec = lei.get("recomendacao") or "AGUARDAR"
-
-    if rec == "PREPARAR_EXPLOSAO":
-        classe = "card-bull" if lei.get("lado_preparar") == "COMPRA" else "card-bear"
-        emoji = "🚀"
-        titulo = f"{emoji} PREPARAR EXPLOSÃO — {lei.get('lado_preparar')}"
-    elif rec == "PREPARAR_AJUSTE":
-        classe = "card-bull" if lei.get("lado_preparar") == "COMPRA" else "card-bear"
-        emoji = "🎯"
-        titulo = f"{emoji} PREPARAR AJUSTE — {lei.get('lado_preparar')} NO AJUSTE"
-    else:
-        classe = "card-neutral"
-        emoji = "🟡"
-        titulo = f"{emoji} AGUARDAR — SEM EDGE NO LEILÃO"
-
-    st.markdown(
-        f"""
-        <div class="{classe}">
-            <h3 style="margin:0 0 6px;">{titulo}</h3>
-            <div>{lei.get("motivo") or ""}</div>
-            <div style="margin-top:6px;opacity:.9;">
-                Gap leilão: <b>{lei.get("direcao_gap")}</b> ({lei.get("gap_classe")})
-                &nbsp;|&nbsp; Drivers: <b>{lei.get("drivers_direcao")}</b> ({lei.get("drivers_forca")})
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    c1, c2, c3, c4 = st.columns(4)
-    with c1:
-        teo = lei.get("teorico")
-        st.metric("Preço teórico / last", f"{teo:,.0f}" if teo else "—")
-    with c2:
-        aj = lei.get("ajuste")
-        st.metric("Ajuste", f"{aj:,.0f}" if aj else "—")
-    with c3:
-        dist = lei.get("dist_pts")
-        st.metric("Gap projetado", f"{dist:+.0f} pts" if dist is not None else "—")
-    with c4:
-        st.metric("Score drivers", f"{lei.get('score_drivers'):+.2f}" if lei.get("score_drivers") is not None else "—")
-
-    tags = []
-    if lei.get("alinhado"):
-        tags.append("✅ Drivers alinhados com o gap")
-    if lei.get("divergente"):
-        tags.append("⚠️ Drivers divergentes do gap (fade candidato)")
-    if lei.get("tem_noticia_3est"):
-        tags.append("🚨 Notícia ⭐⭐⭐ no horário")
-    if tags:
-        st.caption(" · ".join(tags))
-
-    if lei.get("bloqueios"):
-        with st.expander("Bloqueios / alertas do leilão", expanded=False):
-            for b in lei["bloqueios"]:
-                st.write(f"• {b}")
-
-    st.info(
-        "**Fluxo sugerido:** leilão define a *preparação* → "
-        "após abrir, confirme com o bloco Operacionais (Ajuste 500/100 ou Explosão)."
-    )
 
 
 def render_bloco_operacionais(service: SetupService):
@@ -2566,10 +2370,7 @@ def main():
             # Prioridade: Decisão V2 no topo
             render_bloco_decisao_v2(service)
 
-            # Leilão: preparar lado antes da abertura
-            render_bloco_leilao(service)
-
-            # Operacionais pós-abertura (Ajuste 500/100 + Explosão ADRs/Macro)
+            # Operacionais do usuário (Ajuste 500/100 + Explosão ADRs/Macro)
             render_bloco_operacionais(service)
 
             render_bloco_1_filtro_classificacao(service)

@@ -1,0 +1,7 @@
+08:30–08:55   Leilão / drivers → preparar AJUSTE ou EXPLOSÃO
+09:00         Operar abertura do mini (fade 500/100 ou explosão)
+09:55–10:00   Marcar máxima/mínima/amplitude da vela (fecha 09:59)
+10:00         À vista abre → entrar no rompimento dessa vela (se filtrado)
+10:05+        Se não rompeu, invalidar ou esperar outro setup
+
+

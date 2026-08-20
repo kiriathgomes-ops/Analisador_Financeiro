@@ -1,0 +1,36 @@
+{
+  "timeframes_identificados": "5 Minutos (M5)",
+  "bias_direcional": "Bullish no curto prazo com consolidação (Range entre PDL e PDH)",
+  "estruturas_coletadas": [
+    "174.015: FVG HTF 5Min (Resistência Superior / Melhor Preço Vendedor)",
+    "173.910: Nível de Liquidez Externa Superior (Linha Tracejada de Referência)",
+    "173.560: PDH (Previous Day High) / Bearish FVG 5Min (Zona de Premium Supply)",
+    "172.485: Alvo Intermediário de Liquidez de Topo",
+    "172.200: Bearish Order Block / FVG 5Min (Zona de Rejeição Vendedora)",
+    "172.175: Topo do FVG Intermediário de 5 Minutos",
+    "171.990: Bearish Fair Value Gap (FVG 5Min - Nível Superior)",
+    "171.905: Bearish Fair Value Gap (FVG 5Min - Nível Inferior)",
+    "171.150: Topo do Range Local / Inversão de Polaridade",
+    "171.110: Cotação Atual / Equilibrium do Range Intraday",
+    "170.455: Zona de Inversão de Polaridade e Suporte Local",
+    "170.330: Fundo do Bloco de Liquidez / Suporte Imediato",
+    "169.795: Bullish Order Block / Zona de Reação Compradora",
+    "169.790: Equal Lows (EQL) / Ponto de Inflexão de Demanda",
+    "169.685: Fundo da Zona de Demanda e Absorção",
+    "168.750: Bacia de Acumulação / Bullish FVG HTF",
+    "168.675: PDL (Previous Day Low) / FVG 5Min (Fundo Majoritário)",
+    "168.000: Extreme Discount Demand Zone (Fundo Estrutural - LL)"
+  ],
+  "liquidez_relevante": [
+    "BSL: 173.560 (PDH - Previous Day High)",
+    "BSL: 174.015 (FVG 5Min / Melhor Preço Vendedor)",
+    "BSL: 171.150 (Topos Iguais / Liquidez Local)",
+    "SSL: 170.330 (Piscina de Liquidez / Inversão de Polaridade)",
+    "SSL: 169.790 (EQL - Equal Lows / BSR)",
+    "SSL: 168.675 (PDL - Previous Day Low / Bacia de Liquidez)"
+  ],
+  "zonas_de_interesse_e_cenarios": [
+    "Cenário Comprador: Manutenção acima de 170.455 / 170.330 visando captura de liquidez compradora (BSL) em direção ao FVG de 171.905 - 172.200 e extensão ao PDH em 173.560.",
+    "Cenário Vendedor: Rejeição no FVG em 171.905 - 172.200 ou perda confirmada de 170.330, buscando a varredura da liquidez vendedora (SSL) em 169.790 e teste da zona de PDL / Bacia em 168.675."
+  ]
+}

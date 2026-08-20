@@ -1,0 +1,9 @@
+5. Próximo passo sugerido
+Atualizar a página 10h para a Estratégia de Abertura do Mini às 10:00:
+
+Range = vela 09:55–10:00
+Sinal a partir das 10:00
+Alvo 100% / stop na outra ponta
+Manter filtro de vol + ADRs + globais + V2
+
+Se estiver de acordo, no próximo envio já mando o arquivo  completo com essa regra.
