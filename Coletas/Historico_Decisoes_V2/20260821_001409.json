@@ -1,0 +1,274 @@
+{
+  "metadata": {
+    "timestamp": "2026-08-21T00:14:09.066959",
+    "versao": "V2.2",
+    "fonte": "v2_orchestrator"
+  },
+  "win_session": {
+    "metadata": {
+      "data_sessao": "2026-08-21",
+      "timestamp_coleta": "2026-08-21T00:14:03.903000",
+      "contrato_principal": "WINV26",
+      "fonte_last": "MT5_v2.2"
+    },
+    "precos": {
+      "ajuste": 170877.0,
+      "last_mt5": 170990.0,
+      "fechamento_anterior": null,
+      "pre_abertura": null
+    },
+    "distancias": {
+      "last_vs_ajuste_pts": 113.0,
+      "last_vs_ajuste_pct": 0.0661,
+      "pre_abertura_vs_ajuste_pts": null,
+      "pre_abertura_vs_fechamento_pts": null
+    },
+    "gap": {
+      "gap_projetado_pts": -43.0,
+      "gap_projetado_pct": -0.0249,
+      "direcao_gap": "BAIXA"
+    },
+    "niveis": {
+      "pivot_pp": 171023.33,
+      "r1": 172736.67,
+      "r2": 174483.33,
+      "s1": 169276.67,
+      "s2": 167563.33
+    },
+    "contexto": {
+      "vix": {
+        "preco": 16.02,
+        "variacao_pct": 7.661290322580637
+      },
+      "sp500_fut": {
+        "preco": 7671.25,
+        "variacao_pct": 0.11419249592169657
+      },
+      "nasdaq_fut": {
+        "preco": 29384.5,
+        "variacao_pct": 0.28668452756778895
+      },
+      "dxy": {
+        "preco": 98.713,
+        "variacao_pct": -0.1274800433027497
+      },
+      "usd_brl": {
+        "preco": 5.1929,
+        "variacao_pct": -0.028877252425690298
+      },
+      "usd_ptax": 5.1856,
+      "vale": {
+        "preco": 14.23,
+        "variacao_pct": 2.37
+      },
+      "petr": {
+        "preco": 19.01,
+        "variacao_pct": 2.54
+      },
+      "itub": {
+        "preco": 7.17,
+        "variacao_pct": -2.71
+      },
+      "bbd": {
+        "preco": 2.98,
+        "variacao_pct": -2.3
+      },
+      "bbas": {
+        "preco": 3.55,
+        "variacao_pct": 1.43
+      },
+      "b3": {
+        "preco": 8.27,
+        "variacao_pct": -1.25
+      },
+      "indicador_adrs": 0.08,
+      "iron_ore": {
+        "preco": 95.6,
+        "variacao_pct": 0.26219192448872575
+      },
+      "iron_ore_2m": {
+        "preco": 96.4,
+        "variacao_pct": 0.6788511749347318
+      },
+      "crude_oil": {
+        "preco": 86.42,
+        "variacao_pct": -0.47218703213174773
+      },
+      "gold": {
+        "preco": 4535.124,
+        "variacao_pct": 0.3609132040147737
+      },
+      "di1_2027": 13.725,
+      "di1_2029": 14.275,
+      "inclinacao_bps": 55.0,
+      "indicador_mercado_externo": -7.4546
+    },
+    "noticias": {
+      "impacto_total": 0,
+      "classificacao_risco": "BAIXO",
+      "tem_3_estrelas_brasil_0900": false,
+      "tem_3_estrelas_outros_horarios": false,
+      "tem_multiplas_2_estrelas_mesmo_horario": false,
+      "risco_abertura_win": false,
+      "noticias_3_estrelas": [],
+      "horarios_multiplas_2_estrelas": [],
+      "disponivel": true
+    },
+    "cenario": {
+      "direcao_provavel": "BAIXA",
+      "probabilidade_direcao": 63.0,
+      "relacao_com_ajuste": {
+        "posicao": "ACIMA",
+        "cenario_principal": "Abertura/preço moderadamente acima do ajuste (+113 pts). Cenário principal: tentar continuidade de alta, com risco de teste do ajuste.",
+        "probabilidade_cenario": 30.0
+      },
+      "comportamentos": {
+        "romper_e_continuar": 30.0,
+        "testar_e_rejeitar": 25.0,
+        "testar_e_recuperar": 15.0,
+        "retornar_ao_ajuste": 15.0,
+        "falso_rompimento": 15.0
+      },
+      "niveis_observacao": {
+        "ajuste": 170877.0,
+        "abertura_projetada": 170834.0,
+        "pp": 171023.33,
+        "last_mt5": 170990.0,
+        "distancia_ajuste_pts": 113.0
+      },
+      "contexto_resumo": [
+        "VIX 16.0 (+7.66%)",
+        "ES +0.11%",
+        "NQ +0.29%",
+        "DXY -0.13%",
+        "USD/BRL -0.03%",
+        "ADRs BR +0.08%",
+        "Minério +0.26%",
+        "Petróleo -0.47%",
+        "Calendário: BAIXO (impacto 0)"
+      ],
+      "cenario_alternativo": "Alternativo: teste e rejeição (~25%). Monitorar invalidação do cenário principal.",
+      "confianca_geral": 85.0
+    },
+    "extras": {
+      "fontes_lidas": {
+        "mt5_v2_2": true,
+        "unificados": true,
+        "estimativa": true,
+        "metricas": true,
+        "noticias": true
+      },
+      "timestamp_build": "2026-08-21T00:14:09.066733"
+    }
+  },
+  "opening_scenario": {
+    "direcao_provavel": "BAIXA",
+    "probabilidade_direcao": 63.0,
+    "relacao_com_ajuste": {
+      "posicao": "ACIMA",
+      "cenario_principal": "Abertura/preço moderadamente acima do ajuste (+113 pts). Cenário principal: tentar continuidade de alta, com risco de teste do ajuste.",
+      "probabilidade_cenario": 30.0
+    },
+    "comportamentos": {
+      "romper_e_continuar": 30.0,
+      "testar_e_rejeitar": 25.0,
+      "testar_e_recuperar": 15.0,
+      "retornar_ao_ajuste": 15.0,
+      "falso_rompimento": 15.0
+    },
+    "niveis_observacao": {
+      "ajuste": 170877.0,
+      "abertura_projetada": 170834.0,
+      "pp": 171023.33,
+      "last_mt5": 170990.0,
+      "distancia_ajuste_pts": 113.0
+    },
+    "contexto_resumo": [
+      "VIX 16.0 (+7.66%)",
+      "ES +0.11%",
+      "NQ +0.29%",
+      "DXY -0.13%",
+      "USD/BRL -0.03%",
+      "ADRs BR +0.08%",
+      "Minério +0.26%",
+      "Petróleo -0.47%",
+      "Calendário: BAIXO (impacto 0)"
+    ],
+    "cenario_alternativo": "Alternativo: teste e rejeição (~25%). Monitorar invalidação do cenário principal.",
+    "confianca_geral": 85.0
+  },
+  "confluence": {
+    "vies": "VENDA",
+    "confianca": 48,
+    "motivos": [
+      "Mercado Externo: -7.45% (VENDA)",
+      "ADRs: +0.08% (NEUTRO)",
+      "Tendência: Estavel_E_Estavel (NEUTRO)"
+    ],
+    "riscos": [
+      "VIX em alta: +7.66%"
+    ],
+    "votos": {
+      "COMPRA": -0.3,
+      "VENDA": 0.7
+    }
+  },
+  "decisao": {
+    "timestamp": "2026-08-21T00:14:09.066946",
+    "ativo": "WIN",
+    "vies_final": "VENDA",
+    "confianca": 48,
+    "entrada": null,
+    "stop_loss": null,
+    "alvo_1": null,
+    "alvo_2": null,
+    "invalidacao": "Aguardar definição ou confiança moderada",
+    "motivos": [
+      "Mercado Externo: -7.45% (VENDA)",
+      "ADRs: +0.08% (NEUTRO)",
+      "Tendência: Estavel_E_Estavel (NEUTRO)"
+    ],
+    "riscos": [
+      "VIX em alta: +7.66%"
+    ],
+    "market_referencia": null,
+    "prediction_referencia": null,
+    "vision_referencia": null,
+    "news_referencia": null,
+    "metadados": {
+      "pivots": {
+        "r2": 174483.33,
+        "r1": 172736.67,
+        "pp": 171023.33,
+        "s1": 169276.67,
+        "s2": 167563.33
+      },
+      "smc": {
+        "order_blocks": [],
+        "fvgs": [],
+        "suportes": [
+          170727.0,
+          170577.0
+        ],
+        "resistencias": [
+          171027.0,
+          171177.0
+        ],
+        "entrada_sugerida": null,
+        "stop_sugerido": null,
+        "alvos": []
+      },
+      "gap_pts": -43.0,
+      "ajuste": 170877.0,
+      "last": 170990.0
+    }
+  },
+  "contextos": {
+    "market_ok": true,
+    "prediction_ok": false,
+    "news_ok": true,
+    "vision_ok": true,
+    "session_ok": true
+  },
+  "erros": []
+}

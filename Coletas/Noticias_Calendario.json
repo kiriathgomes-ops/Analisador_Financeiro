@@ -1,41 +1,41 @@
 {
   "metadata": {
     "fonte": "TradingView API",
-    "timestamp": "2026-08-20T08:28:48.163389",
-    "data_referencia": "2026-08-20",
+    "timestamp": "2026-08-21T00:04:10.968672",
+    "data_referencia": "2026-08-21",
     "filtros": "Brasil e EUA (2 e 3 Estrelas)"
   },
   "calendario_eventos": {
     "quantidade_eventos": 3,
     "eventos": [
       {
-        "hora": "09:00",
-        "pais": "Brazil",
-        "moeda": "BRL",
-        "evento": "BCB National Monetary Council Meeting",
+        "hora": "10:45",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "S&P Global Services PMI Flash",
         "importancia": 2,
-        "anterior": "",
+        "anterior": "54.6",
+        "previsao": "54",
+        "atual": ""
+      },
+      {
+        "hora": "10:45",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "S&P Global Manufacturing PMI Flash",
+        "importancia": 2,
+        "anterior": "53.9",
+        "previsao": "53.9",
+        "atual": ""
+      },
+      {
+        "hora": "10:45",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "S&P Global Composite PMI Flash",
+        "importancia": 2,
+        "anterior": "54.5",
         "previsao": "",
-        "atual": ""
-      },
-      {
-        "hora": "09:30",
-        "pais": "United States",
-        "moeda": "USD",
-        "evento": "Initial Jobless Claims",
-        "importancia": 2,
-        "anterior": "209",
-        "previsao": "210",
-        "atual": ""
-      },
-      {
-        "hora": "09:30",
-        "pais": "United States",
-        "moeda": "USD",
-        "evento": "Philadelphia Fed Manufacturing Index",
-        "importancia": 2,
-        "anterior": "41.4",
-        "previsao": "25",
         "atual": ""
       }
     ]

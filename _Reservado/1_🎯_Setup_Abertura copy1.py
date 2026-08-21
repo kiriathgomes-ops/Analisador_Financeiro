@@ -1,3 +1,4 @@
+
 """
 Setup Abertura – Unificado
 ===========================
@@ -5,7 +6,7 @@ Página com abas para:
 - Ajuste B3 (distância do ajuste, scores, semáforo)
 - Abertura 09:00 (gap, sinal, IA de pré-abertura + Análise Gráfica SMC)
 
-Versão 6.7 - Leilão + Ajuste (500/100) + Explosão (ADRs/Macro) + Decisão V2
+Versão 6.2 - Integração do AnaliseGraficaSMC.json na IA de texto
 """
 
 import json
@@ -219,13 +220,11 @@ ARQUIVOS = {
     "noticias_0900": COLETAS_DIR / "Noticias_Calendario_0900.json",
     "metricas": COLETAS_DIR / "Metricas_Calculadas.json",
     "estimativa": COLETAS_DIR / "EstimativaAbertura.json",
-    "decisao": COLETAS_DIR / "Decisao_Core.json",              # V1 (fallback)
-    "decisao_v2": COLETAS_DIR / "Decisao_V2.json",              # V2 (prioridade)
+    "decisao": COLETAS_DIR / "Decisao_Core.json",
     "ativos": COLETAS_DIR / "DadosAtivosUnificados.json",
     "tendencias": COLETAS_DIR / "Analise_Tendencias.json",
     "resultado_operacional": COLETAS_DIR / "Resultado_Calculadora_Operacional_Abertura.json",
-    "analise_smc": COLETAS_DIR / "AnaliseGraficaSMC.json",      # Análise gráfica SMC/ICT (visão)
-    "analise_smc_regras": COLETAS_DIR / "AnaliseGraficaSMC_Regras.json",
+    "analise_smc": COLETAS_DIR / "AnaliseGraficaSMC.json",   # Análise gráfica SMC/ICT
 }
 
 SCRIPT_TENDENCIAS = BASE_DIR / "MapearTendencia15Min.py"
@@ -417,30 +416,6 @@ class SetupService:
 
         # Análise gráfica SMC/ICT (gerada pela página de visão)
         self.analise_smc = self.dados.get("analise_smc", {})
-        self.analise_smc_regras = self.dados.get("analise_smc_regras", {})
-
-        # ---------- DECISÃO V2 (prioridade) ----------
-        self.decisao_v2_raw = self.dados.get("decisao_v2", {}) or {}
-        self.tem_v2 = bool(self.decisao_v2_raw.get("decisao"))
-
-        d2 = self.decisao_v2_raw.get("decisao", {}) or {}
-        self.v2_vies = d2.get("vies_final", "NEUTRO")
-        try:
-            self.v2_confianca = int(d2.get("confianca") or 0)
-        except (TypeError, ValueError):
-            self.v2_confianca = 0
-        self.v2_entrada = d2.get("entrada")
-        self.v2_stop = d2.get("stop_loss")
-        self.v2_alvo1 = d2.get("alvo_1")
-        self.v2_alvo2 = d2.get("alvo_2")
-        self.v2_invalidacao = d2.get("invalidacao") or ""
-        self.v2_motivos = d2.get("motivos") or []
-        self.v2_riscos = d2.get("riscos") or []
-
-        cenario = self.decisao_v2_raw.get("opening_scenario") or {}
-        self.v2_direcao_cenario = cenario.get("direcao_provavel")
-        rel = cenario.get("relacao_com_ajuste") or {}
-        self.v2_posicao_ajuste = rel.get("posicao") if isinstance(rel, dict) else None
 
     def _extrair_tendencias(self, dados_tendencias: Dict) -> Dict[str, TendenciaAtivo]:
         tendencias = {}
@@ -472,411 +447,6 @@ class SetupService:
                 )
         
         return tendencias
-
-    def tem_decisao_v2(self) -> bool:
-        return bool(getattr(self, "tem_v2", False))
-
-    def decisao_v2(self) -> Dict[str, Any]:
-        return {
-            "vies": getattr(self, "v2_vies", "NEUTRO"),
-            "confianca": getattr(self, "v2_confianca", 0),
-            "entrada": getattr(self, "v2_entrada", None),
-            "stop": getattr(self, "v2_stop", None),
-            "alvo1": getattr(self, "v2_alvo1", None),
-            "alvo2": getattr(self, "v2_alvo2", None),
-            "invalidacao": getattr(self, "v2_invalidacao", ""),
-            "motivos": getattr(self, "v2_motivos", []) or [],
-            "riscos": getattr(self, "v2_riscos", []) or [],
-            "direcao_cenario": getattr(self, "v2_direcao_cenario", None),
-            "posicao_ajuste": getattr(self, "v2_posicao_ajuste", None),
-        }
-
-
-    # ============================================================
-    # OPERACIONAIS DE ABERTURA (Ajuste + Explosão)
-    # ============================================================
-    def _f(self, v, default=0.0):
-        try:
-            if v is None:
-                return default
-            return float(v)
-        except (TypeError, ValueError):
-            return default
-
-    def contexto_ajuste(self) -> Dict[str, Any]:
-        """Posição e distância vs ajuste oficial."""
-        ativos = (self.dados.get("ativos") or {}).get("ativos") or self.dados.get("ativos") or {}
-        if not isinstance(ativos, dict):
-            ativos = {}
-
-        def preco(chave):
-            item = ativos.get(chave) or {}
-            if isinstance(item, dict):
-                return self._f(item.get("preco") or item.get("close") or item.get("valor"))
-            return 0.0
-
-        ajuste = preco("WIN_AJUSTE") or preco("WIN_FUT")
-        last = preco("WIN_FUT") or preco("WIN_LAST_TICK") or self._f(self.preco_win)
-
-        # Preferir V2 session se existir
-        d2 = self.decisao_v2_raw.get("win_session") or {}
-        precos = d2.get("precos") or {}
-        if precos.get("ajuste"):
-            ajuste = self._f(precos.get("ajuste"), ajuste)
-        if precos.get("last_mt5"):
-            last = self._f(precos.get("last_mt5"), last)
-
-        dist = None
-        if ajuste and last:
-            dist = round(last - ajuste, 0)
-        elif self.v2_posicao_ajuste and dist is None:
-            dist = None
-
-        if dist is None:
-            posicao = self.v2_posicao_ajuste or "INDEFINIDO"
-        elif dist > 20:
-            posicao = "ACIMA"
-        elif dist < -20:
-            posicao = "ABAIXO"
-        else:
-            posicao = "NO_AJUSTE"
-
-        return {
-            "ajuste": ajuste if ajuste else None,
-            "last": last if last else None,
-            "dist_pts": dist,
-            "posicao": posicao,
-        }
-
-    def operacional_ajuste(self) -> Dict[str, Any]:
-        """
-        Regra do usuário:
-          - Abre ACIMA do ajuste → VENDA no ajuste | alvo 500 | loss 100
-          - Abre ABAIXO do ajuste → COMPRA no ajuste | alvo 500 | loss 100
-        Filtros: notícias, macro/explosão, V2.
-        """
-        ctx = self.contexto_ajuste()
-        pos = ctx["posicao"]
-        dist = ctx["dist_pts"]
-
-        alvo_pts = 500
-        loss_pts = 100
-
-        if pos == "ACIMA":
-            lado = "VENDA"
-            entrada = ctx["ajuste"]
-            stop = (entrada + loss_pts) if entrada else None
-            alvo = (entrada - alvo_pts) if entrada else None
-        elif pos == "ABAIXO":
-            lado = "COMPRA"
-            entrada = ctx["ajuste"]
-            stop = (entrada - loss_pts) if entrada else None
-            alvo = (entrada + alvo_pts) if entrada else None
-        else:
-            lado = "NEUTRO"
-            entrada = stop = alvo = None
-
-        # Filtros de qualidade
-        bloqueios = []
-        avisos = []
-
-        if dist is not None and abs(dist) < 100:
-            bloqueios.append(f"Distância pequena ({dist:+.0f} pts) — R:R do alvo 500 piora")
-        elif dist is not None and abs(dist) < 150:
-            avisos.append(f"Distância moderada ({dist:+.0f} pts)")
-
-        # Notícias
-        noticias = self.dados.get("noticias_0900") or {}
-        alerta = (noticias.get("alerta_noticia_0900") or {})
-        if alerta.get("tem_evento_3_estrelas"):
-            bloqueios.append("Notícia ⭐⭐⭐ Brasil às 09:00 — aguardar reação")
-
-        # Explosão (conflito com fade)
-        exp = self.operacional_explosao()
-        if lado == "VENDA" and exp["direcao"] == "COMPRA" and exp["forca"] in ("ALTA", "MODERADA"):
-            bloqueios.append(f"Explosão de COMPRA ({exp['forca']}) — não fade o gap")
-        if lado == "COMPRA" and exp["direcao"] == "VENDA" and exp["forca"] in ("ALTA", "MODERADA"):
-            bloqueios.append(f"Explosão de VENDA ({exp['forca']}) — não fade o gap")
-
-        # V2
-        if self.tem_v2:
-            vies_v2 = str(self.v2_vies or "").upper()
-            conf = self.v2_confianca
-            if conf >= 60:
-                if lado == "VENDA" and vies_v2 in ("COMPRA", "ALTA", "BULL"):
-                    bloqueios.append(f"V2 COMPRA com {conf}% — contra a venda no ajuste")
-                if lado == "COMPRA" and vies_v2 in ("VENDA", "BAIXA", "BEAR"):
-                    bloqueios.append(f"V2 VENDA com {conf}% — contra a compra no ajuste")
-
-        if lado == "NEUTRO":
-            status = "AGUARDAR"
-            motivo = "Preço no ajuste / sem gap relevante"
-        elif bloqueios:
-            status = "BLOQUEADO"
-            motivo = bloqueios[0]
-        elif avisos:
-            status = "ATENÇÃO"
-            motivo = avisos[0]
-        else:
-            status = "LIBERADO"
-            motivo = f"{lado} no ajuste com contexto favorável"
-
-        return {
-            "nome": "Retorno ao Ajuste",
-            "lado": lado,
-            "status": status,
-            "motivo": motivo,
-            "bloqueios": bloqueios,
-            "avisos": avisos,
-            "entrada": entrada,
-            "stop": stop,
-            "alvo": alvo,
-            "alvo_pts": alvo_pts,
-            "loss_pts": loss_pts,
-            "dist_pts": dist,
-            "posicao": pos,
-            "ajuste": ctx["ajuste"],
-            "last": ctx["last"],
-        }
-
-    def operacional_explosao(self) -> Dict[str, Any]:
-        """
-        Soma ADRs + cesta VIX/minério/petróleo para viés de explosão pós-abertura.
-        """
-        metricas = self.dados.get("metricas") or {}
-        compostos = metricas.get("indicadores_compostos") or {}
-        macro = metricas.get("indicadores_macro") or {}
-        perf = metricas.get("performance_relativa") or {}
-
-        ind_adrs = compostos.get("indicador_adrs_brasileiras")
-        ind_ext = compostos.get("indicador_mercado_externo")
-
-        # Fallback: montar a partir de ativos unificados
-        ativos = (self.dados.get("ativos") or {}).get("ativos") or self.dados.get("ativos") or {}
-        if not isinstance(ativos, dict):
-            ativos = {}
-
-        def var(chave):
-            item = ativos.get(chave) or {}
-            if isinstance(item, dict):
-                return self._f(item.get("variacao_pct") or item.get("change_percent"))
-            return 0.0
-
-        if ind_adrs is None:
-            adrs_keys = ["VALE_ADR", "PETR_ADR", "ITUB_ADR", "BBD_ADR", "BBAS_ADR", "B3_ADR"]
-            vals = [var(k) for k in adrs_keys]
-            vals = [v for v in vals if v != 0.0]
-            ind_adrs = round(sum(vals), 4) if vals else 0.0
-
-        vix_pct = self._f((macro.get("vix_change_pct") if macro else None) or var("VIX"))
-        oil_pct = self._f((macro.get("crude_oil_change_pct") if macro else None) or var("CRUDE_OIL"))
-        iron_pct = 0.0
-        iron_obj = (macro.get("iron_ore_fef2") if macro else None) or {}
-        if isinstance(iron_obj, dict) and iron_obj.get("change_percent") is not None:
-            iron_pct = self._f(iron_obj.get("change_percent"))
-        else:
-            iron_pct = var("IRON_ORE") or var("IRON_ORE_2M")
-
-        if ind_ext is None:
-            # Fórmula alinhada ao Calculadora.py: -VIX + crude + iron
-            ind_ext = round((-vix_pct) + oil_pct + iron_pct, 4)
-
-        # Score combinado (pesos operacionais)
-        # ADRs pesam mais no WIN; macro reforça
-        score = (self._f(ind_adrs) * 0.55) + (self._f(ind_ext) * 0.45)
-
-        if score >= 1.2:
-            direcao, forca = "COMPRA", "ALTA"
-        elif score >= 0.45:
-            direcao, forca = "COMPRA", "MODERADA"
-        elif score <= -1.2:
-            direcao, forca = "VENDA", "ALTA"
-        elif score <= -0.45:
-            direcao, forca = "VENDA", "MODERADA"
-        else:
-            direcao, forca = "NEUTRO", "FRACA"
-
-        if direcao == "NEUTRO":
-            status = "SEM_EXPLOSAO"
-            motivo = "Drivers externos equilibrados — sem combustível claro"
-        elif forca == "ALTA":
-            status = "EXPLOSAO"
-            motivo = f"Drivers fortes para {direcao} após abertura"
-        else:
-            status = "VIÉS_MODERADO"
-            motivo = f"Viés moderado de {direcao}"
-
-        return {
-            "nome": "Explosão Pós-Abertura",
-            "direcao": direcao,
-            "forca": forca,
-            "status": status,
-            "motivo": motivo,
-            "score": round(score, 3),
-            "ind_adrs": round(self._f(ind_adrs), 3),
-            "ind_externo": round(self._f(ind_ext), 3),
-            "vix_pct": round(vix_pct, 3),
-            "oil_pct": round(oil_pct, 3),
-            "iron_pct": round(iron_pct, 3),
-        }
-
-
-    def operacional_leilao(self) -> Dict[str, Any]:
-        """
-        Fase de leilão: gap projetado (teórico/last vs ajuste) cruzado com drivers.
-        Não substitui abertura — prepara o lado (AJUSTE vs EXPLOSÃO vs AGUARDAR).
-        """
-        ctx = self.contexto_ajuste()
-        exp = self.operacional_explosao()
-
-        ajuste = ctx.get("ajuste")
-        last = ctx.get("last")
-        dist = ctx.get("dist_pts")
-        pos = ctx.get("posicao")
-
-        # Preço teórico do leilão: preferir last MT5 / pre_abertura se existir
-        teorico = last
-        d2 = self.decisao_v2_raw.get("win_session") or {}
-        precos = d2.get("precos") or {}
-        if precos.get("pre_abertura"):
-            try:
-                teorico = float(precos["pre_abertura"])
-                if ajuste:
-                    dist = round(teorico - float(ajuste), 0)
-                    if dist > 20:
-                        pos = "ACIMA"
-                    elif dist < -20:
-                        pos = "ABAIXO"
-                    else:
-                        pos = "NO_AJUSTE"
-            except (TypeError, ValueError):
-                pass
-
-        # Classificação do gap no leilão
-        if dist is None:
-            gap_classe = "INDEFINIDO"
-        elif abs(dist) < 80:
-            gap_classe = "MORNO"
-        elif abs(dist) < 150:
-            gap_classe = "MODERADO"
-        elif abs(dist) < 400:
-            gap_classe = "RELEVANTE"
-        else:
-            gap_classe = "EXTREMO"
-
-        # Alinhamento drivers x gap
-        direcao_gap = "ALTA" if (dist or 0) > 20 else ("BAIXA" if (dist or 0) < -20 else "NEUTRO")
-        dir_exp = exp.get("direcao") or "NEUTRO"
-        forca = exp.get("forca") or "FRACA"
-
-        alinhado = False
-        divergente = False
-        if direcao_gap == "ALTA" and dir_exp == "COMPRA" and forca in ("ALTA", "MODERADA"):
-            alinhado = True
-        elif direcao_gap == "BAIXA" and dir_exp == "VENDA" and forca in ("ALTA", "MODERADA"):
-            alinhado = True
-        elif direcao_gap == "ALTA" and dir_exp == "VENDA" and forca in ("ALTA", "MODERADA"):
-            divergente = True
-        elif direcao_gap == "BAIXA" and dir_exp == "COMPRA" and forca in ("ALTA", "MODERADA"):
-            divergente = True
-
-        # Notícia 3★
-        noticias = self.dados.get("noticias_0900") or {}
-        alerta = (noticias.get("alerta_noticia_0900") or {})
-        tem_3est = bool(alerta.get("tem_evento_3_estrelas"))
-
-        bloqueios = []
-        if tem_3est:
-            bloqueios.append("Notícia ⭐⭐⭐ Brasil 09:00 — leilão pode ser sujo")
-        if gap_classe == "MORNO":
-            bloqueios.append("Gap projetado pequeno — leilão sem edge claro")
-        if gap_classe == "INDEFINIDO":
-            bloqueios.append("Sem preço teórico/ajuste confiável")
-
-        # Recomendação de preparação
-        if bloqueios and (tem_3est or gap_classe in ("MORNO", "INDEFINIDO")):
-            recomendacao = "AGUARDAR"
-            lado = "NEUTRO"
-            motivo = bloqueios[0]
-        elif alinhado and gap_classe in ("RELEVANTE", "EXTREMO", "MODERADO"):
-            recomendacao = "PREPARAR_EXPLOSAO"
-            lado = "COMPRA" if direcao_gap == "ALTA" else "VENDA"
-            motivo = f"Leilão {direcao_gap} alinhado com drivers ({forca}) — não fade"
-        elif divergente:
-            recomendacao = "PREPARAR_AJUSTE"
-            lado = "VENDA" if direcao_gap == "ALTA" else "COMPRA"
-            motivo = f"Leilão {direcao_gap} mas drivers contra — candidato a retorno ao ajuste"
-        elif direcao_gap != "NEUTRO" and forca == "FRACA":
-            recomendacao = "PREPARAR_AJUSTE"
-            lado = "VENDA" if direcao_gap == "ALTA" else "COMPRA"
-            motivo = f"Drivers fracos — gap {direcao_gap} candidato a devolver no ajuste"
-        elif direcao_gap == "NEUTRO":
-            recomendacao = "AGUARDAR"
-            lado = "NEUTRO"
-            motivo = "Leilão próximo do ajuste"
-        else:
-            recomendacao = "AGUARDAR"
-            lado = "NEUTRO"
-            motivo = "Sem confluência clara no leilão"
-
-        return {
-            "nome": "Operacional de Leilão",
-            "teorico": teorico,
-            "ajuste": ajuste,
-            "dist_pts": dist,
-            "posicao": pos,
-            "gap_classe": gap_classe,
-            "direcao_gap": direcao_gap,
-            "drivers_direcao": dir_exp,
-            "drivers_forca": forca,
-            "score_drivers": exp.get("score"),
-            "alinhado": alinhado,
-            "divergente": divergente,
-            "recomendacao": recomendacao,
-            "lado_preparar": lado,
-            "motivo": motivo,
-            "bloqueios": bloqueios,
-            "tem_noticia_3est": tem_3est,
-        }
-
-    def resumo_operacional(self) -> Dict[str, Any]:
-        """Conflito / prioridade entre os dois operacionais."""
-        aj = self.operacional_ajuste()
-        ex = self.operacional_explosao()
-
-        conflito = False
-        preferencia = "AGUARDAR"
-        texto = ""
-
-        if aj["status"] == "LIBERADO" and ex["status"] == "EXPLOSAO":
-            # Explosão na mesma direção do gap (contra o fade) já bloqueia o ajuste
-            conflito = True
-            preferencia = "EXPLOSAO"
-            texto = "Explosão forte — priorizar continuação, não fade no ajuste"
-        elif aj["status"] == "LIBERADO":
-            preferencia = "AJUSTE"
-            texto = f"Setup de {aj['lado']} no ajuste liberado"
-        elif ex["status"] in ("EXPLOSAO", "VIÉS_MODERADO") and ex["direcao"] != "NEUTRO":
-            preferencia = "EXPLOSAO"
-            texto = f"Viés de explosão {ex['direcao']} ({ex['forca']})"
-        elif aj["status"] == "ATENÇÃO":
-            preferencia = "AJUSTE_ATENCAO"
-            texto = aj["motivo"]
-        else:
-            preferencia = "AGUARDAR"
-            texto = aj.get("motivo") or ex.get("motivo") or "Sem setup claro"
-
-        lei = self.operacional_leilao()
-
-        return {
-            "preferencia": preferencia,
-            "conflito": conflito,
-            "texto": texto,
-            "ajuste": aj,
-            "explosao": ex,
-            "leilao": lei,
-        }
-
 
     def sinal(self) -> SinalSetup:
         if self.tem_3estrelas:
@@ -1229,12 +799,10 @@ def render_sidebar_09h():
         "Notícias": ARQUIVOS["noticias_0900"],
         "Métricas": ARQUIVOS["metricas"],
         "Estimativa": ARQUIVOS["estimativa"],
-        "Decisão V1": ARQUIVOS["decisao"],
-        "Decisão V2": ARQUIVOS["decisao_v2"],
+        "Decisão": ARQUIVOS["decisao"],
         "Tendências": ARQUIVOS["tendencias"],
         "Resultado": ARQUIVOS["resultado_operacional"],
         "Análise SMC": ARQUIVOS["analise_smc"],
-        "SMC Regras": ARQUIVOS["analise_smc_regras"],
     }
     for nome, caminho in arquivos_status.items():
         existe = "✅" if os.path.exists(caminho) else "❌"
@@ -1347,279 +915,6 @@ def render_bloco_1_filtro_classificacao(service: SetupService):
     st.caption(f"📌 Filtro aplicado: {'Notícia 3★ → ADRs' if service.tem_3estrelas else 'Sem notícia 3★ → Mercado Externo'}")
 
 # ---------- Bloco 2: Decisão do Setup e Gestão de Risco ----------
-
-
-
-def render_bloco_leilao(service: SetupService):
-    """Operacional de leilão: gap projetado x drivers → preparar Ajuste ou Explosão."""
-    st.markdown("---")
-    st.subheader("🔔 Operacional de Leilão")
-    st.caption(
-        "Usa preço teórico/last vs ajuste + Σ ADRs/Macro para preparar o lado "
-        "antes da abertura (não substitui o operacional pós-abertura)."
-    )
-
-    lei = service.operacional_leilao()
-    rec = lei.get("recomendacao") or "AGUARDAR"
-
-    if rec == "PREPARAR_EXPLOSAO":
-        classe = "card-bull" if lei.get("lado_preparar") == "COMPRA" else "card-bear"
-        emoji = "🚀"
-        titulo = f"{emoji} PREPARAR EXPLOSÃO — {lei.get('lado_preparar')}"
-    elif rec == "PREPARAR_AJUSTE":
-        classe = "card-bull" if lei.get("lado_preparar") == "COMPRA" else "card-bear"
-        emoji = "🎯"
-        titulo = f"{emoji} PREPARAR AJUSTE — {lei.get('lado_preparar')} NO AJUSTE"
-    else:
-        classe = "card-neutral"
-        emoji = "🟡"
-        titulo = f"{emoji} AGUARDAR — SEM EDGE NO LEILÃO"
-
-    st.markdown(
-        f"""
-        <div class="{classe}">
-            <h3 style="margin:0 0 6px;">{titulo}</h3>
-            <div>{lei.get("motivo") or ""}</div>
-            <div style="margin-top:6px;opacity:.9;">
-                Gap leilão: <b>{lei.get("direcao_gap")}</b> ({lei.get("gap_classe")})
-                &nbsp;|&nbsp; Drivers: <b>{lei.get("drivers_direcao")}</b> ({lei.get("drivers_forca")})
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    c1, c2, c3, c4 = st.columns(4)
-    with c1:
-        teo = lei.get("teorico")
-        st.metric("Preço teórico / last", f"{teo:,.0f}" if teo else "—")
-    with c2:
-        aj = lei.get("ajuste")
-        st.metric("Ajuste", f"{aj:,.0f}" if aj else "—")
-    with c3:
-        dist = lei.get("dist_pts")
-        st.metric("Gap projetado", f"{dist:+.0f} pts" if dist is not None else "—")
-    with c4:
-        st.metric("Score drivers", f"{lei.get('score_drivers'):+.2f}" if lei.get("score_drivers") is not None else "—")
-
-    tags = []
-    if lei.get("alinhado"):
-        tags.append("✅ Drivers alinhados com o gap")
-    if lei.get("divergente"):
-        tags.append("⚠️ Drivers divergentes do gap (fade candidato)")
-    if lei.get("tem_noticia_3est"):
-        tags.append("🚨 Notícia ⭐⭐⭐ no horário")
-    if tags:
-        st.caption(" · ".join(tags))
-
-    if lei.get("bloqueios"):
-        with st.expander("Bloqueios / alertas do leilão", expanded=False):
-            for b in lei["bloqueios"]:
-                st.write(f"• {b}")
-
-    st.info(
-        "**Fluxo sugerido:** leilão define a *preparação* → "
-        "após abrir, confirme com o bloco Operacionais (Ajuste 500/100 ou Explosão)."
-    )
-
-
-def render_bloco_operacionais(service: SetupService):
-    """Dois operacionais de abertura: Retorno ao Ajuste + Explosão."""
-    st.markdown("---")
-    st.subheader("🎯 Operacionais de Abertura")
-
-    resumo = service.resumo_operacional()
-    aj = resumo["ajuste"]
-    ex = resumo["explosao"]
-
-    # Semáforo de preferência
-    pref = resumo["preferencia"]
-    if pref == "AJUSTE":
-        cor, emoji = "card-bull" if aj["lado"] == "COMPRA" else "card-bear", "✅"
-        titulo = f"{emoji} PREFERÊNCIA: {aj['lado']} NO AJUSTE"
-    elif pref == "EXPLOSAO":
-        if ex["direcao"] == "COMPRA":
-            cor, emoji = "card-bull", "🚀"
-        elif ex["direcao"] == "VENDA":
-            cor, emoji = "card-bear", "🚀"
-        else:
-            cor, emoji = "card-neutral", "🚀"
-        titulo = f"{emoji} PREFERÊNCIA: EXPLOSÃO {ex['direcao']}"
-    elif pref == "AJUSTE_ATENCAO":
-        cor, emoji = "card-neutral", "⚠️"
-        titulo = f"{emoji} AJUSTE COM ATENÇÃO"
-    else:
-        cor, emoji = "card-neutral", "🟡"
-        titulo = f"{emoji} AGUARDAR — SEM SETUP CLARO"
-
-    st.markdown(
-        f"""
-        <div class="{cor}">
-            <h3 style="margin:0 0 6px;">{titulo}</h3>
-            <div>{resumo.get("texto") or ""}</div>
-            {"<div style='margin-top:6px;opacity:.85;'>⚠️ Conflito entre fade do ajuste e explosão</div>" if resumo.get("conflito") else ""}
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    c1, c2 = st.columns(2)
-
-    # ----- Operacional Ajuste -----
-    with c1:
-        st.markdown("#### 1️⃣ Retorno ao Ajuste")
-        st.caption("Abre acima → VENDA no ajuste | Abre abaixo → COMPRA no ajuste · Alvo 500 / Loss 100")
-
-        status = aj["status"]
-        if status == "LIBERADO":
-            badge = "🟢 LIBERADO"
-        elif status == "ATENÇÃO":
-            badge = "🟡 ATENÇÃO"
-        elif status == "BLOQUEADO":
-            badge = "🔴 BLOQUEADO"
-        else:
-            badge = "⚪ AGUARDAR"
-
-        st.markdown(f"**Status:** {badge}")
-        st.markdown(f"**Lado:** `{aj['lado']}`")
-
-        m1, m2, m3 = st.columns(3)
-        with m1:
-            dist = aj.get("dist_pts")
-            st.metric("Dist. ajuste", f"{dist:+.0f} pts" if dist is not None else "—")
-        with m2:
-            st.metric("Entrada", f"{aj['entrada']:,.0f}" if aj.get("entrada") else "—")
-        with m3:
-            st.metric("Alvo / Stop", f"{aj['alvo_pts']}/{aj['loss_pts']}")
-
-        if aj.get("entrada") and aj.get("stop") and aj.get("alvo"):
-            st.caption(
-                f"Stop: {aj['stop']:,.0f} · Alvo: {aj['alvo']:,.0f} · "
-                f"Posição: {aj.get('posicao')} · Last: {aj.get('last') or '—'}"
-            )
-
-        st.caption(aj.get("motivo") or "")
-        if aj.get("bloqueios"):
-            with st.expander("Bloqueios", expanded=False):
-                for b in aj["bloqueios"]:
-                    st.write(f"• {b}")
-        if aj.get("avisos"):
-            with st.expander("Avisos", expanded=False):
-                for a in aj["avisos"]:
-                    st.write(f"• {a}")
-
-    # ----- Operacional Explosão -----
-    with c2:
-        st.markdown("#### 2️⃣ Explosão Pós-Abertura")
-        st.caption("Soma ADRs + (-VIX + Minério + Petróleo) → combustível de continuação")
-
-        status = ex["status"]
-        if status == "EXPLOSAO":
-            badge = "🚀 EXPLOSÃO"
-        elif status == "VIÉS_MODERADO":
-            badge = "🟡 VIÉS MODERADO"
-        else:
-            badge = "⚪ SEM EXPLOSÃO"
-
-        st.markdown(f"**Status:** {badge}")
-        st.markdown(f"**Direção:** `{ex['direcao']}` · **Força:** `{ex['forca']}`")
-
-        e1, e2, e3 = st.columns(3)
-        with e1:
-            st.metric("Score", f"{ex['score']:+.2f}")
-        with e2:
-            st.metric("Σ ADRs", f"{ex['ind_adrs']:+.2f}%")
-        with e3:
-            st.metric("Σ Macro", f"{ex['ind_externo']:+.2f}%")
-
-        st.caption(
-            f"VIX {ex['vix_pct']:+.2f}% · Petróleo {ex['oil_pct']:+.2f}% · "
-            f"Minério {ex['iron_pct']:+.2f}%"
-        )
-        st.caption(ex.get("motivo") or "")
-
-        st.info(
-            "**Como usar:** drivers a favor do gap → não fade; "
-            "drivers neutros/contra → retorno ao ajuste ganha prioridade."
-        )
-
-
-def render_bloco_decisao_v2(service: SetupService):
-    """Bloco prioritário: Decisão V2 (entrada / stop / alvos)."""
-    st.markdown("---")
-    st.subheader("🚀 Decisão V2 (Motor Principal)")
-
-    if not service.tem_decisao_v2():
-        st.warning(
-            "⚠️ `Decisao_V2.json` ainda não gerado. "
-            "Execute a etapa `v2_rodar_decisao_completa.py` no pipeline. "
-            "Enquanto isso, a página usa o Core Engine (V1)."
-        )
-        return
-
-    d = service.decisao_v2()
-    vies = str(d.get("vies") or "NEUTRO").upper()
-    conf = int(d.get("confianca") or 0)
-
-    if vies in ("COMPRA", "ALTA", "BULL"):
-        classe, emoji = "card-bull", "🟢"
-    elif vies in ("VENDA", "BAIXA", "BEAR"):
-        classe, emoji = "card-bear", "🔴"
-    else:
-        classe, emoji = "card-neutral", "🟡"
-
-    col1, col2, col3 = st.columns([1.5, 1.2, 1.3])
-
-    with col1:
-        st.markdown(
-            f"""
-            <div class="{classe}">
-                <h3>{emoji} VIÉS V2: {vies}</h3>
-                <b>Confiança:</b> {conf}%<br>
-                <b>Posição vs Ajuste:</b> {d.get('posicao_ajuste') or '—'}<br>
-                <b>Direção cenário:</b> {d.get('direcao_cenario') or '—'}
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    with col2:
-        st.markdown("#### Níveis Operacionais")
-        if d.get("entrada") is not None:
-            st.metric("Entrada", f"{float(d['entrada']):,.0f}")
-            st.metric(
-                "Stop",
-                f"{float(d['stop']):,.0f}" if d.get("stop") is not None else "—",
-            )
-        else:
-            st.info("Sem nível de entrada (confiança baixa ou neutro)")
-
-    with col3:
-        st.markdown("#### Alvos")
-        st.metric(
-            "Alvo 1",
-            f"{float(d['alvo1']):,.0f}" if d.get("alvo1") is not None else "—",
-        )
-        st.metric(
-            "Alvo 2",
-            f"{float(d['alvo2']):,.0f}" if d.get("alvo2") is not None else "—",
-        )
-        if d.get("invalidacao"):
-            st.caption(f"⚠️ Invalidação: {d['invalidacao']}")
-
-    c_mot, c_ris = st.columns(2)
-    with c_mot:
-        if d.get("motivos"):
-            with st.expander("Motivos da confluência", expanded=False):
-                for m in d["motivos"]:
-                    st.write(f"• {m}")
-    with c_ris:
-        if d.get("riscos"):
-            with st.expander("Riscos identificados", expanded=False):
-                for r in d["riscos"]:
-                    st.write(f"• {r}")
-
-
 def render_bloco_2_decisao_risco(service: SetupService):
     st.markdown("---")
     st.subheader("📌 2. Decisão do Setup e Gestão de Risco")
@@ -1656,9 +951,7 @@ def render_bloco_2_decisao_risco(service: SetupService):
             st.caption(f"Alvo ≈ {da.preco_atual - CONFIG.alvo_min_pts:,.0f}-")
 
     with col_core:
-        st.markdown("#### Core Engine (V1)")
-        fonte = "V2 ativa no topo" if service.tem_decisao_v2() else "V1 (fallback)"
-        st.caption(f"Fonte prioritária: **{fonte}**")
+        st.markdown("#### Core Engine")
         st.info(f"""
 **WIN:** `{cw.vies}` (score: {cw.score})
 **WDO:** `{cwdo.vies}` (score: {cwdo.score})
@@ -2451,12 +1744,10 @@ def main():
         "metricas": dados.get("metricas", {}),
         "estimativa": dados.get("estimativa", {}),
         "decisao": dados.get("decisao", {}),
-        "decisao_v2": dados.get("decisao_v2", {}),
         "ativos": ativos_data,
         "tendencias": dados_tendencias,
         "resultado_operacional": dados.get("resultado_operacional", {}),
-        "analise_smc": dados.get("analise_smc", {}),
-        "analise_smc_regras": dados.get("analise_smc_regras", {}),
+        "analise_smc": dados.get("analise_smc", {}),   # Análise gráfica SMC/ICT
     }
     service = SetupService(dados_09h)
 
@@ -2563,15 +1854,6 @@ def main():
                 st.warning(f"⏰ Fora da janela • {datetime.now().strftime('%H:%M:%S')}")
 
             # Nova ordem numerada
-            # Prioridade: Decisão V2 no topo
-            render_bloco_decisao_v2(service)
-
-            # Leilão: preparar lado antes da abertura
-            render_bloco_leilao(service)
-
-            # Operacionais pós-abertura (Ajuste 500/100 + Explosão ADRs/Macro)
-            render_bloco_operacionais(service)
-
             render_bloco_1_filtro_classificacao(service)
             render_bloco_2_decisao_risco(service)
             render_bloco_3_abertura_escoras(service)
@@ -2586,3 +1868,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

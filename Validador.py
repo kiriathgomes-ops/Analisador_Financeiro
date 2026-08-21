@@ -3,7 +3,7 @@
 # DATA: 30/07/2026
 # AUTOR: Arquiteto de Sistemas
 # MOTIVO: Fase 3 - Validação, sanitização e padronização dos 
-#         24 ativos (com WIN e WDO Ajustes separados).
+#         34 ativos (com WIN e WDO Ajustes separados).
 # ============================================================
 
 import json
