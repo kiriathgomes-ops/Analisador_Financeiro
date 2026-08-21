@@ -1,0 +1,277 @@
+{
+  "metadata": {
+    "timestamp": "2026-08-21T11:59:09.283312",
+    "versao": "V2.2",
+    "fonte": "v2_orchestrator"
+  },
+  "win_session": {
+    "metadata": {
+      "data_sessao": "2026-08-21",
+      "timestamp_coleta": "2026-08-21T11:59:03.178000",
+      "contrato_principal": "WINV26",
+      "fonte_last": "MT5_v2.2"
+    },
+    "precos": {
+      "ajuste": 170877.0,
+      "last_mt5": 174010.0,
+      "fechamento_anterior": null,
+      "pre_abertura": null
+    },
+    "distancias": {
+      "last_vs_ajuste_pts": 3133.0,
+      "last_vs_ajuste_pct": 1.8335,
+      "pre_abertura_vs_ajuste_pts": null,
+      "pre_abertura_vs_fechamento_pts": null
+    },
+    "gap": {
+      "gap_projetado_pts": 2925.0,
+      "gap_projetado_pct": 1.712,
+      "direcao_gap": "ALTA"
+    },
+    "niveis": {
+      "pivot_pp": 173158.33,
+      "r1": 175291.67,
+      "r2": 176573.33,
+      "s1": 171876.67,
+      "s2": 169743.33
+    },
+    "contexto": {
+      "vix": {
+        "preco": 15.3,
+        "variacao_pct": -4.494382022471903
+      },
+      "sp500_fut": {
+        "preco": 7683.25,
+        "variacao_pct": 0.27079934747145185
+      },
+      "nasdaq_fut": {
+        "preco": 29301.25,
+        "variacao_pct": 0.0025596832818552584
+      },
+      "dxy": {
+        "preco": 98.873,
+        "variacao_pct": 0.03439937676423884
+      },
+      "usd_brl": {
+        "preco": 5.1615,
+        "variacao_pct": -0.6333744032034443
+      },
+      "usd_ptax": 5.1856,
+      "vale": {
+        "preco": 14.63,
+        "variacao_pct": 2.81
+      },
+      "petr": {
+        "preco": 19.18,
+        "variacao_pct": 0.89
+      },
+      "itub": {
+        "preco": 7.4,
+        "variacao_pct": 3.21
+      },
+      "bbd": {
+        "preco": 3.09,
+        "variacao_pct": 3.69
+      },
+      "bbas": {
+        "preco": 3.57,
+        "variacao_pct": 0.56
+      },
+      "b3": {
+        "preco": 8.27,
+        "variacao_pct": -1.25
+      },
+      "indicador_adrs": 9.91,
+      "iron_ore": {
+        "preco": 95.6,
+        "variacao_pct": 0.15715034049239546
+      },
+      "iron_ore_2m": {
+        "preco": 96.45,
+        "variacao_pct": 0.41644976574701265
+      },
+      "crude_oil": {
+        "preco": 86.47,
+        "variacao_pct": -0.4146032477254398
+      },
+      "gold": {
+        "preco": 4591.05,
+        "variacao_pct": 1.6067456760614895
+      },
+      "di1_2027": 13.72,
+      "di1_2029": 14.2,
+      "inclinacao_bps": 48.0,
+      "indicador_mercado_externo": 4.4962
+    },
+    "noticias": {
+      "impacto_total": 0,
+      "classificacao_risco": "BAIXO",
+      "tem_3_estrelas_brasil_0900": false,
+      "tem_3_estrelas_outros_horarios": false,
+      "tem_multiplas_2_estrelas_mesmo_horario": false,
+      "risco_abertura_win": false,
+      "noticias_3_estrelas": [],
+      "horarios_multiplas_2_estrelas": [],
+      "disponivel": true
+    },
+    "cenario": {
+      "direcao_provavel": "ALTA",
+      "probabilidade_direcao": 60.0,
+      "relacao_com_ajuste": {
+        "posicao": "ACIMA",
+        "cenario_principal": "Preço bem acima do ajuste (+3133 pts). Cenário principal: risco elevado de excesso de gap — continuidade possível, mas falso rompimento e retorno ao ajuste ganham peso.",
+        "probabilidade_cenario": 35.0
+      },
+      "comportamentos": {
+        "romper_e_continuar": 25.0,
+        "testar_e_rejeitar": 10.0,
+        "testar_e_recuperar": 10.0,
+        "retornar_ao_ajuste": 20.0,
+        "falso_rompimento": 35.0
+      },
+      "niveis_observacao": {
+        "ajuste": 170877.0,
+        "abertura_projetada": 173802.0,
+        "pp": 173158.33,
+        "last_mt5": 174010.0,
+        "distancia_ajuste_pts": 3133.0
+      },
+      "contexto_resumo": [
+        "VIX 15.3 (-4.49%)",
+        "ES +0.27%",
+        "NQ +0.00%",
+        "DXY +0.03%",
+        "USD/BRL -0.63%",
+        "ADRs BR +9.91%",
+        "Minério +0.16%",
+        "Petróleo -0.41%",
+        "Calendário: BAIXO (impacto 0)"
+      ],
+      "cenario_alternativo": "Alternativo: rompimento e continuidade (~25%). Monitorar invalidação do cenário principal.",
+      "confianca_geral": 80.0
+    },
+    "extras": {
+      "fontes_lidas": {
+        "mt5_v2_2": true,
+        "unificados": true,
+        "estimativa": true,
+        "metricas": true,
+        "noticias": true
+      },
+      "timestamp_build": "2026-08-21T11:59:09.283211"
+    }
+  },
+  "opening_scenario": {
+    "direcao_provavel": "ALTA",
+    "probabilidade_direcao": 60.0,
+    "relacao_com_ajuste": {
+      "posicao": "ACIMA",
+      "cenario_principal": "Preço bem acima do ajuste (+3133 pts). Cenário principal: risco elevado de excesso de gap — continuidade possível, mas falso rompimento e retorno ao ajuste ganham peso.",
+      "probabilidade_cenario": 35.0
+    },
+    "comportamentos": {
+      "romper_e_continuar": 25.0,
+      "testar_e_rejeitar": 10.0,
+      "testar_e_recuperar": 10.0,
+      "retornar_ao_ajuste": 20.0,
+      "falso_rompimento": 35.0
+    },
+    "niveis_observacao": {
+      "ajuste": 170877.0,
+      "abertura_projetada": 173802.0,
+      "pp": 173158.33,
+      "last_mt5": 174010.0,
+      "distancia_ajuste_pts": 3133.0
+    },
+    "contexto_resumo": [
+      "VIX 15.3 (-4.49%)",
+      "ES +0.27%",
+      "NQ +0.00%",
+      "DXY +0.03%",
+      "USD/BRL -0.63%",
+      "ADRs BR +9.91%",
+      "Minério +0.16%",
+      "Petróleo -0.41%",
+      "Calendário: BAIXO (impacto 0)"
+    ],
+    "cenario_alternativo": "Alternativo: rompimento e continuidade (~25%). Monitorar invalidação do cenário principal.",
+    "confianca_geral": 80.0
+  },
+  "confluence": {
+    "vies": "COMPRA",
+    "confianca": 95,
+    "motivos": [
+      "Mercado Externo: +4.50% (COMPRA)",
+      "ADRs: +9.91% (COMPRA)",
+      "Tendência: Estavel_E_Estavel (NEUTRO)",
+      "Predição: COMPRA (score 100.0)"
+    ],
+    "riscos": [
+      "GAP EXTREMO (+2925 pts)"
+    ],
+    "votos": {
+      "COMPRA": 6.890000000000001,
+      "VENDA": 0.0
+    }
+  },
+  "decisao": {
+    "timestamp": "2026-08-21T11:59:09.283304",
+    "ativo": "WIN",
+    "vies_final": "COMPRA",
+    "confianca": 95,
+    "entrada": 174941,
+    "stop_loss": 171877,
+    "alvo_1": 176573,
+    "alvo_2": 176773,
+    "invalidacao": "Fechamento abaixo de 171877",
+    "motivos": [
+      "Mercado Externo: +4.50% (COMPRA)",
+      "ADRs: +9.91% (COMPRA)",
+      "Tendência: Estavel_E_Estavel (NEUTRO)",
+      "Predição: COMPRA (score 100.0)"
+    ],
+    "riscos": [
+      "GAP EXTREMO (+2925 pts)",
+      "Gap projetado alto (+2925 pts) — cuidado com preenchimento"
+    ],
+    "market_referencia": null,
+    "prediction_referencia": null,
+    "vision_referencia": null,
+    "news_referencia": null,
+    "metadados": {
+      "pivots": {
+        "r2": 176573.33,
+        "r1": 175291.67,
+        "pp": 173158.33,
+        "s1": 171876.67,
+        "s2": 169743.33
+      },
+      "smc": {
+        "order_blocks": [],
+        "fvgs": [],
+        "suportes": [
+          170727.0,
+          170577.0
+        ],
+        "resistencias": [
+          171027.0,
+          171177.0
+        ],
+        "entrada_sugerida": null,
+        "stop_sugerido": null,
+        "alvos": []
+      },
+      "gap_pts": 2925.0,
+      "ajuste": 170877.0,
+      "last": 174010.0
+    }
+  },
+  "contextos": {
+    "market_ok": true,
+    "prediction_ok": true,
+    "news_ok": true,
+    "vision_ok": true,
+    "session_ok": true
+  },
+  "erros": []
+}
