@@ -1,13 +1,135 @@
 {
-  "metadata": {
-    "timestamp": "2026-08-20T23:59:08.936022",
-    "versao": "V2.2",
-    "fonte": "v2_orchestrator"
+  "timestamp": "2026-08-20T23:41:02.903724",
+  "decisao": {
+    "vies_final": "VENDA",
+    "confianca": 46,
+    "entrada": null,
+    "stop_loss": null,
+    "alvo_1": null,
+    "alvo_2": null,
+    "invalidacao": "Aguardar definição ou confiança moderada",
+    "motivos": [
+      "Mercado Externo: -7.23% (VENDA)",
+      "ADRs: +0.08% (NEUTRO)",
+      "Tendência: Estavel_E_Estavel (NEUTRO)",
+      "Predição: NEUTRO/baixa confiança (score 21.1)"
+    ],
+    "riscos": [
+      "VIX em alta: +7.66%"
+    ],
+    "posicao_ajuste": "ACIMA",
+    "dist_ajuste_pts": 113.0,
+    "ajuste": 170877.0,
+    "last": 170990.0
+  },
+  "confluence": {
+    "vies": "VENDA",
+    "confianca": 46,
+    "motivos": [
+      "Mercado Externo: -7.23% (VENDA)",
+      "ADRs: +0.08% (NEUTRO)",
+      "Tendência: Estavel_E_Estavel (NEUTRO)",
+      "Predição: NEUTRO/baixa confiança (score 21.1)"
+    ],
+    "riscos": [
+      "VIX em alta: +7.66%"
+    ],
+    "votos": {
+      "COMPRA": -0.3,
+      "VENDA": 0.7
+    }
+  },
+  "prediction": {
+    "timestamp": "2026-08-20T23:41:02.908089",
+    "ativo": "WIN",
+    "abertura_projetada": 170870.0,
+    "faixa_provavel_inferior": 170770.0,
+    "faixa_provavel_superior": 170970.0,
+    "gap_pontos": -7.0,
+    "gap_percentual": -0.0041,
+    "gap_intensidade": "MICRO",
+    "classificacao_gap": "GAP MICRO",
+    "direcao_prevista": "NEUTRO",
+    "score": 21.1,
+    "score_classificacao": "FRACO",
+    "score_detalhes": {
+      "mercado_externo": -25.29,
+      "adrs": 0.2,
+      "vix": -3.83,
+      "gap": 0.0
+    },
+    "analise_ajuste": {
+      "distancia_pontos": 113.0,
+      "distancia_percentual": 0.0661,
+      "posicao": "ACIMA",
+      "testou_ajuste": false,
+      "rejeitou": false,
+      "aceitou": false,
+      "perdeu": false,
+      "recuperou": false
+    },
+    "cenario_principal": {
+      "nome": "CONTINUACAO",
+      "descricao": "Preço acima do ajuste. Viés comprador.",
+      "gatilho": "Pullback com rejeição ou rompimento de topo.",
+      "confirmacao": "Fechamento acima do ajuste após 15min.",
+      "invalidacao": "Perda do ajuste com aceitação abaixo."
+    },
+    "cenario_alternativo": {
+      "nome": "TESTE_REJEICAO",
+      "descricao": "Testa o ajuste e rejeita, reforçando compra."
+    },
+    "metadados": {
+      "fonte_dados": "Coletas/",
+      "versao_motor": "1.1.0",
+      "ajuste_utilizado": 170877.0,
+      "fechamento_anterior": 170877.0
+    }
+  },
+  "news": {
+    "timestamp": "2026-08-20T23:41:02.908591",
+    "impacto_total": 0,
+    "classificacao_risco": "BAIXO",
+    "tem_3_estrelas_brasil_0900": false,
+    "tem_3_estrelas_outros_horarios": false,
+    "tem_multiplas_2_estrelas_mesmo_horario": false,
+    "risco_abertura_win": false,
+    "eventos_3_estrelas": [],
+    "horarios_multiplas_2_estrelas": [],
+    "metadados": {
+      "fonte": "Noticias_Impacto_Dia.json"
+    }
+  },
+  "vision": {
+    "timestamp": "2026-08-20T23:41:02.908690",
+    "ativo": "WIN",
+    "direcao_estrutura": "NEUTRO",
+    "bos": false,
+    "choch": false,
+    "liquidity_zones": [],
+    "order_blocks": [],
+    "fair_value_gaps": [],
+    "suportes": [
+      170727.0,
+      170577.0
+    ],
+    "resistencias": [
+      171027.0,
+      171177.0
+    ],
+    "entrada_sugerida": null,
+    "stop_sugerido": null,
+    "alvos": [],
+    "confianca_visual": 20,
+    "metadados": {
+      "fonte": "tendencia_15min",
+      "padrao": "Estavel_E_Estavel"
+    }
   },
   "win_session": {
     "metadata": {
       "data_sessao": "2026-08-20",
-      "timestamp_coleta": "2026-08-20T23:59:03.720000",
+      "timestamp_coleta": "2026-08-20T23:39:03.904000",
       "contrato_principal": "WINV26",
       "fonte_last": "MT5_v2.2"
     },
@@ -25,7 +147,7 @@
     },
     "gap": {
       "gap_projetado_pts": -7.0,
-      "gap_projetado_pct": -0.004,
+      "gap_projetado_pct": -0.0038,
       "direcao_gap": "BAIXA"
     },
     "niveis": {
@@ -41,16 +163,16 @@
         "variacao_pct": 7.661290322580637
       },
       "sp500_fut": {
-        "preco": 7672.0,
-        "variacao_pct": 0.12398042414355628
+        "preco": 7671.25,
+        "variacao_pct": 0.11419249592169657
       },
       "nasdaq_fut": {
-        "preco": 29395.75,
-        "variacao_pct": 0.32507977679561784
+        "preco": 29386.75,
+        "variacao_pct": 0.2943635774133547
       },
       "dxy": {
-        "preco": 98.715,
-        "variacao_pct": -0.1254565505519028
+        "preco": 98.733,
+        "variacao_pct": -0.10724511579436714
       },
       "usd_brl": {
         "preco": 5.1929,
@@ -83,25 +205,25 @@
       },
       "indicador_adrs": 0.08,
       "iron_ore": {
-        "preco": 95.6,
-        "variacao_pct": 0.26219192448872575
+        "preco": 95.55,
+        "variacao_pct": 0.20975353959098358
       },
       "iron_ore_2m": {
-        "preco": 96.4,
-        "variacao_pct": 0.6788511749347318
+        "preco": 96.3,
+        "variacao_pct": 0.5744125326370727
       },
       "crude_oil": {
-        "preco": 86.64,
-        "variacao_pct": -0.21881838074397988
+        "preco": 86.71,
+        "variacao_pct": -0.13820108257515207
       },
       "gold": {
-        "preco": 4536.071,
-        "variacao_pct": 0.3818700256593889
+        "preco": 4528.323,
+        "variacao_pct": 0.21040914487538706
       },
       "di1_2027": 13.725,
       "di1_2029": 14.275,
       "inclinacao_bps": 55.0,
-      "indicador_mercado_externo": -7.2013
+      "indicador_mercado_externo": -7.2251
     },
     "noticias": {
       "impacto_total": 0,
@@ -138,13 +260,13 @@
       },
       "contexto_resumo": [
         "VIX 16.0 (+7.66%)",
-        "ES +0.12%",
-        "NQ +0.33%",
-        "DXY -0.13%",
+        "ES +0.11%",
+        "NQ +0.29%",
+        "DXY -0.11%",
         "USD/BRL -0.03%",
         "ADRs BR +0.08%",
-        "Minério +0.26%",
-        "Petróleo -0.22%",
+        "Minério +0.21%",
+        "Petróleo -0.14%",
         "Calendário: BAIXO (impacto 0)"
       ],
       "cenario_alternativo": "Alternativo: teste e rejeição (~25%). Monitorar invalidação do cenário principal.",
@@ -158,7 +280,7 @@
         "metricas": true,
         "noticias": true
       },
-      "timestamp_build": "2026-08-20T23:59:08.935875"
+      "timestamp_build": "2026-08-20T23:41:02.923902"
     }
   },
   "opening_scenario": {
@@ -185,92 +307,17 @@
     },
     "contexto_resumo": [
       "VIX 16.0 (+7.66%)",
-      "ES +0.12%",
-      "NQ +0.33%",
-      "DXY -0.13%",
+      "ES +0.11%",
+      "NQ +0.29%",
+      "DXY -0.11%",
       "USD/BRL -0.03%",
       "ADRs BR +0.08%",
-      "Minério +0.26%",
-      "Petróleo -0.22%",
+      "Minério +0.21%",
+      "Petróleo -0.14%",
       "Calendário: BAIXO (impacto 0)"
     ],
     "cenario_alternativo": "Alternativo: teste e rejeição (~25%). Monitorar invalidação do cenário principal.",
     "confianca_geral": 85.0
-  },
-  "confluence": {
-    "vies": "VENDA",
-    "confianca": 46,
-    "motivos": [
-      "Mercado Externo: -7.20% (VENDA)",
-      "ADRs: +0.08% (NEUTRO)",
-      "Tendência: Estavel_E_Estavel (NEUTRO)",
-      "Predição: NEUTRO/baixa confiança (score 21.2)"
-    ],
-    "riscos": [
-      "VIX em alta: +7.66%"
-    ],
-    "votos": {
-      "COMPRA": -0.3,
-      "VENDA": 0.7
-    }
-  },
-  "decisao": {
-    "timestamp": "2026-08-20T23:59:08.936014",
-    "ativo": "WIN",
-    "vies_final": "VENDA",
-    "confianca": 46,
-    "entrada": null,
-    "stop_loss": null,
-    "alvo_1": null,
-    "alvo_2": null,
-    "invalidacao": "Aguardar definição ou confiança moderada",
-    "motivos": [
-      "Mercado Externo: -7.20% (VENDA)",
-      "ADRs: +0.08% (NEUTRO)",
-      "Tendência: Estavel_E_Estavel (NEUTRO)",
-      "Predição: NEUTRO/baixa confiança (score 21.2)"
-    ],
-    "riscos": [
-      "VIX em alta: +7.66%"
-    ],
-    "market_referencia": null,
-    "prediction_referencia": null,
-    "vision_referencia": null,
-    "news_referencia": null,
-    "metadados": {
-      "pivots": {
-        "r2": 174483.33,
-        "r1": 172736.67,
-        "pp": 171023.33,
-        "s1": 169276.67,
-        "s2": 167563.33
-      },
-      "smc": {
-        "order_blocks": [],
-        "fvgs": [],
-        "suportes": [
-          170727.0,
-          170577.0
-        ],
-        "resistencias": [
-          171027.0,
-          171177.0
-        ],
-        "entrada_sugerida": null,
-        "stop_sugerido": null,
-        "alvos": []
-      },
-      "gap_pts": -7.0,
-      "ajuste": 170877.0,
-      "last": 170990.0
-    }
-  },
-  "contextos": {
-    "market_ok": true,
-    "prediction_ok": true,
-    "news_ok": true,
-    "vision_ok": true,
-    "session_ok": true
   },
   "erros": []
 }

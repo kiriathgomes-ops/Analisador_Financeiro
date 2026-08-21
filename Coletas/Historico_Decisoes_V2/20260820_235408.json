@@ -1,13 +1,13 @@
 {
   "metadata": {
-    "timestamp": "2026-08-20T23:59:08.936022",
+    "timestamp": "2026-08-20T23:54:08.921685",
     "versao": "V2.2",
     "fonte": "v2_orchestrator"
   },
   "win_session": {
     "metadata": {
       "data_sessao": "2026-08-20",
-      "timestamp_coleta": "2026-08-20T23:59:03.720000",
+      "timestamp_coleta": "2026-08-20T23:54:04.091000",
       "contrato_principal": "WINV26",
       "fonte_last": "MT5_v2.2"
     },
@@ -24,8 +24,8 @@
       "pre_abertura_vs_fechamento_pts": null
     },
     "gap": {
-      "gap_projetado_pts": -7.0,
-      "gap_projetado_pct": -0.004,
+      "gap_projetado_pts": -11.0,
+      "gap_projetado_pct": -0.0062,
       "direcao_gap": "BAIXA"
     },
     "niveis": {
@@ -45,12 +45,12 @@
         "variacao_pct": 0.12398042414355628
       },
       "nasdaq_fut": {
-        "preco": 29395.75,
-        "variacao_pct": 0.32507977679561784
+        "preco": 29386.0,
+        "variacao_pct": 0.2918038941314995
       },
       "dxy": {
-        "preco": 98.715,
-        "variacao_pct": -0.1254565505519028
+        "preco": 98.701,
+        "variacao_pct": -0.13962099980777348
       },
       "usd_brl": {
         "preco": 5.1929,
@@ -83,25 +83,25 @@
       },
       "indicador_adrs": 0.08,
       "iron_ore": {
-        "preco": 95.6,
-        "variacao_pct": 0.26219192448872575
+        "preco": 95.55,
+        "variacao_pct": 0.20975353959098358
       },
       "iron_ore_2m": {
-        "preco": 96.4,
-        "variacao_pct": 0.6788511749347318
+        "preco": 96.3,
+        "variacao_pct": 0.5744125326370727
       },
       "crude_oil": {
-        "preco": 86.64,
-        "variacao_pct": -0.21881838074397988
+        "preco": 86.66,
+        "variacao_pct": -0.19578486698146
       },
       "gold": {
-        "preco": 4536.071,
-        "variacao_pct": 0.3818700256593889
+        "preco": 4540.053,
+        "variacao_pct": 0.46999047316609077
       },
       "di1_2027": 13.725,
       "di1_2029": 14.275,
       "inclinacao_bps": 55.0,
-      "indicador_mercado_externo": -7.2013
+      "indicador_mercado_externo": -7.2827
     },
     "noticias": {
       "impacto_total": 0,
@@ -131,7 +131,7 @@
       },
       "niveis_observacao": {
         "ajuste": 170877.0,
-        "abertura_projetada": 170870.0,
+        "abertura_projetada": 170866.0,
         "pp": 171023.33,
         "last_mt5": 170990.0,
         "distancia_ajuste_pts": 113.0
@@ -139,12 +139,12 @@
       "contexto_resumo": [
         "VIX 16.0 (+7.66%)",
         "ES +0.12%",
-        "NQ +0.33%",
-        "DXY -0.13%",
+        "NQ +0.29%",
+        "DXY -0.14%",
         "USD/BRL -0.03%",
         "ADRs BR +0.08%",
-        "Minério +0.26%",
-        "Petróleo -0.22%",
+        "Minério +0.21%",
+        "Petróleo -0.20%",
         "Calendário: BAIXO (impacto 0)"
       ],
       "cenario_alternativo": "Alternativo: teste e rejeição (~25%). Monitorar invalidação do cenário principal.",
@@ -158,7 +158,7 @@
         "metricas": true,
         "noticias": true
       },
-      "timestamp_build": "2026-08-20T23:59:08.935875"
+      "timestamp_build": "2026-08-20T23:54:08.921604"
     }
   },
   "opening_scenario": {
@@ -178,7 +178,7 @@
     },
     "niveis_observacao": {
       "ajuste": 170877.0,
-      "abertura_projetada": 170870.0,
+      "abertura_projetada": 170866.0,
       "pp": 171023.33,
       "last_mt5": 170990.0,
       "distancia_ajuste_pts": 113.0
@@ -186,12 +186,12 @@
     "contexto_resumo": [
       "VIX 16.0 (+7.66%)",
       "ES +0.12%",
-      "NQ +0.33%",
-      "DXY -0.13%",
+      "NQ +0.29%",
+      "DXY -0.14%",
       "USD/BRL -0.03%",
       "ADRs BR +0.08%",
-      "Minério +0.26%",
-      "Petróleo -0.22%",
+      "Minério +0.21%",
+      "Petróleo -0.20%",
       "Calendário: BAIXO (impacto 0)"
     ],
     "cenario_alternativo": "Alternativo: teste e rejeição (~25%). Monitorar invalidação do cenário principal.",
@@ -201,10 +201,10 @@
     "vies": "VENDA",
     "confianca": 46,
     "motivos": [
-      "Mercado Externo: -7.20% (VENDA)",
+      "Mercado Externo: -7.28% (VENDA)",
       "ADRs: +0.08% (NEUTRO)",
       "Tendência: Estavel_E_Estavel (NEUTRO)",
-      "Predição: NEUTRO/baixa confiança (score 21.2)"
+      "Predição: NEUTRO/baixa confiança (score 20.9)"
     ],
     "riscos": [
       "VIX em alta: +7.66%"
@@ -215,7 +215,7 @@
     }
   },
   "decisao": {
-    "timestamp": "2026-08-20T23:59:08.936014",
+    "timestamp": "2026-08-20T23:54:08.921680",
     "ativo": "WIN",
     "vies_final": "VENDA",
     "confianca": 46,
@@ -225,10 +225,10 @@
     "alvo_2": null,
     "invalidacao": "Aguardar definição ou confiança moderada",
     "motivos": [
-      "Mercado Externo: -7.20% (VENDA)",
+      "Mercado Externo: -7.28% (VENDA)",
       "ADRs: +0.08% (NEUTRO)",
       "Tendência: Estavel_E_Estavel (NEUTRO)",
-      "Predição: NEUTRO/baixa confiança (score 21.2)"
+      "Predição: NEUTRO/baixa confiança (score 20.9)"
     ],
     "riscos": [
       "VIX em alta: +7.66%"
@@ -260,7 +260,7 @@
         "stop_sugerido": null,
         "alvos": []
       },
-      "gap_pts": -7.0,
+      "gap_pts": -11.0,
       "ajuste": 170877.0,
       "last": 170990.0
     }

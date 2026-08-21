@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "timestamp": "2026-08-20T19:04:30.600071",
+    "timestamp": "2026-08-20T23:59:08.086541",
     "origem": "Pipeline_Completo_V3",
     "versao": "3.0",
     "dados_carregados": {
@@ -20,7 +20,7 @@
   },
   "indicadores_compostos": {
     "indicador_mercado_externo": {
-      "valor_pct": -4.5611,
+      "valor_pct": -7.2013,
       "classificacao": "MUITO_FORTE",
       "sinal_operacional": "VENDA",
       "rotulo_completo": "MUITO_FORTE_VENDA",
@@ -28,10 +28,10 @@
       "observacao": "OK"
     },
     "indicador_adrs_brasileiras": {
-      "valor_pct": 2.85,
-      "classificacao": "FORTE",
+      "valor_pct": 0.08,
+      "classificacao": "LATERAL",
       "sinal_operacional": "COMPRA",
-      "rotulo_completo": "FORTE_COMPRA",
+      "rotulo_completo": "LATERAL_COMPRA",
       "valido": true,
       "observacao": "OK"
     }
@@ -39,14 +39,14 @@
   "analise_tendencias": {},
   "estimativas_abertura": {
     "WIN_INDICE": {
-      "variacao_teorica_pct": -0.003,
-      "pontos_ajuste_base": 170929.0,
-      "abertura_teorica_pontos": 170924.0
+      "variacao_teorica_pct": -0.004,
+      "pontos_ajuste_base": 170877.0,
+      "abertura_teorica_pontos": 170870.0
     },
     "WDO_DOLAR": {
-      "variacao_teorica_pct": 0.1572,
+      "variacao_teorica_pct": -0.0722,
       "pontos_ajuste_base": 5207.0,
-      "abertura_teorica_pontos": 5215.185
+      "abertura_teorica_pontos": 5203.24
     }
   },
   "pivot_points": {
@@ -69,18 +69,18 @@
     "vix": 16.02,
     "di1_2027": 13.725,
     "di1_2029": 14.275,
-    "iron_ore": 95.15,
-    "crude_oil": 86.83,
-    "gold": 4518.815
+    "iron_ore": 95.6,
+    "crude_oil": 86.64,
+    "gold": 4536.071
   },
   "decisao_core": {
     "win": {
-      "score_numeric": -2.0,
+      "score_numeric": -2.5,
       "vies_final": "MODERADO_VENDA",
       "fatores_relevantes": [
-        "ADRs fortes no exterior (+2.85%)",
         "Aumento de Risco Global / VIX em alta (+7.7%)",
-        "Commodities e Mercado Externo pressionados (-4.56%)"
+        "Commodities e Mercado Externo pressionados (-7.28%)",
+        "🔺 Last acima do ajuste em 113 pts (viés comprador)"
       ]
     },
     "wdo": {

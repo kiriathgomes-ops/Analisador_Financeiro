@@ -12,7 +12,7 @@
 #     - Spread WDO vs PTAX (arbitragem câmbio)
 #     - Inclinação da curva de juros (DI1 2027 vs 2029)
 #     - Indicador de Mercado Externo (VIX, Petróleo, Minério)
-#     - Indicador de ADRs Brasileiras (média das variações)
+#     - Indicador de ADRs Brasileiras (soma das varaiações percentuais)
 #     - Resumo de desempenho de ADRs e índices globais
 #
 #   O resultado é salvo em Metricas_Calculadas.json.
