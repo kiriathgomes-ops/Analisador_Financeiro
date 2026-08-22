@@ -127,6 +127,6 @@ def executar_validacao():
 
 if __name__ == "__main__":
     print("============================================================")
-    print(" FASE 3: ENGINE DE VALIDAÇÃO E SANITIZAÇÃO DE DADOS (24 ATIVOS)")
+    print(" FASE 3: ENGINE DE VALIDAÇÃO E SANITIZAÇÃO DE DADOS (32 ATIVOS)")
     print("============================================================")
     executar_validacao()

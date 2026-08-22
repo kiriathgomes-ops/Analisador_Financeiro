@@ -1,43 +1,12 @@
 {
   "metadata": {
     "fonte": "TradingView API",
-    "timestamp": "2026-08-21T00:04:10.968672",
-    "data_referencia": "2026-08-21",
+    "timestamp": "2026-08-22T19:40:56.233008",
+    "data_referencia": "2026-08-22",
     "filtros": "Brasil e EUA (2 e 3 Estrelas)"
   },
   "calendario_eventos": {
-    "quantidade_eventos": 3,
-    "eventos": [
-      {
-        "hora": "10:45",
-        "pais": "United States",
-        "moeda": "USD",
-        "evento": "S&P Global Services PMI Flash",
-        "importancia": 2,
-        "anterior": "54.6",
-        "previsao": "54",
-        "atual": ""
-      },
-      {
-        "hora": "10:45",
-        "pais": "United States",
-        "moeda": "USD",
-        "evento": "S&P Global Manufacturing PMI Flash",
-        "importancia": 2,
-        "anterior": "53.9",
-        "previsao": "53.9",
-        "atual": ""
-      },
-      {
-        "hora": "10:45",
-        "pais": "United States",
-        "moeda": "USD",
-        "evento": "S&P Global Composite PMI Flash",
-        "importancia": 2,
-        "anterior": "54.5",
-        "previsao": "",
-        "atual": ""
-      }
-    ]
+    "quantidade_eventos": 0,
+    "eventos": []
   }
 }

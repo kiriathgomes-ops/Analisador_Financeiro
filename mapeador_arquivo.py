@@ -113,6 +113,7 @@ if __name__ == "__main__":
         "__pycache__",  # Cache do Python
         ".venv",        # Ambientes virtuais
         "venv",
+        "*_rom*.json",  # Qualquer arquivo que contenha '_rom' e termine com .json
     ]
 
     consolidar_arquivos(

@@ -1,13 +1,13 @@
 {
   "metadata": {
-    "timestamp": "2026-08-22T19:41:20.394269",
+    "timestamp": "2026-08-22T19:40:58.494996",
     "versao": "V2.2",
     "fonte": "v2_orchestrator"
   },
   "win_session": {
     "metadata": {
       "data_sessao": "2026-08-22",
-      "timestamp_coleta": "2026-08-22T19:41:14.698000",
+      "timestamp_coleta": "2026-08-22T19:40:50.607000",
       "contrato_principal": "WINV26",
       "fonte_last": "MT5_v2.2"
     },
@@ -158,7 +158,7 @@
         "metricas": true,
         "noticias": true
       },
-      "timestamp_build": "2026-08-22T19:41:20.394147"
+      "timestamp_build": "2026-08-22T19:40:58.494737"
     }
   },
   "opening_scenario": {
@@ -215,7 +215,7 @@
     }
   },
   "decisao": {
-    "timestamp": "2026-08-22T19:41:20.394261",
+    "timestamp": "2026-08-22T19:40:58.494984",
     "ativo": "WIN",
     "vies_final": "COMPRA",
     "confianca": 95,
