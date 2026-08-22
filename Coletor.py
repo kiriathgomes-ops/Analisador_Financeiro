@@ -22,71 +22,80 @@ import requests
 from dotenv import load_dotenv
 
 # ============================================================
-# CONFIGURAÇÕES GERAIS
+# CONFIGURAÇÕES GERAIS E AMBIENTE
 # ============================================================
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 COLETAS_DIR = os.path.join(BASE_DIR, "Coletas")
 os.makedirs(COLETAS_DIR, exist_ok=True)
 
+# Carrega variáveis de ambiente (.env) para autenticações externas (ex: Finnhub)
 load_dotenv(dotenv_path=os.path.join(BASE_DIR, ".env"))
 FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY")
 
 # ============================================================
-# ARQUIVOS DE ROTAÇÃO TEMPORAL (12 arquivos - 60 min de histórico)
+# ARQUIVOS DE ROTAÇÃO TEMPORAL E ARMAZENAMENTO LOCAL
+# FREQUÊNCIA DE ROTAÇÃO: A cada execução do script (intervalos tipicamente de 5 min)
+# ARMAZENAMENTO: Histórico rolante de 12 arquivos (representando os últimos 60 minutos)
 # ============================================================
 
 ARQUIVOS_ROM = [
     os.path.join(COLETAS_DIR, f"Coleta_rom-{i}.json") for i in range(0, 60, 5)
 ]
-FILE_ROM0 = ARQUIVOS_ROM[0]
+FILE_ROM0 = ARQUIVOS_ROM[0] # Arquivo mais recente (0 min)
 
 FILE_RAM = os.path.join(COLETAS_DIR, "Coleta_ram.json")
 FILE_UNIFICADO = os.path.join(COLETAS_DIR, "DadosAtivosUnificados.json")
 
-# Arquivos gerados pelos coletores MT5 (v1 e v2.2)
+# Arquivos gerados por coletores auxiliares do MetaTrader 5
 FILE_MT5 = os.path.join(COLETAS_DIR, "Dados_MT5.json")
 FILE_MT5_V2 = os.path.join(COLETAS_DIR, "Dados_MT5_v2_2.json")
 
-# Geração dinâmica do ticker de minério de ferro (2º mês)
+# Ticker dinâmico do Minério de Ferro no Cingapura Exchange (SGX) ajustado para o ano corrente
 ANO_ATUAL = datetime.now().year
 TICKER_FEF2 = f"SGX:FEFU{ANO_ATUAL}"
 
 # ============================================================
-# LISTA DE ATIVOS COLETADOS VIA TRADINGVIEW SCANNER
+# FONTE 1: TRADINGVIEW SCANNER API
+# FREQUÊNCIA: Coletado em tempo real em toda execução do pipeline
+# ORIGEM: Bolsas Globais (B3, NYMEX, CME, CBOE, SGX, Forex) via TradingView
 # ============================================================
 
 TICKERS_TRADINGVIEW = [
-    "BMFBOVESPA:DI1F2027",
-    "BMFBOVESPA:DI1F2029",
-    "TVC:VIX",
-    "SGX:FEF1!",
-    TICKER_FEF2,
-    "NYMEX:CL1!",
-    "CME_MINI:ES1!",
-    "CME_MINI:NQ1!",
-    "TVC:DXY",
-    "FX_IDC:USDMXN",
-    "TVC:GOLD",
-    "FX_IDC:USDBRL",
+    "BMFBOVESPA:DI1F2027", # Juros Futuros B3 (Vencimento 2027)
+    "BMFBOVESPA:DI1F2029", # Juros Futuros B3 (Vencimento 2029)
+    "TVC:VIX",            # Índice de Volatilidade (CBOE)
+    "SGX:FEF1!",          # Minério de Ferro 62% - Contrato Vigente (SGX)
+    TICKER_FEF2,          # Minério de Ferro 62% - Contrato 2º Mês (SGX)
+    "NYMEX:CL1!",         # Petróleo WTI Futuro (NYMEX)
+    "CME_MINI:ES1!",      # S&P 500 E-mini Futuro (CME)
+    "CME_MINI:NQ1!",      # Nasdaq 100 E-mini Futuro (CME)
+    "TVC:DXY",            # Dollar Index (Força global do USD)
+    "FX_IDC:USDMXN",      # Par Forex Dólar / Peso Mexicano
+    "TVC:GOLD",           # Ouro Spot (Contrato de Dólar/Onça-Troj)
+    "FX_IDC:USDBRL",      # Par Forex Dólar / Real Brasileiro
 ]
 
 # ============================================================
-# ATIVOS COLETADOS VIA FINNHUB (substituem parte do TradingView)
+# FONTE 2: FINNHUB API (MERCADO NORTE-AMERICANO)
+# FREQUÊNCIA: Coletado em tempo real em toda execução do pipeline
+# ORIGEM: APIs de mercado das bolsas americanas (NYSE, NASDAQ, AMEX, OTC)
 # ============================================================
 
 ATIVOS_FINNHUB = [
-    {"ativo": "AMEX:EWZ", "ticker_coleta": "EWZ", "id_fixo": "EWZ", "categoria": "Índices Globais"},
-    {"ativo": "NYSE:VALE", "ticker_coleta": "VALE", "id_fixo": "VALE_ADR", "categoria": "ADRs B3"},
-    {"ativo": "NYSE:PBR", "ticker_coleta": "PBR", "id_fixo": "PETR_ADR", "categoria": "ADRs B3"},
-    {"ativo": "NYSE:ITUB", "ticker_coleta": "ITUB", "id_fixo": "ITUB_ADR", "categoria": "ADRs B3"},
-    {"ativo": "OTC:BDORY", "ticker_coleta": "BDORY", "id_fixo": "BBAS_ADR", "categoria": "ADRs B3"},
-    {"ativo": "NYSE:BBD", "ticker_coleta": "BBD", "id_fixo": "BBD_ADR", "categoria": "ADRs B3"},
-    {"ativo": "OTC:BOLSY", "ticker_coleta": "BOLSY", "id_fixo": "B3_ADR", "categoria": "ADRs B3"},
+    {"ativo": "AMEX:EWZ", "ticker_coleta": "EWZ", "id_fixo": "EWZ", "categoria": "Índices Globais"},    # ETF iShares MSCI Brazil
+    {"ativo": "NYSE:VALE", "ticker_coleta": "VALE", "id_fixo": "VALE_ADR", "categoria": "ADRs B3"},     # ADR da Vale na NYSE
+    {"ativo": "NYSE:PBR", "ticker_coleta": "PBR", "id_fixo": "PETR_ADR", "categoria": "ADRs B3"},      # ADR da Petrobras na NYSE
+    {"ativo": "NYSE:ITUB", "ticker_coleta": "ITUB", "id_fixo": "ITUB_ADR", "categoria": "ADRs B3"},     # ADR do Itaú Unibanco
+    {"ativo": "OTC:BDORY", "ticker_coleta": "BDORY", "id_fixo": "BBAS_ADR", "categoria": "ADRs B3"},    # ADR do Banco do Brasil
+    {"ativo": "NYSE:BBD", "ticker_coleta": "BBD", "id_fixo": "BBD_ADR", "categoria": "ADRs B3"},       # ADR do Bradesco
+    {"ativo": "OTC:BOLSY", "ticker_coleta": "BOLSY", "id_fixo": "B3_ADR", "categoria": "ADRs B3"},     # ADR da B3 SA
 ]
 
 # ============================================================
-# ATIVOS B3 COLETADOS VIA METATRADER 5 (ações diretas)
+# FONTE 3: METATRADER 5 (AÇÕES A VISTA DA B3)
+# FREQUÊNCIA: Coletado durante o horário de pregão / execução
+# ORIGEM: Terminal local MetaTrader 5 conectado à corretora B3
 # ============================================================
 
 ATIVOS_MT5_B3 = [
@@ -99,7 +108,8 @@ ATIVOS_MT5_B3 = [
 ]
 
 # ============================================================
-# MAPEAMENTO DE TICKERS PARA NOMES AMIGÁVEIS (JSON UNIFICADO)
+# DICIONÁRIO DE PADRONIZAÇÃO DE TICKERS
+# Mapeia identificadores das APIs para nomes amigáveis no JSON unificado
 # ============================================================
 
 MAPEAMENTO_TICKERS = {
@@ -138,23 +148,31 @@ MAPEAMENTO_TICKERS = {
 }
 
 # ============================================================
-# FUNÇÕES AUXILIARES
+# FUNÇÕES AUXILIARES DE JANELA TEMPORAL
 # ============================================================
 
 def esta_na_janela_ajuste() -> bool:
-    """Retorna True se o horário atual estiver dentro da janela de ajuste (19:00 - 08:50)."""
+    """
+    REGRA TEMPORAL: Verifica se o horário de execução está entre 19:00 e 08:50 (Overnight/Ajuste).
+    Usado para decidir se deve consultar o ajuste oficial ou reaproveitar dados do cache.
+    """
     agora = datetime.now().time()
     return agora >= time(19, 0, 0) or agora <= time(8, 50, 0)
 
 # ============================================================
-# COLETORES DE DADOS
+# COLETORES DE DADOS POR FONTE
 # ============================================================
 
 def coletar_bacen_ptax():
-    """Coleta a taxa PTAX oficial via API SGS do BACEN (série 10813). Fallback para TradingView."""
+    """
+    FONTE PRIMÁRIA: Banco Central do Brasil - API SGS (Série 10813 - PTAX de Fechamento Diário).
+    FONTE DE FALLBACK: TradingView (FX_IDC:USDBRL) caso a API do BACEN falhe.
+    FREQUÊNCIA DE ATUALIZAÇÃO DO BACEN: Atualizado pelo BACEN 4 vezes ao dia e consolidado após as 13:10.
+    """
     timestamp = datetime.now().isoformat()
     url_sgs = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.10813/dados/ultimos/5?formato=json"
 
+    # Ignora verificação SSL para evitar bloqueios de certificado do BCB
     ctx = ssl.create_default_context()
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
@@ -164,6 +182,7 @@ def coletar_bacen_ptax():
         headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"},
     )
 
+    # Tentativa de Coleta Oficial BACEN
     try:
         with urllib.request.urlopen(req_sgs, context=ctx, timeout=10) as response:
             if response.getcode() == 200:
@@ -187,6 +206,7 @@ def coletar_bacen_ptax():
     except Exception as e:
         print(f"[AVISO] Falha na API SGS Bacen: {e}. Executando fallback...")
 
+    # Fallback: Coleta cotação do Dólar Comercial via TradingView se o BACEN estiver indisponível
     try:
         payload = {"symbols": {"tickers": ["FX_IDC:USDBRL"]}, "columns": ["close"]}
         req_tv = urllib.request.Request(
@@ -218,12 +238,18 @@ def coletar_bacen_ptax():
     }
 
 def coletar_ajuste_oficial():
-    """Coleta o preço de ajuste oficial do WIN (B3_AJUSTE_WIN) apenas entre 19:00 e 08:50."""
+    """
+    FONTE: TradingView (BMFBOVESPA:WIN1!) - Ativo B3_AJUSTE_WIN.
+    REGRA TEMPORAL / QUANDO OCORRE:
+      - Entre 19:00 e 08:50: Executa requisição HTTP para coletar o Preço de Ajuste oficial calculado pela B3 no fim do dia.
+      - Entre 08:51 e 18:59 (Fora da janela): Não faz requisição externa; reusa o valor gravado nos arquivos de cache (FILE_RAM / FILE_ROM0).
+    """
     timestamp = datetime.now().isoformat()
     hora_atual = datetime.now().time()
     hora_inicio = time(19, 0, 0)
     hora_fim = time(8, 50, 0)
 
+    # REGRA: Fora do horário estipulado, busca nos arquivos de cache local
     if hora_fim < hora_atual < hora_inicio:
         print(f"[{datetime.now().strftime('%H:%M:%S')}] ⏳ Fora da janela de ajuste. Buscando cache...")
         for arquivo_cache in [FILE_RAM, FILE_ROM0]:
@@ -246,6 +272,7 @@ def coletar_ajuste_oficial():
             "dados_reais": None,
         }]
 
+    # REGRA: Dentro da janela de ajuste (19:00 as 08:50), realiza a coleta na API
     print(f"[{datetime.now().strftime('%H:%M:%S')}] ✅ Dentro da janela. Coletando ajuste da API...")
     url = f"https://scanner.tradingview.com/symbol?symbol=BMFBOVESPA:WIN1!&fields=close,change"
     try:
@@ -279,7 +306,11 @@ def coletar_ajuste_oficial():
         }]
 
 def coletar_tradingview():
-    """Coleta os ativos da lista TICKERS_TRADINGVIEW via API Scanner do TradingView."""
+    """
+    FONTE: API Scanner do TradingView (endpoint global/scan).
+    QUANDO OCORRE: Toda vez que o script é rodado.
+    DADOS OBTIDOS: Preço de fechamento/último, Abertura, Máxima, Mínima, Variação (%) e Volume dos ativos em TICKERS_TRADINGVIEW.
+    """
     url = "https://scanner.tradingview.com/global/scan"
     timestamp = datetime.now().isoformat()
     payload = {
@@ -320,7 +351,11 @@ def coletar_tradingview():
         return []
 
 def coletar_finnhub():
-    """Coleta ativos via API Finnhub (EWZ + ADRs B3). Requer chave no .env."""
+    """
+    FONTE: API Finnhub (endpoint /quote).
+    QUANDO OCORRE: Toda vez que o script é rodado (desde que haja FINNHUB_API_KEY no arquivo .env).
+    DADOS OBTIDOS: Cotação em tempo real das ADRs brasileiras em NY e do ETF EWZ (Preço, Variação %, Fechamento Anterior).
+    """
     timestamp = datetime.now().isoformat()
     resultados = []
     if not FINNHUB_API_KEY:
@@ -366,7 +401,11 @@ def coletar_finnhub():
     return resultados
 
 def coletar_mt5_acoes_b3():
-    """Coleta as ações B3 (VALE3, PETR4, etc.) via MetaTrader 5 trazendo OHLCV."""
+    """
+    FONTE: MetaTrader 5 (Conexão direta com a corretora local na B3).
+    QUANDO OCORRE: Executado no ciclo do pipeline. Requer terminal MT5 aberto/instalado.
+    DADOS OBTIDOS: Dados de Tick e Candle Diário (OHLCV + Fechamento Anterior) para as principais ações da B3 (VALE3, PETR4, etc.).
+    """
     timestamp = datetime.now().isoformat()
     resultados = []
     
@@ -381,6 +420,7 @@ def coletar_mt5_acoes_b3():
             info = mt5.symbol_info(symbol)
             tick = mt5.symbol_info_tick(symbol)
             
+            # Obtém barra diária (TIMEFRAME_D1) para extrair Abertura, Máxima, Mínima e Volume
             rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_D1, 0, 1)
 
             if info and tick:
@@ -420,7 +460,10 @@ def coletar_mt5_acoes_b3():
     return resultados
 
 def capturar_last_do_mt5() -> dict:
-    """Extrai o último tick (last) do WIN a partir dos arquivos MT5."""
+    """
+    FONTE: Arquivo local gerado pelo coletor MT5 (`Dados_MT5_v2_2.json`).
+    QUANDO OCORRE: Chamado especificamente durante a janela de ajuste para extrair o último tick gravado do Mini Índice (WIN).
+    """
     resultado = {}
 
     if os.path.exists(FILE_MT5_V2):
@@ -447,10 +490,16 @@ def capturar_last_do_mt5() -> dict:
     return resultado
 
 # ============================================================
-# ENGINE DE ROTAÇÃO TEMPORAL E PIPELINE
+# ENGINE DE ROTAÇÃO TEMPORAL E PIPELINE PRINCIPAL
 # ============================================================
 
 def executar_rotacao_memoria(is_ram_mode=False):
+    """
+    ROTAÇÃO TEMPORAL DE ARQUIVOS (GERENCIAMENTO DE HISTÓRICO):
+    QUANDO OCORRE: Em cada execução do script (a menos que a flag --ram esteja ativa).
+    COMO FUNCIONA: Desloca o histórico de 12 arquivos (Coleta_rom-0.json até Coleta_rom-55.json).
+                   O arquivo 0 é empurrado para o 1 (5 min atrás), o 1 para o 2 (10 min atrás) e assim por diante.
+    """
     if is_ram_mode:
         print(f"[{datetime.now().strftime('%H:%M:%S')}] Modo RAM ativado. Ignorando rotação.")
         return FILE_RAM
@@ -464,6 +513,11 @@ def executar_rotacao_memoria(is_ram_mode=False):
     return ARQUIVOS_ROM[0]
 
 def gerar_arquivo_unificado(coletas):
+    """
+    CONSOLIDADO FINAL:
+    Gera o arquivo `DadosAtivosUnificados.json` limpando os tickers e organizando preços
+    e variações de todas as fontes em um único objeto de leitura rápida.
+    """
     ativos_map = {}
     for item in coletas:
         if not item:
@@ -491,31 +545,35 @@ def gerar_arquivo_unificado(coletas):
     print(f"✅ Arquivo unificado salvo em: {FILE_UNIFICADO}")
 
 def executar_pipeline_coleta():
+    """
+    FLUXO DE EXECUÇÃO DO PIPELINE:
+    Orquestra a chamada de todos os coletores e salva os resultados no disco/memória.
+    """
     is_ram = "--ram" in sys.argv
     arquivo_destino = executar_rotacao_memoria(is_ram)
 
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Iniciando extração de dados brutos...")
     coletas = []
 
-    # 1. BACEN PTAX
+    # 1. COLETA: PTAX Oficial / Dólar (BACEN SGS)
     coletas.append(coletar_bacen_ptax())
 
-    # 2. Ajuste Oficial
+    # 2. COLETA: Ajuste Oficial de Mini Índice (TradingView - Janela das 19:00 às 08:50)
     coletas.extend(coletar_ajuste_oficial())
 
-    # 3. TradingView Scanner
+    # 3. COLETA: Índices Globais, Commodities e Forex (TradingView Scanner API)
     coletas.extend(coletar_tradingview())
 
-    # 4. Finnhub
+    # 4. COLETA: ADRs Brasileiras na BMF/NYSE e EWZ (Finnhub API)
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Coletando via Finnhub...")
     coletas.extend(coletar_finnhub())
 
     # ------------------------------------------------------------
-    # COLETAS METATRADER 5 (1 ÚNICO CICLO DE CONEXÃO)
+    # 5. COLETA METATRADER 5 (1 ÚNICO CICLO DE CONEXÃO INTEGRADA)
     # ------------------------------------------------------------
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Executando coleta unificada MT5...")
     
-    # 5.1 Executa a coleta completa dos Futuros (WIN, WDO, DI1)
+    # 5.1 FUTUROS B3: Importa o módulo externo 'Coletor_MT5_v2_2' para obter cotações de WIN, WDO e DI1
     dados_futuros_mt5 = {}
     try:
         from Coletor_MT5_v2_2 import executar_coleta_mt5_v2
@@ -525,7 +583,7 @@ def executar_pipeline_coleta():
     except Exception as e:
         print(f"⚠️ Falha na execução do Coletor_MT5_v2_2: {e}")
 
-    # Processa os 3 futuros a partir da resposta única recebida
+    # Mapeia e estrutura os contratos futuros obtidos da rotina MT5
     mapeamento_futuros = [
         ("WIN", "BMFBOVESPA:WIN1!"),
         ("WDO", "BMFBOVESPA:WDO1!"),
@@ -541,7 +599,7 @@ def executar_pipeline_coleta():
             var_abs = round(close_val - prev_close, 2) if prev_close else 0.0
             var_pct = round(((close_val / prev_close) - 1) * 100, 2) if prev_close and prev_close > 0 else 0.0
             
-            # Registro padrão do Ativo
+            # Registro padrão do Ativo Futuro
             coletas.append({
                 "ativo": ativo_bruto,
                 "fonte": "MT5_v2.2",
@@ -559,7 +617,7 @@ def executar_pipeline_coleta():
                 },
             })
 
-            # Registro dedicado para o FECHAMENTO ANTERIOR do WIN
+            # Registro dedicado especificamente para guardar o FECHAMENTO ANTERIOR do WIN
             if prefixo == "WIN" and prev_close > 0:
                 coletas.append({
                     "ativo": "WIN_PREV_CLOSE",
@@ -578,17 +636,17 @@ def executar_pipeline_coleta():
                     },
                 })
 
-    # 5.2 Coleta das Ações B3 via MT5
+    # 5.2 AÇÕES B3: Coleta cotações à vista (VALE3, PETR4, etc.) via MT5
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Coletando ações B3 via MT5...")
     coletas.extend(coletar_mt5_acoes_b3())
 
-    # Encerramento seguro da conexão MT5
+    # Encerra com segurança a instância da biblioteca do MetaTrader 5
     try:
         mt5.shutdown()
     except Exception:
         pass
 
-    # 6. LAST TICK (na janela de ajuste)
+    # 6. COLETA: Último Tick (LAST TICK) do WIN na janela de ajuste (se ativo)
     if esta_na_janela_ajuste():
         lasts = capturar_last_do_mt5()
         if lasts and "WIN" in lasts:
@@ -607,7 +665,9 @@ def executar_pipeline_coleta():
                 },
             })
 
-    # Gravação dos arquivos JSON
+    # ============================================================
+    # GRAVAÇÃO DOS DADOS NOS ARQUIVOS JSON
+    # ============================================================
     conteudo_saida = {
         "metadata_coleta": {
             "timestamp_coleta": datetime.now().isoformat(),
@@ -618,13 +678,16 @@ def executar_pipeline_coleta():
         "coletas": coletas,
     }
 
+    # Salva no arquivo rotativo correspondente (Coleta_rom-X.json)
     with open(arquivo_destino, "w", encoding="utf-8") as f:
         json.dump(conteudo_saida, f, indent=2, ensure_ascii=False)
 
+    # Mantém uma cópia atualizada em Coleta_ram.json (se não estiver em modo RAM exclusivo)
     if not is_ram:
         with open(FILE_RAM, "w", encoding="utf-8") as f:
             json.dump(conteudo_saida, f, indent=2, ensure_ascii=False)
 
+    # Gera a visualização unificada consolidada
     gerar_arquivo_unificado(coletas)
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Pipeline concluído com sucesso!")
 
