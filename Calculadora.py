@@ -4,19 +4,16 @@
 # AUTOR: Arquiteto de Sistemas
 # MOTIVO: Fase 4 - Cálculo de Spreads, Curva DI, Mercado Externo
 #         e Indicadores Compostos alinhados aos IDs do Validador.
-# ============================================================
-#
-# Descrição:
+# DESCRICAO:
 #   Esta engine processa os dados validados (Dados_Validados.json)
 #   e calcula métricas financeiras essenciais:
-#     - Spread WDO vs PTAX (arbitragem câmbio)
+#     - Spread WDO vs PTAX (arbitragem de câmbio)
 #     - Inclinação da curva de juros (DI1 2027 vs 2029)
 #     - Indicador de Mercado Externo (VIX, Petróleo, Minério)
-#     - Indicador de ADRs Brasileiras (soma das varaiações percentuais)
+#     - Indicador de ADRs Brasileiras (soma das variações percentuais)
 #     - Resumo de desempenho de ADRs e índices globais
 #
 #   O resultado é salvo em Metricas_Calculadas.json.
-#
 # ============================================================
 
 import json
@@ -40,18 +37,24 @@ def carregar_dados_validados() -> dict:
     """
     Carrega o arquivo Dados_Validados.json e o converte em um dicionário
     indexado pelo campo 'ativo_id' para fácil acesso.
-    Retorna o dicionário ou None em caso de erro.
+    
+    Retorna:
+        dict: Dicionário Mapeado por ativo_id, ou None em caso de falha de leitura.
     """
     if not os.path.exists(FILE_INPUT):
         print(f"[ERRO] Arquivo não encontrado: {FILE_INPUT}")
         return None
 
-    with open(FILE_INPUT, "r", encoding="utf-8") as f:
-        data = json.load(f)
+    try:
+        with open(FILE_INPUT, "r", encoding="utf-8") as f:
+            data = json.load(f)
 
-    # Transforma a lista em dicionário chaveado pelo ativo_id
-    mapa = {item["ativo_id"]: item for item in data.get("ativos_validados", [])}
-    return mapa
+        # Transforma a lista em dicionário chaveado pelo ativo_id para acesso O(1)
+        mapa = {item["ativo_id"]: item for item in data.get("ativos_validados", [])}
+        return mapa
+    except Exception as e:
+        print(f"[ERRO] Falha ao processar arquivo JSON: {e}")
+        return None
 
 # ============================================================
 # FUNÇÃO PRINCIPAL DE CÁLCULO
@@ -61,8 +64,8 @@ def calcular_metricas() -> None:
     """
     Executa a engine de cálculos:
       1. Carrega os dados validados.
-      2. Calcula spreads, inclinação da curva, indicadores compostos.
-      3. Gera o arquivo de saída com todas as métricas.
+      2. Calcula spreads, inclinação da curva e indicadores compostos.
+      3. Gera o arquivo de saída com todas as métricas consolidadas.
     """
     mapa = carregar_dados_validados()
     if not mapa:
@@ -78,7 +81,8 @@ def calcular_metricas() -> None:
 
     spread_wdo_ptax_pts = None
     spread_wdo_ptax_pct = None
-    if ptax and wdo:
+    
+    if isinstance(ptax, (int, float)) and isinstance(wdo, (int, float)) and ptax > 0:
         ptax_em_pontos = ptax * 1000
         spread_wdo_ptax_pts = round(wdo - ptax_em_pontos, 2)
         spread_wdo_ptax_pct = round(((wdo / ptax_em_pontos) - 1) * 100, 4)
@@ -90,7 +94,7 @@ def calcular_metricas() -> None:
     di29 = mapa.get("DI1_2029", {}).get("close")
 
     inclinacao_di_bps = None
-    if di27 and di29:
+    if isinstance(di27, (int, float)) and isinstance(di29, (int, float)):
         inclinacao_di_bps = round((di29 - di27) * 100, 1)   # em pontos base (bps)
 
     # ------------------------------------------------------------
@@ -112,7 +116,7 @@ def calcular_metricas() -> None:
     iron_fef2_pct = fef2_obj.get("change_percent")
 
     ind_mercado_externo = None
-    if vix_pct is not None and crude_pct is not None and iron_fef2_pct is not None:
+    if all(isinstance(v, (int, float)) for v in [vix_pct, crude_pct, iron_fef2_pct]):
         ind_mercado_externo = round((-vix_pct) + crude_pct + iron_fef2_pct, 4)
 
     # ------------------------------------------------------------
@@ -147,11 +151,11 @@ def calcular_metricas() -> None:
                 "change_percent": pct_val,
             }
 
-            if pct_val is not None:
+            if isinstance(pct_val, (int, float)):
                 soma_variacoes_adrs += pct_val
                 qtd_adrs_validas += 1
 
-    # Indicador ADRs Brasileiras = soma das variações (sem média)
+    # Indicador ADRs Brasileiras = soma das variações
     ind_adrs_brasileiras = round(soma_variacoes_adrs, 4) if qtd_adrs_validas > 0 else None
 
     # ------------------------------------------------------------
@@ -206,10 +210,7 @@ def calcular_metricas() -> None:
     print("\n" + "=" * 60)
     print(" PAINEL DE MÉTRICAS CALCULADAS ")
     print("=" * 60)
-    print(
-        f"Spread WDO vs PTAX      : {spread_wdo_ptax_pts} pts"
-        f" ({spread_wdo_ptax_pct}%)"
-    )
+    print(f"Spread WDO vs PTAX      : {spread_wdo_ptax_pts} pts ({spread_wdo_ptax_pct}%)")
     print(f"Inclinação DI (29-27)   : {inclinacao_di_bps} bps")
     print(f"VIX (Volatilidade)      : {vix_close} ({vix_pct}%)")
     print(f"Minério FEF2 (2º Mês)   : {iron_fef2_close} ({iron_fef2_pct}%)")
@@ -217,10 +218,7 @@ def calcular_metricas() -> None:
     print(f"IND. MERCADO EXTERNO    : {ind_mercado_externo}%")
     print(f"IND. ADRs BRASILEIRAS   : {ind_adrs_brasileiras}%")
     print("=" * 60)
-    print(
-        f"[{datetime.now().strftime('%H:%M:%S')}] Arquivo gerado:"
-        f" {os.path.basename(FILE_OUTPUT)}\n"
-    )
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] Arquivo gerado: {os.path.basename(FILE_OUTPUT)}\n")
 
 # ============================================================
 # EXECUÇÃO DIRETA
