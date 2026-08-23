@@ -1,40 +1,59 @@
 # ============================================================
-# ARQUIVO: Engine_Vies.py
-# MOTIVO: Core Engine - Processamento de Viés de Abertura (WIN/WDO)
-# INTEGRADO COM: Noticias_Impacto_Dia.json + DadosAtivosUnificados.json (Last)
+# ARQUIVO: Engine_Vies.py (VERSÃO 3.1 - APENAS WIN)
+# DATA: 22/08/2026
+# AUTOR: Arquiteto de Sistemas
+# MOTIVO: Core Engine - Processamento de Viés de Abertura do WIN
+# INTEGRADO COM: Noticias_Impacto_Dia.json + DadosAtivosUnificados.json + Metricas
 # ============================================================
 
 import json
 import os
 from datetime import datetime
+from pathlib import Path
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-COLETAS_DIR = os.path.join(BASE_DIR, "Coletas")
+# ============================================================
+# CONFIGURAÇÃO DE CAMINHOS E DIRETÓRIOS
+# ============================================================
+BASE_DIR = Path(__file__).resolve().parent
+COLETAS_DIR = BASE_DIR / "Coletas"
 
-FILE_ESTIMATIVA = os.path.join(COLETAS_DIR, "EstimativaAbertura.json")
-FILE_METRICAS = os.path.join(COLETAS_DIR, "Metricas_Calculadas.json")
-FILE_NOTICIAS = os.path.join(COLETAS_DIR, "Noticias_Impacto_Dia.json")
-FILE_ATIVOS = os.path.join(COLETAS_DIR, "DadosAtivosUnificados.json")  # NOVO
-FILE_OUTPUT = os.path.join(COLETAS_DIR, "Decisao_Core.json")
+# Arquivos de entrada do pipeline
+FILE_ESTIMATIVA = COLETAS_DIR / "EstimativaAbertura.json"
+FILE_METRICAS = COLETAS_DIR / "Metricas_Calculadas.json"
+FILE_NOTICIAS = COLETAS_DIR / "Noticias_Impacto_Dia.json"
+FILE_ATIVOS = COLETAS_DIR / "DadosAtivosUnificados.json"
+
+# Arquivo de saída consolidado com a decisão do Core
+FILE_OUTPUT = COLETAS_DIR / "Decisao_Core.json"
 
 
-def carregar_json(caminho):
-    if not os.path.exists(caminho):
-        print(f"[AVISO] Arquivo não encontrado: {os.path.basename(caminho)}")
+def carregar_json(caminho: Path) -> dict:
+    """Carrega arquivos JSON de forma defensiva para evitar parada do script."""
+    if not caminho.exists():
+        print(f"[AVISO] Arquivo não encontrado: {caminho.name}")
         return {}
-    with open(caminho, "r", encoding="utf-8") as f:
-        return json.load(f)
+    try:
+        with open(caminho, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"[ERRO] Falha ao carregar {caminho.name}: {str(e)}")
+        return {}
 
 
-def calcular_vies_win(estimativa, metricas, noticias, spread_win_last_ajuste=0.0):
-    """Calcula o Score do WIN de -10.0 (Forte Venda) a +10.0 (Forte Compra) com Trava de Volatilidade de Notícias."""
+def calcular_vies_win(estimativa: dict, metricas: dict, noticias: dict, spread_win_last_ajuste: float = 0.0) -> dict:
+    """
+    Calcula o Score do WIN de -10.0 (Forte Venda) a +10.0 (Forte Compra).
+    Aplica travas dinâmicas de volatilidade baseadas no calendário de notícias.
+    """
     score = 0.0
     fatos = []
 
-    # 1. Abertura Teórica
-    var_teorica = estimativa.get("WIN_INDICE", {}).get(
-        "variacao_teorica_pct", 0.0
-    )
+    # ------------------------------------------------------------
+    # 1. ABERTURA TEÓRICA DO MINI ÍNDICE
+    # ------------------------------------------------------------
+    win_est = estimativa.get("WIN_INDICE", {})
+    var_teorica = win_est.get("variacao_teorica_pct", 0.0)
+    
     if var_teorica > 0.5:
         score += 3.0
         fatos.append(f"Teórico WIN positivo (+{var_teorica:.2f}%)")
@@ -42,10 +61,10 @@ def calcular_vies_win(estimativa, metricas, noticias, spread_win_last_ajuste=0.0
         score -= 3.0
         fatos.append(f"Teórico WIN negativo ({var_teorica:.2f}%)")
 
-    # 2. Indicador Composto de ADRs
-    ind_adrs = metricas.get("indicadores_compostos", {}).get(
-        "indicador_adrs_brasileiras"
-    )
+    # ------------------------------------------------------------
+    # 2. INDICADOR COMPOSTO DE ADRs BRASILEIRAS
+    # ------------------------------------------------------------
+    ind_adrs = metricas.get("indicadores_compostos", {}).get("indicador_adrs_brasileiras")
     if ind_adrs is not None:
         if ind_adrs > 1.0:
             score += 2.5
@@ -54,40 +73,34 @@ def calcular_vies_win(estimativa, metricas, noticias, spread_win_last_ajuste=0.0
             score -= 2.5
             fatos.append(f"ADRs fracas no exterior ({ind_adrs:.2f}%)")
 
-    # 3. Risco Global (VIX)
+    # ------------------------------------------------------------
+    # 3. RISCO GLOBAL E VOLATILIDADE (VIX)
+    # ------------------------------------------------------------
     vix_change = metricas.get("indicadores_macro", {}).get("vix_change_pct")
     if vix_change is not None:
         if vix_change > 5.0:
             score -= 2.0
-            fatos.append(
-                f"Aumento de Risco Global / VIX em alta (+{vix_change:.1f}%)"
-            )
+            fatos.append(f"Aumento de Risco Global / VIX em alta (+{vix_change:.1f}%)")
         elif vix_change < -5.0:
             score += 1.5
-            fatos.append(
-                f"Queda de Risco Global / VIX caindo ({vix_change:.1f}%)"
-            )
+            fatos.append(f"Queda de Risco Global / VIX caindo ({vix_change:.1f}%)")
 
-    # 4. Commodities (Petróleo/Minério)
-    ind_ext = metricas.get("indicadores_compostos", {}).get(
-        "indicador_mercado_externo"
-    )
+    # ------------------------------------------------------------
+    # 4. COMMODITIES E MERCADO EXTERNO
+    # ------------------------------------------------------------
+    ind_ext = metricas.get("indicadores_compostos", {}).get("indicador_mercado_externo")
     if ind_ext is not None:
         if ind_ext > 0.8:
             score += 2.5
-            fatos.append(
-                f"Commodities e Mercado Externo favoráveis (+{ind_ext:.2f}%)"
-            )
+            fatos.append(f"Commodities e Mercado Externo favoráveis (+{ind_ext:.2f}%)")
         elif ind_ext < -0.8:
             score -= 2.5
-            fatos.append(
-                f"Commodities e Mercado Externo pressionados ({ind_ext:.2f}%)"
-            )
+            fatos.append(f"Commodities e Mercado Externo pressionados ({ind_ext:.2f}%)")
 
-    # ============================================================
-    # NOVA REGRA: Spread entre Last (Candle Anterior) e Ajuste Oficial
-    # ============================================================
-    LIMIAR_SPREAD_WIN = 100  # 100 pontos de diferença já é relevante
+    # ------------------------------------------------------------
+    # 5. SPREAD ENTRE LAST (ÚLTIMO TICK) E AJUSTE OFICIAL
+    # ------------------------------------------------------------
+    LIMIAR_SPREAD_WIN = 100.0  # 100 pontos de desvio já indica força institucional
     if spread_win_last_ajuste != 0.0:
         if spread_win_last_ajuste > LIMIAR_SPREAD_WIN:
             score += 2.0
@@ -96,30 +109,32 @@ def calcular_vies_win(estimativa, metricas, noticias, spread_win_last_ajuste=0.0
             score -= 2.0
             fatos.append(f"🔻 Last abaixo do ajuste em {abs(spread_win_last_ajuste):.0f} pts (viés vendedor)")
         else:
-            fatos.append(f"⚖️ Spread Last vs Ajuste dentro da normalidade ({spread_win_last_ajuste:+.0f} pts)")
+            fatos.append(f"⚖️ Spread Last vs Ajuste na normalidade ({spread_win_last_ajuste:+.0f} pts)")
 
-    # ============================================================
-    # REGRA DE IMPACTO DAS NOTÍCIAS NO WIN
-    # ============================================================
+    # ------------------------------------------------------------
+    # 6. FILTROS E TRAVAS DE NOTÍCIAS (GESTÃO DE RISCO)
+    # ------------------------------------------------------------
     alertas_noticias = noticias.get("alertas", {})
 
-    # Trava 1: Notícia 3 Estrelas no Brasil às 09:00 (Abertura WIN)
+    # Trava 1: Evento 3 Estrelas no Brasil às 09:00 (Abertura do Pregão)
     if alertas_noticias.get("tem_3_estrelas_brasil_0900"):
         fatos.append("🚨 TRAVA CRÍTICA: Notícia ⭐⭐⭐ no Brasil às 09:00! Alta Volatilidade na abertura.")
-        score *= 0.5
+        score *= 0.5  # Reduz a exposição/confiança pela metade
 
-    # Trava 2: Risco Total do Dia Extremo
+    # Trava 2: Classificação de Risco do Dia
     classificacao_impacto = noticias.get("resumo", {}).get("classificacao", "")
     if classificacao_impacto == "EXTREMO":
-        fatos.append("⚠️ Risco Global de Notícias EXTREMO no dia. Mão reduzida recomendada.")
+        fatos.append("⚠️ Risco Global de Notícias EXTREMO no dia. Recomendado operar com mão reduzida.")
         score *= 0.8
 
-    # Trava 3: Acúmulo de Notícias 2 Estrelas no mesmo horário
+    # Trava 3: Confluência de múltiplos eventos 2 Estrelas
     if alertas_noticias.get("tem_multiplas_2_estrelas_mesmo_horario"):
         horarios = [item["hora"] for item in alertas_noticias.get("horarios_multiplas_2_estrelas", [])]
         fatos.append(f"⚠️ Atenção para acúmulo de eventos ⭐⭐ nos horários: {', '.join(horarios)}")
 
-    # Classificação Final
+    # ------------------------------------------------------------
+    # 7. CLASSIFICAÇÃO FINAL DO VIÉS
+    # ------------------------------------------------------------
     if score >= 4.0:
         vies = "FORTE_COMPRA"
     elif score >= 1.5:
@@ -141,156 +156,65 @@ def calcular_vies_win(estimativa, metricas, noticias, spread_win_last_ajuste=0.0
     }
 
 
-def calcular_vies_wdo(estimativa, metricas, noticias, spread_wdo_last_ajuste=0.0):
-    """Calcula o Score do WDO de -10.0 (Forte Venda) a +10.0 (Forte Compra) considerando Notícias."""
-    score = 0.0
-    fatos = []
-
-    # 1. Abertura Teórica WDO
-    var_teorica = estimativa.get("WDO_DOLAR", {}).get(
-        "variacao_teorica_pct", 0.0
-    )
-    if var_teorica > 0.3:
-        score += 3.5
-        fatos.append(f"Teórico WDO em alta (+{var_teorica:.2f}%)")
-    elif var_teorica < -0.3:
-        score -= 3.5
-        fatos.append(f"Teórico WDO em baixa ({var_teorica:.2f}%)")
-
-    # 2. Spread WDO vs PTAX
-    spread_pts = metricas.get("cambio_e_arbitragem", {}).get(
-        "spread_wdo_ptax_pontos"
-    )
-    if spread_pts is not None:
-        if spread_pts > 15.0:
-            score -= 2.0
-            fatos.append(f"Spread WDO x PTAX esticado (+{spread_pts} pts)")
-        elif spread_pts < -15.0:
-            score += 2.0
-            fatos.append(f"Spread WDO x PTAX descontado ({spread_pts} pts)")
-
-    # 3. Inclinação da Curva DI
-    inclinacao_di = metricas.get("curva_juros_b3", {}).get(
-        "inclinacao_29_27_bps"
-    )
-    if inclinacao_di is not None:
-        if inclinacao_di > 30.0:
-            score += 2.0
-            fatos.append(f"Curva de Juros (DI) abrindo (+{inclinacao_di} bps)")
-        elif inclinacao_di < -10.0:
-            score -= 1.5
-            fatos.append(f"Curva de Juros (DI) fechando ({inclinacao_di} bps)")
-
-    # ============================================================
-    # NOVA REGRA: Spread entre Last (Candle Anterior) e Ajuste Oficial
-    # ============================================================
-    LIMIAR_SPREAD_WDO = 10  # 10 pontos de diferença já é relevante para o dólar
-    if spread_wdo_last_ajuste != 0.0:
-        if spread_wdo_last_ajuste > LIMIAR_SPREAD_WDO:
-            score += 1.5
-            fatos.append(f"🔺 Last acima do ajuste em {spread_wdo_last_ajuste:.1f} pts (viés comprador dólar)")
-        elif spread_wdo_last_ajuste < -LIMIAR_SPREAD_WDO:
-            score -= 1.5
-            fatos.append(f"🔻 Last abaixo do ajuste em {abs(spread_wdo_last_ajuste):.1f} pts (viés vendedor dólar)")
-        else:
-            fatos.append(f"⚖️ Spread Last vs Ajuste dentro da normalidade ({spread_wdo_last_ajuste:+.1f} pts)")
-
-    # ============================================================
-    # REGRA DE IMPACTO DAS NOTÍCIAS NO WDO
-    # ============================================================
-    alertas_noticias = noticias.get("alertas", {})
-
-    if alertas_noticias.get("tem_3_estrelas_outros_horarios"):
-        noticias_3 = alertas_noticias.get("noticias_3_estrelas_outros_horarios", [])
-        for n in noticias_3:
-            if n.get("moeda") in ["USD", "BRL"]:
-                fatos.append(f"🚨 Atenção: Notícia ⭐⭐⭐ [{n['moeda']}] às {n['hora']} - {n['evento']}")
-
-    # Classificação Final
-    if score >= 4.0:
-        vies = "FORTE_COMPRA"
-    elif score >= 1.5:
-        vies = "MODERADO_COMPRA"
-    elif score <= -4.0:
-        vies = "FORTE_VENDA"
-    elif score <= -1.5:
-        vies = "MODERADO_VENDA"
-    else:
-        vies = "NEUTRO"
-
-    return {
-        "score_numeric": round(score, 2),
-        "vies_final": vies,
-        "fatores_relevantes": fatos,
-    }
-
-
 def executar_core():
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] Executando Core Engine de Viés...")
+    """Orquestra o carregamento de dados e gera o viés direcional do WIN."""
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] Executando Core Engine de Viés (Apenas WIN)...")
 
-    estimativas = carregar_json(FILE_ESTIMATIVA)
+    # Carrega dados dos arquivos de suporte
+    estimativas_data = carregar_json(FILE_ESTIMATIVA)
     metricas = carregar_json(FILE_METRICAS)
     noticias = carregar_json(FILE_NOTICIAS)
-    
-    # ============================================================
-    # NOVO: Carrega DadosAtivosUnificados para pegar WIN_LAST_TICK e WDO_LAST_TICK
-    # ============================================================
     ativos_data = carregar_json(FILE_ATIVOS)
-    ativos = ativos_data.get("ativos", {}) if ativos_data else {}
-    
+
+    # Tratamento defensivo da estrutura do dicionário de estimativas
+    estimativas = estimativas_data.get("estimativa_abertura", {}) or estimativas_data.get("estimativas_abertura", {})
+
+    # Extração de preço do último tick e ajuste do WIN
+    ativos = ativos_data.get("ativos", {}) if isinstance(ativos_data, dict) else {}
     win_last = ativos.get("WIN_LAST_TICK", {}).get("preco", 0.0)
-    wdo_last = ativos.get("WDO_LAST_TICK", {}).get("preco", 0.0)
     win_ajuste = ativos.get("WIN_AJUSTE", {}).get("preco", 0.0)
-    wdo_ajuste = ativos.get("WDO_AJUSTE", {}).get("preco", 0.0)
 
-    # Calcula os spreads
-    spread_win_last_ajuste = win_last - win_ajuste if win_last and win_ajuste else 0.0
-    spread_wdo_last_ajuste = wdo_last - wdo_ajuste if wdo_last and wdo_ajuste else 0.0
+    # Cálculo do spread entre Last e Ajuste
+    spread_win_last_ajuste = (win_last - win_ajuste) if (win_last and win_ajuste) else 0.0
 
+    # Processamento do viés do WIN
     vies_win = calcular_vies_win(
-        estimativas.get("estimativas_abertura", {}), 
+        estimativas, 
         metricas, 
         noticias,
         spread_win_last_ajuste
     )
-    vies_wdo = calcular_vies_wdo(
-        estimativas.get("estimativas_abertura", {}), 
-        metricas, 
-        noticias,
-        spread_wdo_last_ajuste
-    )
 
+    # Montagem da estrutura final de decisão
     decisao_final = {
         "metadata": {
             "timestamp": datetime.now().isoformat(),
             "status_pipeline": "OK",
+            "ativo_foco": "WIN_INDICE"
         },
         "analise_operacional": {
-            "WIN_INDICE": vies_win,
-            "WDO_DOLAR": vies_wdo,
-        },
+            "WIN_INDICE": vies_win
+        }
     }
 
-    os.makedirs(COLETAS_DIR, exist_ok=True)
-    with open(FILE_OUTPUT, "w", encoding="utf-8") as f:
-        json.dump(decisao_final, f, indent=2, ensure_ascii=False)
+    # Gravação do resultado
+    try:
+        os.makedirs(COLETAS_DIR, exist_ok=True)
+        with open(FILE_OUTPUT, "w", encoding="utf-8") as f:
+            json.dump(decisao_final, f, indent=2, ensure_ascii=False)
+        print(f"✅ Decisão do Core salva em: {FILE_OUTPUT.name}")
+    except Exception as e:
+        print(f"[ERRO CRÍTICO] Não foi possível salvar a decisão do Core: {str(e)}")
 
+    # Exibição do resumo no terminal
     print("\n" + "=" * 60)
-    print(" 🎯 DECISÃO CORE - VIÉS DE ABERTURA ")
+    print(" 🎯 DECISÃO CORE - VIÉS DE ABERTURA (MINI ÍNDICE) ")
     print("=" * 60)
-    print(
-        f" Mini Índice (WIN) : {vies_win['vies_final']} (Score: {vies_win['score_numeric']})"
-    )
-    for f in vies_win["fatores_relevantes"]:
-        print(f"   • {f}")
-    print("------------------------------------------------------------")
-    print(
-        f" Mini Dólar (WDO)  : {vies_wdo['vies_final']} (Score: {vies_wdo['score_numeric']})"
-    )
-    for f in vies_wdo["fatores_relevantes"]:
-        print(f"   • {f}")
-    print("=" * 60)
-    print(f"Arquivo gerado: {os.path.basename(FILE_OUTPUT)}\n")
+    print(f" Mini Índice (WIN) : {vies_win['vies_final']} (Score: {vies_win['score_numeric']})")
+    print(" Fatores Determinantes:")
+    for fato in vies_win["fatores_relevantes"]:
+        print(f"   • {fato}")
+    print("=" * 60 + "\n")
 
 
 if __name__ == "__main__":

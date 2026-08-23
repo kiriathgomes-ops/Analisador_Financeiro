@@ -1,6 +1,6 @@
 {
-  "timestamp": "2026-08-22T20:36:13.662536",
-  "ativo": "WIN",
+  "timestamp": "2026-08-22T22:25:24.974940",
+  "ativo": "WIN$",
   "timeframe": "5m",
   "fonte": "regras_smc",
   "preco_atual": 174035.0,
@@ -13,33 +13,15 @@
   "order_blocks": [
     {
       "tipo": "COMPRA",
-      "preco": 174017.5,
-      "high": 174095.0,
-      "low": 173940.0
-    },
-    {
-      "tipo": "COMPRA",
       "preco": 173867.5,
       "high": 173980.0,
       "low": 173755.0
-    },
-    {
-      "tipo": "COMPRA",
-      "preco": 173900.0,
-      "high": 174035.0,
-      "low": 173765.0
     },
     {
       "tipo": "VENDA",
       "preco": 174197.5,
       "high": 174270.0,
       "low": 174125.0
-    },
-    {
-      "tipo": "COMPRA",
-      "preco": 174172.5,
-      "high": 174285.0,
-      "low": 174060.0
     },
     {
       "tipo": "VENDA",
@@ -51,8 +33,8 @@
   "fair_value_gaps": [
     {
       "tipo": "COMPRA",
-      "superior": 171380.0,
-      "inferior": 170970.0,
+      "superior": 170940.0,
+      "inferior": 170915.0,
       "preenchido": false
     },
     {
@@ -77,18 +59,6 @@
       "tipo": "COMPRA",
       "superior": 173105.0,
       "inferior": 172390.0,
-      "preenchido": false
-    },
-    {
-      "tipo": "COMPRA",
-      "superior": 173505.0,
-      "inferior": 173430.0,
-      "preenchido": false
-    },
-    {
-      "tipo": "VENDA",
-      "superior": 174755.0,
-      "inferior": 174620.0,
       "preenchido": false
     },
     {
@@ -199,17 +169,17 @@
     }
   ],
   "estruturas_coletadas": [
-    "173900: OB COMPRA (173765-174035)",
+    "174320: Swing High",
+    "174040: Swing Low",
+    "174245: Swing High",
+    "173868: OB COMPRA (173755-173980)",
     "174198: OB VENDA (174125-174270)",
-    "174172: OB COMPRA (174060-174285)",
     "174162: OB VENDA (174110-174215)",
-    "171175: FVG COMPRA (170970-171380)",
+    "170928: FVG COMPRA (170915-170940)",
     "171280: FVG COMPRA (171020-171540)",
     "171878: FVG COMPRA (171820-171935)",
     "172115: FVG COMPRA (171965-172265)",
     "172748: FVG COMPRA (172390-173105)",
-    "173468: FVG COMPRA (173430-173505)",
-    "174688: FVG VENDA (174620-174755)",
     "174015: FVG COMPRA (173965-174065)"
   ],
   "liquidez_relevante": [
@@ -219,11 +189,11 @@
     "SSL: 173798 (equal lows / liquidez de venda abaixo)"
   ],
   "zonas_de_interesse_e_cenarios": [
-    "Cenário Comprador: defesa na região 174172 (OB/FVG de compra) visando 174348.",
+    "Cenário Comprador: defesa na região 173868 (OB/FVG de compra validado por volume) visando 174348.",
     "Cenário alternativo: varredura de liquidez abaixo antes da continuação de alta."
   ],
-  "entrada_sugerida": 174285.0,
-  "stop_sugerido": 174010.0,
+  "entrada_sugerida": 173980.0,
+  "stop_sugerido": 173705.0,
   "alvos": [
     174348.0,
     173725.0
@@ -231,8 +201,9 @@
   "metadados": {
     "n_candles": 120,
     "n_swings": 30,
-    "n_fvgs_abertos": 8,
-    "n_obs": 6,
+    "n_fvgs_abertos": 6,
+    "n_obs": 3,
+    "filtro_volume_aplicado": true,
     "config": {
       "swing_left": 2,
       "swing_right": 2,
@@ -241,8 +212,10 @@
       "max_niveis": 12,
       "max_fvgs": 8,
       "max_obs": 6,
-      "lookback": 120
+      "lookback": 120,
+      "vol_ma_period": 20,
+      "vol_factor_min": 1.2,
+      "expansion_factor_min": 1.3
     }
-  },
-  "simbolo_mt5": "WINV26"
+  }
 }

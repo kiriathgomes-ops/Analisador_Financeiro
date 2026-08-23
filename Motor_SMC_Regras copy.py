@@ -3,13 +3,13 @@
 """
 Motor_SMC_Regras.py
 ===================
-Motor de regras SMC/ICT SEM IA com Filtro de Volume e Deslocamento (Expansion Candle).
+Motor de regras SMC/ICT SEM IA.
 
 Detecta:
 - Swing High / Swing Low
 - BOS (Break of Structure) e CHoCH (Change of Character)
-- Fair Value Gaps (FVG) com filtro de expansão e volume
-- Order Blocks (OB) validados por volume/impulso
+- Fair Value Gaps (FVG)
+- Order Blocks (OB) simplificados
 - Liquidez (equal highs / equal lows aproximados)
 
 Entrada: lista/DataFrame de candles OHLCV
@@ -62,11 +62,6 @@ class ConfigSMC:
     max_fvgs: int = 8
     max_obs: int = 6
     lookback: int = 120
-    
-    # NOVAS CONFIGURAÇÕES PARA FILTRO DE VOLUME E EXPANSÃO
-    vol_ma_period: int = 20           # Período da Média Móvel de Volume
-    vol_factor_min: float = 1.2       # Multiplicador do volume médio (ex: 1.2x)
-    expansion_factor_min: float = 1.3 # Multiplicador do corpo médio para Vela de Expansão (ex: 1.3x)
 
 
 CONFIG = ConfigSMC()
@@ -147,7 +142,7 @@ def normalizar_candles(dados: Any) -> List[Candle]:
             l = row.get("low", row.get("Low", row.get("l")))
             c = row.get("close", row.get("Close", row.get("c")))
             t = row.get("time", row.get("Time", row.get("datetime", row.get("date", ""))))
-            vol = row.get("volume", row.get("Volume", row.get("tick_volume", row.get("real_volume", 0))))
+            vol = row.get("volume", row.get("Volume", row.get("tick_volume", 0)))
         elif isinstance(row, (list, tuple)) and len(row) >= 5:
             if isinstance(row[0], (int, float)) and len(row) >= 5 and not isinstance(row[1], str):
                 t, o, h, l, c = "", row[0], row[1], row[2], row[3]
@@ -187,38 +182,6 @@ def aplicar_lookback(candles: List[Candle], lookback: int) -> List[Candle]:
             c.idx = i
         return slice_c
     return candles
-
-
-def calcular_metricas_medias(candles: List[Candle], idx_atual: int, periodo: int = CONFIG.vol_ma_period) -> Tuple[float, float]:
-    """Calcula a Média Móvel de Volume e a Média Móvel do Tamanho do Corpo do Candle."""
-    inicio = max(0, idx_atual - periodo)
-    janela = candles[inicio:idx_atual]
-    
-    if not janela:
-        return 0.0, 0.0
-
-    media_vol = sum(c.volume for c in janela) / len(janela)
-    media_corpo = sum(abs(c.close - c.open) for c in janela) / len(janela)
-
-    return media_vol, media_corpo
-
-
-def e_candle_expansao(candle: Candle, media_vol: float, media_corpo: float, config: ConfigSMC = CONFIG) -> bool:
-    """
-    Valida se o candle possui desbalanço institucional real via:
-    1. Volume acima da média (Volume > 1.2x Média) OU
-    2. Corpo de expansão significativo (Corpo > 1.3x Média)
-    """
-    corpo = abs(candle.close - candle.open)
-    
-    vol_ok = (candle.volume >= media_vol * config.vol_factor_min) if media_vol > 0 else False
-    corpo_ok = (corpo >= media_corpo * config.expansion_factor_min) if media_corpo > 0 else False
-
-    # Se não houver volume suficiente disponível (ex: simulação sem volume), valida pelo corpo
-    if media_vol == 0:
-        return corpo_ok
-
-    return vol_ok or corpo_ok
 
 
 def detectar_swings(candles: List[Candle], left: int = CONFIG.swing_left, right: int = CONFIG.swing_right) -> List[Swing]:
@@ -267,6 +230,7 @@ def detectar_bos_choch(candles: List[Candle], swings: List[Swing]) -> Tuple[List
     for s in swings:
         if s.tipo == "HIGH":
             if last_high:
+                # Busca apenas no trecho pós-pivô para evitar reentrâncias
                 for c in candles[s.idx :]:
                     if c.close > last_high.preco:
                         tipo_ev = "BOS" if tendencia_atual == "ALTA" else "CHOCH"
@@ -290,28 +254,19 @@ def detectar_bos_choch(candles: List[Candle], swings: List[Swing]) -> Tuple[List
     return eventos, bias
 
 
-def detectar_fvg(candles: List[Candle], config: ConfigSMC = CONFIG) -> List[FVG]:
+def detectar_fvg(candles: List[Candle], min_pontos: float = CONFIG.fvg_min_pontos) -> List[FVG]:
     fvgs: List[FVG] = []
     n = len(candles)
     if n < 3:
         return fvgs
 
     for i in range(2, n):
-        c0, c1, c2 = candles[i - 2], candles[i - 1], candles[i]
+        c0, c2 = candles[i - 2], candles[i]
 
-        # Média de volume e amplitude calculadas até o candle c1 (intermediário)
-        media_vol, media_corpo = calcular_metricas_medias(candles, i - 1, config.vol_ma_period)
-        
-        # Filtro de Volume/Expansão aplicado ao candle impulsor (c1)
-        impulso_valido = e_candle_expansao(c1, media_vol, media_corpo, config)
-
-        if not impulso_valido:
-            continue
-
-        if c2.low > c0.high and (c2.low - c0.high) >= config.fvg_min_pontos:
+        if c2.low > c0.high and (c2.low - c0.high) >= min_pontos:
             fvgs.append(FVG(tipo="COMPRA", superior=c2.low, inferior=c0.high, idx=i, time=c2.time))
 
-        if c2.high < c0.low and (c0.low - c2.high) >= config.fvg_min_pontos:
+        if c2.high < c0.low and (c0.low - c2.high) >= min_pontos:
             fvgs.append(FVG(tipo="VENDA", superior=c0.low, inferior=c2.high, idx=i, time=c2.time))
 
     for fvg in fvgs:
@@ -326,7 +281,7 @@ def detectar_fvg(candles: List[Candle], config: ConfigSMC = CONFIG) -> List[FVG]
     return fvgs
 
 
-def detectar_order_blocks(candles: List[Candle], swings: List[Swing], config: ConfigSMC = CONFIG) -> List[OrderBlock]:
+def detectar_order_blocks(candles: List[Candle], swings: List[Swing]) -> List[OrderBlock]:
     obs: List[OrderBlock] = []
     n = len(candles)
     if n < 5 or len(swings) < 2:
@@ -340,18 +295,8 @@ def detectar_order_blocks(candles: List[Candle], swings: List[Swing], config: Co
         cand = candles[i]
         prev = candles[i - 1]
 
-        # Seleciona candle de cor oposta à direção do pivô
+        # Seleciona candle com cor oposta à direção do pivô
         ob_cand = prev if (prev.close < prev.open if s.tipo == "LOW" else prev.close > prev.open) else cand
-
-        # Valida se o movimento de saída do OB teve deslocamento com Volume/Expansão
-        media_vol, media_corpo = calcular_metricas_medias(candles, i, config.vol_ma_period)
-        
-        # Verifica se o candle seguinte teve força de expansão
-        candle_saida = candles[i + 1] if (i + 1) < n else cand
-        tem_expansao = e_candle_expansao(candle_saida, media_vol, media_corpo, config)
-
-        if not tem_expansao:
-            continue
 
         if s.tipo == "LOW":
             if any(c.close > cand.high for c in candles[i + 1 : min(i + 4, n)]):
@@ -414,10 +359,8 @@ def analisar_smc(dados_candles: Any, ativo: str = "WIN", timeframe: str = "5m", 
 
     swings = detectar_swings(candles, config.swing_left, config.swing_right)
     eventos, bias = detectar_bos_choch(candles, swings)
-    
-    # Chama funções de detecção atualizadas com filtros de volume e expansão
-    fvgs = detectar_fvg(candles, config)
-    obs = detectar_order_blocks(candles, swings, config)
+    fvgs = detectar_fvg(candles, config.fvg_min_pontos)
+    obs = detectar_order_blocks(candles, swings)
     liq = detectar_liquidez(swings, config.eq_tol_pontos)
 
     bos = any(e.tipo == "BOS" for e in eventos[-3:])
@@ -451,14 +394,14 @@ def analisar_smc(dados_candles: Any, ativo: str = "WIN", timeframe: str = "5m", 
         fvg_v = next((f for f in reversed(fvgs_abertos) if f.tipo == "VENDA"), None)
         zona = res.preco_ref if res else (fvg_v.superior if fvg_v else preco_atual)
         alvo = liq["ssl"][0] if liq["ssl"] else preco_atual * 0.99
-        cenarios.append(f"Cenário Vendedor: rejeição na região {zona:.0f} (OB/FVG de venda validado por volume) visando {alvo:.0f}.")
+        cenarios.append(f"Cenário Vendedor: rejeição na região {zona:.0f} (OB/FVG de venda) visando {alvo:.0f}.")
         cenarios.append("Cenário alternativo: varredura de liquidez acima antes da continuação de baixa.")
     elif bias == "ALTA":
         dem = next((o for o in reversed(obs) if o.tipo == "COMPRA"), None)
         fvg_c = next((f for f in reversed(fvgs_abertos) if f.tipo == "COMPRA"), None)
         zona = dem.preco_ref if dem else (fvg_c.inferior if fvg_c else preco_atual)
         alvo = liq["bsl"][0] if liq["bsl"] else preco_atual * 1.01
-        cenarios.append(f"Cenário Comprador: defesa na região {zona:.0f} (OB/FVG de compra validado por volume) visando {alvo:.0f}.")
+        cenarios.append(f"Cenário Comprador: defesa na região {zona:.0f} (OB/FVG de compra) visando {alvo:.0f}.")
         cenarios.append("Cenário alternativo: varredura de liquidez abaixo antes da continuação de alta.")
     else:
         cenarios.append("Cenário Lateral: aguardar BOS com fechamento fora da faixa recente.")
@@ -522,7 +465,6 @@ def analisar_smc(dados_candles: Any, ativo: str = "WIN", timeframe: str = "5m", 
             "n_swings": len(swings),
             "n_fvgs_abertos": len(fvgs_abertos),
             "n_obs": len(obs),
-            "filtro_volume_aplicado": True,
             "config": asdict(config),
         },
     }

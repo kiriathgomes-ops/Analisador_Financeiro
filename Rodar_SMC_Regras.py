@@ -3,118 +3,93 @@
 """
 Rodar_SMC_Regras.py
 ===================
-Wrapper chamado pelo main_pipeline.
+Script executor para rodar a análise SMC com Filtro de Volume e Deslocamento.
 
-1. Descobre o contrato WIN no MT5 (Dados_MT5.json ou busca)
-2. Executa Motor_SMC_Regras.analisar_smc
-3. Salva Coletas/AnaliseGraficaSMC_Regras.json
-
-Não interrompe o pipeline se MT5 estiver offline (só registra aviso).
+Fluxo:
+1. Conecta ao MT5 e obtém os dados recentes de M5.
+2. Executa a análise SMC (via Motor_SMC_Regras.py).
+3. Salva o resultado em 'Coletas/AnaliseGraficaSMC_Regras.json'.
+4. Imprime no terminal o resumo e os METADADOS contendo as métricas de volume.
 """
 
-from __future__ import annotations
-
 import json
-import os
 import sys
-from datetime import datetime
 from pathlib import Path
 
+# Garante que o diretório atual está no path para importar o motor
 BASE_DIR = Path(__file__).resolve().parent
-COLETAS = BASE_DIR / "Coletas"
-SAIDA = COLETAS / "AnaliseGraficaSMC_Regras.json"
-
-# garante import do motor na raiz do projeto
 if str(BASE_DIR) not in sys.path:
-    sys.path.insert(0, str(BASE_DIR))
+    sys.path.append(str(BASE_DIR))
 
+# Importa as funções do Motor SMC
+try:
+    from Motor_SMC_Regras import analisar_smc, carregar_mt5, salvar_resultado, CONFIG
+except ImportError as e:
+    print(f"Erro ao importar Motor_SMC_Regras.py: {e}")
+    sys.exit(1)
 
-def log(msg: str, ok: bool = True):
-    icone = "[Ok]" if ok else "[ERRO]"
-     # Remove qualquer caractere não-ASCII para evitar UnicodeEncodeError
-    safe_msg = msg.encode('ascii', 'ignore').decode('ascii')
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] {icone} {msg}")
-
-
-def descobrir_simbolo_win() -> str:
-    """Prioridade: Dados_MT5.json → env → default WINV26."""
-    caminho = COLETAS / "Dados_MT5.json"
-    if caminho.exists():
-        try:
-            with open(caminho, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            # layouts possíveis
-            for chave in ("contrato_win", "win", "WIN", "symbol_win"):
-                if chave in data and data[chave]:
-                    return str(data[chave])
-            contratos = data.get("contratos") or data.get("ativos") or {}
-            if isinstance(contratos, dict):
-                for k, v in contratos.items():
-                    ku = str(k).upper()
-                    if "WIN" in ku and "AJUSTE" not in ku:
-                        if isinstance(v, dict) and v.get("symbol"):
-                            return str(v["symbol"])
-                        return str(k)
-            # last ticks
-            lasts = data.get("lasts") or data.get("ultimos") or {}
-            if isinstance(lasts, dict):
-                for k in lasts:
-                    if "WIN" in str(k).upper():
-                        return str(k)
-        except Exception as e:
-            log(f"Falha lendo Dados_MT5.json: {e}", ok=False)
-
-    env = os.getenv("SMC_SYMBOL_WIN", "").strip()
-    if env:
-        return env
-    return "WINV26"
-
-
-def main() -> int:
-    log("Iniciando Motor SMC por regras...")
+# Força codificação UTF-8 no terminal
+if sys.platform == "win32":
     try:
-        from Motor_SMC_Regras import analisar_smc, salvar_resultado, carregar_mt5
-    except ImportError as e:
-        log(f"Motor_SMC_Regras não encontrado: {e}", ok=False)
-        return 0  # não quebra pipeline
+        sys.stdout.reconfigure(encoding="utf-8")
+    except AttributeError:
+        pass
 
-    symbol = descobrir_simbolo_win()
-    log(f"Símbolo alvo: {symbol}")
+
+def executar():
+    print("=" * 60)
+    print(" Executando Análise SMC (Com Filtro de Volume e Expansão)")
+    print("=" * 60)
+
+    ATIVO = "WIN$"
+    TIMEFRAME_MIN = 5
+    QTD_CANDLES = 120
 
     try:
-        candles, simbolo_usado = carregar_mt5(symbol, timeframe_min=5, qtd=120)
-    except Exception as e:
-        log(f"MT5 indisponível ou sem rates ({e}). Pipeline segue sem SMC regras.", ok=False)
-        # grava stub para a UI saber que falhou
-        stub = {
-            "timestamp": datetime.now().isoformat(),
-            "ativo": "WIN",
-            "timeframe": "5m",
-            "fonte": "regras_smc",
-            "erro": str(e),
-            "bias_direcional": "LATERAL",
-            "direcao_estrutura": "LATERAL",
-            "bos": False,
-            "choch": False,
-            "confianca_visual": 0,
-            "estruturas_coletadas": [],
-            "liquidez_relevante": [],
-            "zonas_de_interesse_e_cenarios": ["SMC regras indisponível nesta execução."],
-        }
-        COLETAS.mkdir(parents=True, exist_ok=True)
-        with open(SAIDA, "w", encoding="utf-8") as f:
-            json.dump(stub, f, indent=2, ensure_ascii=False)
-        return 0
+        # 1. Carrega dados do MetaTrader 5
+        print(f"-> Conectando ao MT5 para buscar {QTD_CANDLES} candles de {ATIVO} (M{TIMEFRAME_MIN})...")
+        candles, simbolo_real = carregar_mt5(symbol=ATIVO, timeframe_min=TIMEFRAME_MIN, qtd=QTD_CANDLES)
+        print(f"   [OK] Sucesso! Símbolo retornado: '{simbolo_real}' | Candles obtidos: {len(candles)}")
 
-    resultado = analisar_smc(candles, ativo="WIN", timeframe="5m")
-    resultado["simbolo_mt5"] = simbolo_usado
-    path = salvar_resultado(resultado, SAIDA)
-    log(
-        f"SMC regras OK | bias={resultado.get('bias_direcional')} "
-        f"conf={resultado.get('confianca_visual')} → {path.name}"
-    )
-    return 0
+        # 2. Executa o algoritmo de análise
+        print("-> Processando regras SMC (Swings, BOS/CHoCH, FVG, OB e Liquidez)...")
+        resultado = analisar_smc(
+            dados_candles=candles,
+            ativo=simbolo_real,
+            timeframe=f"{TIMEFRAME_MIN}m",
+            config=CONFIG
+        )
+
+        # 3. Salva no arquivo JSON padrão do pipeline
+        caminho_json = salvar_resultado(resultado)
+        print(f"   [OK] Análise salva em: {caminho_json}")
+
+        # 4. Exibe os resultados principais no terminal
+        print("\n" + "-" * 60)
+        print(" RESUMO DO PROCESSAMENTO")
+        print("-" * 60)
+        print(f" Ativo / Timeframe    : {resultado.get('ativo')} | {resultado.get('timeframe')}")
+        print(f" Preço Atual          : {resultado.get('preco_atual')}")
+        print(f" Viés Direcional      : {resultado.get('bias_direcional')}")
+        print(f" Confiança Visual     : {resultado.get('confianca_visual')}%")
+        print(f" Entrada Sugerida     : {resultado.get('entrada_sugerida')}")
+        print(f" Stop Sugerido        : {resultado.get('stop_sugerido')}")
+        print(f" Alvos                : {resultado.get('alvos')}")
+        print(f" Order Blocks Válidos : {len(resultado.get('order_blocks', []))}")
+        print(f" FVGs Abertos Válidos : {len(resultado.get('fair_value_gaps', []))}")
+
+        # 5. EXIBE OS METADADOS (Onde você confirma se o filtro de volume rodou)
+        print("\n" + "-" * 60)
+        print(" METADADOS DA ANÁLISE (FILTROS DE VOLUME E CONFIGURAÇÕES)")
+        print("-" * 60)
+        metadados = resultado.get("metadados", {})
+        print(json.dumps(metadados, indent=2, ensure_ascii=False))
+        print("=" * 60)
+
+    except Exception as err:
+        print(f"\n[ERRO] Falha ao rodar pipeline SMC: {err}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    executar()

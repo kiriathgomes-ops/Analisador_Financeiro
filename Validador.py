@@ -96,13 +96,17 @@ def validar_item(item):
     # 3. Mapeamento para Identificador Padrão Interno
     nome_padronizado = MAPEAMENTO_TICKERS.get(ativo_raw, ativo_raw)
     
-    # 4. Sanitização e Normalização dos Tipos de Dados
+# 4. Sanitização e Normalização dos Tipos de Dados
     dados_sanitizados = {
         "ativo_id": nome_padronizado,
         "ticker_original": ativo_raw,
         "fonte": item.get("fonte"),
         "timestamp_coleta": item.get("timestamp"),
         "close": float(close),
+        
+        # Chave adicionada para o Fechamento do Dia Anterior
+        "previous_close": float(dados["fechamento_anterior"]) if dados.get("fechamento_anterior") is not None else None,
+        
         "open": float(dados["open"]) if dados.get("open") is not None else None,
         "high": float(dados["high"]) if dados.get("high") is not None else None,
         "low": float(dados["low"]) if dados.get("low") is not None else None,

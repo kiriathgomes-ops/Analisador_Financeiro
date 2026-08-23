@@ -1,16 +1,21 @@
 # ============================================================
-# ARQUIVO: Gerar_Resultado_Operacional.py (VERSÃO 3.0 - COMPLETA)
-# MOTIVO: Processar Operacional com dados REAIS + FALLBACK + TENDÊNCIA
+# ARQUIVO: Gerar_Resultado_Operacional.py (VERSÃO 3.1 - APENAS WIN)
+# DATA: 22/08/2026
+# AUTOR: Arquiteto de Sistemas
+# MOTIVO: Processar resultado operacional com dados REAIS + FALLBACK + TENDÊNCIA.
+# DESCRICAO:
+#   Consolida métricas, estimativa de abertura do WIN, análise de tendências,
+#   notícias das 09:00 e decisões da Core Engine em um relatório operacional final.
 # ============================================================
 
 import json
 import os
+import sys
 from datetime import datetime
 from pathlib import Path
-import sys
 
 # ============================================================
-# CONFIGURAÇÃO DE CAMINHOS
+# CONFIGURAÇÃO DE CAMINHOS E DIRETÓRIOS
 # ============================================================
 BASE_DIR = Path(__file__).resolve().parent
 COLETAS_DIR = BASE_DIR / "Coletas"
@@ -23,142 +28,117 @@ FILE_ATIVOS = COLETAS_DIR / "DadosAtivosUnificados.json"
 FILE_TENDENCIAS = COLETAS_DIR / "Analise_Tendencias.json"
 FILE_NOTICIAS = COLETAS_DIR / "Noticias_Calendario_0900.json"
 
-# Arquivos de saída
+# Arquivo de saída consolidado
 FILE_OUTPUT = COLETAS_DIR / "Resultado_Calculadora_Operacional_Abertura.json"
 
 
 # ============================================================
-# FUNÇÃO PARA CARREGAR DADOS COM FALLBACK
+# FUNÇÕES DE CARREGAMENTO DEFENSIVO (FALLBACK)
 # ============================================================
 
-def carregar_com_fallback(caminho, default=None):
-    """Carrega JSON com fallback silencioso."""
+def carregar_com_fallback(caminho: Path, default=None):
+    """
+    Carrega arquivo JSON com tratamento defensivo de exceções.
+    Evita a interrupção do pipeline em caso de corrupção ou ausência do arquivo.
+    """
     if default is None:
         default = {}
     try:
         if caminho.exists():
             with open(caminho, "r", encoding="utf-8") as f:
                 return json.load(f)
+        else:
+            print(f"[AVISO] Arquivo não encontrado: {caminho.name}. Usando fallback.")
     except Exception as e:
-        print(f"[AVISO] Erro ao carregar {caminho.name}: {e}")
+        print(f"[ERRO] Falha ao carregar {caminho.name}: {str(e)}. Usando fallback.")
     return default
 
 
-# ============================================================
-# FUNÇÃO PARA CARREGAR DADOS DO PIPELINE
-# ============================================================
-
-def carregar_dados_pipeline():
-    """Carrega todos os dados gerados pelo pipeline com fallback."""
+def carregar_dados_pipeline() -> dict:
+    """Carrega e consolida todas as saídas do pipeline com tratamento de nulos."""
     dados = {}
     
-    # 1. Métricas Calculadas
+    # 1. MÉTICAS CALCULADAS
     metricas = carregar_com_fallback(FILE_METRICAS)
     dados["metricas"] = metricas
     indicadores = metricas.get("indicadores_compostos", {})
     
-    # Extrai indicadores com fallback para None
     ind_mercado = indicadores.get("indicador_mercado_externo")
     ind_adrs = indicadores.get("indicador_adrs_brasileiras")
     
-    # Se for None, tenta buscar de outras fontes
+    # Fallback para indicador de Mercado Externo caso nulo
     if ind_mercado is None:
-        # Tenta buscar do resumo macro ou performance relativa
         macro = metricas.get("indicadores_macro", {})
         perf = metricas.get("performance_relativa", {})
-        # Calcula um indicador alternativo se possível
+        
         vix_change = macro.get("vix_change_pct")
-        if vix_change is not None:
-            crude = macro.get("crude_oil_change_pct", 0)
-            iron = macro.get("iron_ore", {}).get("change_percent", 0)
-            ind_mercado = (-vix_change) + (crude or 0) + (iron or 0)
+        if isinstance(vix_change, (int, float)):
+            crude = macro.get("crude_oil_change_pct", 0) or 0
+            iron = macro.get("iron_ore", {}).get("change_percent", 0) or 0
+            # VIX alto reflete aversão ao risco (-), commodities refletem alta (+)
+            ind_mercado = (-1 * vix_change) + (crude * 0.5) + (iron * 0.5)
     
-    dados["ind_mercado_externo"] = ind_mercado if ind_mercado is not None else 0.0
+    dados["ind_mercado_externo"] = float(ind_mercado) if isinstance(ind_mercado, (int, float)) else 0.0
     
+    # Fallback para indicador de ADRs caso nulo
     if ind_adrs is None:
-        # Tenta calcular a partir das ADRs individuais
-        adrs = perf.get("adrs_brasileiras", {})
-        if adrs:
-            soma = 0
-            count = 0
-            for adr in adrs.values():
-                pct = adr.get("change_percent")
-                if pct is not None:
-                    soma += pct
-                    count += 1
-            ind_adrs = soma if count > 0 else 0.0
+        adrs = metricas.get("performance_relativa", {}).get("adrs_brasileiras", {})
+        if isinstance(adrs, dict) and adrs:
+            valores = [adr.get("change_percent") for adr in adrs.values() if isinstance(adr.get("change_percent"), (int, float))]
+            ind_adrs = (sum(valores) / len(valores)) if valores else 0.0
     
-    dados["ind_adrs_brasileiras"] = ind_adrs if ind_adrs is not None else 0.0
+    dados["ind_adrs_brasileiras"] = float(ind_adrs) if isinstance(ind_adrs, (int, float)) else 0.0
     
-    # 2. Estimativa de Abertura
+    # 2. OUTROS ARQUIVOS DE SUPORTE
     dados["estimativas"] = carregar_com_fallback(FILE_ESTIMATIVA)
-    
-    # 3. Decisão Core
     dados["decisao"] = carregar_com_fallback(FILE_DECISAO)
-    
-    # 4. Dados dos Ativos
     dados["ativos"] = carregar_com_fallback(FILE_ATIVOS)
-    
-    # 5. Análise de Tendências (nova!)
     dados["tendencias"] = carregar_com_fallback(FILE_TENDENCIAS)
     
     return dados
 
 
-# ============================================================
-# FUNÇÃO PARA VERIFICAR NOTÍCIAS 09:00 COM FALLBACK
-# ============================================================
-
-def verificar_noticias_0900():
-    """Verifica notícias de 3 estrelas às 09:00 com fallback."""
-    
-    # Tenta ler do arquivo
+def verificar_noticias_0900() -> dict:
+    """Verifica alertas de eventos macroeconômicos de 3 estrelas às 09:00."""
     noticias_data = carregar_com_fallback(FILE_NOTICIAS)
     alerta = noticias_data.get("alerta_noticia_0900", {})
     
-    # Se não tiver dados ou estiver vazio, retorna padrão
     if not alerta:
-        print("[AVISO] Nenhuma notícia encontrada. Usando dados padrão.")
         return {
             "tem_evento_3_estrelas": False,
             "alerta": "🟢 Leilão sem notícias de alto impacto às 09:00",
             "quantidade_eventos": 0,
             "eventos": [],
-            "fonte": "Dados padrão (arquivo não encontrado)"
+            "fonte": "Dados padrão (sem notícias registradas)"
         }
     
-    # Adiciona fonte
-    alerta["fonte"] = "Noticias_Calendario_0900.json"
+    alerta["fonte"] = FILE_NOTICIAS.name
     return alerta
 
 
 # ============================================================
-# CLASSIFICAÇÃO OPERACIONAL (melhorada)
+# CLASSIFICAÇÃO E REGRAS OPERACIONAIS
 # ============================================================
 
-def classificar_operacional(valor_pct, nome_indicador="", limiar_ruido=0.05):
+def classificar_operacional(valor_pct: float, nome_indicador: str = "", limiar_ruido: float = 0.05) -> dict:
     """
-    Classifica o sinal operacional com validação robusta.
+    Classifica a intensidade e a direção da força de mercado.
+    Garante sanitização rigorosa contra dados inválidos.
     """
-    # Validação de entrada
-    if valor_pct is None:
-        print(f"[AVISO] Valor None para {nome_indicador}. Usando 0.0")
-        valor_pct = 0.0
-    
-    if not isinstance(valor_pct, (int, float)):
-        print(f"[AVISO] Tipo inválido para {nome_indicador}: {type(valor_pct)}")
+    if valor_pct is None or not isinstance(valor_pct, (int, float)):
+        print(f"[AVISO] Valor inválido recebido em '{nome_indicador}': {valor_pct}")
         return {
             "valor_pct": 0.0,
             "classificacao": "INDISPONIVEL",
             "sinal_operacional": "NEUTRO",
             "rotulo_completo": "INDISPONIVEL_NEUTRO",
             "valido": False,
-            "observacao": f"Valor inválido: {valor_pct}"
+            "observacao": "Dado ausente ou não numérico"
         }
     
     abs_valor = abs(valor_pct)
     
-    # Classificação de intensidade (mais granular)
+    # Escala de intensidade
     if abs_valor < 0.3:
         intensidade = "LATERAL"
     elif 0.3 <= abs_valor < 0.8:
@@ -172,7 +152,7 @@ def classificar_operacional(valor_pct, nome_indicador="", limiar_ruido=0.05):
     else:
         intensidade = "MUITO_FORTE"
     
-    # Sinal com margem para ruído
+    # Direcionamento do sinal com filtro de ruído
     if valor_pct > limiar_ruido:
         sinal = "COMPRA"
     elif valor_pct < -limiar_ruido:
@@ -190,84 +170,83 @@ def classificar_operacional(valor_pct, nome_indicador="", limiar_ruido=0.05):
     }
 
 
-# ============================================================
-# EXTRAIR TENDÊNCIA DOS ATIVOS PRINCIPAIS
-# ============================================================
-
-def extrair_tendencias_principais(dados_tendencias):
-    """Extrai a tendência dos ativos mais relevantes."""
+def extrair_tendencias_principais(dados_tendencias: dict) -> dict:
+    """Extrai tendências apenas dos ativos relevantes para a abertura do Mini Índice."""
     tendencias = {}
-    
-    if not dados_tendencias:
+    if not isinstance(dados_tendencias, dict):
         return tendencias
     
-    # Ativos que mais importam para a abertura
+    # Ativos focados estritamente na precificação do WIN
     ativos_chave = [
-        "WIN_FUT", "WDO_FUT", "SP500_FUT", "NASDAQ_FUT",
+        "WIN_FUT", "SP500_FUT", "NASDAQ_FUT",
         "VIX", "EWZ", "VALE_ADR", "PETR_ADR"
     ]
     
     for ativo in ativos_chave:
         if ativo in dados_tendencias:
             info = dados_tendencias[ativo]
+            intervalo = info.get("intervalo_5_para_0", {})
             tendencias[ativo] = {
                 "padrao": info.get("padrao_comportamento", "N/A"),
-                "ultima_variacao": info.get("intervalo_5_para_0", {}).get("variacao_pct", 0),
-                "tendencia_ultimo": info.get("intervalo_5_para_0", {}).get("tendencia", "N/A")
+                "ultima_variacao": intervalo.get("variacao_pct", 0.0),
+                "tendencia_ultimo": intervalo.get("tendencia", "N/A")
             }
     
     return tendencias
 
 
 # ============================================================
-# FUNÇÃO PRINCIPAL
+# EXECUÇÃO DA CONSOLIDAÇÃO OPERACIONAL
 # ============================================================
 
-def gerar_resultado_operacional():
-    """Gera o resultado operacional usando dados REAIS do pipeline."""
-    
+def gerar_resultado_operacional() -> dict:
+    """Orquestra o carregamento, processamento e geração do relatório operacional."""
     print("=" * 70)
-    print(" GERADOR DE RESULTADO OPERACIONAL (DADOS REAIS DO PIPELINE)")
+    print(" GERADOR DE RESULTADO OPERACIONAL (FOCO EXCLUSIVO: MINI ÍNDICE)")
     print("=" * 70)
     
-    # 1. Carrega dados do pipeline
+    # 1. Carregamento dos dados
     print("\n📊 Carregando dados do pipeline...")
     dados_pipeline = carregar_dados_pipeline()
     
-    # 2. Verifica notícias das 09:00
-    print("📰 Verificando notícias das 09:00...")
+    # 2. Verificação de eventos do calendário
+    print("📰 Verificando calendário de notícias às 09:00...")
     alerta_noticias = verificar_noticias_0900()
     
-    # 3. Extrai indicadores REAIS
+    # 3. Extração dos indicadores
     ind_mercado_externo = dados_pipeline.get("ind_mercado_externo", 0.0)
     ind_adrs_brasileiras = dados_pipeline.get("ind_adrs_brasileiras", 0.0)
     
-    print(f"\n📈 Indicadores extraídos do pipeline:")
-    print(f"   • Mercado Externo: {ind_mercado_externo:.4f}%")
-    print(f"   • ADRs Brasileiras: {ind_adrs_brasileiras:.4f}%")
+    print(f"\n📈 Indicadores Consolidados:")
+    print(f"   • Mercado Externo  : {ind_mercado_externo:+.4f}%")
+    print(f"   • ADRs Brasileiras : {ind_adrs_brasileiras:+.4f}%")
     
-    # 4. Extrai tendências
-    print("\n📉 Extraindo tendências dos ativos principais...")
+    # 4. Tendências
+    print("\n📉 Mapeando tendências dos ativos de suporte...")
     tendencias = extrair_tendencias_principais(dados_pipeline.get("tendencias", {}))
-    if tendencias:
-        for ativo, info in tendencias.items():
-            print(f"   • {ativo}: {info['padrao']} (var: {info['ultima_variacao']:+.2f}%)")
+    for ativo, info in tendencias.items():
+        print(f"   • {ativo}: {info['padrao']} (Var: {info['ultima_variacao']:+.2f}%)")
     
-    # 5. Classifica os indicadores
+    # 5. Classificação dos indicadores
     res_externo = classificar_operacional(ind_mercado_externo, "Mercado Externo")
     res_adrs = classificar_operacional(ind_adrs_brasileiras, "ADRs Brasileiras")
     
-    # 6. Obtém dados adicionais do Core Engine
+    # 6. Mapeamento de decisões da Core Engine
     decisao_core = dados_pipeline.get("decisao", {})
     analise_operacional = decisao_core.get("analise_operacional", {})
     
-    # 7. Monta resultado consolidado
+    # Mapeamento seguro das estimativas tratadas (com suporte a singular/plural)
+    estimativa_dict = dados_pipeline.get("estimativas", {})
+    abertura_win = estimativa_dict.get("estimativa_abertura", {}).get("WIN_INDICE") or \
+                   estimativa_dict.get("estimativas_abertura", {}).get("WIN_INDICE", {})
+
+    # 7. Construção da Estrutura Final do JSON
     resultado = {
         "metadata": {
             "timestamp": datetime.now().isoformat(),
             "origem": "Pipeline_Completo_V3",
-            "versao": "3.0",
-            "dados_carregados": {
+            "versao": "3.1_WIN",
+            "arquivos_presentes": {
                 "metricas": FILE_METRICAS.exists(),
                 "estimativa": FILE_ESTIMATIVA.exists(),
                 "decisao": FILE_DECISAO.exists(),
@@ -282,63 +261,46 @@ def gerar_resultado_operacional():
             "indicador_adrs_brasileiras": res_adrs,
         },
         "analise_tendencias": tendencias,
-        "estimativas_abertura": dados_pipeline.get("estimativas", {}).get("estimativas_abertura", {}),
-        "pivot_points": dados_pipeline.get("estimativas", {}).get("pivot_points", {}),
-        "resumo_macro": dados_pipeline.get("estimativas", {}).get("resumo_macro", {}),
+        "estimativa_abertura": {
+            "WIN_INDICE": abertura_win
+        },
+        "pivot_points": {
+            "WIN_FUT": estimativa_dict.get("pivot_points", {}).get("WIN_FUT", {})
+        },
+        "resumo_macro": estimativa_dict.get("resumo_macro", {}),
         "decisao_core": {
-            "win": analise_operacional.get("WIN_INDICE", {}),
-            "wdo": analise_operacional.get("WDO_DOLAR", {}),
+            "win": analise_operacional.get("WIN_INDICE", {})
         }
     }
     
-    # 8. Salva resultado
-    os.makedirs(COLETAS_DIR, exist_ok=True)
-    with open(FILE_OUTPUT, "w", encoding="utf-8") as f:
-        json.dump(resultado, f, indent=2, ensure_ascii=False)
-    
-    # 9. Exibe resumo detalhado
+    # 8. Gravação do arquivo de saída
+    try:
+        os.makedirs(COLETAS_DIR, exist_ok=True)
+        with open(FILE_OUTPUT, "w", encoding="utf-8") as f:
+            json.dump(resultado, f, indent=2, ensure_ascii=False)
+        print(f"\n✅ Relatório gravado com sucesso em: {FILE_OUTPUT.name}")
+    except Exception as e:
+        print(f"\n[ERRO CRÍTICO] Falha ao gravar arquivo de saída: {str(e)}")
+
+    # 9. Exibição do Resumo
     print("\n" + "=" * 70)
-    print(" RESULTADO OPERACIONAL CALCULADO ")
+    print(" RESUMO OPERACIONAL DE ABERTURA (MINI ÍNDICE) ")
     print("=" * 70)
     
-    # Alerta de Notícias
-    print(f"\n📰 ALERTA NOTÍCIA 09:00 : {alerta_noticias.get('alerta', 'N/A')}")
-    if alerta_noticias.get("tem_evento_3_estrelas", False):
-        for ev in alerta_noticias.get("eventos", []):
-            print(f"  └─ 📌 [{ev.get('hora', '')}] {ev.get('evento', '')}")
-    
-    # Indicadores
-    print("\n📊 INDICADORES COMPOSTOS:")
+    print(f"\n📰 NOTÍCIAS (09:00): {alerta_noticias.get('alerta', 'N/A')}")
+    print("\n📊 SINAIS DOS INDICADORES:")
     print(f"   • Mercado Externo  : {res_externo['valor_pct']:+.4f}% → [{res_externo['rotulo_completo']}]")
     print(f"   • ADRs Brasileiras : {res_adrs['valor_pct']:+.4f}% → [{res_adrs['rotulo_completo']}]")
     
-    # Tendências
-    if tendencias:
-        print("\n📉 TENDÊNCIAS DOS ATIVOS PRINCIPAIS:")
-        for ativo, info in list(tendencias.items())[:5]:
-            emoji = "🟢" if info['ultima_variacao'] > 0 else "🔴" if info['ultima_variacao'] < 0 else "🟡"
-            print(f"   • {emoji} {ativo}: {info['padrao']} ({info['ultima_variacao']:+.2f}%)")
-    
-    # Core Engine
     win_core = analise_operacional.get("WIN_INDICE", {})
-    wdo_core = analise_operacional.get("WDO_DOLAR", {})
-    if win_core or wdo_core:
-        print("\n⚙️ CORE ENGINE:")
-        if win_core:
-            print(f"   • WIN: {win_core.get('vies_final', 'N/A')} (Score: {win_core.get('score_numeric', 0):.2f})")
-        if wdo_core:
-            print(f"   • WDO: {wdo_core.get('vies_final', 'N/A')} (Score: {wdo_core.get('score_numeric', 0):.2f})")
+    if win_core:
+        print("\n⚙️ DECISÃO CORE ENGINE (WIN):")
+        print(f"   • Viés Final : {win_core.get('vies_final', 'N/A')}")
+        print(f"   • Score      : {win_core.get('score_numeric', 0):.2f}")
     
-    print("\n" + "=" * 70)
-    print(f"✅ Arquivo gerado: {FILE_OUTPUT}")
     print("=" * 70)
-    
     return resultado
 
-
-# ============================================================
-# EXECUÇÃO PRINCIPAL
-# ============================================================
 
 if __name__ == "__main__":
     gerar_resultado_operacional()

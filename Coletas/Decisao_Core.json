@@ -1,26 +1,19 @@
 {
   "metadata": {
-    "timestamp": "2026-08-22T20:36:13.208604",
-    "status_pipeline": "OK"
+    "timestamp": "2026-08-22T21:48:27.367304",
+    "status_pipeline": "OK",
+    "ativo_foco": "WIN_INDICE"
   },
   "analise_operacional": {
     "WIN_INDICE": {
       "score_numeric": 11.5,
       "vies_final": "FORTE_COMPRA",
       "fatores_relevantes": [
-        "Teórico WIN positivo (+1.93%)",
+        "Teórico WIN positivo (+1.95%)",
         "ADRs fortes no exterior (+19.75%)",
         "Queda de Risco Global / VIX caindo (-5.5%)",
         "Commodities e Mercado Externo favoráveis (+6.17%)",
         "🔺 Last acima do ajuste em 117 pts (viés comprador)"
-      ]
-    },
-    "WDO_DOLAR": {
-      "score_numeric": -1.5,
-      "vies_final": "MODERADO_VENDA",
-      "fatores_relevantes": [
-        "Teórico WDO em baixa (-0.48%)",
-        "Curva de Juros (DI) abrindo (+46.0 bps)"
       ]
     }
   }
