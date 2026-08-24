@@ -1,18 +1,18 @@
 {
   "metadata": {
-    "timestamp": "2026-08-23T21:19:08.287819",
+    "timestamp": "2026-08-24T07:34:11.071544",
     "status_pipeline": "OK",
     "ativo_foco": "WIN_INDICE"
   },
   "analise_operacional": {
     "WIN_INDICE": {
-      "score_numeric": 11.5,
-      "vies_final": "FORTE_COMPRA",
+      "score_numeric": 3.0,
+      "vies_final": "MODERADO_COMPRA",
       "fatores_relevantes": [
-        "Teórico WIN positivo (+1.80%)",
+        "Teórico WIN positivo (+1.74%)",
         "ADRs fortes no exterior (+19.75%)",
-        "Queda de Risco Global / VIX caindo (-5.5%)",
-        "Commodities e Mercado Externo favoráveis (+4.97%)",
+        "Aumento de Risco Global / VIX em alta (+5.2%)",
+        "Commodities e Mercado Externo pressionados (-5.80%)",
         "🔺 Last acima do ajuste em 117 pts (viés comprador)"
       ]
     }
