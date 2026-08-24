@@ -1,12 +1,22 @@
+
 # ============================================================
 # ARQUIVO: Coletor.py
 # DATA: 19/08/2026
 # AUTOR: Arquiteto de Sistemas
 # MOTIVO: Ingestão de Dados Completa (BACEN SGS + Finnhub + MT5 Futuros/Ações)
+#
+# PAPÉIS DOS CAMPOS WIN (importante para quem consome o JSON):
+#   - WIN_AJUSTE (bruto: B3_AJUSTE_WIN) → preço de ajuste oficial B3
+#   - WIN_PREV_CLOSE                   → fechamento da sessão anterior (session_close)
+#   - WIN_LAST_TICK                    → último tick do overnight (não é o fechamento oficial)
+#   - WIN_FUT (bruto: BMFBOVESPA:WIN1!) → cotação do contrato futuro no momento da coleta
+#
 # ATUALIZAÇÕES:
 #   1. Ciclo unificado de conexão MT5 (sem reconexões desnecessárias).
 #   2. Registro dedicado para WIN_PREV_CLOSE gravado no JSON ROM.
 #   3. Rotação temporal em 12 arquivos (60 minutos de histórico).
+#   4. WIN_LAST_TICK: coleta viva na janela 19:00-08:50; no pregão
+#      reusa cache (Coleta_ram / Coleta_rom-0), no mesmo padrão do ajuste.
 # ============================================================
 
 import json
@@ -109,14 +119,19 @@ ATIVOS_MT5_B3 = [
 
 # ============================================================
 # DICIONÁRIO DE PADRONIZAÇÃO DE TICKERS
-# Mapeia identificadores das APIs para nomes amigáveis no JSON unificado
+# Mapeia identificadores das APIs para nomes internos usados em
+# DadosAtivosUnificados.json e no restante do pipeline.
+# Chaves especiais WIN (não vêm de uma API única):
+#   B3_AJUSTE_WIN  → WIN_AJUSTE     (ajuste oficial)
+#   WIN_PREV_CLOSE → WIN_PREV_CLOSE (fechamento sessão anterior)
+#   WIN_LAST_TICK  → WIN_LAST_TICK  (last overnight / cache)
 # ============================================================
 
 MAPEAMENTO_TICKERS = {
     "USD_PTAX": "USD_PTAX",
-    "B3_AJUSTE_WIN": "WIN_AJUSTE",
-    "BMFBOVESPA:WIN1!": "WIN_FUT",
-    "WIN_PREV_CLOSE": "WIN_PREV_CLOSE",
+    "B3_AJUSTE_WIN": "WIN_AJUSTE",       # Ajuste oficial B3 (TradingView na janela overnight)
+    "BMFBOVESPA:WIN1!": "WIN_FUT",       # Contrato futuro WIN (last/close da coleta)
+    "WIN_PREV_CLOSE": "WIN_PREV_CLOSE", # Fechamento anterior (session_close do MT5)
     "BMFBOVESPA:WDO1!": "WDO_FUT",
     "BMFBOVESPA:DI1F2027": "DI1_2027",
     "BMFBOVESPA:DI1F2029": "DI1_2029",
@@ -138,7 +153,7 @@ MAPEAMENTO_TICKERS = {
     "FX_IDC:USDMXN": "USD_MXN",
     "TVC:GOLD": "GOLD",
     "FX_IDC:USDBRL": "USD_BRL",
-    "WIN_LAST_TICK": "WIN_LAST_TICK",
+    "WIN_LAST_TICK": "WIN_LAST_TICK",   # Last overnight; no pregão vem do cache
     "VALE3": "VALE3",
     "PETR4": "PETR4",
     "ITUB4": "ITUB4",
@@ -153,10 +168,17 @@ MAPEAMENTO_TICKERS = {
 
 def esta_na_janela_ajuste() -> bool:
     """
-    REGRA TEMPORAL: Verifica se o horário de execução está entre 19:00 e 08:50 (Overnight/Ajuste).
-    Usado para decidir se deve consultar o ajuste oficial ou reaproveitar dados do cache.
+    REGRA TEMPORAL: True entre 19:00 e 08:50 (overnight / pós-ajuste / pré-abertura).
+
+    Usado por:
+      - coletar_ajuste_oficial()  → API ao vivo vs cache
+      - bloco WIN_LAST_TICK       → last vivo vs cache
+
+    Fora dessa janela (pregão ~08:51–18:59) os valores de ajuste e last tick
+    não são reconsultados na origem; reutiliza-se o que está em ROM/RAM.
     """
     agora = datetime.now().time()
+    # True se agora >= 19:00 OU agora <= 08:50 (atravessa a meia-noite)
     return agora >= time(19, 0, 0) or agora <= time(8, 50, 0)
 
 # ============================================================
@@ -249,7 +271,9 @@ def coletar_ajuste_oficial():
     hora_inicio = time(19, 0, 0)
     hora_fim = time(8, 50, 0)
 
-    # REGRA: Fora do horário estipulado, busca nos arquivos de cache local
+    # Pregão (08:51–18:59): não chama TradingView; reusa último B3_AJUSTE_WIN do disco.
+    # Motivo: durante o pregão o "close" de WIN1! no TV deixa de ser o settlement e
+    # passa a refletir preço corrente — por isso a coleta viva só ocorre overnight.
     if hora_fim < hora_atual < hora_inicio:
         print(f"[{datetime.now().strftime('%H:%M:%S')}] ⏳ Fora da janela de ajuste. Buscando cache...")
         for arquivo_cache in [FILE_RAM, FILE_ROM0]:
@@ -461,8 +485,16 @@ def coletar_mt5_acoes_b3():
 
 def capturar_last_do_mt5() -> dict:
     """
-    FONTE: Arquivo local gerado pelo coletor MT5 (`Dados_MT5_v2_2.json`).
-    QUANDO OCORRE: Chamado especificamente durante a janela de ajuste para extrair o último tick gravado do Mini Índice (WIN).
+    FONTE: Arquivo local gerado pelo Coletor_MT5_v2_2 (`Dados_MT5_v2_2.json`).
+
+    QUANDO OCORRE: Preferencialmente na janela de ajuste (19:00–08:50), para
+    obter o último tick do WIN no overnight.
+
+    RETORNO:
+      {"WIN": {"contrato", "last", "timestamp", "fonte"}} ou {} se indisponível.
+
+    OBS: Não confunde com WIN_PREV_CLOSE (fechamento oficial da sessão anterior).
+         Aqui o campo 'last' é o último negócio/tick registrado no MT5.
     """
     resultado = {}
 
@@ -472,9 +504,11 @@ def capturar_last_do_mt5() -> dict:
                 dados = json.load(f)
             timestamp = dados.get("timestamp", datetime.now().isoformat())
             win_info = dados.get("ativos", {}).get("WIN", {})
+            # Aceita status OK ou presença de last numérico
             if win_info.get("status") == "OK" or win_info.get("last") is not None:
                 last = win_info.get("last")
                 contrato = win_info.get("contrato_principal")
+                # Exige last positivo e contrato identificado
                 if last is not None and last > 0 and contrato:
                     resultado["WIN"] = {
                         "contrato": contrato,
@@ -488,6 +522,75 @@ def capturar_last_do_mt5() -> dict:
             print(f"[AVISO] Falha ao ler Dados_MT5_v2_2.json: {e}")
 
     return resultado
+
+
+def buscar_win_last_tick_no_cache():
+    """
+    FONTE: Cache local (Coleta_ram.json / Coleta_rom-0.json).
+
+    QUANDO OCORRE:
+      1) Fora da janela de ajuste (pregão), para o WIN_LAST_TICK não sumir
+         do unificado a cada execução diurna do pipeline; ou
+      2) Dentro da janela, se capturar_last_do_mt5() não retornou last válido.
+
+    COMPORTAMENTO:
+      Procura o item ativo == "WIN_LAST_TICK" com close > 0.
+      Prioridade: FILE_RAM, depois FILE_ROM0 (mais recente da rotação).
+      Devolve uma cópia com fonte "CACHE_DISCO (Fora da janela)" — o valor
+      continua sendo o last overnight da última coleta válida, não um tick de pregão.
+
+    RETORNO: dict no formato de um item de 'coletas', ou None.
+    """
+    timestamp = datetime.now().isoformat()
+
+    # Ordem: RAM (espelho atual) → ROM-0 (slot mais recente da rotação)
+    for arquivo_cache in [FILE_RAM, FILE_ROM0]:
+        if not os.path.exists(arquivo_cache):
+            continue
+        try:
+            with open(arquivo_cache, "r", encoding="utf-8") as f:
+                dados_cache = json.load(f)
+            for item in dados_cache.get("coletas", []):
+                if item.get("ativo") != "WIN_LAST_TICK":
+                    continue
+                dados = item.get("dados_reais") or {}
+                close = dados.get("close")
+                if close is None:
+                    continue
+                try:
+                    close_val = float(close)
+                except (TypeError, ValueError):
+                    continue
+                if close_val <= 0:
+                    continue
+                # Cópia explícita: não altera o dict lido do disco in-place
+                item_cache = {
+                    "ativo": "WIN_LAST_TICK",
+                    "fonte": "CACHE_DISCO (Fora da janela)",
+                    "timestamp": timestamp,
+                    "status": "OK",
+                    "dados_reais": {
+                        "close": close_val,
+                        "open": None,
+                        "high": None,
+                        "low": None,
+                        "change_percent": None,
+                        "volume": None,
+                    },
+                }
+                print(
+                    f"   ✅ WIN_LAST_TICK via cache "
+                    f"({os.path.basename(arquivo_cache)}): {close_val}"
+                )
+                return item_cache
+        except Exception as e:
+            print(
+                f"[AVISO] Falha ao ler cache WIN_LAST_TICK "
+                f"({os.path.basename(arquivo_cache)}): {e}"
+            )
+            continue
+
+    return None
 
 # ============================================================
 # ENGINE DE ROTAÇÃO TEMPORAL E PIPELINE PRINCIPAL
@@ -515,8 +618,11 @@ def executar_rotacao_memoria(is_ram_mode=False):
 def gerar_arquivo_unificado(coletas):
     """
     CONSOLIDADO FINAL:
-    Gera o arquivo `DadosAtivosUnificados.json` limpando os tickers e organizando preços
-    e variações de todas as fontes em um único objeto de leitura rápida.
+    Gera DadosAtivosUnificados.json a partir da lista 'coletas' desta execução.
+
+    ATENÇÃO: o arquivo é reescrito por completo (não faz merge com o JSON anterior).
+    Por isso WIN_LAST_TICK e B3_AJUSTE_WIN precisam entrar em 'coletas' também no
+    pregão (via cache); caso contrário a chave some do unificado.
     """
     ativos_map = {}
     for item in coletas:
@@ -524,6 +630,7 @@ def gerar_arquivo_unificado(coletas):
             continue
         ativo_raw = item.get("ativo")
         dados_reais = item.get("dados_reais") or {}
+        # Nome interno estável para o restante do app (Engine_Vies, pages, V2)
         nome_limpo = MAPEAMENTO_TICKERS.get(ativo_raw, ativo_raw)
         preco = dados_reais.get("close", 0.0) or 0.0
         var = dados_reais.get("change_percent", 0.0) or 0.0
@@ -546,8 +653,17 @@ def gerar_arquivo_unificado(coletas):
 
 def executar_pipeline_coleta():
     """
-    FLUXO DE EXECUÇÃO DO PIPELINE:
-    Orquestra a chamada de todos os coletores e salva os resultados no disco/memória.
+    FLUXO DE EXECUÇÃO DO PIPELINE (ordem importa para logs e falhas parciais):
+
+      1) PTAX (BACEN → fallback TV)
+      2) Ajuste WIN (TV na janela overnight / cache no pregão)
+      3) Scanner TradingView (índices, commodities, forex)
+      4) Finnhub (ADRs + EWZ)
+      5) MT5 unificado: futuros WIN/WDO/DI1 + WIN_PREV_CLOSE + ações B3
+      6) WIN_LAST_TICK (vivo overnight / cache no pregão)
+      7) Grava ROM (+ RAM) e reescreve DadosAtivosUnificados.json
+
+    Flag --ram: grava só em Coleta_ram.json, sem empurrar a rotação ROM.
     """
     is_ram = "--ram" in sys.argv
     arquivo_destino = executar_rotacao_memoria(is_ram)
@@ -559,12 +675,13 @@ def executar_pipeline_coleta():
     coletas.append(coletar_bacen_ptax())
 
     # 2. COLETA: Ajuste Oficial de Mini Índice (TradingView - Janela das 19:00 às 08:50)
+    #    No pregão: item vem do cache com fonte "CACHE_DISCO (Fora da janela)"
     coletas.extend(coletar_ajuste_oficial())
 
     # 3. COLETA: Índices Globais, Commodities e Forex (TradingView Scanner API)
     coletas.extend(coletar_tradingview())
 
-    # 4. COLETA: ADRs Brasileiras na BMF/NYSE e EWZ (Finnhub API)
+    # 4. COLETA: ADRs Brasileiras na NYSE/OTC e EWZ (Finnhub API)
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Coletando via Finnhub...")
     coletas.extend(coletar_finnhub())
 
@@ -599,7 +716,7 @@ def executar_pipeline_coleta():
             var_abs = round(close_val - prev_close, 2) if prev_close else 0.0
             var_pct = round(((close_val / prev_close) - 1) * 100, 2) if prev_close and prev_close > 0 else 0.0
             
-            # Registro padrão do Ativo Futuro
+            # Registro padrão do ativo futuro (WIN_FUT / WDO_FUT / DI1_FUT após mapeamento)
             coletas.append({
                 "ativo": ativo_bruto,
                 "fonte": "MT5_v2.2",
@@ -617,7 +734,9 @@ def executar_pipeline_coleta():
                 },
             })
 
-            # Registro dedicado especificamente para guardar o FECHAMENTO ANTERIOR do WIN
+            # WIN_PREV_CLOSE: espelho explícito do session_close / prev_close do WIN.
+            # Difere de WIN_AJUSTE (settlement B3) e de WIN_LAST_TICK (last overnight).
+            # Consumidores típicos: gap vs fechamento, Monitor de Leilão, V2 (FASE 5).
             if prefixo == "WIN" and prev_close > 0:
                 coletas.append({
                     "ativo": "WIN_PREV_CLOSE",
@@ -646,8 +765,21 @@ def executar_pipeline_coleta():
     except Exception:
         pass
 
-    # 6. COLETA: Último Tick (LAST TICK) do WIN na janela de ajuste (se ativo)
+    # ------------------------------------------------------------
+    # 6. WIN_LAST_TICK (last overnight — NÃO é fechamento oficial)
+    # ------------------------------------------------------------
+    # Por que existe cache no pregão?
+    #   DadosAtivosUnificados é reescrito a cada execução só com o que
+    #   está em 'coletas'. Sem este bloco, de dia a chave WIN_LAST_TICK
+    #   sumiria e o Engine_Vies / Setup receberiam 0.0 no spread vs ajuste.
+    #
+    # Fluxo:
+    #   [19:00–08:50]  capturar_last_do_mt5() → grava last vivo
+    #                  se falhar → tenta cache antigo
+    #   [08:51–18:59]  só cache (último last overnight válido)
+    # ------------------------------------------------------------
     if esta_na_janela_ajuste():
+        # Overnight / pré-abertura: prioriza tick fresco do MT5 v2.2
         lasts = capturar_last_do_mt5()
         if lasts and "WIN" in lasts:
             coletas.append({
@@ -664,6 +796,22 @@ def executar_pipeline_coleta():
                     "volume": None,
                 },
             })
+        else:
+            # Janela ok, mas arquivo MT5 sem last → preserva valor anterior
+            item_cache = buscar_win_last_tick_no_cache()
+            if item_cache:
+                coletas.append(item_cache)
+    else:
+        # Pregão: não há coleta viva de last overnight; reutiliza cache
+        item_cache = buscar_win_last_tick_no_cache()
+        if item_cache:
+            coletas.append(item_cache)
+        else:
+            # Primeira execução do dia sem coleta noturna prévia
+            print(
+                f"[{datetime.now().strftime('%H:%M:%S')}] "
+                "⚠️ WIN_LAST_TICK indisponível (fora da janela e sem cache)."
+            )
 
     # ============================================================
     # GRAVAÇÃO DOS DADOS NOS ARQUIVOS JSON
@@ -693,3 +841,4 @@ def executar_pipeline_coleta():
 
 if __name__ == "__main__":
     executar_pipeline_coleta()
+
