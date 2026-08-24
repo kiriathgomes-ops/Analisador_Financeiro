@@ -14,6 +14,11 @@
 #     - Resumo de desempenho de ADRs e índices globais
 #
 #   O resultado é salvo em Metricas_Calculadas.json.
+#   Ponderação definida empiricamente para o Mini Índice:
+# - EWZ captura o sentimento do Brasil via ETF
+# - Cesta de ADRs (VALE/PETR/ITUB/BBD) representa o peso setorial do Ibovespa
+# - S&P500 traz o beta com o mercado americano
+# - Commodities (minério + petróleo) capturam o lado cíclico
 # ============================================================
 
 import json

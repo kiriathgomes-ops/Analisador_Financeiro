@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "timestamp": "2026-08-22T21:45:36.173640",
+    "timestamp": "2026-08-23T21:19:08.154354",
     "origem": "Pipeline_Completo_V3",
     "versao": "3.1_WIN",
     "arquivos_presentes": {
@@ -20,7 +20,7 @@
   },
   "indicadores_compostos": {
     "indicador_mercado_externo": {
-      "valor_pct": 6.1745,
+      "valor_pct": 4.9738,
       "classificacao": "MUITO_FORTE",
       "sinal_operacional": "COMPRA",
       "rotulo_completo": "MUITO_FORTE_COMPRA",
@@ -39,9 +39,9 @@
   "analise_tendencias": {},
   "estimativa_abertura": {
     "WIN_INDICE": {
-      "variacao_teorica_pct": 1.9467,
+      "variacao_teorica_pct": 1.8038,
       "pontos_ajuste_base": 173918.0,
-      "abertura_teorica_pontos": 177304.0
+      "abertura_teorica_pontos": 177055.0
     }
   },
   "pivot_points": {
@@ -57,19 +57,19 @@
     "vix": 15.14,
     "di1_2027": 13.71,
     "di1_2029": 14.17,
-    "iron_ore": 96.45,
-    "crude_oil": 87.06,
-    "gold": 4603.005
+    "iron_ore": 96.5,
+    "crude_oil": 86.2,
+    "gold": 4630.93
   },
   "decisao_core": {
     "win": {
       "score_numeric": 11.5,
       "vies_final": "FORTE_COMPRA",
       "fatores_relevantes": [
-        "Teórico WIN positivo (+1.93%)",
+        "Teórico WIN positivo (+1.79%)",
         "ADRs fortes no exterior (+19.75%)",
         "Queda de Risco Global / VIX caindo (-5.5%)",
-        "Commodities e Mercado Externo favoráveis (+6.17%)",
+        "Commodities e Mercado Externo favoráveis (+4.73%)",
         "🔺 Last acima do ajuste em 117 pts (viés comprador)"
       ]
     }
