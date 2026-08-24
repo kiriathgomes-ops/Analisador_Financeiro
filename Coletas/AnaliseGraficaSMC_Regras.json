@@ -1,0 +1,204 @@
+{
+  "timestamp": "2026-08-24T17:04:11.086259",
+  "ativo": "WIN$",
+  "timeframe": "5m",
+  "fonte": "regras_smc",
+  "preco_atual": 174770.0,
+  "timeframes_identificados": "5m",
+  "bias_direcional": "BAIXA",
+  "direcao_estrutura": "BAIXA",
+  "bos": true,
+  "choch": false,
+  "confianca_visual": 95,
+  "order_blocks": [
+    {
+      "tipo": "COMPRA",
+      "preco": 174925.0,
+      "high": 174980.0,
+      "low": 174870.0
+    },
+    {
+      "tipo": "VENDA",
+      "preco": 175142.5,
+      "high": 175275.0,
+      "low": 175010.0
+    },
+    {
+      "tipo": "VENDA",
+      "preco": 175172.5,
+      "high": 175360.0,
+      "low": 174985.0
+    }
+  ],
+  "fair_value_gaps": [
+    {
+      "tipo": "COMPRA",
+      "superior": 173000.0,
+      "inferior": 172430.0,
+      "preenchido": false
+    },
+    {
+      "tipo": "COMPRA",
+      "superior": 174355.0,
+      "inferior": 173885.0,
+      "preenchido": false
+    },
+    {
+      "tipo": "COMPRA",
+      "superior": 174650.0,
+      "inferior": 174575.0,
+      "preenchido": false
+    },
+    {
+      "tipo": "VENDA",
+      "superior": 175830.0,
+      "inferior": 175660.0,
+      "preenchido": false
+    }
+  ],
+  "liquidez": {
+    "bsl": [
+      175117.5
+    ],
+    "ssl": [
+      174807.5
+    ]
+  },
+  "eventos_estrutura": [
+    {
+      "tipo": "BOS",
+      "direcao": "ALTA",
+      "preco": 175435.0,
+      "time": "2026-08-24T09:25:00"
+    },
+    {
+      "tipo": "CHOCH",
+      "direcao": "BAIXA",
+      "preco": 175355.0,
+      "time": "2026-08-24T10:40:00"
+    },
+    {
+      "tipo": "BOS",
+      "direcao": "BAIXA",
+      "preco": 175320.0,
+      "time": "2026-08-24T11:05:00"
+    },
+    {
+      "tipo": "BOS",
+      "direcao": "BAIXA",
+      "preco": 174800.0,
+      "time": "2026-08-24T11:45:00"
+    },
+    {
+      "tipo": "BOS",
+      "direcao": "BAIXA",
+      "preco": 174815.0,
+      "time": "2026-08-24T12:30:00"
+    },
+    {
+      "tipo": "BOS",
+      "direcao": "BAIXA",
+      "preco": 174665.0,
+      "time": "2026-08-24T13:55:00"
+    }
+  ],
+  "swings_recentes": [
+    {
+      "tipo": "LOW",
+      "preco": 175320.0,
+      "time": "2026-08-24T10:20:00"
+    },
+    {
+      "tipo": "HIGH",
+      "preco": 175660.0,
+      "time": "2026-08-24T10:30:00"
+    },
+    {
+      "tipo": "LOW",
+      "preco": 174800.0,
+      "time": "2026-08-24T11:05:00"
+    },
+    {
+      "tipo": "HIGH",
+      "preco": 175285.0,
+      "time": "2026-08-24T11:15:00"
+    },
+    {
+      "tipo": "LOW",
+      "preco": 174815.0,
+      "time": "2026-08-24T11:30:00"
+    },
+    {
+      "tipo": "HIGH",
+      "preco": 175360.0,
+      "time": "2026-08-24T12:15:00"
+    },
+    {
+      "tipo": "LOW",
+      "preco": 174665.0,
+      "time": "2026-08-24T12:30:00"
+    },
+    {
+      "tipo": "HIGH",
+      "preco": 175075.0,
+      "time": "2026-08-24T13:00:00"
+    },
+    {
+      "tipo": "LOW",
+      "preco": 174885.0,
+      "time": "2026-08-24T13:10:00"
+    },
+    {
+      "tipo": "HIGH",
+      "preco": 175125.0,
+      "time": "2026-08-24T13:15:00"
+    }
+  ],
+  "estruturas_coletadas": [
+    "175360: Swing High",
+    "174665: Swing Low",
+    "175075: Swing High",
+    "174885: Swing Low",
+    "175125: Swing High",
+    "174925: OB COMPRA (174870-174980)",
+    "175142: OB VENDA (175010-175275)",
+    "175172: OB VENDA (174985-175360)",
+    "172715: FVG COMPRA (172430-173000)",
+    "174120: FVG COMPRA (173885-174355)",
+    "174612: FVG COMPRA (174575-174650)",
+    "175745: FVG VENDA (175660-175830)"
+  ],
+  "liquidez_relevante": [
+    "BSL: 175118 (equal highs / liquidez de compra acima)",
+    "SSL: 174808 (equal lows / liquidez de venda abaixo)"
+  ],
+  "zonas_de_interesse_e_cenarios": [
+    "Cenário Vendedor: rejeição na região 175172 (OB/FVG de venda validado por volume) visando 174808.",
+    "Cenário alternativo: varredura de liquidez acima antes da continuação de baixa."
+  ],
+  "entrada_sugerida": 174985.0,
+  "stop_sugerido": 175410.0,
+  "alvos": [
+    174808.0
+  ],
+  "metadados": {
+    "n_candles": 120,
+    "n_swings": 27,
+    "n_fvgs_abertos": 4,
+    "n_obs": 3,
+    "filtro_volume_aplicado": true,
+    "config": {
+      "swing_left": 2,
+      "swing_right": 2,
+      "fvg_min_pontos": 20.0,
+      "eq_tol_pontos": 15.0,
+      "max_niveis": 12,
+      "max_fvgs": 8,
+      "max_obs": 6,
+      "lookback": 120,
+      "vol_ma_period": 20,
+      "vol_factor_min": 1.2,
+      "expansion_factor_min": 1.3
+    }
+  }
+}
