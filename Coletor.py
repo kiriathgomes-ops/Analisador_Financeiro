@@ -1,4 +1,3 @@
-
 # ============================================================
 # ARQUIVO: Coletor.py
 # DATA: 19/08/2026
@@ -12,7 +11,7 @@
 #   - WIN_FUT (bruto: BMFBOVESPA:WIN1!) → cotação do contrato futuro no momento da coleta
 #
 # ATUALIZAÇÕES:
-#   1. Ciclo unificado de conexão MT5 (sem reconexões desnecessárias).
+#   1. Ciclo unificado de conexão MT5 v2.3 (futuros + ações na mesma sessão).
 #   2. Registro dedicado para WIN_PREV_CLOSE gravado no JSON ROM.
 #   3. Rotação temporal em 12 arquivos (60 minutos de histórico).
 #   4. WIN_LAST_TICK: coleta viva na janela 19:00-08:50; no pregão
@@ -426,35 +425,49 @@ def coletar_finnhub():
 
 def coletar_mt5_acoes_b3():
     """
-    FONTE: MetaTrader 5 (Conexão direta com a corretora local na B3).
-    QUANDO OCORRE: Executado no ciclo do pipeline. Requer terminal MT5 aberto/instalado.
-    DADOS OBTIDOS: Dados de Tick e Candle Diário (OHLCV + Fechamento Anterior) para as principais ações da B3 (VALE3, PETR4, etc.).
+    FONTE: MetaTrader 5 (mesma conexão já aberta pelo Coletor_MT5_v2_2 v2.3).
+    QUANDO OCORRE: No ciclo do pipeline, DEPOIS dos futuros, SEM novo initialize.
+    DADOS: Tick + D1 (OHLCV + fechamento anterior) das ações B3 (VALE3, PETR4, etc.).
     """
     timestamp = datetime.now().isoformat()
     resultados = []
-    
-    if not mt5.initialize():
-        print("⚠️ [AVISO] Não foi possível inicializar o MT5 para ações B3.")
-        return resultados
 
     try:
-        for cfg in ATIVOS_MT5_B3:
-            symbol = cfg["ticker_coleta"]
+        info_term = mt5.terminal_info()
+    except Exception:
+        info_term = None
+    if info_term is None:
+        print("⚠️ [AVISO] MT5 não está conectado — pulando ações B3.")
+        return resultados
+
+    for cfg in ATIVOS_MT5_B3:
+        symbol = cfg["ticker_coleta"]
+        try:
             mt5.symbol_select(symbol, True)
             info = mt5.symbol_info(symbol)
             tick = mt5.symbol_info_tick(symbol)
-            
-            # Obtém barra diária (TIMEFRAME_D1) para extrair Abertura, Máxima, Mínima e Volume
             rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_D1, 0, 1)
 
             if info and tick:
-                prev_close = float(getattr(info, "session_close", 0.0))
-                preco = float(tick.last if tick.last > 0 else (tick.bid if tick.bid > 0 else tick.ask))
-                
-                open_val = float(rates[0][1]) if rates is not None and len(rates) > 0 else None
-                high_val = float(rates[0][2]) if rates is not None and len(rates) > 0 else None
-                low_val = float(rates[0][3]) if rates is not None and len(rates) > 0 else None
-                volume_val = float(rates[0][5]) if rates is not None and len(rates) > 0 else None
+                prev_close = float(getattr(info, "session_close", 0.0) or 0.0)
+                last = float(tick.last or 0.0)
+                bid = float(tick.bid or 0.0)
+                ask = float(tick.ask or 0.0)
+                preco = last if last > 0 else (bid if bid > 0 else ask)
+
+                open_val = high_val = low_val = volume_val = None
+                if rates is not None and len(rates) > 0:
+                    r0 = rates[0]
+                    try:
+                        open_val = float(r0["open"])
+                        high_val = float(r0["high"])
+                        low_val = float(r0["low"])
+                        volume_val = float(r0["tick_volume"])
+                    except Exception:
+                        open_val = float(r0[1])
+                        high_val = float(r0[2])
+                        low_val = float(r0[3])
+                        volume_val = float(r0[5]) if len(r0) > 5 else None
 
                 if preco > 0:
                     var_pct = round(((preco / prev_close) - 1) * 100, 2) if prev_close > 0 else 0.0
@@ -476,11 +489,30 @@ def coletar_mt5_acoes_b3():
                         },
                     })
                 else:
-                    resultados.append({"ativo": cfg["ativo"], "fonte": "MetaTrader5", "timestamp": timestamp, "status": "SEM_DADOS", "dados_reais": None})
+                    resultados.append({
+                        "ativo": cfg["ativo"],
+                        "fonte": "MetaTrader5",
+                        "timestamp": timestamp,
+                        "status": "SEM_DADOS",
+                        "dados_reais": None,
+                    })
             else:
-                resultados.append({"ativo": cfg["ativo"], "fonte": "MetaTrader5", "timestamp": timestamp, "status": "ERRO", "dados_reais": None})
-    finally:
-        pass
+                resultados.append({
+                    "ativo": cfg["ativo"],
+                    "fonte": "MetaTrader5",
+                    "timestamp": timestamp,
+                    "status": "ERRO",
+                    "dados_reais": None,
+                })
+        except Exception as e:
+            print(f"⚠️ Erro MT5 ação {symbol}: {e}")
+            resultados.append({
+                "ativo": cfg["ativo"],
+                "fonte": "MetaTrader5",
+                "timestamp": timestamp,
+                "status": "ERRO",
+                "dados_reais": None,
+            })
     return resultados
 
 def capturar_last_do_mt5() -> dict:
@@ -686,17 +718,22 @@ def executar_pipeline_coleta():
     coletas.extend(coletar_finnhub())
 
     # ------------------------------------------------------------
-    # 5. COLETA METATRADER 5 (1 ÚNICO CICLO DE CONEXÃO INTEGRADA)
+    # 5. COLETA METATRADER 5 (1 ÚNICO CICLO DE CONEXÃO — v2.3)
+    #    Futuros (WIN/WDO/DI1) + ações B3 na MESMA sessão.
+    #    Cache de WIN_AJUSTE e WIN_LAST_TICK permanece no passo 2 e 6.
     # ------------------------------------------------------------
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Executando coleta unificada MT5...")
-    
-    # 5.1 FUTUROS B3: Importa o módulo externo 'Coletor_MT5_v2_2' para obter cotações de WIN, WDO e DI1
+
+    # 5.1 FUTUROS B3 — desconectar=False para as ações reutilizarem a sessão
     dados_futuros_mt5 = {}
     try:
-        from Coletor_MT5_v2_2 import executar_coleta_mt5_v2
-        res_v2 = executar_coleta_mt5_v2()
-        if res_v2 and res_v2.get("status") == "OK":
-            dados_futuros_mt5 = res_v2.get("ativos", {})
+        from Coletor_MT5_v2_2 import executar_coleta_mt5_v2, desconectar_mt5
+        res_v2 = executar_coleta_mt5_v2(desconectar=False)
+        if res_v2 and res_v2.get("status") in ("OK", "PARCIAL", "STALE"):
+            dados_futuros_mt5 = res_v2.get("ativos", {}) or {}
+        elif res_v2:
+            print(f"⚠️ Coletor MT5 v2.3 status={res_v2.get('status')}")
+            dados_futuros_mt5 = res_v2.get("ativos", {}) or {}
     except Exception as e:
         print(f"⚠️ Falha na execução do Coletor_MT5_v2_2: {e}")
 
@@ -710,7 +747,7 @@ def executar_pipeline_coleta():
     for prefixo, ativo_bruto in mapeamento_futuros:
         info = dados_futuros_mt5.get(prefixo, {})
         last_val = info.get("last")
-        if last_val:
+        if last_val is not None and float(last_val or 0) > 0:
             close_val = float(last_val)
             prev_close = info.get("prev_close") or info.get("session_close") or 0.0
             var_abs = round(close_val - prev_close, 2) if prev_close else 0.0
@@ -755,15 +792,19 @@ def executar_pipeline_coleta():
                     },
                 })
 
-    # 5.2 AÇÕES B3: Coleta cotações à vista (VALE3, PETR4, etc.) via MT5
+    # 5.2 AÇÕES B3 na mesma sessão MT5 (sem novo initialize)
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Coletando ações B3 via MT5...")
     coletas.extend(coletar_mt5_acoes_b3())
 
-    # Encerra com segurança a instância da biblioteca do MetaTrader 5
+    # Um único shutdown no fim do bloco MT5
     try:
-        mt5.shutdown()
+        from Coletor_MT5_v2_2 import desconectar_mt5
+        desconectar_mt5()
     except Exception:
-        pass
+        try:
+            mt5.shutdown()
+        except Exception:
+            pass
 
     # ------------------------------------------------------------
     # 6. WIN_LAST_TICK (last overnight — NÃO é fechamento oficial)
@@ -841,4 +882,7 @@ def executar_pipeline_coleta():
 
 if __name__ == "__main__":
     executar_pipeline_coleta()
+
+
+
 

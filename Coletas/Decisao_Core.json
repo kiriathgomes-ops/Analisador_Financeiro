@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "timestamp": "2026-08-24T17:04:10.719332",
+    "timestamp": "2026-08-24T18:20:18.477744",
     "status_pipeline": "OK",
     "ativo_foco": "WIN_INDICE"
   },
@@ -10,7 +10,7 @@
       "vies_final": "MODERADO_COMPRA",
       "fatores_relevantes": [
         "ADRs fortes no exterior (+9.83%)",
-        "Commodities e Mercado Externo pressionados (-6.99%)",
+        "Commodities e Mercado Externo pressionados (-6.93%)",
         "🔺 Last acima do ajuste em 117 pts (viés comprador)"
       ]
     }

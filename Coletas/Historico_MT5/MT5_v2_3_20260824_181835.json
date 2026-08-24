@@ -1,6 +1,6 @@
 {
     "versao_coletor": "2.3",
-    "timestamp": "2026-08-24T18:20:17.181",
+    "timestamp": "2026-08-24T18:18:34.997",
     "mt5": {
         "conectado": true,
         "versao": [
@@ -14,22 +14,22 @@
             "ativo": "WIN",
             "descricao": "Mini Índice B3",
             "contrato_principal": "WINV26",
-            "timestamp": "2026-08-24T18:20:17.185",
-            "bid": 174695.0,
-            "ask": 174700.0,
-            "last": 174700.0,
+            "timestamp": "2026-08-24T18:18:35.000",
+            "bid": 174750.0,
+            "ask": 174755.0,
+            "last": 174750.0,
             "fonte_last": "last",
             "open": 172250.0,
             "high": 175010.0,
             "low": 171025.0,
             "session_close": 174035.0,
             "prev_close": 174035.0,
-            "change_percent": 0.38,
-            "change_abs": 665.0,
-            "volume": 5.0,
+            "change_percent": 0.41,
+            "change_abs": 715.0,
+            "volume": 6.0,
             "spread": 5.0,
             "preco_teorico": null,
-            "tick_time": "2026-08-24T15:20:17",
+            "tick_time": "2026-08-24T15:18:35",
             "tick_idade_seg": 10800,
             "tick_stale": true,
             "vencimento": "2026-10-13T21:00:00",
@@ -43,18 +43,18 @@
                 {
                     "contrato": "WINV26",
                     "expiracao": "2026-10-13T21:00:00",
-                    "volume": 5.0,
-                    "bid": 174695.0,
-                    "ask": 174700.0,
-                    "last": 174700.0
+                    "volume": 6.0,
+                    "bid": 174750.0,
+                    "ask": 174755.0,
+                    "last": 174750.0
                 },
                 {
                     "contrato": "WINZ26",
                     "expiracao": "2026-12-15T21:00:00",
                     "volume": 1.0,
-                    "bid": 178215.0,
-                    "ask": 178240.0,
-                    "last": 178220.0
+                    "bid": 178270.0,
+                    "ask": 178290.0,
+                    "last": 178255.0
                 }
             ],
             "status": "STALE"
@@ -63,23 +63,23 @@
             "ativo": "WDO",
             "descricao": "Mini Dólar Futuro B3",
             "contrato_principal": "WDOU26",
-            "timestamp": "2026-08-24T18:20:17.189",
-            "bid": 5165.5,
-            "ask": 5166.0,
-            "last": 5166.0,
+            "timestamp": "2026-08-24T18:18:35.007",
+            "bid": 5164.5,
+            "ask": 5165.0,
+            "last": 5165.0,
             "fonte_last": "last",
             "open": 5177.0,
             "high": 5194.5,
             "low": 5142.5,
             "session_close": 5150.0,
             "prev_close": 5150.0,
-            "change_percent": 0.31,
-            "change_abs": 16.0,
-            "volume": 31.0,
+            "change_percent": 0.29,
+            "change_abs": 15.0,
+            "volume": 1.0,
             "spread": 0.5,
             "preco_teorico": null,
-            "tick_time": "2026-08-24T15:20:17",
-            "tick_idade_seg": 10800,
+            "tick_time": "2026-08-24T15:18:34",
+            "tick_idade_seg": 10801,
             "tick_stale": true,
             "vencimento": "2026-09-01T20:59:00",
             "market_book": {
@@ -92,18 +92,18 @@
                 {
                     "contrato": "WDOU26",
                     "expiracao": "2026-09-01T20:59:00",
-                    "volume": 31.0,
-                    "bid": 5165.5,
-                    "ask": 5166.0,
-                    "last": 5166.0
+                    "volume": 1.0,
+                    "bid": 5164.5,
+                    "ask": 5165.0,
+                    "last": 5165.0
                 },
                 {
                     "contrato": "WDOV26",
                     "expiracao": "2026-09-30T21:00:00",
                     "volume": 1.0,
-                    "bid": 5199.0,
-                    "ask": 5200.0,
-                    "last": 5200.0
+                    "bid": 5198.0,
+                    "ask": 5199.5,
+                    "last": 5198.5
                 },
                 {
                     "contrato": "WDOV26P005700",
@@ -141,8 +141,8 @@
                     "contrato": "WDOX26",
                     "expiracao": "2026-11-03T20:59:00",
                     "volume": 1.0,
-                    "bid": 5229.0,
-                    "ask": 5234.0,
+                    "bid": 5228.0,
+                    "ask": 5232.5,
                     "last": 5231.5
                 },
                 {
@@ -200,7 +200,7 @@
             "ativo": "DI1",
             "descricao": "DI Futuro B3",
             "contrato_principal": "DI1F27",
-            "timestamp": "2026-08-24T18:20:17.191",
+            "timestamp": "2026-08-24T18:18:35.010",
             "bid": 13.695,
             "ask": 13.7,
             "last": 13.7,
@@ -216,7 +216,7 @@
             "spread": 0.0,
             "preco_teorico": null,
             "tick_time": "2026-08-24T14:59:57",
-            "tick_idade_seg": 12020,
+            "tick_idade_seg": 11918,
             "tick_stale": true,
             "vencimento": "2027-01-03T21:00:00",
             "market_book": {

@@ -1,9 +1,9 @@
 {
-  "timestamp": "2026-08-24T17:04:11.086259",
+  "timestamp": "2026-08-24T18:20:18.991163",
   "ativo": "WIN$",
   "timeframe": "5m",
   "fonte": "regras_smc",
-  "preco_atual": 174770.0,
+  "preco_atual": 174700.0,
   "timeframes_identificados": "5m",
   "bias_direcional": "BAIXA",
   "direcao_estrutura": "BAIXA",
@@ -13,21 +13,9 @@
   "order_blocks": [
     {
       "tipo": "COMPRA",
-      "preco": 174925.0,
-      "high": 174980.0,
-      "low": 174870.0
-    },
-    {
-      "tipo": "VENDA",
-      "preco": 175142.5,
-      "high": 175275.0,
-      "low": 175010.0
-    },
-    {
-      "tipo": "VENDA",
-      "preco": 175172.5,
-      "high": 175360.0,
-      "low": 174985.0
+      "preco": 174840.0,
+      "high": 174875.0,
+      "low": 174805.0
     }
   ],
   "fair_value_gaps": [
@@ -54,23 +42,25 @@
       "superior": 175830.0,
       "inferior": 175660.0,
       "preenchido": false
+    },
+    {
+      "tipo": "VENDA",
+      "superior": 174740.0,
+      "inferior": 174720.0,
+      "preenchido": false
     }
   ],
   "liquidez": {
     "bsl": [
-      175117.5
+      175117.5,
+      174895.0
     ],
     "ssl": [
+      174660.0,
       174807.5
     ]
   },
   "eventos_estrutura": [
-    {
-      "tipo": "BOS",
-      "direcao": "ALTA",
-      "preco": 175435.0,
-      "time": "2026-08-24T09:25:00"
-    },
     {
       "tipo": "CHOCH",
       "direcao": "BAIXA",
@@ -100,34 +90,15 @@
       "direcao": "BAIXA",
       "preco": 174665.0,
       "time": "2026-08-24T13:55:00"
+    },
+    {
+      "tipo": "BOS",
+      "direcao": "BAIXA",
+      "preco": 174885.0,
+      "time": "2026-08-24T13:55:00"
     }
   ],
   "swings_recentes": [
-    {
-      "tipo": "LOW",
-      "preco": 175320.0,
-      "time": "2026-08-24T10:20:00"
-    },
-    {
-      "tipo": "HIGH",
-      "preco": 175660.0,
-      "time": "2026-08-24T10:30:00"
-    },
-    {
-      "tipo": "LOW",
-      "preco": 174800.0,
-      "time": "2026-08-24T11:05:00"
-    },
-    {
-      "tipo": "HIGH",
-      "preco": 175285.0,
-      "time": "2026-08-24T11:15:00"
-    },
-    {
-      "tipo": "LOW",
-      "preco": 174815.0,
-      "time": "2026-08-24T11:30:00"
-    },
     {
       "tipo": "HIGH",
       "preco": 175360.0,
@@ -152,40 +123,65 @@
       "tipo": "HIGH",
       "preco": 175125.0,
       "time": "2026-08-24T13:15:00"
+    },
+    {
+      "tipo": "LOW",
+      "preco": 174605.0,
+      "time": "2026-08-24T13:55:00"
+    },
+    {
+      "tipo": "LOW",
+      "preco": 174655.0,
+      "time": "2026-08-24T14:15:00"
+    },
+    {
+      "tipo": "HIGH",
+      "preco": 174895.0,
+      "time": "2026-08-24T14:35:00"
+    },
+    {
+      "tipo": "LOW",
+      "preco": 174725.0,
+      "time": "2026-08-24T14:50:00"
+    },
+    {
+      "tipo": "HIGH",
+      "preco": 174895.0,
+      "time": "2026-08-24T14:55:00"
     }
   ],
   "estruturas_coletadas": [
-    "175360: Swing High",
-    "174665: Swing Low",
-    "175075: Swing High",
-    "174885: Swing Low",
     "175125: Swing High",
-    "174925: OB COMPRA (174870-174980)",
-    "175142: OB VENDA (175010-175275)",
-    "175172: OB VENDA (174985-175360)",
+    "174605: Swing Low",
+    "174655: Swing Low",
+    "174895: Swing High",
+    "174725: Swing Low",
+    "174895: Swing High",
+    "174840: OB COMPRA (174805-174875)",
     "172715: FVG COMPRA (172430-173000)",
     "174120: FVG COMPRA (173885-174355)",
     "174612: FVG COMPRA (174575-174650)",
-    "175745: FVG VENDA (175660-175830)"
+    "175745: FVG VENDA (175660-175830)",
+    "174730: FVG VENDA (174720-174740)"
   ],
   "liquidez_relevante": [
     "BSL: 175118 (equal highs / liquidez de compra acima)",
+    "BSL: 174895 (equal highs / liquidez de compra acima)",
+    "SSL: 174660 (equal lows / liquidez de venda abaixo)",
     "SSL: 174808 (equal lows / liquidez de venda abaixo)"
   ],
   "zonas_de_interesse_e_cenarios": [
-    "Cenário Vendedor: rejeição na região 175172 (OB/FVG de venda validado por volume) visando 174808.",
+    "Cenário Vendedor: rejeição na região 174740 (OB/FVG de venda validado por volume) visando 174660.",
     "Cenário alternativo: varredura de liquidez acima antes da continuação de baixa."
   ],
-  "entrada_sugerida": 174985.0,
-  "stop_sugerido": 175410.0,
-  "alvos": [
-    174808.0
-  ],
+  "entrada_sugerida": null,
+  "stop_sugerido": null,
+  "alvos": [],
   "metadados": {
     "n_candles": 120,
-    "n_swings": 27,
-    "n_fvgs_abertos": 4,
-    "n_obs": 3,
+    "n_swings": 28,
+    "n_fvgs_abertos": 5,
+    "n_obs": 1,
     "filtro_volume_aplicado": true,
     "config": {
       "swing_left": 2,
