@@ -1,13 +1,13 @@
 {
   "metadata": {
-    "timestamp": "2026-08-25T05:49:09.305205",
+    "timestamp": "2026-08-25T05:39:07.129463",
     "versao": "V2.2",
     "fonte": "v2_orchestrator"
   },
   "win_session": {
     "metadata": {
       "data_sessao": "2026-08-25",
-      "timestamp_coleta": "2026-08-25T05:49:04.591000",
+      "timestamp_coleta": "2026-08-25T05:39:03.769000",
       "contrato_principal": "WINV26",
       "fonte_last": "MT5_v1"
     },
@@ -37,20 +37,20 @@
     },
     "contexto": {
       "vix": {
-        "preco": 15.78,
-        "variacao_pct": -0.3787878787878819
+        "preco": 15.8,
+        "variacao_pct": -0.2525252525252471
       },
       "sp500_fut": {
-        "preco": 7692.25,
-        "variacao_pct": 0.2933602790182209
+        "preco": 7691.75,
+        "variacao_pct": 0.28684116170670493
       },
       "nasdaq_fut": {
-        "preco": 29275.75,
-        "variacao_pct": 0.5840770294529432
+        "preco": 29274.25,
+        "variacao_pct": 0.5789234086048289
       },
       "dxy": {
-        "preco": 99.027,
-        "variacao_pct": 0.04445207762948883
+        "preco": 99.029,
+        "variacao_pct": 0.04647262661264284
       },
       "usd_brl": {
         "preco": 5.1594,
@@ -83,25 +83,25 @@
       },
       "indicador_adrs": 6.34,
       "iron_ore": {
-        "preco": 95.7,
-        "variacao_pct": -0.20855057351408013
+        "preco": 95.65,
+        "variacao_pct": -0.2606882168925964
       },
       "iron_ore_2m": {
-        "preco": 97.05,
-        "variacao_pct": -0.8175779253960115
+        "preco": 97.1,
+        "variacao_pct": -0.7664793050587635
       },
       "crude_oil": {
         "preco": 83.73,
         "variacao_pct": -1.5057052111516305
       },
       "gold": {
-        "preco": 4629.49,
-        "variacao_pct": -0.48009135343284853
+        "preco": 4631.762,
+        "variacao_pct": -0.4312502861781414
       },
       "di1_2027": 13.7,
       "di1_2029": 14.16,
       "inclinacao_bps": 46.0,
-      "indicador_mercado_externo": -1.9445
+      "indicador_mercado_externo": -2.0197
     },
     "noticias": {
       "impacto_total": 0,
@@ -136,13 +136,13 @@
         "distancia_ajuste_pts": -38.0
       },
       "contexto_resumo": [
-        "VIX 15.8 (-0.38%)",
+        "VIX 15.8 (-0.25%)",
         "ES +0.29%",
         "NQ +0.58%",
-        "DXY +0.04%",
+        "DXY +0.05%",
         "USD/BRL +0.03%",
         "ADRs BR +6.34%",
-        "Minério -0.21%",
+        "Minério -0.26%",
         "Petróleo -1.51%",
         "Calendário: BAIXO (impacto 0)"
       ],
@@ -157,7 +157,7 @@
         "metricas": true,
         "noticias": true
       },
-      "timestamp_build": "2026-08-25T05:49:09.304819"
+      "timestamp_build": "2026-08-25T05:39:07.129216"
     }
   },
   "opening_scenario": {
@@ -182,13 +182,13 @@
       "distancia_ajuste_pts": -38.0
     },
     "contexto_resumo": [
-      "VIX 15.8 (-0.38%)",
+      "VIX 15.8 (-0.25%)",
       "ES +0.29%",
       "NQ +0.58%",
-      "DXY +0.04%",
+      "DXY +0.05%",
       "USD/BRL +0.03%",
       "ADRs BR +6.34%",
-      "Minério -0.21%",
+      "Minério -0.26%",
       "Petróleo -1.51%",
       "Calendário: BAIXO (impacto 0)"
     ],
@@ -199,10 +199,10 @@
     "vies": "VENDA",
     "confianca": 66,
     "motivos": [
-      "Mercado Externo: -1.94% (VENDA)",
+      "Mercado Externo: -2.02% (VENDA)",
       "ADRs: +6.34% (COMPRA)",
       "Tendência: Estavel_E_Estavel (NEUTRO)",
-      "Predição: VENDA (score 51.7)"
+      "Predição: VENDA (score 51.4)"
     ],
     "riscos": [
       "GAP EXTREMO (-174753 pts)"
@@ -213,7 +213,7 @@
     }
   },
   "decisao": {
-    "timestamp": "2026-08-25T05:49:09.305180",
+    "timestamp": "2026-08-25T05:39:07.129433",
     "ativo": "WIN",
     "vies_final": "VENDA",
     "confianca": 66,
@@ -223,10 +223,10 @@
     "alvo_2": 169172,
     "invalidacao": "Fechamento acima de 175688",
     "motivos": [
-      "Mercado Externo: -1.94% (VENDA)",
+      "Mercado Externo: -2.02% (VENDA)",
       "ADRs: +6.34% (COMPRA)",
       "Tendência: Estavel_E_Estavel (NEUTRO)",
-      "Predição: VENDA (score 51.7)"
+      "Predição: VENDA (score 51.4)"
     ],
     "riscos": [
       "GAP EXTREMO (-174753 pts)",

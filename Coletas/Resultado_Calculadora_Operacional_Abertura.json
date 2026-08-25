@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "timestamp": "2026-08-24T18:20:18.236657",
+    "timestamp": "2026-08-25T05:49:05.602789",
     "origem": "Pipeline_Completo_V3",
     "versao": "3.1_WIN",
     "arquivos_presentes": {
@@ -20,15 +20,15 @@
   },
   "indicadores_compostos": {
     "indicador_mercado_externo": {
-      "valor_pct": -6.9271,
-      "classificacao": "MUITO_FORTE",
+      "valor_pct": -1.9445,
+      "classificacao": "MODERADA",
       "sinal_operacional": "VENDA",
-      "rotulo_completo": "MUITO_FORTE_VENDA",
+      "rotulo_completo": "MODERADA_VENDA",
       "valido": true,
       "observacao": "OK"
     },
     "indicador_adrs_brasileiras": {
-      "valor_pct": 9.83,
+      "valor_pct": 6.34,
       "classificacao": "MUITO_FORTE",
       "sinal_operacional": "COMPRA",
       "rotulo_completo": "MUITO_FORTE_COMPRA",
@@ -39,9 +39,9 @@
   "analise_tendencias": {},
   "estimativa_abertura": {
     "WIN_INDICE": {
-      "variacao_teorica_pct": 0.0733,
-      "pontos_ajuste_base": 173918.0,
-      "abertura_teorica_pontos": 174045.0
+      "variacao_teorica_pct": 0.1864,
+      "pontos_ajuste_base": 174753.0,
+      "abertura_teorica_pontos": 175079.0
     }
   },
   "pivot_points": {
@@ -54,21 +54,21 @@
     }
   },
   "resumo_macro": {
-    "vix": 15.84,
+    "vix": 15.78,
     "di1_2027": 13.7,
     "di1_2029": 14.16,
-    "iron_ore": 97.9,
-    "crude_oil": 85.01,
-    "gold": 4651.823
+    "iron_ore": 97.05,
+    "crude_oil": 83.73,
+    "gold": 4629.49
   },
   "decisao_core": {
     "win": {
-      "score_numeric": 2.0,
-      "vies_final": "MODERADO_COMPRA",
+      "score_numeric": 0.0,
+      "vies_final": "NEUTRO",
       "fatores_relevantes": [
-        "ADRs fortes no exterior (+9.83%)",
-        "Commodities e Mercado Externo pressionados (-6.99%)",
-        "🔺 Last acima do ajuste em 117 pts (viés comprador)"
+        "ADRs fortes no exterior (+6.34%)",
+        "Commodities e Mercado Externo pressionados (-1.77%)",
+        "⚖️ Spread Last vs Ajuste na normalidade (-38 pts)"
       ]
     }
   }

@@ -1,13 +1,13 @@
 {
   "metadata_calculo": {
-    "timestamp": "2026-08-24T18:20:17.782062",
+    "timestamp": "2026-08-25T05:49:05.240051",
     "total_ativos_processados": 32
   },
   "cambio_e_arbitragem": {
     "usd_ptax": 5.1506,
-    "wdo_fut": 5166.0,
-    "spread_wdo_ptax_pontos": 15.4,
-    "spread_wdo_ptax_percentual": 0.299
+    "wdo_fut": 5165.5,
+    "spread_wdo_ptax_pontos": 14.9,
+    "spread_wdo_ptax_percentual": 0.2893
   },
   "curva_juros_b3": {
     "di1_2027_taxa": 13.7,
@@ -15,20 +15,20 @@
     "inclinacao_29_27_bps": 46.0
   },
   "indicadores_macro": {
-    "vix": 15.84,
-    "vix_change_pct": 4.623513870541607,
-    "dxy": 98.984,
-    "crude_oil": 85.01,
-    "crude_oil_change_pct": -2.3546979094877063,
+    "vix": 15.78,
+    "vix_change_pct": -0.3787878787878819,
+    "dxy": 99.027,
+    "crude_oil": 83.73,
+    "crude_oil_change_pct": -1.5057052111516305,
     "iron_ore_fef2": {
-      "close": 97.9,
-      "change_percent": 0.051098620337262514
+      "close": 97.05,
+      "change_percent": -0.8175779253960115
     }
   },
   "performance_relativa": {
     "ewz_change_pct": 0.31,
-    "sp500_fut_change_pct": -0.2795384365350235,
-    "nasdaq_fut_change_pct": -0.9595834999276909,
+    "sp500_fut_change_pct": 0.2933602790182209,
+    "nasdaq_fut_change_pct": 0.5840770294529432,
     "adrs_brasileiras": {
       "BBD_ADR": {
         "close": 3.15,
@@ -47,17 +47,17 @@
         "change_percent": 3.08
       },
       "BBAS_ADR": {
-        "close": 3.65,
-        "change_percent": 2.24
+        "close": 3.68,
+        "change_percent": 0.82
       },
       "B3_ADR": {
-        "close": 8.73,
-        "change_percent": 5.56
+        "close": 9.035,
+        "change_percent": 3.49
       }
     }
   },
   "indicadores_compostos": {
-    "indicador_mercado_externo": -6.9271,
-    "indicador_adrs_brasileiras": 9.83
+    "indicador_mercado_externo": -1.9445,
+    "indicador_adrs_brasileiras": 6.34
   }
 }

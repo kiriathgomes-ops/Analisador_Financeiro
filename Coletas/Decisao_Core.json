@@ -1,17 +1,17 @@
 {
   "metadata": {
-    "timestamp": "2026-08-24T18:20:18.477744",
+    "timestamp": "2026-08-25T05:49:05.799656",
     "status_pipeline": "OK",
     "ativo_foco": "WIN_INDICE"
   },
   "analise_operacional": {
     "WIN_INDICE": {
-      "score_numeric": 2.0,
-      "vies_final": "MODERADO_COMPRA",
+      "score_numeric": 0.0,
+      "vies_final": "NEUTRO",
       "fatores_relevantes": [
-        "ADRs fortes no exterior (+9.83%)",
-        "Commodities e Mercado Externo pressionados (-6.93%)",
-        "🔺 Last acima do ajuste em 117 pts (viés comprador)"
+        "ADRs fortes no exterior (+6.34%)",
+        "Commodities e Mercado Externo pressionados (-1.94%)",
+        "⚖️ Spread Last vs Ajuste na normalidade (-38 pts)"
       ]
     }
   }

@@ -1,9 +1,9 @@
 {
-  "timestamp": "2026-08-24T18:20:18.991163",
+  "timestamp": "2026-08-25T05:49:06.491667",
   "ativo": "WIN$",
   "timeframe": "5m",
   "fonte": "regras_smc",
-  "preco_atual": 174700.0,
+  "preco_atual": 174715.0,
   "timeframes_identificados": "5m",
   "bias_direcional": "BAIXA",
   "direcao_estrutura": "BAIXA",
@@ -62,12 +62,6 @@
   },
   "eventos_estrutura": [
     {
-      "tipo": "CHOCH",
-      "direcao": "BAIXA",
-      "preco": 175355.0,
-      "time": "2026-08-24T10:40:00"
-    },
-    {
       "tipo": "BOS",
       "direcao": "BAIXA",
       "preco": 175320.0,
@@ -96,6 +90,12 @@
       "direcao": "BAIXA",
       "preco": 174885.0,
       "time": "2026-08-24T13:55:00"
+    },
+    {
+      "tipo": "BOS",
+      "direcao": "BAIXA",
+      "preco": 174655.0,
+      "time": "2026-08-24T15:20:00"
     }
   ],
   "swings_recentes": [

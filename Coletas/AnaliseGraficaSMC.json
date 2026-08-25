@@ -1,0 +1,36 @@
+{
+  "timeframes_identificados": "HTF (15 Minutos) e LTF (5 Minutos)",
+  "bias_direcional": "Bullish (Altista no intraday com alvos em desequilíbrios HTF)",
+  "estruturas_coletadas": [
+    "182.500: Extreme Supply HTF / EQH de Liquidez Majoritária (4.2K)",
+    "181.500: Supply Zone HTF / EQH (867)",
+    "180.500: BSL Pool / EQH (5.3K)",
+    "179.220: FVG 15 (Fair Value Gap Vendedor HTF)",
+    "178.615: FVG 15 (Fair Value Gap Vendedor HTF)",
+    "178.115: FVG 15 (Fair Value Gap Vendedor HTF)",
+    "177.585: FVG 15 (Fair Value Gap Vendedor HTF / Alvo Principal)",
+    "176.500: Equilibrium HTF / Faixa de Resistência e Mitigação",
+    "174.625: Topo Local / Região Premium / 2x EQH (473.3K)",
+    "174.045: Preço de Fechamento / Cotação Atual (WINV2026)",
+    "172.485: PDH (Previous Day High) / Nível Rompido com BOS",
+    "172.175: Equilibrium LTF / Inversão de Polaridade",
+    "171.990: Bullish FVG / Ponto de Apoio LTF",
+    "171.150: Bullish Order Block / Nível de Inversão de Polaridade",
+    "170.555: EQL LTF (166.5K / 231.5K)",
+    "170.330: Suporte Estrutural / Zona de Demanda",
+    "169.795: PDL (Previous Day Low) / EQL Majoritário (337.4K)",
+    "168.675: Strong Low / Zona da Bacia / Discount Zone / FVG 5min"
+  ],
+  "liquidez_relevante": [
+    "BSL: 182.500 (EQH 4.2K no topo do range)",
+    "BSL: 180.500 (EQH 5.3K)",
+    "BSL: 174.625 (2x EQH 473.3K / Liquidez de Topo Local)",
+    "SSL: 170.555 (EQL 166.5K / 231.5K)",
+    "SSL: 169.795 (PDL / EQL 337.4K)",
+    "SSL: 168.675 (Strong Low / Bacia em Discount)"
+  ],
+  "zonas_de_interesse_e_cenarios": [
+    "Cenário Comprador (Continuação): Retração técnica até as zonas de desconto/POI em 172.485 (PDH rompido) ou FVG/OB em 172.175 - 171.150 para buscar a liquidez acima de 174.625 com expansão em direção aos FVGs HTF em 177.585 e 178.115.",
+    "Cenário Vendedor (Reversão / Mitigação): Rejeição na liquidez de 174.625 (2x EQH) gerando ChoCh/BOS vendedor abaixo de 172.175, abrindo espaço para capturar a SSL em 170.555 e 169.795 (PDL)."
+  ]
+}

@@ -1,13 +1,13 @@
 {
   "metadata": {
-    "timestamp": "2026-08-25T05:49:09.305205",
+    "timestamp": "2026-08-25T05:44:07.009293",
     "versao": "V2.2",
     "fonte": "v2_orchestrator"
   },
   "win_session": {
     "metadata": {
       "data_sessao": "2026-08-25",
-      "timestamp_coleta": "2026-08-25T05:49:04.591000",
+      "timestamp_coleta": "2026-08-25T05:44:04.159000",
       "contrato_principal": "WINV26",
       "fonte_last": "MT5_v1"
     },
@@ -37,20 +37,20 @@
     },
     "contexto": {
       "vix": {
-        "preco": 15.78,
-        "variacao_pct": -0.3787878787878819
+        "preco": 15.8,
+        "variacao_pct": -0.2525252525252471
       },
       "sp500_fut": {
-        "preco": 7692.25,
-        "variacao_pct": 0.2933602790182209
+        "preco": 7690.5,
+        "variacao_pct": 0.2705433684279149
       },
       "nasdaq_fut": {
-        "preco": 29275.75,
-        "variacao_pct": 0.5840770294529432
+        "preco": 29267.5,
+        "variacao_pct": 0.5557321147883151
       },
       "dxy": {
-        "preco": 99.027,
-        "variacao_pct": 0.04445207762948883
+        "preco": 99.033,
+        "variacao_pct": 0.05051372457896523
       },
       "usd_brl": {
         "preco": 5.1594,
@@ -87,21 +87,21 @@
         "variacao_pct": -0.20855057351408013
       },
       "iron_ore_2m": {
-        "preco": 97.05,
-        "variacao_pct": -0.8175779253960115
+        "preco": 97.0,
+        "variacao_pct": -0.8686765457332595
       },
       "crude_oil": {
-        "preco": 83.73,
-        "variacao_pct": -1.5057052111516305
+        "preco": 84.03,
+        "variacao_pct": -1.1528055522879708
       },
       "gold": {
-        "preco": 4629.49,
-        "variacao_pct": -0.48009135343284853
+        "preco": 4628.845,
+        "variacao_pct": -0.4939568852899189
       },
       "di1_2027": 13.7,
       "di1_2029": 14.16,
       "inclinacao_bps": 46.0,
-      "indicador_mercado_externo": -1.9445
+      "indicador_mercado_externo": -1.769
     },
     "noticias": {
       "impacto_total": 0,
@@ -136,14 +136,14 @@
         "distancia_ajuste_pts": -38.0
       },
       "contexto_resumo": [
-        "VIX 15.8 (-0.38%)",
-        "ES +0.29%",
-        "NQ +0.58%",
-        "DXY +0.04%",
+        "VIX 15.8 (-0.25%)",
+        "ES +0.27%",
+        "NQ +0.56%",
+        "DXY +0.05%",
         "USD/BRL +0.03%",
         "ADRs BR +6.34%",
         "Minério -0.21%",
-        "Petróleo -1.51%",
+        "Petróleo -1.15%",
         "Calendário: BAIXO (impacto 0)"
       ],
       "cenario_alternativo": "Alternativo: retorno ao ajuste (~25%). Monitorar invalidação do cenário principal.",
@@ -157,7 +157,7 @@
         "metricas": true,
         "noticias": true
       },
-      "timestamp_build": "2026-08-25T05:49:09.304819"
+      "timestamp_build": "2026-08-25T05:44:07.008866"
     }
   },
   "opening_scenario": {
@@ -182,14 +182,14 @@
       "distancia_ajuste_pts": -38.0
     },
     "contexto_resumo": [
-      "VIX 15.8 (-0.38%)",
-      "ES +0.29%",
-      "NQ +0.58%",
-      "DXY +0.04%",
+      "VIX 15.8 (-0.25%)",
+      "ES +0.27%",
+      "NQ +0.56%",
+      "DXY +0.05%",
       "USD/BRL +0.03%",
       "ADRs BR +6.34%",
       "Minério -0.21%",
-      "Petróleo -1.51%",
+      "Petróleo -1.15%",
       "Calendário: BAIXO (impacto 0)"
     ],
     "cenario_alternativo": "Alternativo: retorno ao ajuste (~25%). Monitorar invalidação do cenário principal.",
@@ -199,10 +199,10 @@
     "vies": "VENDA",
     "confianca": 66,
     "motivos": [
-      "Mercado Externo: -1.94% (VENDA)",
+      "Mercado Externo: -1.77% (VENDA)",
       "ADRs: +6.34% (COMPRA)",
       "Tendência: Estavel_E_Estavel (NEUTRO)",
-      "Predição: VENDA (score 51.7)"
+      "Predição: VENDA (score 52.3)"
     ],
     "riscos": [
       "GAP EXTREMO (-174753 pts)"
@@ -213,7 +213,7 @@
     }
   },
   "decisao": {
-    "timestamp": "2026-08-25T05:49:09.305180",
+    "timestamp": "2026-08-25T05:44:07.009268",
     "ativo": "WIN",
     "vies_final": "VENDA",
     "confianca": 66,
@@ -223,10 +223,10 @@
     "alvo_2": 169172,
     "invalidacao": "Fechamento acima de 175688",
     "motivos": [
-      "Mercado Externo: -1.94% (VENDA)",
+      "Mercado Externo: -1.77% (VENDA)",
       "ADRs: +6.34% (COMPRA)",
       "Tendência: Estavel_E_Estavel (NEUTRO)",
-      "Predição: VENDA (score 51.7)"
+      "Predição: VENDA (score 52.3)"
     ],
     "riscos": [
       "GAP EXTREMO (-174753 pts)",

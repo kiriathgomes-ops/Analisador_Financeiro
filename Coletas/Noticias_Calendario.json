@@ -1,41 +1,121 @@
 {
   "metadata": {
     "fonte": "TradingView API",
-    "timestamp": "2026-08-24T08:06:21.491167",
-    "data_referencia": "2026-08-24",
+    "timestamp": "2026-08-25T05:32:17.577031",
+    "data_referencia": "2026-08-25",
     "filtros": "Brasil e EUA (2 e 3 Estrelas)"
   },
   "calendario_eventos": {
-    "quantidade_eventos": 3,
+    "quantidade_eventos": 11,
     "eventos": [
       {
-        "hora": "08:30",
+        "hora": "08:00",
         "pais": "Brazil",
         "moeda": "BRL",
-        "evento": "BCB Focus Market Readout",
+        "evento": "FGV Consumer Confidence",
+        "importancia": 2,
+        "anterior": "88.3",
+        "previsao": "",
+        "atual": ""
+      },
+      {
+        "hora": "09:00",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "Building Permits Final",
+        "importancia": 2,
+        "anterior": "1.374",
+        "previsao": "1.443",
+        "atual": ""
+      },
+      {
+        "hora": "09:00",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "Building Permits MoM Final",
+        "importancia": 2,
+        "anterior": "-2.6",
+        "previsao": "5",
+        "atual": ""
+      },
+      {
+        "hora": "09:00",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "Fed Barkin Speech",
         "importancia": 2,
         "anterior": "",
         "previsao": "",
         "atual": ""
       },
       {
-        "hora": "09:30",
+        "hora": "09:15",
         "pais": "United States",
         "moeda": "USD",
-        "evento": "Chicago Fed National Activity Index",
+        "evento": "ADP Employment Change Weekly",
         "importancia": 2,
-        "anterior": "-0.02",
+        "anterior": "9.5",
         "previsao": "",
         "atual": ""
       },
       {
-        "hora": "15:00",
+        "hora": "10:00",
         "pais": "United States",
         "moeda": "USD",
-        "evento": "Treasury Secretary Bessent Speech",
+        "evento": "S&P/Case-Shiller Home Price YoY",
+        "importancia": 2,
+        "anterior": "1.6",
+        "previsao": "1.7",
+        "atual": ""
+      },
+      {
+        "hora": "11:00",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "New Home Sales",
+        "importancia": 2,
+        "anterior": "0.628",
+        "previsao": "0.62",
+        "atual": ""
+      },
+      {
+        "hora": "11:00",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "New Home Sales MoM",
+        "importancia": 2,
+        "anterior": "1.6",
+        "previsao": "",
+        "atual": ""
+      },
+      {
+        "hora": "11:00",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "CB Consumer Confidence",
+        "importancia": 2,
+        "anterior": "90.8",
+        "previsao": "91.2",
+        "atual": ""
+      },
+      {
+        "hora": "17:00",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "Fed Barkin Speech",
         "importancia": 2,
         "anterior": "",
         "previsao": "",
+        "atual": ""
+      },
+      {
+        "hora": "17:30",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "API Crude Oil Stock Change",
+        "importancia": 2,
+        "anterior": "-3.28",
+        "previsao": "1.9",
         "atual": ""
       }
     ]
