@@ -5,10 +5,10 @@
 # GERADO AUTOMATICAMENTE
 #
 # Data geração:
-# 2026-08-25 05:52:49
+# 2026-08-26 08:37:15
 #
 # Arquivos unificados:
-# 83
+# 87
 #
 # NÃO EDITAR MANUALMENTE
 # ============================================================
@@ -347,6 +347,112 @@ if __name__ == "__main__":
 
 # ============================================================
 # ARQUIVO:
+# Arbitragem Pré-Market vs. Leilão B3.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-20 07:58:15
+# ============================================================
+
+
+
+import os
+import requests
+import MetaTrader5 as mt5
+import pandas as pd
+from dotenv import load_dotenv
+
+load_dotenv()
+FINNHUB_KEY = os.getenv('FINNHUB_API_KEY')
+
+# Mapeamento: Ticker B3 -> Ticker ADR em NY
+MAPEAMENTO_ADR = {
+    'VALE3': 'VALE',
+    'PETR4': 'PBR-A',
+    'PETR3': 'PBR',
+    'ITUB4': 'ITUB',
+    'BBDC4': 'BBD'
+}
+
+def obter_variacao_adr_ny(ticker_adr):
+    """Coleta o preço do pré-market/fechamento da ADR no Finnhub."""
+    url = f"https://finnhub.io/api/v1/quote?symbol={ticker_adr}&token={FINNHUB_KEY}"
+    try:
+        res = requests.get(url, timeout=5).json()
+        if 'c' in res and 'pc' in res and res['pc'] > 0:
+            var_pct = res['dp'] # Variação percentual (%)
+            return var_pct
+    except Exception as e:
+        print(f"Erro Finnhub ({ticker_adr}): {e}")
+    return None
+
+def obter_preco_leilao_b3(ticker_b3):
+    """Coleta o preço indicativo do leilão no MT5."""
+    tick = mt5.symbol_info_tick(ticker_b3)
+    symbol_info = mt5.symbol_info(ticker_b3)
+    
+    if tick is None or symbol_info is None:
+        return None, None
+    
+    # O preço do leilão no MT5 costuma ser indicado no tick 'last' 
+    # e o fechamento do dia anterior em 'session_close'
+    preco_leilao = tick.last
+    preco_fechamento_anterior = symbol_info.session_close
+    
+    if preco_fechamento_anterior > 0:
+        var_leilao_pct = ((preco_leilao / preco_fechamento_anterior) - 1) * 100
+        return preco_leilao, round(var_leilao_pct, 2)
+    
+    return preco_leilao, 0.0
+
+def analisar_descasamento_leilao(limiar_spread=0.8):
+    """
+    Compara as variações das ADRs vs Leilão B3.
+    limiar_spread: Diferença mínima em % para considerar oportunidade.
+    """
+    if not mt5.initialize():
+        print("Falha ao inicializar MetaTrader 5")
+        return
+    
+    relatorio = []
+
+    for ticker_b3, ticker_adr in MAPEAMENTO_ADR.items():
+        var_adr = obter_variacao_adr_ny(ticker_adr)
+        preco_leilao, var_b3 = obter_preco_leilao_b3(ticker_b3)
+        
+        if var_adr is not None and var_b3 is not None:
+            # Spread = Variação em NY - Variação Indicativa na B3
+            spread = var_adr - var_b3
+            
+            sinal = "NEUTRO"
+            if spread >= limiar_spread:
+                sinal = "COMPRA B3 (Ação atrasada em relação à ADR)"
+            elif spread <= -limiar_spread:
+                sinal = "VENDA B3 (Ação esticada em relação à ADR)"
+                
+            relatorio.append({
+                'Acao_B3': ticker_b3,
+                'Preco_Leilao': preco_leilao,
+                'Var_B3_%': var_b3,
+                'ADR_NY': ticker_adr,
+                'Var_ADR_%': var_adr,
+                'Spread_%': round(spread, 2),
+                'Sinal': sinal
+            })
+
+    mt5.shutdown()
+    
+    df = pd.DataFrame(relatorio)
+    return df
+
+# Exemplo de execução (ideal rodar entre 09:50 e 09:59)
+if __name__ == "__main__":
+    df_resultado = analisar_descasamento_leilao(limiar_spread=0.5)
+    print(df_resultado.to_string(index=False))
+
+
+
+# ============================================================
+# ARQUIVO:
 # Calculadora.py
 #
 # ÚLTIMA ALTERAÇÃO:
@@ -599,7 +705,7 @@ if __name__ == "__main__":
 # CalculadoraEstimativaAbertura.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-22 21:32:16
+# 2026-08-25 21:45:27
 # ============================================================
 
 
@@ -613,7 +719,8 @@ if __name__ == "__main__":
 # DESCRICAO:
 #   Aplica modelo ponderado de precificação teórica de abertura para o WIN:
 #     - Ponderação: EWZ (30%), Cesta ADRs (35%), S&P 500 Futuro (20%), Commodities (15%).
-#   Calcula os pontos de pivô (PP, R1, R2, S1, S2) do WIN_FUT.
+#   Calcula os pontos de pivô (PP, R1, R2, S1, S2) do WIN_FUT utilizando
+#   WIN_LAST_TICK como preço de fechamento (close) para maior atualidade.
 #   Gera o arquivo EstimativaAbertura.json.
 # ============================================================
 
@@ -682,16 +789,16 @@ def calc_win(ativos_dict: dict) -> dict:
 
 
 def calc_pivot(obj: dict) -> dict:
-    """Calcula os níveis de Pivot Point Floor clássico (PP, R1, R2, S1, S2) para o WIN."""
+    """
+    Calcula os níveis de Pivot Point Floor clássico (PP, R1, R2, S1, S2).
+    Espera um dicionário com as chaves 'high', 'low' e 'close'.
+    """
     if not isinstance(obj, dict):
         return None
         
     high = obj.get("high")
     low = obj.get("low")
-    
-    # Prioriza o fechamento do dia anterior (previous_close).
-    # Se não existir, usa o close padrão como fallback.
-    close = obj.get("previous_close") or obj.get("close")
+    close = obj.get("close")  # Agora pode vir do WIN_LAST_TICK (via pivot_data)
     
     if not all(isinstance(v, (int, float)) and v > 0 for v in [high, low, close]):
         return None
@@ -724,6 +831,19 @@ def processar_calculos() -> None:
         
         print(f"--> Total de ativos carregados: {len(ativos_dict)}")
 
+        # --- NOVO: prepara os dados do pivot usando WIN_LAST_TICK como close ---
+        win_fut = ativos_dict.get("WIN_FUT", {})
+        win_last = ativos_dict.get("WIN_LAST_TICK", {}).get("close")
+
+        if win_last is not None and isinstance(win_last, (int, float)):
+            pivot_data = {
+                "high": win_fut.get("high"),
+                "low": win_fut.get("low"),
+                "close": win_last
+            }
+        else:
+            pivot_data = win_fut  # fallback para comportamento original
+
         resultado = {
             "metadata_calculo": {
                 "timestamp_calculo": datetime.now().isoformat(),
@@ -733,7 +853,7 @@ def processar_calculos() -> None:
                 "WIN_INDICE": calc_win(ativos_dict)
             },
             "pivot_points": {
-                "WIN_FUT": calc_pivot(ativos_dict.get("WIN_FUT"))
+                "WIN_FUT": calc_pivot(pivot_data)   # <--- pivot_data com WIN_LAST_TICK
             },
             "resumo_macro": {
                 "vix": ativos_dict.get("VIX", {}).get("close"),
@@ -762,6 +882,7 @@ if __name__ == "__main__":
     print(" FASE 4B: ESTIMATIVA DE ABERTURA E NÍVEIS TÉCNICOS (WIN)")
     print("============================================================")
     processar_calculos()
+    
 
 
 
@@ -2906,370 +3027,298 @@ if __name__ == "__main__":
 
 # ============================================================
 # ARQUIVO:
-# Gerar_Mapa_Fluxo.py
+# Gerar_ColetasArquivosApp.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-07-31 11:32:40
+# 2026-07-31 12:11:56
 # ============================================================
 
 
 
-# ============================================================
-# ARQUIVO: Mapa_Fluxo.py
-#
-# MAPA DE FLUXO DO ANALISADOR FINANCEIRO
-#
-# Objetivo:
-# Documentar entrada -> processamento -> saída
-#
-# Projeto:
-# Analisador_Financeiro
-#
-# Data:
-# 2026-07-31
-#
-# ============================================================
+from Coletas.ArquivosApp import ARQUIVOS_PROJETO
 
 
-import json
-import os
-from datetime import datetime
+print("=" * 60)
+print("TESTE INVENTÁRIO DO PROJETO")
+print("=" * 60)
 
 
-ARQUIVO_SAIDA = (
-    "Coletas/Mapa_Fluxo.json"
+print("Quantidade de arquivos:", len(ARQUIVOS_PROJETO))
+
+
+tipos = {}
+
+for item in ARQUIVOS_PROJETO:
+    tipo = item["tipo"]
+
+    if tipo not in tipos:
+        tipos[tipo] = 0
+
+    tipos[tipo] += 1
+
+
+print("\nArquivos por tipo:")
+
+for tipo, quantidade in tipos.items():
+    print(tipo, ":", quantidade)
+
+
+print("\nÚltimos arquivos alterados:")
+
+ordenados = sorted(
+    ARQUIVOS_PROJETO,
+    key=lambda x: x["ultima_alteracao"],
+    reverse=True
 )
 
 
+for item in ordenados[:5]:
+    print(
+        item["arquivo"],
+        "|",
+        item["ultima_alteracao"]
+    )
+
+
+
 # ============================================================
-# DEFINIÇÃO DO FLUXO DO SISTEMA
+# ARQUIVO:
+# Gerar_Mapa_Fluxo.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-25 22:14:53
 # ============================================================
 
 
-FLUXO_APLICACAO = {
 
+# ============================================================
+# ARQUIVO: Gerar_Mapa_Fluxo.py (VERSÃO DINÂMICA)
+#
+# OBJETIVO:
+#   Gerar Mapa_Fluxo.json automaticamente a partir da lista
+#   'etapas' do main_pipeline.py.
+#
+# VANTAGENS:
+#   - Sempre atualizado com o pipeline real.
+#   - Novos scripts aparecem automaticamente.
+#   - Mantém compatibilidade com a página Streamlit.
+# ============================================================
 
-    "metadata": {
+import ast
+import json
+import os
+from datetime import datetime
+from pathlib import Path
 
-        "projeto":
-            "Analisador_Financeiro",
+# ============================================================
+# CONFIGURAÇÃO DE CAMINHOS
+# ============================================================
+BASE_DIR = Path(__file__).resolve().parent
+ARQUIVO_SAIDA = BASE_DIR / "Coletas" / "Mapa_Fluxo.json"
+MAIN_PIPELINE = BASE_DIR / "main_pipeline.py"
 
-        "gerado_em":
-            datetime.now().strftime(
-                "%Y-%m-%d %H:%M:%S"
-            ),
-
-        "tipo":
-            "Mapa de fluxo de dados"
-
+# ============================================================
+# METADADOS DOS SCRIPTS (entrada, saída, descrição)
+# Para scripts não listados aqui, o sistema gera dados padrão.
+# ============================================================
+SCRIPT_METADATA = {
+    "Limpar_Imagens_TradingView.py": {
+        "descricao": "Gerencia imagens de gráficos baixadas (WIN 1min/5min)",
+        "entrada": ["Pasta Downloads"],
+        "saida": ["WIN_1min.png", "WIN_5min.png"]
     },
-
-
-    "pipeline": [
-
-
-        {
-
-
-            "etapa":
-                1,
-
-            "nome":
-                "COLETA",
-
-            "descricao":
-                "Aquisição dos dados externos",
-
-            "arquivos": [
-
-                "Coletor.py",
-
-                "Coleta_Noticias_Calendario.py"
-
-            ],
-
-            "entrada": [
-
-                "TradingView",
-
-                "Investing.com",
-
-                "B3",
-
-                "APIs"
-
-            ],
-
-            "saida": [
-
-                "Coleta_ram.json",
-
-                "Coleta_rom-0.json",
-
-                "Noticias_Calendario.json"
-
-            ]
-
-        },
-
-
-        {
-
-
-            "etapa":
-                2,
-
-            "nome":
-                "VALIDAÇÃO",
-
-            "descricao":
-                "Confere qualidade dos dados",
-
-            "arquivos": [
-
-                "Validador.py",
-
-                "Testador_Fontes.py"
-
-            ],
-
-            "entrada": [
-
-                "Dados coletados"
-
-            ],
-
-            "saida": [
-
-                "Dados_Validados.json"
-
-            ]
-
-        },
-
-
-        {
-
-
-            "etapa":
-                3,
-
-            "nome":
-                "ANÁLISE",
-
-            "descricao":
-                "Transforma dados em informações",
-
-            "arquivos": [
-
-                "Analise_Noticias.py",
-
-                "Calculadora.py"
-
-            ],
-
-            "entrada": [
-
-                "Dados_Validados.json",
-
-                "Noticias_Calendario.json"
-
-            ],
-
-            "saida": [
-
-                "Noticias_Impacto_Dia.json",
-
-                "Metricas_Calculadas.json"
-
-            ]
-
-        },
-
-
-        {
-
-
-            "etapa":
-                4,
-
-            "nome":
-                "CORE",
-
-            "descricao":
-                "Motor de decisão",
-
-            "arquivos": [
-
-                "Engine_Vies.py",
-
-                "Gerar_Resultado_Operacional.py"
-
-            ],
-
-            "entrada": [
-
-                "Metricas_Calculadas.json",
-
-                "Noticias_Impacto_Dia.json"
-
-            ],
-
-            "saida": [
-
-                "Decisao_Core.json",
-
-                "Resultado_Calculadora_Operacional.json"
-
-            ]
-
-        },
-
-
-        {
-
-
-            "etapa":
-                5,
-
-            "nome":
-                "RELATÓRIO",
-
-            "descricao":
-                "Apresentação da decisão",
-
-            "arquivos": [
-
-                "Relatorio.py",
-
-                "Gerar_Relatorio_Mensagem.py"
-
-            ],
-
-            "entrada": [
-
-                "Decisao_Core.json"
-
-            ],
-
-            "saida": [
-
-                "Relatorio_Executivo.md"
-
-            ]
-
-        },
-
-
-        {
-
-
-            "etapa":
-                6,
-
-            "nome":
-                "INTERFACE",
-
-            "descricao":
-                "Visualização pelo usuário",
-
-            "arquivos": [
-
-                "app_home.py",
-
-                "pages/"
-
-            ],
-
-            "entrada": [
-
-                "Arquivos JSON",
-
-                "Relatórios"
-
-            ],
-
-            "saida": [
-
-                "Dashboard"
-
-            ]
-
-        }
-
-
-    ]
-
+    "Coletor.py": {
+        "descricao": "Aquisição de dados externos via TradingView, Finnhub, MT5 e BACEN",
+        "entrada": ["TradingView", "Finnhub", "MetaTrader5", "BACEN"],
+        "saida": ["Coleta_ram.json", "Coleta_rom-0.json", "DadosAtivosUnificados.json"]
+    },
+    "Coleta_Noticias_Calendario.py": {
+        "descricao": "Coleta eventos econômicos do calendário (Brasil e EUA)",
+        "entrada": ["TradingView API"],
+        "saida": ["Noticias_Calendario.json", "Noticias_Calendario_0900.json"]
+    },
+    "Analise_Noticias.py": {
+        "descricao": "Analisa impacto das notícias e gera alertas de risco",
+        "entrada": ["Noticias_Calendario.json"],
+        "saida": ["Noticias_Impacto_Dia.json"]
+    },
+    "Validador.py": {
+        "descricao": "Sanitiza, valida e padroniza os dados brutos (32 ativos)",
+        "entrada": ["Coleta_rom-0.json"],
+        "saida": ["Dados_Validados.json"]
+    },
+    "Calculadora.py": {
+        "descricao": "Calcula spreads, inclinação da curva DI, indicadores macro e compostos",
+        "entrada": ["Dados_Validados.json"],
+        "saida": ["Metricas_Calculadas.json"]
+    },
+    "CalculadoraEstimativaAbertura.py": {
+        "descricao": "Estimativa teórica de abertura e pivôs (PP, R1, R2, S1, S2) para o WIN",
+        "entrada": ["Dados_Validados.json"],
+        "saida": ["EstimativaAbertura.json"]
+    },
+    "Gerar_Resultado_Operacional_Abertura.py": {
+        "descricao": "Consolida métricas, estimativas, decisões e tendências em relatório operacional final",
+        "entrada": ["Metricas_Calculadas.json", "EstimativaAbertura.json", "Decisao_Core.json", 
+                    "DadosAtivosUnificados.json", "Analise_Tendencias.json", "Noticias_Calendario_0900.json"],
+        "saida": ["Resultado_Calculadora_Operacional_Abertura.json"]
+    },
+    "Engine_Vies.py": {
+        "descricao": "Core Engine V1 - Gera viés operacional (score e direção) para o WIN",
+        "entrada": ["EstimativaAbertura.json", "Metricas_Calculadas.json", 
+                    "Noticias_Impacto_Dia.json", "DadosAtivosUnificados.json"],
+        "saida": ["Decisao_Core.json"]
+    },
+    "Rodar_SMC_Regras.py": {
+        "descricao": "Motor de regras SMC/ICT (swings, BOS, FVG, Order Blocks, Liquidez)",
+        "entrada": ["MetaTrader5 (dados de preço)"],
+        "saida": ["AnaliseGraficaSMC_Regras.json"]
+    },
+    "Gerar_Relatorio_Mensagem.py": {
+        "descricao": "Gera relatório resumido em Markdown com estimativas e pivôs",
+        "entrada": ["EstimativaAbertura.json"],
+        "saida": ["Relatorio_Executivo.md"]
+    },
+    "v2_gravar_sessao_win.py": {
+        "descricao": "Grava sessão WINFUT (V2) no histórico de aberturas",
+        "entrada": ["Dados do pipeline V2"],
+        "saida": ["Historico_Aberturas/ (JSON)"]
+    },
+    "v2_rodar_decisao_completa.py": {
+        "descricao": "Orquestrador V2 - Gera decisão completa com confluência e níveis operacionais",
+        "entrada": ["Vários JSONs do pipeline"],
+        "saida": ["Decisao_V2.json"]
+    },
+    "MapearTendencia15Min.py": {
+        "descricao": "Analisa tendência de 15 minutos (comparativo 10min → 5min → atual)",
+        "entrada": ["Coleta_rom-10.json", "Coleta_rom-5.json", "Coleta_rom-0.json"],
+        "saida": ["Analise_Tendencias.json"]
+    }
 }
 
 
+# ============================================================
+# FUNÇÃO PARA EXTRAIR A LISTA 'etapas' DO main_pipeline.py
+# ============================================================
+def extrair_etapas_do_pipeline() -> list:
+    """
+    Lê o arquivo main_pipeline.py e extrai a variável 'etapas'
+    usando a AST (Abstract Syntax Tree) do Python.
+    Retorna a lista de tuplas (nome_etapa, script) ou lista vazia.
+    """
+    if not MAIN_PIPELINE.exists():
+        print(f"[ERRO] Arquivo {MAIN_PIPELINE} não encontrado!")
+        return []
+
+    try:
+        with open(MAIN_PIPELINE, "r", encoding="utf-8") as f:
+            codigo = f.read()
+
+        # Parseia o código-fonte para árvore sintática
+        arvore = ast.parse(codigo)
+
+        # Procura por atribuições à variável 'etapas'
+        for node in ast.walk(arvore):
+            if isinstance(node, ast.Assign):
+                for alvo in node.targets:
+                    if isinstance(alvo, ast.Name) and alvo.id == "etapas":
+                        # Converte o nó da lista para objeto Python
+                        try:
+                            etapas = ast.literal_eval(node.value)
+                            # Verifica se é uma lista de tuplas
+                            if isinstance(etapas, list) and all(isinstance(item, tuple) and len(item) == 2 for item in etapas):
+                                return etapas
+                            else:
+                                print("[AVISO] A variável 'etapas' não está no formato esperado (lista de tuplas).")
+                                return []
+                        except Exception as e:
+                            print(f"[ERRO] Falha ao interpretar a lista 'etapas': {e}")
+                            return []
+        print("[AVISO] Variável 'etapas' não encontrada no main_pipeline.py")
+        return []
+
+    except Exception as e:
+        print(f"[ERRO] Falha ao processar {MAIN_PIPELINE}: {e}")
+        return []
+
 
 # ============================================================
-# SALVAR
+# FUNÇÃO PARA GERAR O MAPA DE FLUXO DINÂMICAMENTE
 # ============================================================
-
-
-def gerar():
-
-    os.makedirs(
-        "Coletas",
-        exist_ok=True
-    )
-
-
-    with open(
-        ARQUIVO_SAIDA,
-        "w",
-        encoding="utf-8"
-    ) as arquivo:
-
-
-        json.dump(
-
-            FLUXO_APLICACAO,
-
-            arquivo,
-
-            indent=4,
-
-            ensure_ascii=False
-
-        )
-
-
-
+def gerar_mapa_dinamico():
+    """
+    Orquestra a geração do Mapa_Fluxo.json:
+      1. Extrai etapas do main_pipeline.py
+      2. Mapeia metadados para cada script
+      3. Cria a estrutura JSON
+      4. Salva na pasta Coletas/
+    """
     print("=" * 60)
-    print(" MAPA DE FLUXO GERADO ")
+    print(" GERADOR DINÂMICO DE MAPA DE FLUXO ")
     print("=" * 60)
 
-    print()
+    # 1. Extrai as etapas do pipeline
+    etapas_extraidas = extrair_etapas_do_pipeline()
+    if not etapas_extraidas:
+        print("❌ Nenhuma etapa encontrada. Verifique o main_pipeline.py.")
+        return
 
-    print(
-        "Etapas:",
-        len(
-            FLUXO_APLICACAO["pipeline"]
-        )
-    )
+    print(f"✅ {len(etapas_extraidas)} etapas encontradas no pipeline.")
 
-    print()
+    # 2. Constrói o dicionário do fluxo
+    pipeline_estrutura = []
+    for idx, (nome_etapa, script) in enumerate(etapas_extraidas, start=1):
+        # Busca metadados para o script específico
+        meta = SCRIPT_METADATA.get(script, {})
+        
+        # Se não houver metadados, gera valores genéricos
+        if not meta:
+            descricao = f"Executa o script {script}"
+            entrada = ["Arquivos gerados por etapas anteriores"]
+            saida = ["Arquivo(s) gerado(s) pelo script"]
+            print(f"⚠️ Script '{script}' não tem metadados mapeados. Usando valores genéricos.")
+        else:
+            descricao = meta.get("descricao", f"Executa {script}")
+            entrada = meta.get("entrada", ["Dados de entrada"])
+            saida = meta.get("saida", ["Arquivo(s) de saída"])
 
-    print(
-        "Arquivo:"
-    )
+        pipeline_estrutura.append({
+            "etapa": idx,
+            "nome": nome_etapa,
+            "descricao": descricao,
+            "arquivos": [script],
+            "entrada": entrada,
+            "saida": saida
+        })
 
-    print(
-        os.path.abspath(
-            ARQUIVO_SAIDA
-        )
-    )
+    # 3. Monta o JSON final
+    fluxo_aplicacao = {
+        "metadata": {
+            "projeto": "Analisador_Financeiro",
+            "gerado_em": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "tipo": "Mapa de fluxo de dados (gerado dinamicamente)"
+        },
+        "pipeline": pipeline_estrutura
+    }
 
+    # 4. Salva no arquivo JSON
+    os.makedirs(ARQUIVO_SAIDA.parent, exist_ok=True)
+    with open(ARQUIVO_SAIDA, "w", encoding="utf-8") as f:
+        json.dump(fluxo_aplicacao, f, indent=4, ensure_ascii=False)
+
+    print("\n" + "=" * 60)
+    print("✅ MAPA DE FLUXO GERADO COM SUCESSO!")
+    print("=" * 60)
+    print(f"📂 Arquivo: {ARQUIVO_SAIDA}")
+    print(f"📊 Etapas processadas: {len(pipeline_estrutura)}")
     print("=" * 60)
 
 
-
+# ============================================================
+# EXECUÇÃO DIRETA
+# ============================================================
 if __name__ == "__main__":
-
-    gerar()
+    gerar_mapa_dinamico()
 
 
 
@@ -6280,6 +6329,200 @@ class ResultadoPrevisao:
 
 # ============================================================
 # ARQUIVO:
+# Projeção de Gap e Sinal para WIN.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-25 22:39:12
+# ============================================================
+
+
+
+# ============================================================
+# ARQUIVO: Projeção de Gap e Sinal para WIN.py (VERSÃO MODIFICADA)
+# 
+# OBJETIVO:
+#   Calcular projeção de abertura do WIN usando WIN_LAST_TICK
+#   como referência de fechamento anterior (em vez do MT5).
+#
+# FONTE DE DADOS:
+#   - Finnhub (variações de EWZ, SPY, VALE, PBR)
+#   - DadosAtivosUnificados.json (para WIN_LAST_TICK e WIN_AJUSTE)
+#
+# ALTERAÇÕES:
+#   - Remove dependência direta do MT5 para obter o fechamento.
+#   - Lê WIN_LAST_TICK do arquivo unificado (gerado pelo Coletor.py).
+#   - Fallback para WIN_AJUSTE caso WIN_LAST_TICK não esteja disponível.
+# ============================================================
+
+import json
+import os
+import requests
+from dotenv import load_dotenv
+from pathlib import Path
+
+# ============================================================
+# CONFIGURAÇÃO DE DIRETÓRIOS E ARQUIVOS
+# ============================================================
+BASE_DIR = Path(__file__).resolve().parent
+COLETAS_DIR = BASE_DIR / "Coletas"
+ARQUIVO_ATIVOS = COLETAS_DIR / "DadosAtivosUnificados.json"
+
+# Carrega a chave do Finnhub do .env
+load_dotenv()
+FINNHUB_KEY = os.getenv('FINNHUB_API_KEY')
+
+# ============================================================
+# PESOS DE INFLUÊNCIA PARA O WIN (mesmo do script original)
+# ============================================================
+PESOS_WIN = {
+    'EWZ': 0.35,   # ETF Brasil em NY
+    'SPY': 0.25,   # S&P 500 Futuro/Pré-market
+    'VALE': 0.20,  # ADR Vale
+    'PBR': 0.20    # ADR Petrobras
+}
+
+# ============================================================
+# FUNÇÃO PARA CARREGAR WIN_LAST_TICK DO JSON UNIFICADO
+# ============================================================
+def obter_preco_referencia_win() -> float:
+    """
+    Lê o preço do WIN_LAST_TICK do DadosAtivosUnificados.json.
+    Se não encontrar, tenta usar WIN_AJUSTE como fallback.
+    Retorna 0.0 se nenhum estiver disponível.
+    """
+    if not ARQUIVO_ATIVOS.exists():
+        print(f"[ERRO] Arquivo {ARQUIVO_ATIVOS} não encontrado. Execute o Coletor.py primeiro.")
+        return 0.0
+
+    try:
+        with open(ARQUIVO_ATIVOS, "r", encoding="utf-8") as f:
+            dados = json.load(f)
+        
+        ativos = dados.get("ativos", {})
+        
+        # 1. Tenta obter o WIN_LAST_TICK (prioridade máxima)
+        win_last = ativos.get("WIN_LAST_TICK", {})
+        preco = win_last.get("preco")
+        if preco and isinstance(preco, (int, float)) and preco > 0:
+            print(f"✅ Usando WIN_LAST_TICK como referência: {preco}")
+            return float(preco)
+        
+        # 2. Fallback: WIN_AJUSTE (ajuste oficial da B3)
+        win_ajuste = ativos.get("WIN_AJUSTE", {})
+        preco = win_ajuste.get("preco")
+        if preco and isinstance(preco, (int, float)) and preco > 0:
+            print(f"⚠️ WIN_LAST_TICK não disponível. Usando WIN_AJUSTE como fallback: {preco}")
+            return float(preco)
+        
+        # 3. Fallback final: WIN_FUT (último preço do contrato)
+        win_fut = ativos.get("WIN_FUT", {})
+        preco = win_fut.get("preco")
+        if preco and isinstance(preco, (int, float)) and preco > 0:
+            print(f"⚠️ Usando WIN_FUT como último recurso: {preco}")
+            return float(preco)
+        
+        print("[ERRO] Nenhum preço de referência para o WIN encontrado no arquivo unificado.")
+        return 0.0
+        
+    except Exception as e:
+        print(f"[ERRO] Falha ao ler {ARQUIVO_ATIVOS}: {e}")
+        return 0.0
+
+# ============================================================
+# FUNÇÃO PARA OBTER VARIAÇÃO DO FINNHUB (mantida igual)
+# ============================================================
+def obter_variacao_finnhub(ticker):
+    """Puxa a variação % do pré-market/fechamento do ticker no Finnhub."""
+    if not FINNHUB_KEY:
+        print("[AVISO] FINNHUB_API_KEY não configurada.")
+        return 0.0
+    
+    url = f"https://finnhub.io/api/v1/quote?symbol={ticker}&token={FINNHUB_KEY}"
+    try:
+        res = requests.get(url, timeout=5).json()
+        if 'dp' in res and res['dp'] is not None:
+            return round(res['dp'], 2)
+    except Exception as e:
+        print(f"Erro Finnhub ({ticker}): {e}")
+    return 0.0
+
+# ============================================================
+# FUNÇÃO PRINCIPAL (MODIFICADA)
+# ============================================================
+def calcular_gap_win_futuro():
+    """
+    Calcula a variação teórica (%) e a projeção em PONTOS para o WIN,
+    usando WIN_LAST_TICK como referência de fechamento anterior.
+    """
+    # 1. Coleta a variação dos ativos externos via Finnhub
+    variacoes = {}
+    var_teorica_pct = 0.0
+
+    for ticker, peso in PESOS_WIN.items():
+        var_pct = obter_variacao_finnhub(ticker)
+        variacoes[ticker] = var_pct
+        var_teorica_pct += var_pct * peso
+
+    var_teorica_pct = round(var_teorica_pct, 2)
+    print(f"📊 Variação teórica ponderada: {var_teorica_pct}%")
+
+    # 2. Obtém o preço de referência (WIN_LAST_TICK) do arquivo unificado
+    preco_referencia = obter_preco_referencia_win()
+    
+    if preco_referencia <= 0:
+        print("[ERRO] Não foi possível obter um preço de referência válido.")
+        return None
+
+    # 3. Calcula a estimativa de preço de abertura e GAP em pontos
+    preco_abertura_estimado = preco_referencia * (1 + (var_teorica_pct / 100))
+    gap_pontos_estimado = round(preco_abertura_estimado - preco_referencia)
+
+    # 4. Classificação do Viés
+    if var_teorica_pct >= 0.30:
+        vies = "COMPRADO (GAP DE ALTA)"
+    elif var_teorica_pct <= -0.30:
+        vies = "VENDIDO (GAP DE BAIXA)"
+    else:
+        vies = "NEUTRO (GAP PEQUENO / SEM TENDÊNCIA)"
+
+    # 5. Retorna o resultado
+    return {
+        'Preco_Referencia_WIN': preco_referencia,         # WIN_LAST_TICK ou fallback
+        'Fonte_Referencia': 'WIN_LAST_TICK' if preco_referencia else 'FALLBACK',
+        'Var_Teorica_Projetada_%': var_teorica_pct,
+        'Gap_Estimado_Pontos': gap_pontos_estimado,
+        'Preco_Abertura_Projetado': round(preco_abertura_estimado),
+        'Vies_Abertura': vies,
+        'Detalhes_Ativos': variacoes
+    }
+
+# ============================================================
+# EXECUÇÃO DIRETA
+# ============================================================
+if __name__ == "__main__":
+    print("=" * 60)
+    print(" PROJEÇÃO DE ABERTURA DO WIN FUTURO (09:00)")
+    print(" (usando WIN_LAST_TICK como referência)")
+    print("=" * 60)
+    
+    resultado = calcular_gap_win_futuro()
+    
+    if resultado:
+        print("\n=== RESULTADO DA PROJEÇÃO ===")
+        for chave, valor in resultado.items():
+            if chave == 'Detalhes_Ativos':
+                print(f"{chave}:")
+                for ativo, var in valor.items():
+                    print(f"  • {ativo}: {var}%")
+            else:
+                print(f"{chave}: {valor}")
+    else:
+        print("❌ Falha ao calcular a projeção.")
+
+
+
+# ============================================================
+# ARQUIVO:
 # Rodar_SMC_Regras.py
 #
 # ÚLTIMA ALTERAÇÃO:
@@ -7296,6 +7539,141 @@ main_pipeline = executar_pipeline
 # e previne execuções indesejadas caso ele seja importado como módulo por outro arquivo.
 if __name__ == "__main__":
     executar_pipeline()
+
+
+
+# ============================================================
+# ARQUIVO:
+# mapeador_arquivo.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-22 11:25:56
+# ============================================================
+
+
+
+import os
+
+
+def deve_ignorar(nome, lista_ignorar):
+    """Verifica se o arquivo ou pasta deve ser ignorado com base nas regras."""
+    for padrao in lista_ignorar:
+        # Trata seletores coringa simples como '.git*'
+        if padrao.endswith("*"):
+            if nome.startswith(padrao[:-1]):
+                return True
+        elif nome == padrao:
+            return True
+    return False
+
+
+def gerar_arvore(diretorio, ignorar, prefixo=""):
+    """Gera uma representação textual da árvore ignorando os padrões configurados."""
+    linhas = []
+    elementos = [
+        item
+        for item in sorted(os.listdir(diretorio))
+        if not deve_ignorar(item, ignorar)
+    ]
+    total = len(elementos)
+
+    for i, elemento in enumerate(elementos):
+        caminho_completo = os.path.join(diretorio, elemento)
+        eh_ultimo = i == total - 1
+        ramo = "└── " if eh_ultimo else "├── "
+
+        linhas.append(f"{prefixo}{ramo}{elemento}")
+
+        if os.path.isdir(caminho_completo):
+            extensao_prefixo = "    " if eh_ultimo else "│   "
+            linhas.extend(
+                gerar_arvore(caminho_completo, ignorar, prefixo + extensao_prefixo)
+            )
+
+    return linhas
+
+
+def consolidar_arquivos(
+    diretorio_raiz, arquivo_saida, ignorar, extensoes_permitidas=None
+):
+    """Consolida a árvore e o conteúdo dos arquivos ignorando os itens listados."""
+    caminho_raiz = os.path.abspath(diretorio_raiz)
+
+    with open(arquivo_saida, "w", encoding="utf-8") as f_out:
+        # 1. Desenha o mapa da árvore filtrado
+        f_out.write("==================================================\n")
+        f_out.write("          MAPA DA ÁRVORE DE ARQUIVOS             \n")
+        f_out.write("==================================================\n")
+        f_out.write(f"{os.path.basename(caminho_raiz)}/\n")
+
+        linhas_arvore = gerar_arvore(caminho_raiz, ignorar)
+        f_out.write("\n".join(linhas_arvore))
+        f_out.write("\n\n" + "=" * 50 + "\n\n")
+
+        # 2. Leitura e junção dos conteúdos
+        for raiz, pastas, arquivos in os.walk(caminho_raiz):
+            # Filtra pastas para não entrar em diretórios ignorados (ex: .git)
+            pastas[:] = [
+                p for p in pastas if not deve_ignorar(p, ignorar)
+            ]
+
+            for arquivo in sorted(arquivos):
+                if deve_ignorar(arquivo, ignorar):
+                    continue
+
+                caminho_completo = os.path.join(raiz, arquivo)
+
+                # Evita ler o próprio arquivo final
+                if os.path.abspath(caminho_completo) == os.path.abspath(
+                    arquivo_saida
+                ):
+                    continue
+
+                if extensoes_permitidas:
+                    if not any(arquivo.endswith(ext) for ext in extensoes_permitidas):
+                        continue
+
+                caminho_relativo = os.path.relpath(caminho_completo, caminho_raiz)
+
+                f_out.write(
+                    f"==================================================\n"
+                )
+                f_out.write(f"ARQUIVO: {caminho_relativo}\n")
+                f_out.write(
+                    f"==================================================\n\n"
+                )
+
+                try:
+                    with open(caminho_completo, "r", encoding="utf-8") as f_in:
+                        f_out.write(f_in.read())
+                        f_out.write("\n\n")
+                except UnicodeDecodeError:
+                    f_out.write(
+                        "[AVISO: Arquivo binário ou codificação incompatível - Ignorado]\n\n"
+                    )
+                except Exception as e:
+                    f_out.write(f"[ERRO AO LER ARQUIVO: {str(e)}]\n\n")
+
+
+# --- CONFIGURAÇÕES ---
+if __name__ == "__main__":
+    PASTA_ALVO = "."
+    ARQUIVO_FINAL = "consolidado_projeto.txt"
+
+    # Arquivos, pastas ou extensões coringa para IGNORAR na varredura
+    IGNORAR_PADROES = [
+        ".env*",        # Pega .env, .env.local, .env.example, etc.
+        ".git*",        # Pega a pasta .git, .gitignore, .gitattributes
+        "__pycache__",  # Cache do Python
+        ".venv",        # Ambientes virtuais
+        "venv",
+        "*_rom*.json",  # Qualquer arquivo que contenha '_rom' e termine com .json
+    ]
+
+    consolidar_arquivos(
+        PASTA_ALVO, ARQUIVO_FINAL, ignorar=IGNORAR_PADROES
+    )
+    print(f"Arquivo gerado com sucesso sem os itens ignorados: {ARQUIVO_FINAL}")
 
 
 
