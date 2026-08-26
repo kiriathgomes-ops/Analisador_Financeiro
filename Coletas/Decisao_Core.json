@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "timestamp": "2026-08-26T08:44:04.587878",
+    "timestamp": "2026-08-26T08:49:04.426034",
     "status_pipeline": "OK",
     "ativo_foco": "WIN_INDICE"
   },
@@ -11,7 +11,7 @@
       "fatores_relevantes": [
         "Teórico WIN positivo (+0.72%)",
         "ADRs fortes no exterior (+10.11%)",
-        "Commodities e Mercado Externo pressionados (-2.90%)",
+        "Commodities e Mercado Externo pressionados (-2.96%)",
         "⚖️ Spread Last vs Ajuste na normalidade (-32 pts)"
       ]
     }
