@@ -7,7 +7,8 @@
 # DESCRICAO:
 #   Aplica modelo ponderado de precificação teórica de abertura para o WIN:
 #     - Ponderação: EWZ (30%), Cesta ADRs (35%), S&P 500 Futuro (20%), Commodities (15%).
-#   Calcula os pontos de pivô (PP, R1, R2, S1, S2) do WIN_FUT.
+#   Calcula os pontos de pivô (PP, R1, R2, S1, S2) do WIN_FUT utilizando
+#   WIN_LAST_TICK como preço de fechamento (close) para maior atualidade.
 #   Gera o arquivo EstimativaAbertura.json.
 # ============================================================
 
@@ -76,16 +77,16 @@ def calc_win(ativos_dict: dict) -> dict:
 
 
 def calc_pivot(obj: dict) -> dict:
-    """Calcula os níveis de Pivot Point Floor clássico (PP, R1, R2, S1, S2) para o WIN."""
+    """
+    Calcula os níveis de Pivot Point Floor clássico (PP, R1, R2, S1, S2).
+    Espera um dicionário com as chaves 'high', 'low' e 'close'.
+    """
     if not isinstance(obj, dict):
         return None
         
     high = obj.get("high")
     low = obj.get("low")
-    
-    # Prioriza o fechamento do dia anterior (previous_close).
-    # Se não existir, usa o close padrão como fallback.
-    close = obj.get("previous_close") or obj.get("close")
+    close = obj.get("close")  # Agora pode vir do WIN_LAST_TICK (via pivot_data)
     
     if not all(isinstance(v, (int, float)) and v > 0 for v in [high, low, close]):
         return None
@@ -118,6 +119,19 @@ def processar_calculos() -> None:
         
         print(f"--> Total de ativos carregados: {len(ativos_dict)}")
 
+        # --- NOVO: prepara os dados do pivot usando WIN_LAST_TICK como close ---
+        win_fut = ativos_dict.get("WIN_FUT", {})
+        win_last = ativos_dict.get("WIN_LAST_TICK", {}).get("close")
+
+        if win_last is not None and isinstance(win_last, (int, float)):
+            pivot_data = {
+                "high": win_fut.get("high"),
+                "low": win_fut.get("low"),
+                "close": win_last
+            }
+        else:
+            pivot_data = win_fut  # fallback para comportamento original
+
         resultado = {
             "metadata_calculo": {
                 "timestamp_calculo": datetime.now().isoformat(),
@@ -127,7 +141,7 @@ def processar_calculos() -> None:
                 "WIN_INDICE": calc_win(ativos_dict)
             },
             "pivot_points": {
-                "WIN_FUT": calc_pivot(ativos_dict.get("WIN_FUT"))
+                "WIN_FUT": calc_pivot(pivot_data)   # <--- pivot_data com WIN_LAST_TICK
             },
             "resumo_macro": {
                 "vix": ativos_dict.get("VIX", {}).get("close"),
@@ -156,3 +170,4 @@ if __name__ == "__main__":
     print(" FASE 4B: ESTIMATIVA DE ABERTURA E NÍVEIS TÉCNICOS (WIN)")
     print("============================================================")
     processar_calculos()
+    

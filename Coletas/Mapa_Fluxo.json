@@ -1,0 +1,206 @@
+{
+    "metadata": {
+        "projeto": "Analisador_Financeiro",
+        "gerado_em": "2026-08-25 22:16:48",
+        "tipo": "Mapa de fluxo de dados (gerado dinamicamente)"
+    },
+    "pipeline": [
+        {
+            "etapa": 1,
+            "nome": "0 - LIMPEZA DE IMAGENS TRADINGVIEW",
+            "descricao": "Gerencia imagens de gráficos baixadas (WIN 1min/5min)",
+            "arquivos": [
+                "Limpar_Imagens_TradingView.py"
+            ],
+            "entrada": [
+                "Pasta Downloads"
+            ],
+            "saida": [
+                "WIN_1min.png",
+                "WIN_5min.png"
+            ]
+        },
+        {
+            "etapa": 2,
+            "nome": "1 - COLETA MERCADO GLOBAL",
+            "descricao": "Aquisição de dados externos via TradingView, Finnhub, MT5 e BACEN",
+            "arquivos": [
+                "Coletor.py"
+            ],
+            "entrada": [
+                "TradingView",
+                "Finnhub",
+                "MetaTrader5",
+                "BACEN"
+            ],
+            "saida": [
+                "Coleta_ram.json",
+                "Coleta_rom-0.json",
+                "DadosAtivosUnificados.json"
+            ]
+        },
+        {
+            "etapa": 3,
+            "nome": "2 - COLETA NOTICIAS ECONOMICAS",
+            "descricao": "Coleta eventos econômicos do calendário (Brasil e EUA)",
+            "arquivos": [
+                "Coleta_Noticias_Calendario.py"
+            ],
+            "entrada": [
+                "TradingView API"
+            ],
+            "saida": [
+                "Noticias_Calendario.json",
+                "Noticias_Calendario_0900.json"
+            ]
+        },
+        {
+            "etapa": 4,
+            "nome": "3 - ANALISE IMPACTO NOTICIAS",
+            "descricao": "Analisa impacto das notícias e gera alertas de risco",
+            "arquivos": [
+                "Analise_Noticias.py"
+            ],
+            "entrada": [
+                "Noticias_Calendario.json"
+            ],
+            "saida": [
+                "Noticias_Impacto_Dia.json"
+            ]
+        },
+        {
+            "etapa": 5,
+            "nome": "4 - VALIDACAO DOS DADOS",
+            "descricao": "Sanitiza, valida e padroniza os dados brutos (32 ativos)",
+            "arquivos": [
+                "Validador.py"
+            ],
+            "entrada": [
+                "Coleta_rom-0.json"
+            ],
+            "saida": [
+                "Dados_Validados.json"
+            ]
+        },
+        {
+            "etapa": 6,
+            "nome": "5 - CALCULOS MACRO E INDICADORES",
+            "descricao": "Calcula spreads, inclinação da curva DI, indicadores macro e compostos",
+            "arquivos": [
+                "Calculadora.py"
+            ],
+            "entrada": [
+                "Dados_Validados.json"
+            ],
+            "saida": [
+                "Metricas_Calculadas.json"
+            ]
+        },
+        {
+            "etapa": 7,
+            "nome": "6 - ESTIMATIVA ABERTURA WIN/WDO",
+            "descricao": "Estimativa teórica de abertura e pivôs (PP, R1, R2, S1, S2) para o WIN",
+            "arquivos": [
+                "CalculadoraEstimativaAbertura.py"
+            ],
+            "entrada": [
+                "Dados_Validados.json"
+            ],
+            "saida": [
+                "EstimativaAbertura.json"
+            ]
+        },
+        {
+            "etapa": 8,
+            "nome": "7 - RESULTADO OPERACIONAL",
+            "descricao": "Consolida métricas, estimativas, decisões e tendências em relatório operacional final",
+            "arquivos": [
+                "Gerar_Resultado_Operacional_Abertura.py"
+            ],
+            "entrada": [
+                "Metricas_Calculadas.json",
+                "EstimativaAbertura.json",
+                "Decisao_Core.json",
+                "DadosAtivosUnificados.json",
+                "Analise_Tendencias.json",
+                "Noticias_Calendario_0900.json"
+            ],
+            "saida": [
+                "Resultado_Calculadora_Operacional_Abertura.json"
+            ]
+        },
+        {
+            "etapa": 9,
+            "nome": "8 - ENGINE DE VIES INSTITUCIONAL",
+            "descricao": "Core Engine V1 - Gera viés operacional (score e direção) para o WIN",
+            "arquivos": [
+                "Engine_Vies.py"
+            ],
+            "entrada": [
+                "EstimativaAbertura.json",
+                "Metricas_Calculadas.json",
+                "Noticias_Impacto_Dia.json",
+                "DadosAtivosUnificados.json"
+            ],
+            "saida": [
+                "Decisao_Core.json"
+            ]
+        },
+        {
+            "etapa": 10,
+            "nome": "8.1 - MOTOR SMC POR REGRAS (MT5)",
+            "descricao": "Motor de regras SMC/ICT (swings, BOS, FVG, Order Blocks, Liquidez)",
+            "arquivos": [
+                "Rodar_SMC_Regras.py"
+            ],
+            "entrada": [
+                "MetaTrader5 (dados de preço)"
+            ],
+            "saida": [
+                "AnaliseGraficaSMC_Regras.json"
+            ]
+        },
+        {
+            "etapa": 11,
+            "nome": "9 - GERADOR RELATORIO FINAL",
+            "descricao": "Gera relatório resumido em Markdown com estimativas e pivôs",
+            "arquivos": [
+                "Gerar_Relatorio_Mensagem.py"
+            ],
+            "entrada": [
+                "EstimativaAbertura.json"
+            ],
+            "saida": [
+                "Relatorio_Executivo.md"
+            ]
+        },
+        {
+            "etapa": 12,
+            "nome": "10 - V2 SESSAO WINFUT",
+            "descricao": "Grava sessão WINFUT (V2) no histórico de aberturas",
+            "arquivos": [
+                "v2_gravar_sessao_win.py"
+            ],
+            "entrada": [
+                "Dados do pipeline V2"
+            ],
+            "saida": [
+                "Historico_Aberturas/ (JSON)"
+            ]
+        },
+        {
+            "etapa": 13,
+            "nome": "11 - V2 SESSAO + DECISAO",
+            "descricao": "Orquestrador V2 - Gera decisão completa com confluência e níveis operacionais",
+            "arquivos": [
+                "v2_rodar_decisao_completa.py"
+            ],
+            "entrada": [
+                "Vários JSONs do pipeline"
+            ],
+            "saida": [
+                "Decisao_V2.json"
+            ]
+        }
+    ]
+}

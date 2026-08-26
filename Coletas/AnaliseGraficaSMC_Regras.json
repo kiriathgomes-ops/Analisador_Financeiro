@@ -1,187 +1,206 @@
 {
-  "timestamp": "2026-08-25T05:49:06.491667",
+  "timestamp": "2026-08-25T22:44:04.179088",
   "ativo": "WIN$",
   "timeframe": "5m",
   "fonte": "regras_smc",
-  "preco_atual": 174715.0,
+  "preco_atual": 177465.0,
   "timeframes_identificados": "5m",
-  "bias_direcional": "BAIXA",
-  "direcao_estrutura": "BAIXA",
+  "bias_direcional": "ALTA",
+  "direcao_estrutura": "ALTA",
   "bos": true,
-  "choch": false,
+  "choch": true,
   "confianca_visual": 95,
   "order_blocks": [
     {
       "tipo": "COMPRA",
-      "preco": 174840.0,
-      "high": 174875.0,
-      "low": 174805.0
+      "preco": 176280.0,
+      "high": 176390.0,
+      "low": 176170.0
+    },
+    {
+      "tipo": "COMPRA",
+      "preco": 177402.5,
+      "high": 177450.0,
+      "low": 177355.0
     }
   ],
   "fair_value_gaps": [
     {
       "tipo": "COMPRA",
-      "superior": 173000.0,
-      "inferior": 172430.0,
+      "superior": 174670.0,
+      "inferior": 174515.0,
       "preenchido": false
     },
     {
       "tipo": "COMPRA",
-      "superior": 174355.0,
-      "inferior": 173885.0,
+      "superior": 175150.0,
+      "inferior": 175050.0,
       "preenchido": false
     },
     {
       "tipo": "COMPRA",
-      "superior": 174650.0,
-      "inferior": 174575.0,
+      "superior": 175580.0,
+      "inferior": 175535.0,
       "preenchido": false
     },
     {
-      "tipo": "VENDA",
-      "superior": 175830.0,
-      "inferior": 175660.0,
+      "tipo": "COMPRA",
+      "superior": 175960.0,
+      "inferior": 175740.0,
       "preenchido": false
     },
     {
-      "tipo": "VENDA",
-      "superior": 174740.0,
-      "inferior": 174720.0,
+      "tipo": "COMPRA",
+      "superior": 176245.0,
+      "inferior": 176100.0,
+      "preenchido": false
+    },
+    {
+      "tipo": "COMPRA",
+      "superior": 176435.0,
+      "inferior": 176325.0,
+      "preenchido": false
+    },
+    {
+      "tipo": "COMPRA",
+      "superior": 177065.0,
+      "inferior": 176800.0,
       "preenchido": false
     }
   ],
   "liquidez": {
     "bsl": [
-      175117.5,
-      174895.0
+      177772.5,
+      176387.5
     ],
     "ssl": [
-      174660.0,
-      174807.5
+      174280.0
     ]
   },
   "eventos_estrutura": [
     {
       "tipo": "BOS",
-      "direcao": "BAIXA",
-      "preco": 175320.0,
-      "time": "2026-08-24T11:05:00"
+      "direcao": "ALTA",
+      "preco": 176395.0,
+      "time": "2026-08-25T11:40:00"
     },
     {
       "tipo": "BOS",
+      "direcao": "ALTA",
+      "preco": 176380.0,
+      "time": "2026-08-25T11:40:00"
+    },
+    {
+      "tipo": "CHOCH",
       "direcao": "BAIXA",
-      "preco": 174800.0,
-      "time": "2026-08-24T11:45:00"
+      "preco": 176175.0,
+      "time": "2026-08-25T11:20:00"
+    },
+    {
+      "tipo": "CHOCH",
+      "direcao": "ALTA",
+      "preco": 176340.0,
+      "time": "2026-08-25T12:00:00"
     },
     {
       "tipo": "BOS",
-      "direcao": "BAIXA",
-      "preco": 174815.0,
-      "time": "2026-08-24T12:30:00"
+      "direcao": "ALTA",
+      "preco": 176780.0,
+      "time": "2026-08-25T13:30:00"
     },
     {
       "tipo": "BOS",
-      "direcao": "BAIXA",
-      "preco": 174665.0,
-      "time": "2026-08-24T13:55:00"
-    },
-    {
-      "tipo": "BOS",
-      "direcao": "BAIXA",
-      "preco": 174885.0,
-      "time": "2026-08-24T13:55:00"
-    },
-    {
-      "tipo": "BOS",
-      "direcao": "BAIXA",
-      "preco": 174655.0,
-      "time": "2026-08-24T15:20:00"
+      "direcao": "ALTA",
+      "preco": 177485.0,
+      "time": "2026-08-25T13:50:00"
     }
   ],
   "swings_recentes": [
     {
       "tipo": "HIGH",
-      "preco": 175360.0,
-      "time": "2026-08-24T12:15:00"
+      "preco": 176340.0,
+      "time": "2026-08-25T11:00:00"
     },
     {
       "tipo": "LOW",
-      "preco": 174665.0,
-      "time": "2026-08-24T12:30:00"
+      "preco": 175970.0,
+      "time": "2026-08-25T11:20:00"
     },
     {
       "tipo": "HIGH",
-      "preco": 175075.0,
-      "time": "2026-08-24T13:00:00"
+      "preco": 176780.0,
+      "time": "2026-08-25T12:00:00"
     },
     {
       "tipo": "LOW",
-      "preco": 174885.0,
-      "time": "2026-08-24T13:10:00"
+      "preco": 176145.0,
+      "time": "2026-08-25T12:40:00"
     },
     {
       "tipo": "HIGH",
-      "preco": 175125.0,
-      "time": "2026-08-24T13:15:00"
+      "preco": 177485.0,
+      "time": "2026-08-25T13:30:00"
     },
     {
       "tipo": "LOW",
-      "preco": 174605.0,
-      "time": "2026-08-24T13:55:00"
-    },
-    {
-      "tipo": "LOW",
-      "preco": 174655.0,
-      "time": "2026-08-24T14:15:00"
+      "preco": 177275.0,
+      "time": "2026-08-25T13:45:00"
     },
     {
       "tipo": "HIGH",
-      "preco": 174895.0,
-      "time": "2026-08-24T14:35:00"
+      "preco": 177770.0,
+      "time": "2026-08-25T13:50:00"
     },
     {
       "tipo": "LOW",
-      "preco": 174725.0,
-      "time": "2026-08-24T14:50:00"
+      "preco": 177310.0,
+      "time": "2026-08-25T14:10:00"
     },
     {
       "tipo": "HIGH",
-      "preco": 174895.0,
-      "time": "2026-08-24T14:55:00"
+      "preco": 177725.0,
+      "time": "2026-08-25T14:35:00"
+    },
+    {
+      "tipo": "HIGH",
+      "preco": 177775.0,
+      "time": "2026-08-25T15:10:00"
     }
   ],
   "estruturas_coletadas": [
-    "175125: Swing High",
-    "174605: Swing Low",
-    "174655: Swing Low",
-    "174895: Swing High",
-    "174725: Swing Low",
-    "174895: Swing High",
-    "174840: OB COMPRA (174805-174875)",
-    "172715: FVG COMPRA (172430-173000)",
-    "174120: FVG COMPRA (173885-174355)",
-    "174612: FVG COMPRA (174575-174650)",
-    "175745: FVG VENDA (175660-175830)",
-    "174730: FVG VENDA (174720-174740)"
+    "177310: Swing Low",
+    "177725: Swing High",
+    "177775: Swing High",
+    "176280: OB COMPRA (176170-176390)",
+    "177402: OB COMPRA (177355-177450)",
+    "174592: FVG COMPRA (174515-174670)",
+    "175100: FVG COMPRA (175050-175150)",
+    "175558: FVG COMPRA (175535-175580)",
+    "175850: FVG COMPRA (175740-175960)",
+    "176172: FVG COMPRA (176100-176245)",
+    "176380: FVG COMPRA (176325-176435)",
+    "176932: FVG COMPRA (176800-177065)"
   ],
   "liquidez_relevante": [
-    "BSL: 175118 (equal highs / liquidez de compra acima)",
-    "BSL: 174895 (equal highs / liquidez de compra acima)",
-    "SSL: 174660 (equal lows / liquidez de venda abaixo)",
-    "SSL: 174808 (equal lows / liquidez de venda abaixo)"
+    "BSL: 177772 (equal highs / liquidez de compra acima)",
+    "BSL: 176388 (equal highs / liquidez de compra acima)",
+    "SSL: 174280 (equal lows / liquidez de venda abaixo)"
   ],
   "zonas_de_interesse_e_cenarios": [
-    "Cenário Vendedor: rejeição na região 174740 (OB/FVG de venda validado por volume) visando 174660.",
-    "Cenário alternativo: varredura de liquidez acima antes da continuação de baixa."
+    "Cenário Comprador: defesa na região 177402 (OB/FVG de compra validado por volume) visando 177772.",
+    "Cenário alternativo: varredura de liquidez abaixo antes da continuação de alta."
   ],
-  "entrada_sugerida": null,
-  "stop_sugerido": null,
-  "alvos": [],
+  "entrada_sugerida": 177450.0,
+  "stop_sugerido": 177305.0,
+  "alvos": [
+    177772.0,
+    176388.0
+  ],
   "metadados": {
     "n_candles": 120,
-    "n_swings": 28,
-    "n_fvgs_abertos": 5,
-    "n_obs": 1,
+    "n_swings": 26,
+    "n_fvgs_abertos": 7,
+    "n_obs": 2,
     "filtro_volume_aplicado": true,
     "config": {
       "swing_left": 2,

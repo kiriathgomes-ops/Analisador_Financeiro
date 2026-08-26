@@ -1,13 +1,13 @@
 {
   "metadata": {
-    "timestamp": "2026-08-25T22:44:04.735082",
+    "timestamp": "2026-08-25T22:34:04.942524",
     "versao": "V2.2",
     "fonte": "v2_orchestrator"
   },
   "win_session": {
     "metadata": {
       "data_sessao": "2026-08-25",
-      "timestamp_coleta": "2026-08-25T22:44:03.354000",
+      "timestamp_coleta": "2026-08-25T22:34:03.699000",
       "contrato_principal": "WINV26",
       "fonte_last": "MT5_v1"
     },
@@ -41,16 +41,16 @@
         "variacao_pct": -2.3989898989898926
       },
       "sp500_fut": {
-        "preco": 7672.75,
-        "variacao_pct": -0.250260010400416
+        "preco": 7674.25,
+        "variacao_pct": -0.23075923036921475
       },
       "nasdaq_fut": {
-        "preco": 29105.75,
-        "variacao_pct": -0.5840812248627324
+        "preco": 29110.75,
+        "variacao_pct": -0.5670028264749332
       },
       "dxy": {
-        "preco": 98.942,
-        "variacao_pct": 0.040444075953966596
+        "preco": 98.944,
+        "variacao_pct": 0.04246627975167498
       },
       "usd_brl": {
         "preco": 5.147,
@@ -87,21 +87,21 @@
         "variacao_pct": 0.0
       },
       "iron_ore_2m": {
-        "preco": 97.25,
-        "variacao_pct": 0.05144032921810407
+        "preco": 97.4,
+        "variacao_pct": 0.2057613168724309
       },
       "crude_oil": {
         "preco": 80.47,
         "variacao_pct": -2.2948033025740657
       },
       "gold": {
-        "preco": 4644.45,
-        "variacao_pct": -0.27231351827690925
+        "preco": 4640.9,
+        "variacao_pct": -0.3485406898494604
       },
       "di1_2027": 13.68,
       "di1_2029": 14.055,
       "inclinacao_bps": 37.5,
-      "indicador_mercado_externo": 0.1556
+      "indicador_mercado_externo": 0.3099
     },
     "noticias": {
       "impacto_total": 0,
@@ -137,8 +137,8 @@
       },
       "contexto_resumo": [
         "VIX 15.5 (-2.40%)",
-        "ES -0.25%",
-        "NQ -0.58%",
+        "ES -0.23%",
+        "NQ -0.57%",
         "DXY +0.04%",
         "USD/BRL +0.02%",
         "ADRs BR +7.24%",
@@ -157,7 +157,7 @@
         "metricas": true,
         "noticias": true
       },
-      "timestamp_build": "2026-08-25T22:44:04.734901"
+      "timestamp_build": "2026-08-25T22:34:04.942426"
     }
   },
   "opening_scenario": {
@@ -183,8 +183,8 @@
     },
     "contexto_resumo": [
       "VIX 15.5 (-2.40%)",
-      "ES -0.25%",
-      "NQ -0.58%",
+      "ES -0.23%",
+      "NQ -0.57%",
       "DXY +0.04%",
       "USD/BRL +0.02%",
       "ADRs BR +7.24%",
@@ -199,10 +199,10 @@
     "vies": "VENDA",
     "confianca": 77,
     "motivos": [
-      "Mercado Externo: +0.16% (NEUTRO)",
+      "Mercado Externo: +0.31% (NEUTRO)",
       "ADRs: +7.24% (COMPRA)",
       "Tendência: Estavel_E_Baixa (NEUTRO)",
-      "Predição: VENDA (score 62.3)",
+      "Predição: VENDA (score 62.9)",
       "Visão SMC: Estrutura de VENDA (conf. 50%)"
     ],
     "riscos": [
@@ -214,7 +214,7 @@
     }
   },
   "decisao": {
-    "timestamp": "2026-08-25T22:44:04.735069",
+    "timestamp": "2026-08-25T22:34:04.942518",
     "ativo": "WIN",
     "vies_final": "VENDA",
     "confianca": 77,
@@ -224,10 +224,10 @@
     "alvo_2": 170912,
     "invalidacao": "Fechamento acima de 178353",
     "motivos": [
-      "Mercado Externo: +0.16% (NEUTRO)",
+      "Mercado Externo: +0.31% (NEUTRO)",
       "ADRs: +7.24% (COMPRA)",
       "Tendência: Estavel_E_Baixa (NEUTRO)",
-      "Predição: VENDA (score 62.3)",
+      "Predição: VENDA (score 62.9)",
       "Visão SMC: Estrutura de VENDA (conf. 50%)"
     ],
     "riscos": [
