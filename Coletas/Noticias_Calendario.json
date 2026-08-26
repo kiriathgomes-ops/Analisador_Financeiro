@@ -1,121 +1,201 @@
 {
   "metadata": {
     "fonte": "TradingView API",
-    "timestamp": "2026-08-25T05:32:17.577031",
-    "data_referencia": "2026-08-25",
+    "timestamp": "2026-08-26T08:41:09.960471",
+    "data_referencia": "2026-08-26",
     "filtros": "Brasil e EUA (2 e 3 Estrelas)"
   },
   "calendario_eventos": {
-    "quantidade_eventos": 11,
+    "quantidade_eventos": 19,
     "eventos": [
       {
         "hora": "08:00",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "MBA 30-Year Mortgage Rate",
+        "importancia": 2,
+        "anterior": "6.77",
+        "previsao": "",
+        "atual": "6.78"
+      },
+      {
+        "hora": "09:00",
         "pais": "Brazil",
         "moeda": "BRL",
-        "evento": "FGV Consumer Confidence",
+        "evento": "IPCA mid-month CPI MoM",
+        "importancia": 3,
+        "anterior": "0.06",
+        "previsao": "-0.3",
+        "atual": ""
+      },
+      {
+        "hora": "09:00",
+        "pais": "Brazil",
+        "moeda": "BRL",
+        "evento": "IPCA mid-month CPI YoY",
+        "importancia": 3,
+        "anterior": "4.52",
+        "previsao": "4.34",
+        "atual": ""
+      },
+      {
+        "hora": "09:30",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "Core PCE Price Index YoY",
+        "importancia": 3,
+        "anterior": "3.3",
+        "previsao": "3.3",
+        "atual": ""
+      },
+      {
+        "hora": "09:30",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "Durable Goods Orders ex Defense MoM",
         "importancia": 2,
-        "anterior": "88.3",
+        "anterior": "0.3",
         "previsao": "",
         "atual": ""
       },
       {
-        "hora": "09:00",
+        "hora": "09:30",
         "pais": "United States",
         "moeda": "USD",
-        "evento": "Building Permits Final",
-        "importancia": 2,
-        "anterior": "1.374",
-        "previsao": "1.443",
+        "evento": "PCE Price Index MoM",
+        "importancia": 3,
+        "anterior": "-0.1",
+        "previsao": "0.1",
         "atual": ""
       },
       {
-        "hora": "09:00",
+        "hora": "09:30",
         "pais": "United States",
         "moeda": "USD",
-        "evento": "Building Permits MoM Final",
-        "importancia": 2,
-        "anterior": "-2.6",
-        "previsao": "5",
+        "evento": "PCE Price Index YoY",
+        "importancia": 3,
+        "anterior": "3.7",
+        "previsao": "3.6",
         "atual": ""
       },
       {
-        "hora": "09:00",
+        "hora": "09:30",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "GDP Price Index QoQ 2nd Est",
+        "importancia": 3,
+        "anterior": "3.6",
+        "previsao": "6.3",
+        "atual": ""
+      },
+      {
+        "hora": "09:30",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "Durable Goods Orders Ex Transp MoM",
+        "importancia": 2,
+        "anterior": "0.6",
+        "previsao": "0.6",
+        "atual": ""
+      },
+      {
+        "hora": "09:30",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "Personal Spending MoM",
+        "importancia": 3,
+        "anterior": "0.3",
+        "previsao": "0.1",
+        "atual": ""
+      },
+      {
+        "hora": "09:30",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "Personal Income MoM",
+        "importancia": 3,
+        "anterior": "0.2",
+        "previsao": "0.2",
+        "atual": ""
+      },
+      {
+        "hora": "09:30",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "GDP Growth Rate QoQ 2nd Est",
+        "importancia": 3,
+        "anterior": "2.1",
+        "previsao": "1.5",
+        "atual": ""
+      },
+      {
+        "hora": "09:30",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "Durable Goods Orders MoM",
+        "importancia": 3,
+        "anterior": "0.3",
+        "previsao": "0.7",
+        "atual": ""
+      },
+      {
+        "hora": "09:30",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "Core PCE Price Index MoM",
+        "importancia": 3,
+        "anterior": "0.1",
+        "previsao": "0.2",
+        "atual": ""
+      },
+      {
+        "hora": "09:30",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "Corporate Profits QoQ Prel",
+        "importancia": 2,
+        "anterior": "0.5",
+        "previsao": "",
+        "atual": ""
+      },
+      {
+        "hora": "09:30",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "GDP Sales QoQ 2nd Est",
+        "importancia": 3,
+        "anterior": "1.9",
+        "previsao": "2.2",
+        "atual": ""
+      },
+      {
+        "hora": "11:30",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "EIA Crude Oil Stocks Change",
+        "importancia": 2,
+        "anterior": "4.405",
+        "previsao": "0.6",
+        "atual": ""
+      },
+      {
+        "hora": "11:30",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "EIA Gasoline Stocks Change",
+        "importancia": 2,
+        "anterior": "0.688",
+        "previsao": "-0.7",
+        "atual": ""
+      },
+      {
+        "hora": "12:45",
         "pais": "United States",
         "moeda": "USD",
         "evento": "Fed Barkin Speech",
         "importancia": 2,
         "anterior": "",
         "previsao": "",
-        "atual": ""
-      },
-      {
-        "hora": "09:15",
-        "pais": "United States",
-        "moeda": "USD",
-        "evento": "ADP Employment Change Weekly",
-        "importancia": 2,
-        "anterior": "9.5",
-        "previsao": "",
-        "atual": ""
-      },
-      {
-        "hora": "10:00",
-        "pais": "United States",
-        "moeda": "USD",
-        "evento": "S&P/Case-Shiller Home Price YoY",
-        "importancia": 2,
-        "anterior": "1.6",
-        "previsao": "1.7",
-        "atual": ""
-      },
-      {
-        "hora": "11:00",
-        "pais": "United States",
-        "moeda": "USD",
-        "evento": "New Home Sales",
-        "importancia": 2,
-        "anterior": "0.628",
-        "previsao": "0.62",
-        "atual": ""
-      },
-      {
-        "hora": "11:00",
-        "pais": "United States",
-        "moeda": "USD",
-        "evento": "New Home Sales MoM",
-        "importancia": 2,
-        "anterior": "1.6",
-        "previsao": "",
-        "atual": ""
-      },
-      {
-        "hora": "11:00",
-        "pais": "United States",
-        "moeda": "USD",
-        "evento": "CB Consumer Confidence",
-        "importancia": 2,
-        "anterior": "90.8",
-        "previsao": "91.2",
-        "atual": ""
-      },
-      {
-        "hora": "17:00",
-        "pais": "United States",
-        "moeda": "USD",
-        "evento": "Fed Barkin Speech",
-        "importancia": 2,
-        "anterior": "",
-        "previsao": "",
-        "atual": ""
-      },
-      {
-        "hora": "17:30",
-        "pais": "United States",
-        "moeda": "USD",
-        "evento": "API Crude Oil Stock Change",
-        "importancia": 2,
-        "anterior": "-3.28",
-        "previsao": "1.9",
         "atual": ""
       }
     ]

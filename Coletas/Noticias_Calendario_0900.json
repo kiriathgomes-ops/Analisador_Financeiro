@@ -1,12 +1,33 @@
 {
   "metadata": {
     "fonte": "TradingView API",
-    "timestamp": "2026-08-25T05:32:17.577031",
-    "data_referencia": "2026-08-25"
+    "timestamp": "2026-08-26T08:41:09.960471",
+    "data_referencia": "2026-08-26"
   },
   "alerta_noticia_0900": {
-    "tem_evento_3_estrelas": false,
-    "quantidade_eventos": 0,
-    "eventos": []
+    "tem_evento_3_estrelas": true,
+    "quantidade_eventos": 2,
+    "eventos": [
+      {
+        "hora": "09:00",
+        "pais": "Brazil",
+        "moeda": "BRL",
+        "evento": "IPCA mid-month CPI MoM",
+        "importancia": 3,
+        "anterior": "0.06",
+        "previsao": "-0.3",
+        "atual": ""
+      },
+      {
+        "hora": "09:00",
+        "pais": "Brazil",
+        "moeda": "BRL",
+        "evento": "IPCA mid-month CPI YoY",
+        "importancia": 3,
+        "anterior": "4.52",
+        "previsao": "4.34",
+        "atual": ""
+      }
+    ]
   }
 }

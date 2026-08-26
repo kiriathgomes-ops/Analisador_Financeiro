@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "timestamp": "2026-08-26T08:38:35.914576",
+    "timestamp": "2026-08-26T08:45:42.006693",
     "origem": "Pipeline_Completo_V3",
     "versao": "3.1_WIN",
     "arquivos_presentes": {
@@ -13,22 +13,43 @@
     }
   },
   "alerta_calendario_0900": {
-    "tem_evento_3_estrelas": false,
-    "quantidade_eventos": 0,
-    "eventos": [],
+    "tem_evento_3_estrelas": true,
+    "quantidade_eventos": 2,
+    "eventos": [
+      {
+        "hora": "09:00",
+        "pais": "Brazil",
+        "moeda": "BRL",
+        "evento": "IPCA mid-month CPI MoM",
+        "importancia": 3,
+        "anterior": "0.06",
+        "previsao": "-0.3",
+        "atual": ""
+      },
+      {
+        "hora": "09:00",
+        "pais": "Brazil",
+        "moeda": "BRL",
+        "evento": "IPCA mid-month CPI YoY",
+        "importancia": 3,
+        "anterior": "4.52",
+        "previsao": "4.34",
+        "atual": ""
+      }
+    ],
     "fonte": "Noticias_Calendario_0900.json"
   },
   "indicadores_compostos": {
     "indicador_mercado_externo": {
-      "valor_pct": 0.1556,
-      "classificacao": "LATERAL",
-      "sinal_operacional": "COMPRA",
-      "rotulo_completo": "LATERAL_COMPRA",
+      "valor_pct": -2.9019,
+      "classificacao": "FORTE",
+      "sinal_operacional": "VENDA",
+      "rotulo_completo": "FORTE_VENDA",
       "valido": true,
       "observacao": "OK"
     },
     "indicador_adrs_brasileiras": {
-      "valor_pct": 7.24,
+      "valor_pct": 10.11,
       "classificacao": "MUITO_FORTE",
       "sinal_operacional": "COMPRA",
       "rotulo_completo": "MUITO_FORTE_COMPRA",
@@ -39,9 +60,9 @@
   "analise_tendencias": {},
   "estimativa_abertura": {
     "WIN_INDICE": {
-      "variacao_teorica_pct": 0.6224,
+      "variacao_teorica_pct": 0.7223,
       "pontos_ajuste_base": 177497.0,
-      "abertura_teorica_pontos": 178602.0
+      "abertura_teorica_pontos": 178779.0
     }
   },
   "pivot_points": {
@@ -54,20 +75,21 @@
     }
   },
   "resumo_macro": {
-    "vix": 15.46,
+    "vix": 15.67,
     "di1_2027": 13.68,
     "di1_2029": 14.055,
-    "iron_ore": 97.25,
-    "crude_oil": 80.47,
-    "gold": 4644.45
+    "iron_ore": 98.2,
+    "crude_oil": 80.19,
+    "gold": 4618.985
   },
   "decisao_core": {
     "win": {
-      "score_numeric": 5.5,
-      "vies_final": "FORTE_COMPRA",
+      "score_numeric": 3.0,
+      "vies_final": "MODERADO_COMPRA",
       "fatores_relevantes": [
-        "Teórico WIN positivo (+0.62%)",
-        "ADRs fortes no exterior (+7.24%)",
+        "Teórico WIN positivo (+0.72%)",
+        "ADRs fortes no exterior (+10.11%)",
+        "Commodities e Mercado Externo pressionados (-2.90%)",
         "⚖️ Spread Last vs Ajuste na normalidade (-32 pts)"
       ]
     }
