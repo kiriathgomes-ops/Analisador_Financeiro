@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "timestamp": "2026-08-26T08:49:04.319391",
+    "timestamp": "2026-08-26T11:49:04.860046",
     "origem": "Pipeline_Completo_V3",
     "versao": "3.1_WIN",
     "arquivos_presentes": {
@@ -41,15 +41,15 @@
   },
   "indicadores_compostos": {
     "indicador_mercado_externo": {
-      "valor_pct": -2.9553,
-      "classificacao": "FORTE",
+      "valor_pct": -1.101,
+      "classificacao": "FRACA",
       "sinal_operacional": "VENDA",
-      "rotulo_completo": "FORTE_VENDA",
+      "rotulo_completo": "FRACA_VENDA",
       "valido": true,
       "observacao": "OK"
     },
     "indicador_adrs_brasileiras": {
-      "valor_pct": 10.11,
+      "valor_pct": 7.9,
       "classificacao": "MUITO_FORTE",
       "sinal_operacional": "COMPRA",
       "rotulo_completo": "MUITO_FORTE_COMPRA",
@@ -60,36 +60,35 @@
   "analise_tendencias": {},
   "estimativa_abertura": {
     "WIN_INDICE": {
-      "variacao_teorica_pct": 0.725,
+      "variacao_teorica_pct": -0.1174,
       "pontos_ajuste_base": 177497.0,
-      "abertura_teorica_pontos": 178784.0
+      "abertura_teorica_pontos": 177289.0
     }
   },
   "pivot_points": {
     "WIN_FUT": {
-      "PP": 175176.67,
-      "R1": 178353.33,
-      "R2": 179241.67,
-      "S1": 174288.33,
-      "S2": 171111.67
+      "PP": 178726.67,
+      "R1": 180038.33,
+      "R2": 182611.67,
+      "S1": 176153.33,
+      "S2": 174841.67
     }
   },
   "resumo_macro": {
-    "vix": 15.72,
+    "vix": 15.47,
     "di1_2027": 13.68,
-    "di1_2029": 14.055,
-    "iron_ore": 98.25,
-    "crude_oil": 80.37,
-    "gold": 4617.87
+    "di1_2029": 14.14,
+    "iron_ore": 97.85,
+    "crude_oil": 81.8,
+    "gold": 4613.41
   },
   "decisao_core": {
     "win": {
-      "score_numeric": 3.0,
-      "vies_final": "MODERADO_COMPRA",
+      "score_numeric": 0.0,
+      "vies_final": "NEUTRO",
       "fatores_relevantes": [
-        "Teórico WIN positivo (+0.72%)",
-        "ADRs fortes no exterior (+10.11%)",
-        "Commodities e Mercado Externo pressionados (-2.90%)",
+        "ADRs fortes no exterior (+9.20%)",
+        "Commodities e Mercado Externo pressionados (-1.32%)",
         "⚖️ Spread Last vs Ajuste na normalidade (-32 pts)"
       ]
     }

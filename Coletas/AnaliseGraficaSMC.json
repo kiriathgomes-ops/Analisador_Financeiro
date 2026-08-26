@@ -1,20 +1,43 @@
 {
   "timeframes_identificados": "HTF (15 Minutos) e LTF (5 Minutos)",
-  "bias_direcional": "Bullish (Altista)",
+  "bias_direcional": "Bullish (Altista) no curto prazo com teste de zonas Premium",
   "estruturas_coletadas": [
-    "175.860: PDH (Previous Day High) / Premium Zone",
-    "174.475: Preço Atual WINV2026",
-    "174.055: FVG 15 (Fair Value Gap)",
-    "173.240: Equilibrium Range Intermediário",
-    "172.175: PDL (Previous Day Low) / Liquidez",
-    "168.675: Strong Low / Discount Zone FVG"
+    "184.500: EQH (HTF Equal Highs)",
+    "182.500: EQH (HTF Equal Highs)",
+    "179.220: FVG 15 (Fair Value Gap de 15 minutos)",
+    "178.615: FVG 15 (Fair Value Gap de 15 minutos)",
+    "178.115: FVG 15 (Fair Value Gap de 15 minutos) e Zona Premium",
+    "177.565: Preço Atual (WINV2026) e EQH",
+    "177.535: FVG 15 (Fair Value Gap de 15 minutos)",
+    "176.000: PDH (Previous Day High) e Zona de Liquidez",
+    "175.715: Inversão de Polaridade",
+    "175.560: Equilibrium do Range",
+    "175.430: PWH (Previous Week High)",
+    "173.735: Nível de ChoCH / BOS",
+    "173.240: Melhor Preço / Equilibrium",
+    "172.855: FVG 15 e Bacia",
+    "172.485: Nível de Estrutura",
+    "172.175: PDL (Previous Day Low)",
+    "172.060: Zona de Suporte",
+    "171.990: Nível Estrutural",
+    "171.680: Nível Estrutural",
+    "171.150: Nível de Desconto",
+    "170.455: EQL (Equal Lows)",
+    "170.330: EQL (Equal Lows)",
+    "169.795: EQL (Equal Lows)",
+    "169.790: EQL (Equal Lows)",
+    "168.675: PWL (Previous Week Low)"
   ],
   "liquidez_relevante": [
-    "BSL: 176.400 (EQH Superior / Premium)",
-    "SSL: 170.330 (EQL Inferior / Discount)"
+    "BSL: 184.500 (Equal Highs no topo absoluto do range HTF)",
+    "BSL: 182.500 (Equal Highs intermediário)",
+    "Liquidez: 176.000 (Pool de liquidez acima da resistência prévia / PDH)",
+    "SSL: 170.455 / 170.330 (Equal Lows inferiores)",
+    "SSL: 169.795 / 169.790 (Equal Lows de suporte profundo)",
+    "SSL: 168.675 (PWL - Previous Week Low)"
   ],
   "zonas_de_interesse_e_cenarios": [
-    "Cenário Comprador: Retração até o FVG 15 em 174.055 ou na região de Bacia/Discount em 172.485 para continuação de alta.",
-    "Cenário Vendedor: Rejeição na zona Premium em 175.860 buscando a mitigação dos FVG inferiores."
+    "Cenário Altista (Bullish): Continuidade do impulso após preenchimento dos FVG's de 15 min na região Premium entre 177.535 e 178.115.",
+    "Cenário Baixista (Bearish): Rejeição nas zonas de Premium / FVG 15 em 178.115 buscando mitigação na região de liquidez em 176.000 (PDH)."
   ]
 }

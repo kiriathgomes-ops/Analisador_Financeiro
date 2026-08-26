@@ -1,50 +1,50 @@
 {
   "metadata_calculo": {
-    "timestamp": "2026-08-26T08:49:04.101087",
+    "timestamp": "2026-08-26T11:49:04.640631",
     "total_ativos_processados": 32
   },
   "cambio_e_arbitragem": {
     "usd_ptax": 5.1484,
-    "wdo_fut": 5154.0,
-    "spread_wdo_ptax_pontos": 5.6,
-    "spread_wdo_ptax_percentual": 0.1088
+    "wdo_fut": 5168.0,
+    "spread_wdo_ptax_pontos": 19.6,
+    "spread_wdo_ptax_percentual": 0.3807
   },
   "curva_juros_b3": {
     "di1_2027_taxa": 13.68,
-    "di1_2029_taxa": 14.055,
-    "inclinacao_29_27_bps": 37.5
+    "di1_2029_taxa": 14.14,
+    "inclinacao_29_27_bps": 46.0
   },
   "indicadores_macro": {
-    "vix": 15.72,
-    "vix_change_pct": 1.6817593790426892,
-    "dxy": 99.007,
-    "crude_oil": 80.37,
-    "crude_oil_change_pct": -2.416221466731417,
+    "vix": 15.47,
+    "vix_change_pct": 0.0646830530401021,
+    "dxy": 99.209,
+    "crude_oil": 81.8,
+    "crude_oil_change_pct": -0.6799417192812072,
     "iron_ore_fef2": {
-      "close": 98.25,
-      "change_percent": 1.1426806670784428
+      "close": 97.85,
+      "change_percent": -0.35641547861507994
     }
   },
   "performance_relativa": {
-    "ewz_change_pct": 2.02,
-    "sp500_fut_change_pct": -0.10075403016120645,
-    "nasdaq_fut_change_pct": -0.2408054172679686,
+    "ewz_change_pct": -0.2,
+    "sp500_fut_change_pct": -0.0812532501300052,
+    "nasdaq_fut_change_pct": -0.1921319818627409,
     "adrs_brasileiras": {
       "BBD_ADR": {
-        "close": 3.25,
-        "change_percent": 3.17
+        "close": 3.28,
+        "change_percent": 0.92
       },
       "ITUB_ADR": {
-        "close": 7.66,
-        "change_percent": 1.86
+        "close": 7.69,
+        "change_percent": 0.39
       },
       "PETR_ADR": {
         "close": 17.85,
-        "change_percent": -4.03
+        "change_percent": 0.0
       },
       "VALE_ADR": {
-        "close": 15.33,
-        "change_percent": 1.93
+        "close": 15.24,
+        "change_percent": -0.59
       },
       "BBAS_ADR": {
         "close": 3.9,
@@ -57,7 +57,7 @@
     }
   },
   "indicadores_compostos": {
-    "indicador_mercado_externo": -2.9553,
-    "indicador_adrs_brasileiras": 10.11
+    "indicador_mercado_externo": -1.101,
+    "indicador_adrs_brasileiras": 7.9
   }
 }

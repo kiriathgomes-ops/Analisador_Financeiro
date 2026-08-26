@@ -2,9 +2,8 @@
 # ARQUIVO: pages/14_🌐_Ativos_Monitorados.py
 #
 # MOTIVO:
-# Monitor Exclusivo dos 24 Ativos Mapeados do Coletor
-# VERSÃO MELHORADA - Com cores, filtros e ordenação
-#
+# Monitor Exclusivo dos Ativos Mapeados do Coletor (JSON Dinâmico)
+# VERSÃO MELHORADA - Cobertura de Ações Locais + Tratamento de Dados
 # ============================================================
 
 import json
@@ -19,7 +18,7 @@ import plotly.express as px
 # ============================================================
 
 st.set_page_config(
-    page_title="24 Ativos Monitorados - Quant Terminal",
+    page_title="Ativos Monitorados - Quant Terminal",
     page_icon="🌐",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -138,46 +137,18 @@ COLETAS_DIR = os.path.join(BASE_DIR, "Coletas")
 ARQUIVO_ATIVOS = os.path.join(COLETAS_DIR, "DadosAtivosUnificados.json")
 
 # ============================================================
-# MAPEAMENTO OFICIAL
-# ============================================================
-
-MAPEAMENTO_TICKERS = {
-    "USD_PTAX": "USD_PTAX",
-    "B3_AJUSTE_WIN": "WIN_AJUSTE",
-    "B3_AJUSTE_WDO": "WDO_AJUSTE",
-    "BMFBOVESPA:WIN1!": "WIN_FUT",
-    "BMFBOVESPA:WDO1!": "WDO_FUT",
-    "BMFBOVESPA:DI1F2027": "DI1_2027",
-    "BMFBOVESPA:DI1F2029": "DI1_2029",
-    "TVC:VIX": "VIX",
-    "SGX:FEF1!": "IRON_ORE",
-    "SGX:FEF2!": "IRON_ORE_2M",
-    "NYMEX:CL1!": "CRUDE_OIL",
-    "NYSE:VALE": "VALE_ADR",
-    "NYSE:PBR": "PETR_ADR",
-    "NYSE:ITUB": "ITUB_ADR",
-    "OTC:BDORY": "BBAS_ADR",
-    "NYSE:BBD": "BBD_ADR",
-    "OTC:BOLSY": "B3_ADR",
-    "AMEX:EWZ": "EWZ",
-    "CME_MINI:ES1!": "SP500_FUT",
-    "CME_MINI:NQ1!": "NASDAQ_FUT",
-    "TVC:DXY": "DXY",
-    "FX_IDC:USDMXN": "USD_MXN",
-    "TVC:GOLD": "GOLD",
-    "FX_IDC:USDBRL": "USD_BRL",
-}
-
-# ============================================================
-# GRUPOS VISUAIS
+# GRUPOS VISUAIS COMPLETO (32 ATIVOS)
 # ============================================================
 
 GRUPOS_ATIVOS = {
     "🇧🇷 Mercado Local, Ajustes & Curva DI": [
         "USD_PTAX", "WIN_AJUSTE", "WDO_AJUSTE", "WIN_FUT", "WDO_FUT",
-        "DI1_2027", "DI1_2029"
+        "DI1_2027", "DI1_2029", "DI1_FUT"
     ],
-    "🏢 ADRs Brasileiras": [
+    "🏢 Ações Locais (B3)": [
+        "VALE3", "PETR4", "ITUB4", "BBAS3", "BBDC4", "B3SA3"
+    ],
+    "🇺🇸 ADRs Brasileiras (NYSE/OTC)": [
         "VALE_ADR", "PETR_ADR", "ITUB_ADR", "BBAS_ADR", "BBD_ADR", "B3_ADR"
     ],
     "🌐 Índices Globais, Moedas & Risco": [
@@ -185,6 +156,9 @@ GRUPOS_ATIVOS = {
     ],
     "⛏️ Commodities & Câmbio": [
         "IRON_ORE", "IRON_ORE_2M", "CRUDE_OIL", "GOLD", "USD_BRL"
+    ],
+    "📊 Métricas & Auxiliares": [
+        "WIN_PREV_CLOSE", "WIN_LAST_TICK"
     ]
 }
 
@@ -217,7 +191,7 @@ def carregar_dados():
 # ============================================================
 
 st.sidebar.title("🌐 Monitor Global")
-st.sidebar.caption("24 Ativos do Coletor")
+st.sidebar.caption("Ativos do Coletor Quant")
 st.sidebar.markdown("---")
 
 # Status dos dados
@@ -232,7 +206,7 @@ else:
 
 st.sidebar.markdown("---")
 
-if st.sidebar.button("🔄 Atualizar Dados", width="stretch"):
+if st.sidebar.button("🔄 Atualizar Dados", use_container_width=True):
     st.cache_data.clear()
     st.rerun()
 
@@ -248,12 +222,12 @@ ordenar_por = st.sidebar.selectbox(
 )
 
 # ============================================================
-# CARREGAMENTO
+# CARREGAMENTO DE DADOS
 # ============================================================
 
 dados = carregar_dados()
 
-st.title("🌐 Painel de Cotações — 24 Ativos Monitorados")
+st.title("🌐 Painel de Cotações — Monitor de Ativos")
 st.caption("Fonte oficial: DadosAtivosUnificados.json")
 
 if not dados:
@@ -264,7 +238,7 @@ if not dados:
     st.stop()
 
 # ============================================================
-# TIMESTAMP
+# TIMESTAMP & METADATA
 # ============================================================
 
 metadata = dados.get("metadata", {})
@@ -272,30 +246,29 @@ timestamp = metadata.get(
     "timestamp",
     datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 )
-st.info(f"🕒 Última coleta: {timestamp}")
+total_no_json = metadata.get("total_ativos", 0)
+
+st.info(f"🕒 Última coleta: **{timestamp}** | Total no JSON: **{total_no_json} ativos**")
 
 # ============================================================
-# DADOS DOS ATIVOS
+# EXTRAIR DADOS PARA DATAFRAME (LEITURA DINÂMICA DA FONTE JSON)
 # ============================================================
 
-ativos_brutos = dados.get("ativos", dados)
-
-# ============================================================
-# EXTRAIR DADOS PARA DATAFRAME
-# ============================================================
-
+ativos_brutos = dados.get("ativos", {})
 lista_ativos = []
-for ticker_original, nome_limpo in MAPEAMENTO_TICKERS.items():
-    info = ativos_brutos.get(nome_limpo, {})
+
+for nome_limpo, info in ativos_brutos.items():
     if isinstance(info, dict):
-        preco = info.get("preco", info.get("valor", 0))
-        variacao = info.get("variacao_pct", info.get("var_pct", 0))
+        preco = info.get("preco", info.get("valor", 0.0))
+        variacao = info.get("variacao_pct", info.get("var_pct", 0.0))
+        ticker_orig = info.get("ticker_original", nome_limpo)
     else:
-        preco = info if isinstance(info, (int, float)) else 0
-        variacao = 0
+        preco = info if isinstance(info, (int, float)) else 0.0
+        variacao = 0.0
+        ticker_orig = nome_limpo
     
-    # Determina grupo
-    grupo = "Outros"
+    # Determina grupo dinamicamente
+    grupo = "Outros / Não Mapeados"
     for nome_grupo, lista in GRUPOS_ATIVOS.items():
         if nome_limpo in lista:
             grupo = nome_grupo
@@ -303,7 +276,7 @@ for ticker_original, nome_limpo in MAPEAMENTO_TICKERS.items():
     
     lista_ativos.append({
         "Ativo": nome_limpo,
-        "Ticker": ticker_original,
+        "Ticker": ticker_orig,
         "Preço": preco,
         "Variação %": variacao,
         "Grupo": grupo,
@@ -312,7 +285,7 @@ for ticker_original, nome_limpo in MAPEAMENTO_TICKERS.items():
 df = pd.DataFrame(lista_ativos)
 
 # ============================================================
-# FILTROS
+# FILTROS E ORDENAÇÃO DO DATAFRAME
 # ============================================================
 
 if grupo_selecionado != "Todos":
@@ -328,7 +301,7 @@ elif ordenar_por == "Variação % (Menor → Maior)":
     df_filtrado = df_filtrado.sort_values("Variação %", ascending=True)
 
 # ============================================================
-# STATS
+# STATS (MÉTRICAS GERAIS DO PAINEL)
 # ============================================================
 
 col_stats1, col_stats2, col_stats3, col_stats4 = st.columns(4)
@@ -337,7 +310,7 @@ with col_stats1:
     st.markdown(f"""
     <div class="stat-box">
         <div class="number">{len(df)}</div>
-        <div class="label">Total Ativos</div>
+        <div class="label">Total Exibidos</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -346,7 +319,7 @@ with col_stats2:
     st.markdown(f"""
     <div class="stat-box">
         <div class="number alta">{alta}</div>
-        <div class="label">🟢 Em Alta</div>
+        <div class="label">🟢 Em Alta (> +0.5%)</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -355,7 +328,7 @@ with col_stats3:
     st.markdown(f"""
     <div class="stat-box">
         <div class="number baixa">{baixa}</div>
-        <div class="label">🔴 Em Baixa</div>
+        <div class="label">🔴 Em Baixa (< -0.5%)</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -364,7 +337,7 @@ with col_stats4:
     st.markdown(f"""
     <div class="stat-box">
         <div class="number neutra">{neutra}</div>
-        <div class="label">🟡 Neutro</div>
+        <div class="label">🟡 Neutro (-0.5% a +0.5%)</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -394,25 +367,23 @@ if not df_filtrado.empty:
         xaxis_tickangle=-45,
     )
     fig.update_coloraxes(showscale=False)
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, use_container_width=True)
 
 st.markdown("---")
 
 # ============================================================
-# BLOCO CRÍTICO
+# BLOCO CRÍTICO PARA ABERTURA
 # ============================================================
 
 st.subheader("🎯 Ativos Críticos para Abertura WIN/WDO")
 
 cols = st.columns(5)
-for i, ativo in enumerate(ATIVOS_CRITICOS):
-    info = ativos_brutos.get(ativo, {})
-    if isinstance(info, dict):
-        preco = info.get("preco", info.get("valor", 0))
-        variacao = info.get("variacao_pct", info.get("var_pct", 0))
-    else:
-        preco = info if isinstance(info, (int, float)) else 0
-        variacao = 0
+criticos_presentes = [a for a in ATIVOS_CRITICOS if a in ativos_brutos]
+
+for i, ativo in enumerate(criticos_presentes):
+    info = ativos_brutos[ativo]
+    preco = info.get("preco", 0.0) if isinstance(info, dict) else info
+    variacao = info.get("variacao_pct", 0.0) if isinstance(info, dict) else 0.0
     
     cor = "#00c853" if variacao > 0 else "#ff3d00" if variacao < 0 else "#ffc107"
     emoji = "🟢" if variacao > 0 else "🔴" if variacao < 0 else "🟡"
@@ -432,30 +403,32 @@ st.markdown("---")
 # TODOS OS ATIVOS POR GRUPO (CARDS)
 # ============================================================
 
-st.subheader("📋 Todos os Ativos")
+st.subheader("📋 Todos os Ativos por Categoria")
 
-# Filtra grupos para exibir
-grupos_para_exibir = GRUPOS_ATIVOS.keys()
-if grupo_selecionado != "Todos":
-    grupos_para_exibir = [grupo_selecionado]
+grupos_para_exibir = GRUPOS_ATIVOS.keys() if grupo_selecionado == "Todos" else [grupo_selecionado]
 
 for grupo in grupos_para_exibir:
     if grupo not in GRUPOS_ATIVOS:
         continue
-        
-    st.markdown(f"### {grupo}")
     
     lista = GRUPOS_ATIVOS[grupo]
-    colunas = st.columns(min(4, len(lista)))
+    # Exibe apenas quem realmente existe no JSON para evitar cards vazios/falsos
+    lista_presentes = [t for t in lista if t in ativos_brutos]
     
-    for i, ticker in enumerate(lista):
-        info = ativos_brutos.get(ticker, {})
+    if not lista_presentes:
+        continue
+        
+    st.markdown(f"### {grupo}")
+    colunas = st.columns(min(4, len(lista_presentes)))
+    
+    for i, ticker in enumerate(lista_presentes):
+        info = ativos_brutos[ticker]
         if isinstance(info, dict):
-            preco = info.get("preco", info.get("valor", 0))
-            variacao = info.get("variacao_pct", info.get("var_pct", 0))
+            preco = info.get("preco", info.get("valor", 0.0))
+            variacao = info.get("variacao_pct", info.get("var_pct", 0.0))
         else:
-            preco = info if isinstance(info, (int, float)) else 0
-            variacao = 0
+            preco = info if isinstance(info, (int, float)) else 0.0
+            variacao = 0.0
         
         cor_classe = "positiva" if variacao > 0 else "negativa" if variacao < 0 else "neutra"
         emoji = "🟢" if variacao > 0 else "🔴" if variacao < 0 else "🟡"
@@ -478,7 +451,7 @@ for grupo in grupos_para_exibir:
 with st.expander("📊 Ver Tabela Completa"):
     st.dataframe(
         df_filtrado,
-        width="stretch",
+        use_container_width=True,
         hide_index=True,
         column_config={
             "Ativo": "Ativo",
@@ -493,4 +466,4 @@ with st.expander("📊 Ver Tabela Completa"):
 # RODAPÉ
 # ============================================================
 
-st.caption("Analisador Financeiro | Monitor de Ativos Quantitativo v2.0")
+st.caption("Analisador Financeiro | Monitor de Ativos Quantitativo v2.1")

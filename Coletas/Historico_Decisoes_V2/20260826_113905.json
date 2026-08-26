@@ -1,25 +1,25 @@
 {
   "metadata": {
-    "timestamp": "2026-08-26T11:49:05.747505",
+    "timestamp": "2026-08-26T11:39:05.281405",
     "versao": "V2.2",
     "fonte": "v2_orchestrator"
   },
   "win_session": {
     "metadata": {
       "data_sessao": "2026-08-26",
-      "timestamp_coleta": "2026-08-26T11:49:04.253000",
+      "timestamp_coleta": "2026-08-26T11:39:03.464000",
       "contrato_principal": "WINZ26",
       "fonte_last": "MT5_v1"
     },
     "precos": {
       "ajuste": 177497.0,
-      "last_mt5": 181430.0,
+      "last_mt5": 181650.0,
       "fechamento_anterior": null,
       "pre_abertura": null
     },
     "distancias": {
-      "last_vs_ajuste_pts": 3933.0,
-      "last_vs_ajuste_pct": 2.2158,
+      "last_vs_ajuste_pts": 4153.0,
+      "last_vs_ajuste_pct": 2.3398,
       "pre_abertura_vs_ajuste_pts": null,
       "pre_abertura_vs_fechamento_pts": null
     },
@@ -37,41 +37,41 @@
     },
     "contexto": {
       "vix": {
-        "preco": 15.47,
-        "variacao_pct": 0.0646830530401021
+        "preco": 15.51,
+        "variacao_pct": 0.32341526520051056
       },
       "sp500_fut": {
-        "preco": 7685.75,
-        "variacao_pct": -0.0812532501300052
+        "preco": 7683.5,
+        "variacao_pct": -0.11050442017680707
       },
       "nasdaq_fut": {
-        "preco": 29220.5,
-        "variacao_pct": -0.1921319818627409
+        "preco": 29165.5,
+        "variacao_pct": -0.379994364128532
       },
       "dxy": {
-        "preco": 99.209,
-        "variacao_pct": 0.31040828294675754
+        "preco": 99.182,
+        "variacao_pct": 0.2831085316778237
       },
       "usd_brl": {
-        "preco": 5.163,
-        "variacao_pct": 0.32840403412293934
+        "preco": 5.1595,
+        "variacao_pct": 0.2603913643341704
       },
       "usd_ptax": 5.1484,
       "vale": {
-        "preco": 15.24,
-        "variacao_pct": -0.59
+        "preco": 15.33,
+        "variacao_pct": 0.0
       },
       "petr": {
-        "preco": 17.85,
-        "variacao_pct": 0.0
+        "preco": 17.9,
+        "variacao_pct": 0.28
       },
       "itub": {
         "preco": 7.69,
         "variacao_pct": 0.39
       },
       "bbd": {
-        "preco": 3.28,
-        "variacao_pct": 0.92
+        "preco": 3.3,
+        "variacao_pct": 1.54
       },
       "bbas": {
         "preco": 3.9,
@@ -81,27 +81,27 @@
         "preco": 9.1435,
         "variacao_pct": 1.2
       },
-      "indicador_adrs": 7.9,
+      "indicador_adrs": 9.39,
       "iron_ore": {
         "preco": 95.9,
         "variacao_pct": -0.052110474205312306
       },
       "iron_ore_2m": {
-        "preco": 97.85,
-        "variacao_pct": -0.35641547861507994
+        "preco": 97.8,
+        "variacao_pct": -0.40733197556008727
       },
       "crude_oil": {
-        "preco": 81.8,
-        "variacao_pct": -0.6799417192812072
+        "preco": 81.51,
+        "variacao_pct": -1.0320543953375356
       },
       "gold": {
-        "preco": 4613.41,
-        "variacao_pct": -0.9523870865242504
+        "preco": 4616.3,
+        "variacao_pct": -0.8903402271902703
       },
       "di1_2027": 13.68,
-      "di1_2029": 14.14,
-      "inclinacao_bps": 46.0,
-      "indicador_mercado_externo": -1.101
+      "di1_2029": 14.145,
+      "inclinacao_bps": 46.5,
+      "indicador_mercado_externo": -1.7628
     },
     "noticias": {
       "impacto_total": 0,
@@ -119,7 +119,7 @@
       "probabilidade_direcao": 55.0,
       "relacao_com_ajuste": {
         "posicao": "ACIMA",
-        "cenario_principal": "Preço bem acima do ajuste (+3933 pts). Cenário principal: risco elevado de excesso de gap — continuidade possível, mas falso rompimento e retorno ao ajuste ganham peso.",
+        "cenario_principal": "Preço bem acima do ajuste (+4153 pts). Cenário principal: risco elevado de excesso de gap — continuidade possível, mas falso rompimento e retorno ao ajuste ganham peso.",
         "probabilidade_cenario": 35.0
       },
       "comportamentos": {
@@ -132,18 +132,18 @@
       "niveis_observacao": {
         "ajuste": 177497.0,
         "pp": 178726.67,
-        "last_mt5": 181430.0,
-        "distancia_ajuste_pts": 3933.0
+        "last_mt5": 181650.0,
+        "distancia_ajuste_pts": 4153.0
       },
       "contexto_resumo": [
-        "VIX 15.5 (+0.06%)",
-        "ES -0.08%",
-        "NQ -0.19%",
-        "DXY +0.31%",
-        "USD/BRL +0.33%",
-        "ADRs BR +7.90%",
+        "VIX 15.5 (+0.32%)",
+        "ES -0.11%",
+        "NQ -0.38%",
+        "DXY +0.28%",
+        "USD/BRL +0.26%",
+        "ADRs BR +9.39%",
         "Minério -0.05%",
-        "Petróleo -0.68%",
+        "Petróleo -1.03%",
         "Calendário: BAIXO (impacto 0)"
       ],
       "cenario_alternativo": "Alternativo: rompimento e continuidade (~25%). Monitorar invalidação do cenário principal.",
@@ -157,7 +157,7 @@
         "metricas": true,
         "noticias": true
       },
-      "timestamp_build": "2026-08-26T11:49:05.747338"
+      "timestamp_build": "2026-08-26T11:39:05.281202"
     }
   },
   "opening_scenario": {
@@ -165,7 +165,7 @@
     "probabilidade_direcao": 55.0,
     "relacao_com_ajuste": {
       "posicao": "ACIMA",
-      "cenario_principal": "Preço bem acima do ajuste (+3933 pts). Cenário principal: risco elevado de excesso de gap — continuidade possível, mas falso rompimento e retorno ao ajuste ganham peso.",
+      "cenario_principal": "Preço bem acima do ajuste (+4153 pts). Cenário principal: risco elevado de excesso de gap — continuidade possível, mas falso rompimento e retorno ao ajuste ganham peso.",
       "probabilidade_cenario": 35.0
     },
     "comportamentos": {
@@ -178,18 +178,18 @@
     "niveis_observacao": {
       "ajuste": 177497.0,
       "pp": 178726.67,
-      "last_mt5": 181430.0,
-      "distancia_ajuste_pts": 3933.0
+      "last_mt5": 181650.0,
+      "distancia_ajuste_pts": 4153.0
     },
     "contexto_resumo": [
-      "VIX 15.5 (+0.06%)",
-      "ES -0.08%",
-      "NQ -0.19%",
-      "DXY +0.31%",
-      "USD/BRL +0.33%",
-      "ADRs BR +7.90%",
+      "VIX 15.5 (+0.32%)",
+      "ES -0.11%",
+      "NQ -0.38%",
+      "DXY +0.28%",
+      "USD/BRL +0.26%",
+      "ADRs BR +9.39%",
       "Minério -0.05%",
-      "Petróleo -0.68%",
+      "Petróleo -1.03%",
       "Calendário: BAIXO (impacto 0)"
     ],
     "cenario_alternativo": "Alternativo: rompimento e continuidade (~25%). Monitorar invalidação do cenário principal.",
@@ -199,10 +199,10 @@
     "vies": "VENDA",
     "confianca": 66,
     "motivos": [
-      "Mercado Externo: -1.10% (VENDA)",
-      "ADRs: +7.90% (COMPRA)",
+      "Mercado Externo: -1.76% (VENDA)",
+      "ADRs: +9.39% (COMPRA)",
       "Tendência: Estavel_E_Estavel (NEUTRO)",
-      "Predição: VENDA (score 58.4)"
+      "Predição: VENDA (score 59.6)"
     ],
     "riscos": [
       "GAP EXTREMO (-177497 pts)"
@@ -213,7 +213,7 @@
     }
   },
   "decisao": {
-    "timestamp": "2026-08-26T11:49:05.747494",
+    "timestamp": "2026-08-26T11:39:05.281396",
     "ativo": "WIN",
     "vies_final": "VENDA",
     "confianca": 66,
@@ -223,10 +223,10 @@
     "alvo_2": 174642,
     "invalidacao": "Fechamento acima de 180038",
     "motivos": [
-      "Mercado Externo: -1.10% (VENDA)",
-      "ADRs: +7.90% (COMPRA)",
+      "Mercado Externo: -1.76% (VENDA)",
+      "ADRs: +9.39% (COMPRA)",
       "Tendência: Estavel_E_Estavel (NEUTRO)",
-      "Predição: VENDA (score 58.4)"
+      "Predição: VENDA (score 59.6)"
     ],
     "riscos": [
       "GAP EXTREMO (-177497 pts)",
@@ -261,7 +261,7 @@
       },
       "gap_pts": -177497.0,
       "ajuste": 177497.0,
-      "last": 181430.0
+      "last": 181650.0
     }
   },
   "contextos": {
