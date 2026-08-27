@@ -5,10 +5,10 @@
 # GERADO AUTOMATICAMENTE
 #
 # Data geração:
-# 2026-08-26 08:45:40
+# 2026-08-27 08:08:02
 #
 # Arquivos unificados:
-# 89
+# 91
 #
 # NÃO EDITAR MANUALMENTE
 # ============================================================
@@ -456,7 +456,7 @@ if __name__ == "__main__":
 # Calculadora.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-23 21:19:46
+# 2026-08-26 11:54:30
 # ============================================================
 
 
@@ -705,7 +705,7 @@ if __name__ == "__main__":
 # CalculadoraEstimativaAbertura.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-25 21:45:27
+# 2026-08-26 11:54:30
 # ============================================================
 
 
@@ -1197,7 +1197,7 @@ if __name__ == "__main__":
 # Coletor.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-24 18:17:00
+# 2026-08-26 11:54:30
 # ============================================================
 
 
@@ -2099,7 +2099,7 @@ if __name__ == "__main__":
 # Coletor_30Dias.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-24 18:36:04
+# 2026-08-26 11:54:30
 # ============================================================
 
 
@@ -2252,7 +2252,7 @@ if __name__ == "__main__":
 # Coletor_MT5_v2_2.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-24 17:53:21
+# 2026-08-26 11:54:30
 # ============================================================
 
 
@@ -2955,7 +2955,7 @@ if __name__ == "__main__":
 # Engine_Vies.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-22 21:48:05
+# 2026-08-26 11:54:30
 # ============================================================
 
 
@@ -3242,10 +3242,145 @@ for item in ordenados[:5]:
 
 # ============================================================
 # ARQUIVO:
+# Gerar_Mapa_Arquivos.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-26 11:54:30
+# ============================================================
+
+
+
+import os
+
+
+def deve_ignorar(nome, lista_ignorar):
+    """Verifica se o arquivo ou pasta deve ser ignorado com base nas regras."""
+    for padrao in lista_ignorar:
+        # Trata seletores coringa simples como '.git*'
+        if padrao.endswith("*"):
+            if nome.startswith(padrao[:-1]):
+                return True
+        elif nome == padrao:
+            return True
+    return False
+
+
+def gerar_arvore(diretorio, ignorar, prefixo=""):
+    """Gera uma representação textual da árvore ignorando os padrões configurados."""
+    linhas = []
+    elementos = [
+        item
+        for item in sorted(os.listdir(diretorio))
+        if not deve_ignorar(item, ignorar)
+    ]
+    total = len(elementos)
+
+    for i, elemento in enumerate(elementos):
+        caminho_completo = os.path.join(diretorio, elemento)
+        eh_ultimo = i == total - 1
+        ramo = "└── " if eh_ultimo else "├── "
+
+        linhas.append(f"{prefixo}{ramo}{elemento}")
+
+        if os.path.isdir(caminho_completo):
+            extensao_prefixo = "    " if eh_ultimo else "│   "
+            linhas.extend(
+                gerar_arvore(caminho_completo, ignorar, prefixo + extensao_prefixo)
+            )
+
+    return linhas
+
+
+def consolidar_arquivos(
+    diretorio_raiz, arquivo_saida, ignorar, extensoes_permitidas=None
+):
+    """Consolida a árvore e o conteúdo dos arquivos ignorando os itens listados."""
+    caminho_raiz = os.path.abspath(diretorio_raiz)
+
+    with open(arquivo_saida, "w", encoding="utf-8") as f_out:
+        # 1. Desenha o mapa da árvore filtrado
+        f_out.write("==================================================\n")
+        f_out.write("          MAPA DA ÁRVORE DE ARQUIVOS             \n")
+        f_out.write("==================================================\n")
+        f_out.write(f"{os.path.basename(caminho_raiz)}/\n")
+
+        linhas_arvore = gerar_arvore(caminho_raiz, ignorar)
+        f_out.write("\n".join(linhas_arvore))
+        f_out.write("\n\n" + "=" * 50 + "\n\n")
+
+        # 2. Leitura e junção dos conteúdos
+        for raiz, pastas, arquivos in os.walk(caminho_raiz):
+            # Filtra pastas para não entrar em diretórios ignorados (ex: .git)
+            pastas[:] = [
+                p for p in pastas if not deve_ignorar(p, ignorar)
+            ]
+
+            for arquivo in sorted(arquivos):
+                if deve_ignorar(arquivo, ignorar):
+                    continue
+
+                caminho_completo = os.path.join(raiz, arquivo)
+
+                # Evita ler o próprio arquivo final
+                if os.path.abspath(caminho_completo) == os.path.abspath(
+                    arquivo_saida
+                ):
+                    continue
+
+                if extensoes_permitidas:
+                    if not any(arquivo.endswith(ext) for ext in extensoes_permitidas):
+                        continue
+
+                caminho_relativo = os.path.relpath(caminho_completo, caminho_raiz)
+
+                f_out.write(
+                    f"==================================================\n"
+                )
+                f_out.write(f"ARQUIVO: {caminho_relativo}\n")
+                f_out.write(
+                    f"==================================================\n\n"
+                )
+
+                try:
+                    with open(caminho_completo, "r", encoding="utf-8") as f_in:
+                        f_out.write(f_in.read())
+                        f_out.write("\n\n")
+                except UnicodeDecodeError:
+                    f_out.write(
+                        "[AVISO: Arquivo binário ou codificação incompatível - Ignorado]\n\n"
+                    )
+                except Exception as e:
+                    f_out.write(f"[ERRO AO LER ARQUIVO: {str(e)}]\n\n")
+
+
+# --- CONFIGURAÇÕES ---
+if __name__ == "__main__":
+    PASTA_ALVO = "."
+    ARQUIVO_FINAL = "consolidado_projeto.txt"
+
+    # Arquivos, pastas ou extensões coringa para IGNORAR na varredura
+    IGNORAR_PADROES = [
+        ".env*",        # Pega .env, .env.local, .env.example, etc.
+        ".git*",        # Pega a pasta .git, .gitignore, .gitattributes
+        "__pycache__",  # Cache do Python
+        ".venv",        # Ambientes virtuais
+        "venv",
+        "*_rom*.json",  # Qualquer arquivo que contenha '_rom' e termine com .json
+    ]
+
+    consolidar_arquivos(
+        PASTA_ALVO, ARQUIVO_FINAL, ignorar=IGNORAR_PADROES
+    )
+    print(f"Arquivo gerado com sucesso sem os itens ignorados: {ARQUIVO_FINAL}")
+
+
+
+# ============================================================
+# ARQUIVO:
 # Gerar_Mapa_Fluxo.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-25 22:14:53
+# 2026-08-26 11:54:30
 # ============================================================
 
 
@@ -4063,141 +4198,6 @@ if __name__ == "__main__":
 
 # ============================================================
 # ARQUIVO:
-# Gerar_Mapeador_arquivo.py
-#
-# ÚLTIMA ALTERAÇÃO:
-# 2026-08-22 11:25:56
-# ============================================================
-
-
-
-import os
-
-
-def deve_ignorar(nome, lista_ignorar):
-    """Verifica se o arquivo ou pasta deve ser ignorado com base nas regras."""
-    for padrao in lista_ignorar:
-        # Trata seletores coringa simples como '.git*'
-        if padrao.endswith("*"):
-            if nome.startswith(padrao[:-1]):
-                return True
-        elif nome == padrao:
-            return True
-    return False
-
-
-def gerar_arvore(diretorio, ignorar, prefixo=""):
-    """Gera uma representação textual da árvore ignorando os padrões configurados."""
-    linhas = []
-    elementos = [
-        item
-        for item in sorted(os.listdir(diretorio))
-        if not deve_ignorar(item, ignorar)
-    ]
-    total = len(elementos)
-
-    for i, elemento in enumerate(elementos):
-        caminho_completo = os.path.join(diretorio, elemento)
-        eh_ultimo = i == total - 1
-        ramo = "└── " if eh_ultimo else "├── "
-
-        linhas.append(f"{prefixo}{ramo}{elemento}")
-
-        if os.path.isdir(caminho_completo):
-            extensao_prefixo = "    " if eh_ultimo else "│   "
-            linhas.extend(
-                gerar_arvore(caminho_completo, ignorar, prefixo + extensao_prefixo)
-            )
-
-    return linhas
-
-
-def consolidar_arquivos(
-    diretorio_raiz, arquivo_saida, ignorar, extensoes_permitidas=None
-):
-    """Consolida a árvore e o conteúdo dos arquivos ignorando os itens listados."""
-    caminho_raiz = os.path.abspath(diretorio_raiz)
-
-    with open(arquivo_saida, "w", encoding="utf-8") as f_out:
-        # 1. Desenha o mapa da árvore filtrado
-        f_out.write("==================================================\n")
-        f_out.write("          MAPA DA ÁRVORE DE ARQUIVOS             \n")
-        f_out.write("==================================================\n")
-        f_out.write(f"{os.path.basename(caminho_raiz)}/\n")
-
-        linhas_arvore = gerar_arvore(caminho_raiz, ignorar)
-        f_out.write("\n".join(linhas_arvore))
-        f_out.write("\n\n" + "=" * 50 + "\n\n")
-
-        # 2. Leitura e junção dos conteúdos
-        for raiz, pastas, arquivos in os.walk(caminho_raiz):
-            # Filtra pastas para não entrar em diretórios ignorados (ex: .git)
-            pastas[:] = [
-                p for p in pastas if not deve_ignorar(p, ignorar)
-            ]
-
-            for arquivo in sorted(arquivos):
-                if deve_ignorar(arquivo, ignorar):
-                    continue
-
-                caminho_completo = os.path.join(raiz, arquivo)
-
-                # Evita ler o próprio arquivo final
-                if os.path.abspath(caminho_completo) == os.path.abspath(
-                    arquivo_saida
-                ):
-                    continue
-
-                if extensoes_permitidas:
-                    if not any(arquivo.endswith(ext) for ext in extensoes_permitidas):
-                        continue
-
-                caminho_relativo = os.path.relpath(caminho_completo, caminho_raiz)
-
-                f_out.write(
-                    f"==================================================\n"
-                )
-                f_out.write(f"ARQUIVO: {caminho_relativo}\n")
-                f_out.write(
-                    f"==================================================\n\n"
-                )
-
-                try:
-                    with open(caminho_completo, "r", encoding="utf-8") as f_in:
-                        f_out.write(f_in.read())
-                        f_out.write("\n\n")
-                except UnicodeDecodeError:
-                    f_out.write(
-                        "[AVISO: Arquivo binário ou codificação incompatível - Ignorado]\n\n"
-                    )
-                except Exception as e:
-                    f_out.write(f"[ERRO AO LER ARQUIVO: {str(e)}]\n\n")
-
-
-# --- CONFIGURAÇÕES ---
-if __name__ == "__main__":
-    PASTA_ALVO = "."
-    ARQUIVO_FINAL = "consolidado_projeto.txt"
-
-    # Arquivos, pastas ou extensões coringa para IGNORAR na varredura
-    IGNORAR_PADROES = [
-        ".env*",        # Pega .env, .env.local, .env.example, etc.
-        ".git*",        # Pega a pasta .git, .gitignore, .gitattributes
-        "__pycache__",  # Cache do Python
-        ".venv",        # Ambientes virtuais
-        "venv",
-        "*_rom*.json",  # Qualquer arquivo que contenha '_rom' e termine com .json
-    ]
-
-    consolidar_arquivos(
-        PASTA_ALVO, ARQUIVO_FINAL, ignorar=IGNORAR_PADROES
-    )
-    print(f"Arquivo gerado com sucesso sem os itens ignorados: {ARQUIVO_FINAL}")
-
-
-
-# ============================================================
-# ARQUIVO:
 # Gerar_Relatorio.py
 #
 # ÚLTIMA ALTERAÇÃO:
@@ -4351,7 +4351,7 @@ if __name__ == "__main__":
 # Gerar_Relatorio_Mensagem.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-24 08:17:45
+# 2026-08-26 11:54:30
 # ============================================================
 
 
@@ -4567,7 +4567,7 @@ if __name__ == "__main__":
 # Gerar_Resultado_Operacional_Abertura.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-22 21:45:22
+# 2026-08-26 11:54:30
 # ============================================================
 
 
@@ -5158,7 +5158,7 @@ if __name__ == "__main__":
 # Motor_SMC_Regras.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-22 22:23:11
+# 2026-08-26 11:54:30
 # ============================================================
 
 
@@ -6776,7 +6776,7 @@ class ResultadoPrevisao:
 # Projeção de Gap e Sinal para WIN.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-25 22:39:12
+# 2026-08-26 11:54:30
 # ============================================================
 
 
@@ -6970,7 +6970,7 @@ if __name__ == "__main__":
 # Rodar_SMC_Regras.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-22 22:23:25
+# 2026-08-26 11:54:30
 # ============================================================
 
 
@@ -7078,7 +7078,7 @@ if __name__ == "__main__":
 # Validador.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-22 21:27:02
+# 2026-08-26 11:54:30
 # ============================================================
 
 
@@ -7691,7 +7691,7 @@ from utils.KeyManager import get_groq_client, key_manager
 # main_pipeline.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-22 20:31:26
+# 2026-08-26 11:54:30
 # ============================================================
 
 
@@ -7988,10 +7988,180 @@ if __name__ == "__main__":
 
 # ============================================================
 # ARQUIVO:
+# monitor_preco_teorico.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-26 21:36:47
+# ============================================================
+
+
+
+import MetaTrader5 as mt5
+import time
+from datetime import datetime, time as dt_time
+import logging
+from pathlib import Path
+import sys
+
+# ==================== CONFIGURAÇÕES ====================
+SYMBOL = "WINV26"                    # Altere para o contrato vigente
+INTERVALO_SEGUNDOS = 2
+LOG_DIR = Path("logs")
+HORARIO_INICIO_LEILAO = dt_time(8, 50)
+HORARIO_FIM_LEILAO = dt_time(9, 15)
+
+# Alerta
+ALERTA_SONORO = True                 # True = ativa o bip
+ALERTA_APENAS_PRIMEIRA_VEZ = True    # True = alerta só quando sai de 0 pela 1ª vez
+# =======================================================
+
+def configurar_logging():
+    LOG_DIR.mkdir(exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_file = LOG_DIR / f"preco_teorico_{SYMBOL}_{timestamp}.log"
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s | %(levelname)-8s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+        handlers=[
+            logging.FileHandler(log_file, encoding="utf-8"),
+            logging.StreamHandler()
+        ]
+    )
+    logging.info(f"Log iniciado → {log_file}")
+    return log_file
+
+def tocar_alerta():
+    """Emite um alerta sonoro (funciona no Windows e na maioria dos terminais)."""
+    try:
+        # Windows
+        import winsound
+        winsound.Beep(1000, 400)   # frequência 1000 Hz, duração 400 ms
+        time.sleep(0.15)
+        winsound.Beep(1400, 400)
+    except ImportError:
+        # Linux / Mac / fallback
+        print("\a")                # bell character
+        sys.stdout.write("\a")
+        sys.stdout.flush()
+
+def dentro_horario_leilao():
+    agora = datetime.now().time()
+    return HORARIO_INICIO_LEILAO <= agora <= HORARIO_FIM_LEILAO
+
+def conectar_mt5():
+    if not mt5.initialize():
+        logging.error(f"Falha ao inicializar MT5: {mt5.last_error()}")
+        return False
+
+    conta = mt5.account_info()
+    if conta:
+        logging.info(f"Conectado | Conta: {conta.login} | Corretora: {conta.company}")
+    else:
+        logging.warning("Conectado, mas não foi possível obter dados da conta")
+
+    if not mt5.symbol_select(SYMBOL, True):
+        logging.error(f"Não foi possível selecionar o símbolo {SYMBOL}")
+        return False
+
+    return True
+
+def coletar_preco_teorico():
+    info = mt5.symbol_info(SYMBOL)
+    if info is None:
+        logging.error(f"Símbolo {SYMBOL} não encontrado")
+        return None
+
+    return {
+        "timestamp": datetime.now(),
+        "teorico": info.price_theoretical,
+        "bid": info.bid,
+        "ask": info.ask,
+        "last": info.last,
+        "spread": round(info.ask - info.bid, 2) if info.bid and info.ask else None
+    }
+
+def main():
+    log_file = configurar_logging()
+    logging.info("=" * 65)
+    logging.info(f"Monitor de Preço Teórico iniciado | Símbolo: {SYMBOL}")
+    logging.info(f"Intervalo: {INTERVALO_SEGUNDOS}s | Janela: {HORARIO_INICIO_LEILAO} → {HORARIO_FIM_LEILAO}")
+    logging.info(f"Alerta sonoro: {'ATIVADO' if ALERTA_SONORO else 'DESATIVADO'}")
+    logging.info("=" * 65)
+
+    if not conectar_mt5():
+        logging.error("Encerrando por falha de conexão")
+        return
+
+    ultimo_teorico = None
+    ja_alertou = False
+    contador = 0
+
+    try:
+        while True:
+            agora = datetime.now()
+
+            if not dentro_horario_leilao():
+                logging.info(f"Fora do horário de leilão ({agora.strftime('%H:%M:%S')}). Aguardando...")
+                time.sleep(30)
+                continue
+
+            dados = coletar_preco_teorico()
+            contador += 1
+
+            if dados is None:
+                time.sleep(INTERVALO_SEGUNDOS)
+                continue
+
+            teorico = dados["teorico"]
+            mudou = teorico != ultimo_teorico
+
+            # ---- ALERTA ----
+            if ALERTA_SONORO and teorico > 0:
+                if ALERTA_APENAS_PRIMEIRA_VEZ:
+                    if not ja_alertou:
+                        tocar_alerta()
+                        logging.info("🔔 ALERTA: Preço teórico detectado pela primeira vez!")
+                        ja_alertou = True
+                else:
+                    # Alerta sempre que o valor mudar e for > 0
+                    if mudou:
+                        tocar_alerta()
+                        logging.info(f"🔔 ALERTA: Preço teórico alterado → {teorico:.2f}")
+
+            # Log (sempre que mudar ou a cada 10 ciclos)
+            if mudou or contador % 10 == 0:
+                status = "✅ TEÓRICO DISPONÍVEL" if teorico > 0 else "❌ TEÓRICO ZERADO"
+                logging.info(
+                    f"{status} | Teórico: {teorico:>10.2f} | "
+                    f"Bid: {dados['bid']:>10.2f} | Ask: {dados['ask']:>10.2f} | "
+                    f"Last: {dados['last']:>10.2f} | Spread: {dados['spread']}"
+                )
+                ultimo_teorico = teorico
+
+            time.sleep(INTERVALO_SEGUNDOS)
+
+    except KeyboardInterrupt:
+        logging.info("Monitor interrompido pelo usuário (Ctrl+C)")
+    except Exception as e:
+        logging.exception(f"Erro inesperado: {e}")
+    finally:
+        mt5.shutdown()
+        logging.info("Conexão MT5 encerrada")
+        logging.info(f"Log completo salvo em: {log_file}")
+
+if __name__ == "__main__":
+    main()
+
+
+
+# ============================================================
+# ARQUIVO:
 # pages\1.1_🎯_Setup_Abertura.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-24 13:18:52
+# 2026-08-26 11:54:30
 # ============================================================
 
 
@@ -10931,7 +11101,7 @@ if __name__ == "__main__":
 # pages\1.2_🔮_Previsao_Inteligente_Abertura.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-20 07:58:15
+# 2026-08-26 11:54:30
 # ============================================================
 
 
@@ -11416,7 +11586,7 @@ st.markdown(
 # pages\1.3_🔮_Previsao_Inteligente_Abertura_Comparador.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-14 06:34:19
+# 2026-08-26 11:54:30
 # ============================================================
 
 
@@ -11721,7 +11891,7 @@ st.markdown(
 # pages\2.0_📈_Previsao_Abertura_WINFUT.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-20 07:58:15
+# 2026-08-26 11:54:30
 # ============================================================
 
 
@@ -12560,7 +12730,7 @@ st.caption(f"{len(df)} registros • Última: {ultimo_ts.strftime('%d/%m/%Y %H:%
 # pages\3.2_⚡_Monitor_Abertura_Leilao_V3.2.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-20 14:40:15
+# 2026-08-26 11:54:30
 # ============================================================
 
 
@@ -13545,7 +13715,7 @@ if auto_refresh:
 # pages\3.3_📊_Acoes_e_ADRs.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-20 07:58:15
+# 2026-08-26 11:54:30
 # ============================================================
 
 
@@ -13808,7 +13978,7 @@ st.caption(
 # pages\3.4_🎯_Setup_Abertura_10h.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-20 14:44:37
+# 2026-08-26 11:54:30
 # ============================================================
 
 
@@ -14708,7 +14878,7 @@ st.caption(f"Atualizado: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
 # pages\5.0_📡_Ativos_Monitorados.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-10 10:47:02
+# 2026-08-26 11:54:30
 # ============================================================
 
 
@@ -14717,9 +14887,8 @@ st.caption(f"Atualizado: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
 # ARQUIVO: pages/14_🌐_Ativos_Monitorados.py
 #
 # MOTIVO:
-# Monitor Exclusivo dos 24 Ativos Mapeados do Coletor
-# VERSÃO MELHORADA - Com cores, filtros e ordenação
-#
+# Monitor Exclusivo dos Ativos Mapeados do Coletor (JSON Dinâmico)
+# VERSÃO MELHORADA - Cobertura de Ações Locais + Tratamento de Dados
 # ============================================================
 
 import json
@@ -14734,7 +14903,7 @@ import plotly.express as px
 # ============================================================
 
 st.set_page_config(
-    page_title="24 Ativos Monitorados - Quant Terminal",
+    page_title="Ativos Monitorados - Quant Terminal",
     page_icon="🌐",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -14853,46 +15022,18 @@ COLETAS_DIR = os.path.join(BASE_DIR, "Coletas")
 ARQUIVO_ATIVOS = os.path.join(COLETAS_DIR, "DadosAtivosUnificados.json")
 
 # ============================================================
-# MAPEAMENTO OFICIAL
-# ============================================================
-
-MAPEAMENTO_TICKERS = {
-    "USD_PTAX": "USD_PTAX",
-    "B3_AJUSTE_WIN": "WIN_AJUSTE",
-    "B3_AJUSTE_WDO": "WDO_AJUSTE",
-    "BMFBOVESPA:WIN1!": "WIN_FUT",
-    "BMFBOVESPA:WDO1!": "WDO_FUT",
-    "BMFBOVESPA:DI1F2027": "DI1_2027",
-    "BMFBOVESPA:DI1F2029": "DI1_2029",
-    "TVC:VIX": "VIX",
-    "SGX:FEF1!": "IRON_ORE",
-    "SGX:FEF2!": "IRON_ORE_2M",
-    "NYMEX:CL1!": "CRUDE_OIL",
-    "NYSE:VALE": "VALE_ADR",
-    "NYSE:PBR": "PETR_ADR",
-    "NYSE:ITUB": "ITUB_ADR",
-    "OTC:BDORY": "BBAS_ADR",
-    "NYSE:BBD": "BBD_ADR",
-    "OTC:BOLSY": "B3_ADR",
-    "AMEX:EWZ": "EWZ",
-    "CME_MINI:ES1!": "SP500_FUT",
-    "CME_MINI:NQ1!": "NASDAQ_FUT",
-    "TVC:DXY": "DXY",
-    "FX_IDC:USDMXN": "USD_MXN",
-    "TVC:GOLD": "GOLD",
-    "FX_IDC:USDBRL": "USD_BRL",
-}
-
-# ============================================================
-# GRUPOS VISUAIS
+# GRUPOS VISUAIS COMPLETO (32 ATIVOS)
 # ============================================================
 
 GRUPOS_ATIVOS = {
     "🇧🇷 Mercado Local, Ajustes & Curva DI": [
         "USD_PTAX", "WIN_AJUSTE", "WDO_AJUSTE", "WIN_FUT", "WDO_FUT",
-        "DI1_2027", "DI1_2029"
+        "DI1_2027", "DI1_2029", "DI1_FUT"
     ],
-    "🏢 ADRs Brasileiras": [
+    "🏢 Ações Locais (B3)": [
+        "VALE3", "PETR4", "ITUB4", "BBAS3", "BBDC4", "B3SA3"
+    ],
+    "🇺🇸 ADRs Brasileiras (NYSE/OTC)": [
         "VALE_ADR", "PETR_ADR", "ITUB_ADR", "BBAS_ADR", "BBD_ADR", "B3_ADR"
     ],
     "🌐 Índices Globais, Moedas & Risco": [
@@ -14900,6 +15041,9 @@ GRUPOS_ATIVOS = {
     ],
     "⛏️ Commodities & Câmbio": [
         "IRON_ORE", "IRON_ORE_2M", "CRUDE_OIL", "GOLD", "USD_BRL"
+    ],
+    "📊 Métricas & Auxiliares": [
+        "WIN_PREV_CLOSE", "WIN_LAST_TICK"
     ]
 }
 
@@ -14932,7 +15076,7 @@ def carregar_dados():
 # ============================================================
 
 st.sidebar.title("🌐 Monitor Global")
-st.sidebar.caption("24 Ativos do Coletor")
+st.sidebar.caption("Ativos do Coletor Quant")
 st.sidebar.markdown("---")
 
 # Status dos dados
@@ -14947,7 +15091,7 @@ else:
 
 st.sidebar.markdown("---")
 
-if st.sidebar.button("🔄 Atualizar Dados", width="stretch"):
+if st.sidebar.button("🔄 Atualizar Dados", use_container_width=True):
     st.cache_data.clear()
     st.rerun()
 
@@ -14963,12 +15107,12 @@ ordenar_por = st.sidebar.selectbox(
 )
 
 # ============================================================
-# CARREGAMENTO
+# CARREGAMENTO DE DADOS
 # ============================================================
 
 dados = carregar_dados()
 
-st.title("🌐 Painel de Cotações — 24 Ativos Monitorados")
+st.title("🌐 Painel de Cotações — Monitor de Ativos")
 st.caption("Fonte oficial: DadosAtivosUnificados.json")
 
 if not dados:
@@ -14979,7 +15123,7 @@ if not dados:
     st.stop()
 
 # ============================================================
-# TIMESTAMP
+# TIMESTAMP & METADATA
 # ============================================================
 
 metadata = dados.get("metadata", {})
@@ -14987,30 +15131,29 @@ timestamp = metadata.get(
     "timestamp",
     datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 )
-st.info(f"🕒 Última coleta: {timestamp}")
+total_no_json = metadata.get("total_ativos", 0)
+
+st.info(f"🕒 Última coleta: **{timestamp}** | Total no JSON: **{total_no_json} ativos**")
 
 # ============================================================
-# DADOS DOS ATIVOS
+# EXTRAIR DADOS PARA DATAFRAME (LEITURA DINÂMICA DA FONTE JSON)
 # ============================================================
 
-ativos_brutos = dados.get("ativos", dados)
-
-# ============================================================
-# EXTRAIR DADOS PARA DATAFRAME
-# ============================================================
-
+ativos_brutos = dados.get("ativos", {})
 lista_ativos = []
-for ticker_original, nome_limpo in MAPEAMENTO_TICKERS.items():
-    info = ativos_brutos.get(nome_limpo, {})
+
+for nome_limpo, info in ativos_brutos.items():
     if isinstance(info, dict):
-        preco = info.get("preco", info.get("valor", 0))
-        variacao = info.get("variacao_pct", info.get("var_pct", 0))
+        preco = info.get("preco", info.get("valor", 0.0))
+        variacao = info.get("variacao_pct", info.get("var_pct", 0.0))
+        ticker_orig = info.get("ticker_original", nome_limpo)
     else:
-        preco = info if isinstance(info, (int, float)) else 0
-        variacao = 0
+        preco = info if isinstance(info, (int, float)) else 0.0
+        variacao = 0.0
+        ticker_orig = nome_limpo
     
-    # Determina grupo
-    grupo = "Outros"
+    # Determina grupo dinamicamente
+    grupo = "Outros / Não Mapeados"
     for nome_grupo, lista in GRUPOS_ATIVOS.items():
         if nome_limpo in lista:
             grupo = nome_grupo
@@ -15018,7 +15161,7 @@ for ticker_original, nome_limpo in MAPEAMENTO_TICKERS.items():
     
     lista_ativos.append({
         "Ativo": nome_limpo,
-        "Ticker": ticker_original,
+        "Ticker": ticker_orig,
         "Preço": preco,
         "Variação %": variacao,
         "Grupo": grupo,
@@ -15027,7 +15170,7 @@ for ticker_original, nome_limpo in MAPEAMENTO_TICKERS.items():
 df = pd.DataFrame(lista_ativos)
 
 # ============================================================
-# FILTROS
+# FILTROS E ORDENAÇÃO DO DATAFRAME
 # ============================================================
 
 if grupo_selecionado != "Todos":
@@ -15043,7 +15186,7 @@ elif ordenar_por == "Variação % (Menor → Maior)":
     df_filtrado = df_filtrado.sort_values("Variação %", ascending=True)
 
 # ============================================================
-# STATS
+# STATS (MÉTRICAS GERAIS DO PAINEL)
 # ============================================================
 
 col_stats1, col_stats2, col_stats3, col_stats4 = st.columns(4)
@@ -15052,7 +15195,7 @@ with col_stats1:
     st.markdown(f"""
     <div class="stat-box">
         <div class="number">{len(df)}</div>
-        <div class="label">Total Ativos</div>
+        <div class="label">Total Exibidos</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -15061,7 +15204,7 @@ with col_stats2:
     st.markdown(f"""
     <div class="stat-box">
         <div class="number alta">{alta}</div>
-        <div class="label">🟢 Em Alta</div>
+        <div class="label">🟢 Em Alta (> +0.5%)</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -15070,7 +15213,7 @@ with col_stats3:
     st.markdown(f"""
     <div class="stat-box">
         <div class="number baixa">{baixa}</div>
-        <div class="label">🔴 Em Baixa</div>
+        <div class="label">🔴 Em Baixa (< -0.5%)</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -15079,7 +15222,7 @@ with col_stats4:
     st.markdown(f"""
     <div class="stat-box">
         <div class="number neutra">{neutra}</div>
-        <div class="label">🟡 Neutro</div>
+        <div class="label">🟡 Neutro (-0.5% a +0.5%)</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -15109,25 +15252,23 @@ if not df_filtrado.empty:
         xaxis_tickangle=-45,
     )
     fig.update_coloraxes(showscale=False)
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, use_container_width=True)
 
 st.markdown("---")
 
 # ============================================================
-# BLOCO CRÍTICO
+# BLOCO CRÍTICO PARA ABERTURA
 # ============================================================
 
 st.subheader("🎯 Ativos Críticos para Abertura WIN/WDO")
 
 cols = st.columns(5)
-for i, ativo in enumerate(ATIVOS_CRITICOS):
-    info = ativos_brutos.get(ativo, {})
-    if isinstance(info, dict):
-        preco = info.get("preco", info.get("valor", 0))
-        variacao = info.get("variacao_pct", info.get("var_pct", 0))
-    else:
-        preco = info if isinstance(info, (int, float)) else 0
-        variacao = 0
+criticos_presentes = [a for a in ATIVOS_CRITICOS if a in ativos_brutos]
+
+for i, ativo in enumerate(criticos_presentes):
+    info = ativos_brutos[ativo]
+    preco = info.get("preco", 0.0) if isinstance(info, dict) else info
+    variacao = info.get("variacao_pct", 0.0) if isinstance(info, dict) else 0.0
     
     cor = "#00c853" if variacao > 0 else "#ff3d00" if variacao < 0 else "#ffc107"
     emoji = "🟢" if variacao > 0 else "🔴" if variacao < 0 else "🟡"
@@ -15147,30 +15288,32 @@ st.markdown("---")
 # TODOS OS ATIVOS POR GRUPO (CARDS)
 # ============================================================
 
-st.subheader("📋 Todos os Ativos")
+st.subheader("📋 Todos os Ativos por Categoria")
 
-# Filtra grupos para exibir
-grupos_para_exibir = GRUPOS_ATIVOS.keys()
-if grupo_selecionado != "Todos":
-    grupos_para_exibir = [grupo_selecionado]
+grupos_para_exibir = GRUPOS_ATIVOS.keys() if grupo_selecionado == "Todos" else [grupo_selecionado]
 
 for grupo in grupos_para_exibir:
     if grupo not in GRUPOS_ATIVOS:
         continue
-        
-    st.markdown(f"### {grupo}")
     
     lista = GRUPOS_ATIVOS[grupo]
-    colunas = st.columns(min(4, len(lista)))
+    # Exibe apenas quem realmente existe no JSON para evitar cards vazios/falsos
+    lista_presentes = [t for t in lista if t in ativos_brutos]
     
-    for i, ticker in enumerate(lista):
-        info = ativos_brutos.get(ticker, {})
+    if not lista_presentes:
+        continue
+        
+    st.markdown(f"### {grupo}")
+    colunas = st.columns(min(4, len(lista_presentes)))
+    
+    for i, ticker in enumerate(lista_presentes):
+        info = ativos_brutos[ticker]
         if isinstance(info, dict):
-            preco = info.get("preco", info.get("valor", 0))
-            variacao = info.get("variacao_pct", info.get("var_pct", 0))
+            preco = info.get("preco", info.get("valor", 0.0))
+            variacao = info.get("variacao_pct", info.get("var_pct", 0.0))
         else:
-            preco = info if isinstance(info, (int, float)) else 0
-            variacao = 0
+            preco = info if isinstance(info, (int, float)) else 0.0
+            variacao = 0.0
         
         cor_classe = "positiva" if variacao > 0 else "negativa" if variacao < 0 else "neutra"
         emoji = "🟢" if variacao > 0 else "🔴" if variacao < 0 else "🟡"
@@ -15193,7 +15336,7 @@ for grupo in grupos_para_exibir:
 with st.expander("📊 Ver Tabela Completa"):
     st.dataframe(
         df_filtrado,
-        width="stretch",
+        use_container_width=True,
         hide_index=True,
         column_config={
             "Ativo": "Ativo",
@@ -15208,7 +15351,7 @@ with st.expander("📊 Ver Tabela Completa"):
 # RODAPÉ
 # ============================================================
 
-st.caption("Analisador Financeiro | Monitor de Ativos Quantitativo v2.0")
+st.caption("Analisador Financeiro | Monitor de Ativos Quantitativo v2.1")
 
 
 
@@ -15217,7 +15360,7 @@ st.caption("Analisador Financeiro | Monitor de Ativos Quantitativo v2.0")
 # pages\5.3_⚙️_Core_Engine.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-10 10:47:02
+# 2026-08-26 11:54:30
 # ============================================================
 
 
@@ -15227,16 +15370,14 @@ st.caption("Analisador Financeiro | Monitor de Ativos Quantitativo v2.0")
 #
 # MOTIVO:
 # Visualização do Core Engine
-# Decisão Quantitativa Final
+# Decisão Quantitativa Final - Foco Exclusivo WIN (Mini Índice)
 #
-# VERSÃO MELHORADA - Com decisão WIN/WDO separada
-#
+# VERSÃO COM PIVOT POINTS DO WIN
 # ============================================================
 
 import json
 import os
-from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Dict, Any, Tuple
 
 import streamlit as st
 
@@ -15245,7 +15386,7 @@ import streamlit as st
 # ============================================================
 
 st.set_page_config(
-    page_title="Core Engine - Quant Terminal",
+    page_title="Core Engine (WIN) - Quant Terminal",
     page_icon="⚙️",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -15347,19 +15488,33 @@ ARQUIVOS = {
 }
 
 # ============================================================
-# LEITOR JSON
+# LEITOR JSON E HELPER DE FORÇA
 # ============================================================
 
 @st.cache_data(ttl=60, show_spinner=False)
 def carregar_json(caminho: str) -> Dict[str, Any]:
-    if not os.path.exists(caminho):
+    """Lê arquivos JSON com validação de existência, tamanho e erros de sintaxe."""
+    if not os.path.exists(caminho) or os.path.getsize(caminho) == 0:
         return {}
     try:
         with open(caminho, "r", encoding="utf-8") as f:
             return json.load(f)
-    except Exception:
+    except json.JSONDecodeError as e:
+        st.warning(f"⚠️ Erro de sintaxe JSON em `{os.path.basename(caminho)}`: {e}")
+        return {}
+    except Exception as e:
+        st.error(f"❌ Erro de leitura em `{os.path.basename(caminho)}`: {e}")
         return {}
 
+def calcular_nivel_forca(score: float) -> Tuple[str, str]:
+    """Calcula texto e classe de cor para o nível de força baseado no score."""
+    if abs(score) >= 4.0:
+        return "FORTE", "score-high"
+    elif abs(score) >= 1.5:
+        return "MODERADA", "score-mid"
+    return "FRACA", "score-low"
+
+# Carregamento dos dados via cache
 decisao = carregar_json(ARQUIVOS["decisao"])
 validacao = carregar_json(ARQUIVOS["validacao"])
 noticias = carregar_json(ARQUIVOS["noticias"])
@@ -15372,18 +15527,19 @@ estimativa = carregar_json(ARQUIVOS["estimativa"])
 # ============================================================
 
 st.sidebar.title("⚙️ Core Engine")
-st.sidebar.caption("Decisão Quantitativa Final")
+st.sidebar.caption("Decisão Quantitativa (WIN)")
 st.sidebar.divider()
 
-# Status dos dados
+# Status dos arquivos no disco
 st.sidebar.markdown("### Status dos Dados")
 for nome, caminho in ARQUIVOS.items():
-    existe = "✅" if os.path.exists(caminho) else "❌"
-    st.sidebar.caption(f"{existe} {nome.capitalize()}")
+    existe = os.path.exists(caminho) and os.path.getsize(caminho) > 0
+    icone = "✅" if existe else "❌"
+    st.sidebar.caption(f"{icone} {nome.capitalize()}")
 
 st.sidebar.divider()
 
-if st.sidebar.button("🔄 Atualizar", width="stretch"):
+if st.sidebar.button("🔄 Atualizar", use_container_width=True):
     st.cache_data.clear()
     st.rerun()
 
@@ -15391,11 +15547,11 @@ if st.sidebar.button("🔄 Atualizar", width="stretch"):
 # CABEÇALHO
 # ============================================================
 
-st.title("⚙️ Core Engine — Decisão Quantitativa")
+st.title("⚙️ Core Engine — Mini Índice (WIN)")
 st.caption("Resultado final gerado pelo Engine_Vies.py")
 
 if not decisao:
-    st.error("Decisao_Core.json não encontrado.")
+    st.error("Decisao_Core.json não encontrado ou inválido.")
     st.info("Execute primeiro: python main_pipeline.py")
     st.stop()
 
@@ -15403,7 +15559,7 @@ timestamp = decisao.get("metadata", {}).get("timestamp", "N/A")
 st.info(f"⏱ Última decisão: {timestamp}")
 
 # ============================================================
-# ANÁLISE OPERACIONAL - WIN E WDO
+# ANÁLISE OPERACIONAL - WIN
 # ============================================================
 
 st.divider()
@@ -15411,182 +15567,116 @@ st.subheader("🎯 Decisão do Core Engine")
 
 analise_op = decisao.get("analise_operacional", {})
 win_core = analise_op.get("WIN_INDICE", {})
-wdo_core = analise_op.get("WDO_DOLAR", {})
 
-col1, col2 = st.columns(2)
+win_vies = win_core.get("vies_final", "NEUTRO")
+win_score = float(win_core.get("score_numeric", 0))
+win_fatores = win_core.get("fatores_relevantes", [])
 
-# ============================================================
-# WIN
-# ============================================================
-with col1:
-    st.markdown("### 📈 Mini Índice (WIN)")
-    
-    win_vies = win_core.get("vies_final", "NEUTRO")
-    win_score = win_core.get("score_numeric", 0)
-    win_fatores = win_core.get("fatores_relevantes", [])
-    
-    # Define cor e classe
-    if "COMPRA" in win_vies.upper():
-        box_class = "buy-box"
-        emoji = "🟢"
-    elif "VENDA" in win_vies.upper():
-        box_class = "sell-box"
-        emoji = "🔴"
-    else:
-        box_class = "neutral-box"
-        emoji = "🟡"
-    
-    # Força da decisão
-    if abs(win_score) >= 4:
-        forca_texto = "FORTE"
-        forca_cor = "score-high"
-    elif abs(win_score) >= 1.5:
-        forca_texto = "MODERADA"
-        forca_cor = "score-mid"
-    else:
-        forca_texto = "FRACA"
-        forca_cor = "score-low"
-    
-    st.markdown(f"""
-    <div class="{box_class}">
-        <h2>{emoji} {win_vies}</h2>
-        <h4>Score: <span class="{forca_cor}">{win_score:.2f}</span></h4>
-        <p>Força: {forca_texto}</p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Fatores
-    if win_fatores:
-        with st.expander("📋 Fatores relevantes"):
-            for f in win_fatores:
-                st.markdown(f"""
-                <div class="card-fator">
-                    <span class="fator-tag">Fator</span>
-                    {f}
-                </div>
-                """, unsafe_allow_html=True)
+if "COMPRA" in win_vies.upper():
+    win_box_class = "buy-box"
+    win_emoji = "🟢"
+elif "VENDA" in win_vies.upper():
+    win_box_class = "sell-box"
+    win_emoji = "🔴"
+else:
+    win_box_class = "neutral-box"
+    win_emoji = "🟡"
+
+win_forca_texto, win_forca_cor = calcular_nivel_forca(win_score)
+
+# Painel Centralizado da Decisão do WIN
+st.markdown(f"""
+<div class="{win_box_class}">
+    <h2>{win_emoji} {win_vies}</h2>
+    <h4>Score: <span class="{win_forca_cor}">{win_score:.2f}</span></h4>
+    <p>Força: {win_forca_texto}</p>
+</div>
+""", unsafe_allow_html=True)
+
+if win_fatores:
+    st.write("")
+    with st.expander("📋 Fatores relevantes do WIN", expanded=True):
+        for f in win_fatores:
+            st.markdown(f"""
+            <div class="card-fator">
+                <span class="fator-tag">Fator</span>
+                {f}
+            </div>
+            """, unsafe_allow_html=True)
 
 # ============================================================
-# WDO
-# ============================================================
-with col2:
-    st.markdown("### 💵 Mini Dólar (WDO)")
-    
-    wdo_vies = wdo_core.get("vies_final", "NEUTRO")
-    wdo_score = wdo_core.get("score_numeric", 0)
-    wdo_fatores = wdo_core.get("fatores_relevantes", [])
-    
-    if "COMPRA" in wdo_vies.upper():
-        box_class = "buy-box"
-        emoji = "🟢"
-    elif "VENDA" in wdo_vies.upper():
-        box_class = "sell-box"
-        emoji = "🔴"
-    else:
-        box_class = "neutral-box"
-        emoji = "🟡"
-    
-    if abs(wdo_score) >= 4:
-        forca_texto = "FORTE"
-        forca_cor = "score-high"
-    elif abs(wdo_score) >= 1.5:
-        forca_texto = "MODERADA"
-        forca_cor = "score-mid"
-    else:
-        forca_texto = "FRACA"
-        forca_cor = "score-low"
-    
-    st.markdown(f"""
-    <div class="{box_class}">
-        <h2>{emoji} {wdo_vies}</h2>
-        <h4>Score: <span class="{forca_cor}">{wdo_score:.2f}</span></h4>
-        <p>Força: {forca_texto}</p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    if wdo_fatores:
-        with st.expander("📋 Fatores relevantes"):
-            for f in wdo_fatores:
-                st.markdown(f"""
-                <div class="card-fator">
-                    <span class="fator-tag">Fator</span>
-                    {f}
-                </div>
-                """, unsafe_allow_html=True)
-
-# ============================================================
-# RESUMO DA DECISÃO
+# TENDÊNCIA E ABERTURA TEÓRICA
 # ============================================================
 
 st.divider()
-st.subheader("📊 Resumo da Decisão")
+col_tend, col_abert = st.columns(2)
 
-# Tabela resumo
-resumo_data = {
-    "Ativo": ["WIN", "WDO"],
-    "Viés": [win_vies, wdo_vies],
-    "Score": [f"{win_score:.2f}", f"{wdo_score:.2f}"],
-    "Força": [forca_texto, forca_texto],
-}
+with col_tend:
+    st.subheader("📈 Tendência (15min)")
+    if tendencias:
+        win_tend = tendencias.get("WIN_FUT") or tendencias.get("BMFBOVESPA:WIN1!")
+        if isinstance(win_tend, dict):
+            padrao = win_tend.get("padrao_comportamento", "N/A")
+            intervalo = win_tend.get("intervalo_5_para_0") or {}
+            var = intervalo.get("variacao_pct", 0)
+            emoji_tend = "🟢" if var > 0 else "🔴" if var < 0 else "🟡"
+            
+            st.markdown(f"""
+            <div class="info-box">
+                <b>Padrão:</b> {emoji_tend} {padrao}<br>
+                <b>Variação:</b> {var:+.2f}%
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.caption("Sem dados de tendência para WIN_FUT.")
+    else:
+        st.caption("Analise_Tendencias.json não carregado.")
 
-st.dataframe(
-    resumo_data,
-    width="stretch",
-    hide_index=True,
-)
-
-# ============================================================
-# TENDÊNCIA (se disponível)
-# ============================================================
-
-if tendencias:
-    st.divider()
-    st.subheader("📈 Análise de Tendência (Últimos 15min)")
-    
-    # Busca WIN_FUT
-    win_tend = None
-    for chave in ["WIN_FUT", "BMFBOVESPA:WIN1!"]:
-        if chave in tendencias:
-            win_tend = tendencias[chave]
-            break
-    
-    if win_tend:
-        padrao = win_tend.get("padrao_comportamento", "N/A")
-        var = win_tend.get("intervalo_5_para_0", {}).get("variacao_pct", 0)
-        emoji = "🟢" if var > 0 else "🔴" if var < 0 else "🟡"
+with col_abert:
+    st.subheader("📊 Abertura Teórica")
+    if estimativa:
+        est_abertura = estimativa.get("estimativa_abertura", {}) or estimativa.get("estimativas_abertura", {})
+        win_est = est_abertura.get("WIN_INDICE", {})
         
-        st.markdown(f"""
-        <div class="info-box">
-            <b>WIN - Tendência:</b> {emoji} {padrao} ({var:+.2f}%)
-        </div>
-        """, unsafe_allow_html=True)
+        if win_est:
+            pts = win_est.get("abertura_teorica_pontos", 0)
+            var = win_est.get("variacao_teorica_pct", 0)
+            
+            st.metric(
+                label="WIN Abertura Teórica",
+                value=f"{pts:,.0f} pts",
+                delta=f"{var:+.2f}%"
+            )
+        else:
+            st.warning("Dados do WIN_INDICE não encontrados no JSON.")
+    else:
+        st.caption("EstimativaAbertura.json não carregado.")
 
 # ============================================================
-# ABERTURA TEÓRICA (referência)
+# PIVOT POINTS (WIN)
 # ============================================================
 
 if estimativa:
-    st.divider()
-    st.subheader("📊 Referência de Abertura")
+    pivots_data = estimativa.get("pivot_points", {})
+    win_pivots = pivots_data.get("WIN_FUT") or pivots_data.get("WIN_INDICE", {})
     
-    win_est = estimativa.get("estimativas_abertura", {}).get("WIN_INDICE", {})
-    wdo_est = estimativa.get("estimativas_abertura", {}).get("WDO_DOLAR", {})
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.metric(
-            "WIN Abertura Teórica",
-            f"{win_est.get('abertura_teorica_pontos', 0):,.0f} pts",
-            f"{win_est.get('variacao_teorica_pct', 0):+.2f}%"
-        )
-    
-    with col2:
-        st.metric(
-            "WDO Abertura Teórica",
-            f"{wdo_est.get('abertura_teorica_pontos', 0):,.2f} pts",
-            f"{wdo_est.get('variacao_teorica_pct', 0):+.2f}%"
-        )
+    if win_pivots:
+        st.divider()
+        st.subheader("📌 Pivot Points (WIN)")
+        
+        r2 = win_pivots.get("R2", 0)
+        r1 = win_pivots.get("R1", 0)
+        pp = win_pivots.get("PP", 0)
+        s1 = win_pivots.get("S1", 0)
+        s2 = win_pivots.get("S2", 0)
+        
+        col_r2, col_r1, col_pp, col_s1, col_s2 = st.columns(5)
+        
+        col_r2.metric("Resistência 2 (R2)", f"{r2:,.2f}")
+        col_r1.metric("Resistência 1 (R1)", f"{r1:,.2f}")
+        col_pp.metric("Pivot Point (PP)", f"{pp:,.2f}")
+        col_s1.metric("Suporte 1 (S1)", f"{s1:,.2f}")
+        col_s2.metric("Suporte 2 (S2)", f"{s2:,.2f}")
 
 # ============================================================
 # MATRIZ DE DADOS (Auditoria)
@@ -15598,28 +15688,16 @@ st.subheader("📊 Auditoria dos Dados")
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
-    st.metric(
-        "Decisão",
-        "✅" if decisao else "❌"
-    )
+    st.metric("Decisão", "✅" if decisao else "❌")
 
 with col2:
-    st.metric(
-        "Dados Validados",
-        len(validacao.get("ativos_validados", []))
-    )
+    st.metric("Dados Validados", len(validacao.get("ativos_validados", [])))
 
 with col3:
-    st.metric(
-        "Eventos Notícias",
-        len(noticias.get("horarios", []))
-    )
+    st.metric("Eventos Notícias", len(noticias.get("horarios", [])))
 
 with col4:
-    st.metric(
-        "Métricas",
-        len(metricas)
-    )
+    st.metric("Métricas", len(metricas) if isinstance(metricas, dict) else 0)
 
 # ============================================================
 # JSON COMPLETO (para debug)
@@ -15634,7 +15712,7 @@ with st.expander("📄 Visualizar JSON Completo do Core"):
 # ============================================================
 
 st.divider()
-st.caption("Analisador Financeiro - Core Engine Quant v2.0")
+st.caption("Analisador Financeiro - Core Engine Quant v2.0 (WIN Focus)")
 
 
 
@@ -15643,7 +15721,7 @@ st.caption("Analisador Financeiro - Core Engine Quant v2.0")
 # pages\6.1_🔬_Analise_Tendencia.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-10 10:47:02
+# 2026-08-26 11:54:30
 # ============================================================
 
 
@@ -16063,7 +16141,7 @@ st.caption("Análise de Tendência - Analisador Financeiro Quant v2.0")
 # pages\6.2_📅_Noticias.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-20 07:58:15
+# 2026-08-26 11:54:30
 # ============================================================
 
 
@@ -16605,7 +16683,7 @@ renderizar_dashboard()
 # pages\7.1_📊_SMC_Regras.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-15 17:54:39
+# 2026-08-26 11:54:30
 # ============================================================
 
 
@@ -16875,7 +16953,7 @@ st.caption("Spike • SMC Regras • BOS/CHoCH/OB/FVG")
 # pages\7.2_🤖_IA_SpikeImagem.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-20 07:58:15
+# 2026-08-26 11:54:30
 # ============================================================
 
 
@@ -17252,7 +17330,7 @@ else:
 # pages\7.3_📥_Gerador_Profit_Pro.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-15 17:54:39
+# 2026-08-26 11:54:30
 # ============================================================
 
 
@@ -17629,7 +17707,7 @@ st.caption("Spike • Gerador Profit Pro • Regras + Visão + Texto")
 # pages\7.4_🤖_IA_Imagem.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-14 06:34:19
+# 2026-08-26 11:54:30
 # ============================================================
 
 
@@ -18932,7 +19010,7 @@ st.caption("🐶 Spike - IA Imagem • SMC/ICT • PT-BR • Pipeline • KeyMan
 # pages\8.1_🗺️_Mapa_da_Aplicacao.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-10 10:47:02
+# 2026-08-26 11:54:30
 # ============================================================
 
 
@@ -19355,7 +19433,7 @@ st.caption(
 # pages\8.2_🔢_Calculadora.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-10 10:47:02
+# 2026-08-26 11:54:30
 # ============================================================
 
 
@@ -19814,7 +19892,7 @@ st.caption("Analisador Financeiro - Terminal Quant v2.0")
 # pages\8.3_🔑_Status_Chaves.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-20 07:58:15
+# 2026-08-26 11:54:30
 # ============================================================
 
 
@@ -20038,7 +20116,7 @@ def get_groq_client():
 # v2\core\__init__.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-20 12:31:56
+# 2026-08-26 11:54:30
 # ============================================================
 
 
@@ -20675,7 +20753,7 @@ class ConfluenceEngine:
 # v2\core\engines\decision_engine.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-20 08:26:36
+# 2026-08-26 11:54:30
 # ============================================================
 
 
@@ -21323,7 +21401,7 @@ if __name__ == "__main__":
 # v2\core\engines\v2_orchestrator.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-20 23:49:07
+# 2026-08-26 11:54:30
 # ============================================================
 
 
@@ -22836,7 +22914,7 @@ if __name__ == "__main__":
 # v2\pages\1.1_dashboard_v2.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-14 06:34:19
+# 2026-08-26 11:54:30
 # ============================================================
 
 
@@ -23112,7 +23190,7 @@ st.caption(f"Última atualização: {datetime.now().strftime('%H:%M:%S')}")
 # v2\pages\1.2_comparador.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-14 06:34:19
+# 2026-08-26 11:54:30
 # ============================================================
 
 
@@ -23189,7 +23267,7 @@ with st.expander("📋 Motivos e Riscos (V2)"):
 # v2\pages\1.3_analise_detalhada.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-14 06:34:19
+# 2026-08-26 11:54:30
 # ============================================================
 
 
@@ -23400,7 +23478,7 @@ if __name__ == "__main__":
 # v2_rodar_decisao_completa.py
 #
 # ÚLTIMA ALTERAÇÃO:
-# 2026-08-20 23:49:36
+# 2026-08-26 11:54:30
 # ============================================================
 
 
@@ -23469,3 +23547,374 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+
+
+
+# ============================================================
+# ARQUIVO:
+# win_abertura_pro.py
+#
+# ÚLTIMA ALTERAÇÃO:
+# 2026-08-26 22:31:52
+# ============================================================
+
+
+
+# -*- coding: utf-8 -*-
+"""
+WINFUT - Previsão de Direção e Força da Abertura Pós-Leilão
+Fontes: Genial MT5 + Yahoo Finance (yfinance) + pyield (DI real)
+"""
+
+import MetaTrader5 as mt5
+import pyield as yd
+import pandas as pd
+import numpy as np
+from datetime import datetime, date, time, timedelta
+from bizdays import Calendar
+import requests
+import time as time_module
+import warnings
+import os
+from dotenv import load_dotenv
+import yfinance as yf
+
+warnings.filterwarnings("ignore")
+
+# Carrega as variáveis do arquivo .env
+load_dotenv()
+
+# ============================================================
+# CONFIGURAÇÕES
+# ============================================================
+
+MT5_LOGIN      = int(os.getenv("MT5_LOGIN"))
+MT5_PASSWORD   = os.getenv("MT5_PASSWORD")
+MT5_SERVER     = os.getenv("MT5_SERVER")
+MT5_PATH       = os.getenv("MT5_PATH")
+
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+TELEGRAM_CHAT  = os.getenv("TELEGRAM_CHAT")
+
+WIN_SYMBOL           = "WINV26"               # atualize todo mês
+DIVIDENDOS_ESTIMADOS = 80                     # pontos aproximados
+
+# ============================================================
+# FUNÇÕES AUXILIARES
+# ============================================================
+
+def conectar_mt5():
+    if not mt5.initialize(path=MT5_PATH, login=MT5_LOGIN,
+                          password=MT5_PASSWORD, server=MT5_SERVER):
+        print("Erro MT5:", mt5.last_error())
+        return False
+    print("✅ MT5 Genial conectado")
+    return True
+
+def enviar_telegram(msg):
+    try:
+        requests.post(
+            f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
+            data={"chat_id": TELEGRAM_CHAT, "text": msg, "parse_mode": "HTML"},
+            timeout=8
+        )
+    except:
+        pass
+
+def get_last_tick(symbol):
+    tick = mt5.symbol_info_tick(symbol)
+    if not tick:
+        return None
+    return {"last": tick.last, "bid": tick.bid, "ask": tick.ask,
+            "time": datetime.fromtimestamp(tick.time)}
+
+def get_prev_close(symbol):
+    rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_D1, 0, 5)
+    if rates is None or len(rates) < 2:
+        return None
+    return float(pd.DataFrame(rates).iloc[-2]["close"])
+
+def get_atr(symbol, period=14):
+    rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_D1, 0, period + 5)
+    if rates is None:
+        return None
+    df = pd.DataFrame(rates)
+    tr = pd.concat([
+        df["high"] - df["low"],
+        (df["high"] - df["close"].shift()).abs(),
+        (df["low"] - df["close"].shift()).abs()
+    ], axis=1).max(axis=1)
+    return float(tr.rolling(period).mean().iloc[-1])
+
+# ============================================================
+# DI REAL (pyield)
+# ============================================================
+
+def obter_taxa_di_real(dias_uteis_alvo):
+    """Puxa curva DI1 mais recente e interpola a taxa para o prazo do WIN"""
+    try:
+        cal = Calendar.load("B3")
+        ref = cal.offset(date.today(), -1)
+
+        df = yd.futuro.historico(ref.strftime("%d-%m-%Y"), "DI1")
+        
+        # Se não tiver dados, tenta o dia útil anterior
+        if df is None or (hasattr(df, "is_empty") and df.is_empty()) or len(df) == 0:
+            ref = cal.offset(ref, -1)
+            df = yd.futuro.historico(ref.strftime("%d-%m-%Y"), "DI1")
+
+        if df is None or (hasattr(df, "is_empty") and df.is_empty()) or len(df) == 0:
+            print("⚠️ pyield não retornou curva DI – usando fallback 14.25%")
+            return 0.1425
+
+        # Converte para pandas se for Polars
+        if hasattr(df, "to_pandas"):
+            df = df.to_pandas()
+
+        dus = df["dias_uteis"].tolist()
+        taxas = df["taxa_ajuste"].tolist()
+
+        # Garante que as taxas estejam em decimal
+        if max(taxas) > 1:
+            taxas = [t / 100 for t in taxas]
+
+        # Interpolação
+        try:
+            interp = yd.Interpolador(dus, taxas, metodo="flat_forward")
+            taxa = float(interp(dias_uteis_alvo))
+        except:
+            # Fallback linear
+            taxa = float(np.interp(dias_uteis_alvo, dus, taxas))
+
+        print(f"✅ Taxa DI interpolada ({dias_uteis_alvo} DU): {taxa*100:.2f}%")
+        return taxa
+
+    except Exception as e:
+        print(f"Erro pyield: {e} – usando fallback")
+        return 0.1425
+
+def dias_uteis_ate_vencimento_win():
+    """Aproximação boa do número de DU até o vencimento do contrato atual"""
+    return 18  # ajuste manual se quiser precisão máxima
+
+# ============================================================
+# S&P + VIX (yfinance)
+# ============================================================
+
+def get_finnhub():
+    """Busca gap do S&P 500 e VIX via Yahoo Finance (gratuito)"""
+    try:
+        # S&P 500
+        spx = yf.Ticker("^GSPC")
+        hist_spx = spx.history(period="5d")
+        
+        if hist_spx.empty or len(hist_spx) < 2:
+            print("⚠️ Não foi possível obter histórico do S&P")
+            return None
+            
+        prev_close = hist_spx["Close"].iloc[-2]
+        last_close = hist_spx["Close"].iloc[-1]
+        gap = (last_close - prev_close) / prev_close * 100
+
+        # VIX
+        vix_ticker = yf.Ticker("^VIX")
+        hist_vix = vix_ticker.history(period="5d")
+        vix = float(hist_vix["Close"].iloc[-1]) if not hist_vix.empty else 18.0
+
+        return {
+            "gap_pct": float(gap),
+            "spx": float(last_close),
+            "spx_prev": float(prev_close),
+            "vix": vix
+        }
+    except Exception as e:
+        print("Erro ao buscar dados (yfinance):", e)
+        return None
+
+# ============================================================
+# PREÇO JUSTO + RANGE
+# ============================================================
+
+def preco_justo(spot, taxa, du, div=0):
+    t = du / 252
+    return spot * (1 + taxa * t) - div
+
+def range_esperado(ref, atr, vix):
+    fator = max(0.7, min(1.6, vix / 18))
+    amp = atr * fator * 0.55
+    return ref + amp, ref - amp, amp
+
+# ============================================================
+# SCORE DE DIREÇÃO + FORÇA
+# ============================================================
+
+def calcular_score(gap_pct, desvio_justo, atr, vix):
+    """
+    Score de -100 a +100
+    Positivo = comprador | Negativo = vendedor
+    Absoluto = força
+    """
+    score = 0.0
+
+    # 1. Gap externo (peso alto)
+    if gap_pct > 0.40:
+        score += 35
+    elif gap_pct > 0.20:
+        score += 22
+    elif gap_pct < -0.40:
+        score -= 35
+    elif gap_pct < -0.20:
+        score -= 22
+    else:
+        score += gap_pct * 40  # proporcional
+
+    # 2. Desvio do preço justo (peso alto)
+    if desvio_justo is not None:
+        if desvio_justo > 120:
+            score += 30
+        elif desvio_justo > 60:
+            score += 18
+        elif desvio_justo < -120:
+            score -= 30
+        elif desvio_justo < -60:
+            score -= 18
+        else:
+            score += desvio_justo * 0.18
+
+    # 3. Regime de volatilidade (VIX)
+    if vix > 25:
+        score *= 0.85  # reduz confiança em dias de pânico
+    elif vix < 14:
+        score *= 1.05  # dias calmos tendem a seguir o gap
+
+    # Limita
+    score = max(-100, min(100, score))
+    return score
+
+def interpretar_score(score):
+    forca = abs(score)
+    if forca < 20:
+        return "NEUTRO", "Fraca", "Mercado sem viés claro"
+    elif forca < 45:
+        direcao = "COMPRADOR" if score > 0 else "VENDEDOR"
+        return direcao, "Moderada", f"Viés {direcao.lower()} com força moderada"
+    else:
+        direcao = "COMPRADOR" if score > 0 else "VENDEDOR"
+        return direcao, "Forte", f"Viés {direcao.lower()} FORTE – boa probabilidade de seguir na abertura"
+
+# ============================================================
+# MONITORAMENTO TEÓRICO
+# ============================================================
+
+def monitorar_teorico(minutos=10):
+    print("\n🔍 Monitorando teórico...")
+    enviar_telegram("🔍 Monitoramento do leilão iniciado")
+    inicio = datetime.now()
+    ultimo = None
+    hist = []
+
+    while (datetime.now() - inicio).seconds < minutos * 60:
+        tick = get_last_tick(WIN_SYMBOL)
+        if tick and tick["last"]:
+            t = tick["last"]
+            if t != ultimo:
+                agora = datetime.now().strftime("%H:%M:%S")
+                print(f"[{agora}] Teórico → {t:.0f}")
+                hist.append((agora, t))
+                ultimo = t
+                if len(hist) >= 2 and abs(t - hist[-2][1]) >= 150:
+                    enviar_telegram(f"⚠️ Teórico moveu {t - hist[-2][1]:+.0f} → {t:.0f}")
+        time_module.sleep(2.5)
+    return hist
+
+# ============================================================
+# MAIN
+# ============================================================
+
+def main():
+    print("=" * 72)
+    print("WINFUT – PREVISÃO DE ABERTURA PÓS-LEILÃO")
+    print(datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
+    print("=" * 72)
+
+    if not conectar_mt5():
+        return
+
+    # Dados base
+    prev = get_prev_close(WIN_SYMBOL)
+    tick = get_last_tick(WIN_SYMBOL)
+    atr = get_atr(WIN_SYMBOL)
+    du = dias_uteis_ate_vencimento_win()
+
+    print(f"\nFechamento anterior : {prev}")
+    print(f"ATR 14              : {atr:.0f}" if atr else "ATR indisponível")
+    if tick:
+        print(f"Último preço        : {tick['last']:.0f}")
+
+    # DI real
+    taxa_di = obter_taxa_di_real(du)
+
+    # S&P + VIX
+    fh = get_finnhub()
+    if fh:
+        print(f"\nGap S&P             : {fh['gap_pct']:+.2f}%")
+        print(f"VIX                 : {fh['vix']:.1f}")
+    else:
+        fh = {"gap_pct": 0.0, "vix": 18.0}
+        print("\n⚠️ Dados externos falharam – valores neutros")
+
+    # Preço justo
+    justo = None
+    desvio = None
+    if prev:
+        justo = preco_justo(prev, taxa_di, du, DIVIDENDOS_ESTIMADOS)
+        print(f"Preço Justo         : {justo:.0f}")
+        if tick and tick["last"]:
+            desvio = tick["last"] - justo
+            print(f"Desvio atual        : {desvio:+.0f} pts")
+
+    # Range esperado
+    if prev and atr:
+        max_e, min_e, amp = range_esperado(prev, atr, fh["vix"])
+        print(f"Máx esperada        : {max_e:.0f}")
+        print(f"Mín esperada        : {min_e:.0f}")
+        print(f"Amplitude           : ±{amp:.0f} pts")
+
+    # Score final
+    score = calcular_score(fh["gap_pct"], desvio, atr, fh["vix"])
+    direcao, forca, texto = interpretar_score(score)
+
+    print("\n" + "=" * 72)
+    print(f"🎯 DIREÇÃO          : {direcao}")
+    print(f"💪 FORÇA            : {forca}")
+    print(f"📊 SCORE            : {score:+.1f}")
+    print(f"📝 {texto}")
+    print("=" * 72)
+
+    # Telegram
+    msg = f"""
+<b>WIN – Previsão de Abertura</b>
+Direção: <b>{direcao}</b>
+Força: <b>{forca}</b>
+Score: {score:+.1f}
+
+Gap S&P: {fh['gap_pct']:+.2f}%
+VIX: {fh['vix']:.1f}
+Preço Justo: {f'{justo:.0f}' if justo is not None else 'N/A'}
+Desvio: {f'{desvio:+.0f}' if desvio is not None else 'N/A'} pts
+"""
+    enviar_telegram(msg)
+
+    # Monitoramento se estiver no horário
+    agora = datetime.now().time()
+    if time(8, 50) <= agora <= time(9, 20):
+        hist = monitorar_teorico(10)
+        if hist:
+            enviar_telegram(f"Leilão finalizado\nÚltimo teórico: {hist[-1][1]:.0f}")
+
+    mt5.shutdown()
+    print("\n✅ Finalizado")
+
+if __name__ == "__main__":
+    main()

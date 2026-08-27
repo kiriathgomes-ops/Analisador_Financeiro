@@ -1,43 +1,26 @@
 {
-  "timeframes_identificados": "HTF (15 Minutos) e LTF (5 Minutos)",
-  "bias_direcional": "Bullish (Altista) no curto prazo com teste de zonas Premium",
+  "timeframes_identificados": "HTF (15 Minutos e 5 Minutos)",
+  "bias_direcional": "Bullish (Altista) no curto prazo com teste de zonas de Discount e Premium",
   "estruturas_coletadas": [
-    "184.500: EQH (HTF Equal Highs)",
-    "182.500: EQH (HTF Equal Highs)",
-    "179.220: FVG 15 (Fair Value Gap de 15 minutos)",
-    "178.615: FVG 15 (Fair Value Gap de 15 minutos)",
-    "178.115: FVG 15 (Fair Value Gap de 15 minutos) e Zona Premium",
-    "177.565: Preço Atual (WINV2026) e EQH",
-    "177.535: FVG 15 (Fair Value Gap de 15 minutos)",
-    "176.000: PDH (Previous Day High) e Zona de Liquidez",
-    "175.715: Inversão de Polaridade",
-    "175.560: Equilibrium do Range",
-    "175.430: PWH (Previous Week High)",
-    "173.735: Nível de ChoCH / BOS",
-    "173.240: Melhor Preço / Equilibrium",
-    "172.855: FVG 15 e Bacia",
-    "172.485: Nível de Estrutura",
-    "172.175: PDL (Previous Day Low)",
-    "172.060: Zona de Suporte",
-    "171.990: Nível Estrutural",
-    "171.680: Nível Estrutural",
-    "171.150: Nível de Desconto",
-    "170.455: EQL (Equal Lows)",
-    "170.330: EQL (Equal Lows)",
-    "169.795: EQL (Equal Lows)",
-    "169.790: EQL (Equal Lows)",
-    "168.675: PWL (Previous Week Low)"
+    "184.000: EQH (Equal Highs) no topo do range macro",
+    "182.500: EQH secundário (4.2K)",
+    "179.220: FVG 15 Minutos (Premium)",
+    "177.895: Preço atual de fechamento WINV2026 / PDH",
+    "176.885: FVG 15m / Nível de Suporte LTF",
+    "176.410: Equilibrium 50% do range recente",
+    "174.000: PDL (Previous Day Low) e Zona de Discount",
+    "172.855: FVG 15m / Região de Bacia / Melhor Preço",
+    "168.675: PWL (Previous Week Low) / Strong Low"
   ],
   "liquidez_relevante": [
-    "BSL: 184.500 (Equal Highs no topo absoluto do range HTF)",
-    "BSL: 182.500 (Equal Highs intermediário)",
-    "Liquidez: 176.000 (Pool de liquidez acima da resistência prévia / PDH)",
-    "SSL: 170.455 / 170.330 (Equal Lows inferiores)",
-    "SSL: 169.795 / 169.790 (Equal Lows de suporte profundo)",
+    "BSL: 184.000 (EQH Superior)",
+    "BSL: 182.500 (EQH Intermediário)",
+    "SSL: 174.000 (PDL / Liquidez de Baixa)",
+    "SSL: 170.455 (EQL - Equal Lows)",
     "SSL: 168.675 (PWL - Previous Week Low)"
   ],
   "zonas_de_interesse_e_cenarios": [
-    "Cenário Altista (Bullish): Continuidade do impulso após preenchimento dos FVG's de 15 min na região Premium entre 177.535 e 178.115.",
-    "Cenário Baixista (Bearish): Rejeição nas zonas de Premium / FVG 15 em 178.115 buscando mitigação na região de liquidez em 176.000 (PDH)."
+    "Cenário Comprador: Rejeição na região de FVG 15m em 172.855 e busca por mitigação na zona de Discount em direção ao EQH em 184.000.",
+    "Cenário Vendedor: Rejeição na zona de Premium (FVG 15 em 179.220) buscando varredura de liquidez abaixo de 174.000 (PDL)."
   ]
 }

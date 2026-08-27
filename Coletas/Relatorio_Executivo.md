@@ -1,45 +1,45 @@
 # 📈 RELATÓRIO EXECUTIVO DE AUDITORIA E ANÁLISE MACRO
-**Data/Hora da Análise:** 26/08/2026 08:45:41
+**Data/Hora da Análise:** 27/08/2026 08:08:03
 
 ---
 ## 1. PAINEL SINTÉTICO DE AVALIAÇÃO DE MERCADO
 
-* **Ambiente Global de Risco (VIX):** `15.67` → **AMBIENTE NEUTRO / APETITE A RISCO MODERADO**
-* **Arbitragem Dólar Futuro / PTAX:** `5.6 pts` → **ALINHADO (Dólar Futuro em equilíbrio com a PTAX)**
-* **Sensibilidade EWZ vs S&P 500:** Spread de `2.03%` → **OUTPERFORMANCE BRASIL (EWZ superando bolsas americanas)**
-* **Estrutura de Juros B3 (DI 29-27):** `37.5 bps` de inclinação entre vértices médio e longo.
+* **Ambiente Global de Risco (VIX):** `14.91` → **AMBIENTE NEUTRO / APETITE A RISCO MODERADO**
+* **Arbitragem Dólar Futuro / PTAX:** `-8.8 pts` → **ALINHADO (Dólar Futuro em equilíbrio com a PTAX)**
+* **Sensibilidade EWZ vs S&P 500:** Spread de `-0.89%` → **CORRELAÇÃO ALINHADA COM MERCADOS INTERNACIONAIS**
+* **Estrutura de Juros B3 (DI 29-27):** `44.0 bps` de inclinação entre vértices médio e longo.
 
 ---
 ## 2. DETALHAMENTO DAS MÉTRICAS
 
 ### A. Câmbio e Arbitragem
-- **USD PTAX (Oficial):** R$ 5.1484
-- **WDO Futuro:** R$ 5154.0
-- **Spread (Pontos):** 5.6 pts
-- **Spread (%):** 0.1088%
+- **USD PTAX (Oficial):** R$ 5.1598
+- **WDO Futuro:** R$ 5151.0
+- **Spread (Pontos):** -8.8 pts
+- **Spread (%):** -0.1705%
 
 ### B. Curva de Juros Futuros (DI1 B3)
-- **DI1F2027 (Curto/Médio):** 13.68%
-- **DI1F2029 (Longo):** 14.055%
-- **Inclinação (Spread):** 37.5 bps
+- **DI1F2027 (Curto/Médio):** 13.67%
+- **DI1F2029 (Longo):** 14.11%
+- **Inclinação (Spread):** 44.0 bps
 
 ### C. Commodities e Drivers Externos
-- **Petróleo (Crude Oil WTI):** US$ 80.19
+- **Petróleo (Crude Oil WTI):** US$ 82.28
 - **Minério de Ferro (SGX):** US$ None
-- **DXY (Índice Dólar):** 99.017
+- **DXY (Índice Dólar):** 99.242
 
 ### D. Performance Relativa de ADRs Brasileiras
-- **EWZ (ETF Brasil):** 2.02%
-- **S&P 500 Futuro:** -0.013000520020800833%
-- **Nasdaq Futuro:** -0.07087535330936665%
+- **EWZ (ETF Brasil):** -0.45%
+- **S&P 500 Futuro:** 0.435630689206762%
+- **Nasdaq Futuro:** 1.0413288038375526%
 
 #### Principais ADRs:
-- **BBD_ADR:** US$ 3.25 (3.17%)
-- **ITUB_ADR:** US$ 7.66 (1.86%)
-- **PETR_ADR:** US$ 17.85 (-4.03%)
-- **VALE_ADR:** US$ 15.33 (1.93%)
-- **BBAS_ADR:** US$ 3.9 (5.98%)
-- **B3_ADR:** US$ 9.1435 (1.2%)
+- **BBD_ADR:** US$ 3.26 (0.31%)
+- **ITUB_ADR:** US$ 7.61 (-0.65%)
+- **PETR_ADR:** US$ 17.76 (-0.5%)
+- **VALE_ADR:** US$ 15.16 (-1.11%)
+- **BBAS_ADR:** US$ 3.87 (-0.77%)
+- **B3_ADR:** US$ 9.13 (-0.15%)
 
 ---
 ## 3. ALERTAS E RECOMENDAÇÕES QUANTITATIVAS

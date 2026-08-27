@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "timestamp": "2026-08-26T22:18:39.881775",
+    "timestamp": "2026-08-27T18:44:04.758566",
     "origem": "Pipeline_Completo_V3",
     "versao": "3.1_WIN",
     "arquivos_presentes": {
@@ -14,26 +14,16 @@
   },
   "alerta_calendario_0900": {
     "tem_evento_3_estrelas": true,
-    "quantidade_eventos": 2,
+    "quantidade_eventos": 1,
     "eventos": [
       {
         "hora": "09:00",
         "pais": "Brazil",
         "moeda": "BRL",
-        "evento": "IPCA mid-month CPI MoM",
+        "evento": "Unemployment Rate",
         "importancia": 3,
-        "anterior": "0.06",
-        "previsao": "-0.3",
-        "atual": ""
-      },
-      {
-        "hora": "09:00",
-        "pais": "Brazil",
-        "moeda": "BRL",
-        "evento": "IPCA mid-month CPI YoY",
-        "importancia": 3,
-        "anterior": "4.52",
-        "previsao": "4.34",
+        "anterior": "5.4",
+        "previsao": "5.3",
         "atual": ""
       }
     ],
@@ -41,18 +31,18 @@
   },
   "indicadores_compostos": {
     "indicador_mercado_externo": {
-      "valor_pct": 0.8843,
-      "classificacao": "FRACA",
+      "valor_pct": 6.926,
+      "classificacao": "MUITO_FORTE",
       "sinal_operacional": "COMPRA",
-      "rotulo_completo": "FRACA_COMPRA",
+      "rotulo_completo": "MUITO_FORTE_COMPRA",
       "valido": true,
       "observacao": "OK"
     },
     "indicador_adrs_brasileiras": {
-      "valor_pct": 5.23,
-      "classificacao": "MUITO_FORTE",
+      "valor_pct": 0.86,
+      "classificacao": "FRACA",
       "sinal_operacional": "COMPRA",
-      "rotulo_completo": "MUITO_FORTE_COMPRA",
+      "rotulo_completo": "FRACA_COMPRA",
       "valido": true,
       "observacao": "OK"
     }
@@ -60,36 +50,36 @@
   "analise_tendencias": {},
   "estimativa_abertura": {
     "WIN_INDICE": {
-      "variacao_teorica_pct": -0.3039,
+      "variacao_teorica_pct": 0.5234,
       "pontos_ajuste_base": 177489.0,
-      "abertura_teorica_pontos": 176950.0
+      "abertura_teorica_pontos": 178418.0
     }
   },
   "pivot_points": {
     "WIN_FUT": {
-      "PP": 176516.67,
-      "R1": 179158.33,
-      "R2": 180416.67,
-      "S1": 175258.33,
-      "S2": 172616.67
+      "PP": 177981.67,
+      "R1": 179053.33,
+      "R2": 180206.67,
+      "S1": 176828.33,
+      "S2": 175756.67
     }
   },
   "resumo_macro": {
-    "vix": 15.22,
-    "di1_2027": 13.67,
-    "di1_2029": 14.11,
-    "iron_ore": 97.95,
-    "crude_oil": 81.89,
-    "gold": 4617.39
+    "vix": 14.5,
+    "di1_2027": 13.63,
+    "di1_2029": 14.075,
+    "iron_ore": 98.25,
+    "crude_oil": 83.53,
+    "gold": 4601.183
   },
   "decisao_core": {
     "win": {
-      "score_numeric": 0.0,
-      "vies_final": "NEUTRO",
+      "score_numeric": 7.5,
+      "vies_final": "FORTE_COMPRA",
       "fatores_relevantes": [
-        "ADRs fortes no exterior (+7.90%)",
-        "Commodities e Mercado Externo pressionados (-1.10%)",
-        "⚖️ Spread Last vs Ajuste na normalidade (-32 pts)"
+        "Teórico WIN positivo (+0.52%)",
+        "Commodities e Mercado Externo favoráveis (+6.93%)",
+        "🔺 Last acima do ajuste em 411 pts (viés comprador)"
       ]
     }
   }

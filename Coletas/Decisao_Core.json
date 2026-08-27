@@ -1,16 +1,16 @@
 {
   "metadata": {
-    "timestamp": "2026-08-26T22:18:39.980427",
+    "timestamp": "2026-08-27T18:44:04.860526",
     "status_pipeline": "OK",
     "ativo_foco": "WIN_INDICE"
   },
   "analise_operacional": {
     "WIN_INDICE": {
-      "score_numeric": 7.0,
+      "score_numeric": 7.5,
       "vies_final": "FORTE_COMPRA",
       "fatores_relevantes": [
-        "ADRs fortes no exterior (+5.23%)",
-        "Commodities e Mercado Externo favoráveis (+0.88%)",
+        "Teórico WIN positivo (+0.52%)",
+        "Commodities e Mercado Externo favoráveis (+6.93%)",
         "🔺 Last acima do ajuste em 411 pts (viés comprador)"
       ]
     }
