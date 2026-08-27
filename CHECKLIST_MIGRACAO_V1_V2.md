@@ -28,14 +28,16 @@
 
 | # | Item | Roadmap | Status | Notas |
 |---|------|---------|--------|-------|
-| 1.1 | Expandir `config.py` com caminhos (`BASE_DIR`, `COLETAS_DIR`, nomes de JSON) | A2 | [ ] | ⚠ |
-| 1.2 | Centralizar listas de tickers (TradingView, Finnhub, MT5 B3, ADRs) | A2 | [ ] | Hoje em `Coletor.py` |
-| 1.3 | Centralizar pesos da estimativa de abertura (EWZ, ADRs, SPX, commodities) | A2 | [ ] | Alinhar com `NOVO_MOTOR/.../pesos.yaml` |
-| 1.4 | Centralizar parâmetros de pipeline (timeouts, janela de ajuste 19:00–08:50) | A2 | [ ] | |
-| 1.5 | Substituir hardcoding nos módulos críticos (`Coletor`, `Calculadora*`, `Engine_Vies`, services V2) por imports de `config` | A2 | [ ] | Incremental |
-| 1.6 | Validar que pipeline e V2 ainda rodam após a centralização | A2 | [ ] | Smoke test |
+| 1.1 | Expandir `config.py` com caminhos (`BASE_DIR`, `COLETAS_DIR`, nomes de JSON) | A2 | [x] | 27/08/2026 — `config.py` completo |
+| 1.2 | Centralizar listas de tickers (TradingView, Finnhub, MT5 B3, ADRs) | A2 | [x] | Em `config.py` |
+| 1.3 | Centralizar pesos da estimativa de abertura (EWZ, ADRs, SPX, commodities) | A2 | [x] | + pesos NOVO_MOTOR + limiares gap/score |
+| 1.4 | Centralizar parâmetros de pipeline (timeouts, janela de ajuste 19:00–08:50) | A2 | [x] | `JANELA_AJUSTE_*`, timeouts HTTP |
+| 1.5 | Substituir hardcoding nos módulos críticos (`Coletor`, `Calculadora*`, `Engine_Vies`, services V2) por imports de `config` | A2 | [~] | **Coletor.py** já migrado; restante incremental no projeto real |
+| 1.6 | Validar que pipeline e V2 ainda rodam após a centralização | A2 | [ ] | Smoke test no ambiente com MT5/.env |
 
 **Critério de saída da Fase 1:** nenhum caminho/ticker/peso crítico hardcoded nos módulos principais.
+
+**Arquivos desta fase:** `config.py` (novo/expandido), `Coletor.py` (exemplo de migração).
 
 ---
 

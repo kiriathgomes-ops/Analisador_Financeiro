@@ -1,7 +1,7 @@
 {
     "metadata": {
-        "timestamp": "2026-08-27 18:44:04",
-        "total_ativos": 32
+        "timestamp": "2026-08-27 19:41:10",
+        "total_ativos": 30
     },
     "ativos": {
         "USD_PTAX": {
@@ -11,9 +11,15 @@
             "status": "OK"
         },
         "WIN_AJUSTE": {
-            "preco": 177489.0,
-            "variacao_pct": -0.004507118430170651,
+            "preco": 177725.0,
+            "variacao_pct": 0.13296598662452322,
             "ticker_original": "B3_AJUSTE_WIN",
+            "status": "OK"
+        },
+        "WDO_AJUSTE": {
+            "preco": 5167.0,
+            "variacao_pct": 0.17021375590804086,
+            "ticker_original": "B3_AJUSTE_WDO",
             "status": "OK"
         },
         "DI1_2027": {
@@ -47,44 +53,44 @@
             "status": "OK"
         },
         "CRUDE_OIL": {
-            "preco": 83.53,
-            "variacao_pct": 1.580931533503584,
+            "preco": 83.63,
+            "variacao_pct": 0.11971746677839616,
             "ticker_original": "NYMEX:CL1!",
             "status": "OK"
         },
         "SP500_FUT": {
-            "preco": 7742.5,
-            "variacao_pct": 0.6827048114434331,
+            "preco": 7733.75,
+            "variacao_pct": -0.11301259283177267,
             "ticker_original": "CME_MINI:ES1!",
             "status": "OK"
         },
         "NASDAQ_FUT": {
-            "preco": 29695.75,
-            "variacao_pct": 1.3870158247836255,
+            "preco": 29638.5,
+            "variacao_pct": -0.19278853034525142,
             "ticker_original": "CME_MINI:NQ1!",
             "status": "OK"
         },
         "DXY": {
-            "preco": 99.11,
-            "variacao_pct": -0.023201154005221405,
+            "preco": 99.129,
+            "variacao_pct": -0.004034983305247171,
             "ticker_original": "TVC:DXY",
             "status": "OK"
         },
         "USD_MXN": {
-            "preco": 16.966,
-            "variacao_pct": 0.11288220184612577,
+            "preco": 16.962,
+            "variacao_pct": -0.023576564894502744,
             "ticker_original": "FX_IDC:USDMXN",
             "status": "OK"
         },
         "GOLD": {
-            "preco": 4601.183,
-            "variacao_pct": 0.14896593394610305,
+            "preco": 4609.32,
+            "variacao_pct": 0.1768458242152011,
             "ticker_original": "TVC:GOLD",
             "status": "OK"
         },
         "USD_BRL": {
-            "preco": 5.1621,
-            "variacao_pct": 0.35576810917998336,
+            "preco": 5.1606,
+            "variacao_pct": -0.02905794153542273,
             "ticker_original": "FX_IDC:USDBRL",
             "status": "OK"
         },
@@ -130,30 +136,6 @@
             "ticker_original": "OTC:BOLSY",
             "status": "OK"
         },
-        "WIN_FUT": {
-            "preco": 177725.0,
-            "variacao_pct": -0.1,
-            "ticker_original": "BMFBOVESPA:WIN1!",
-            "status": "OK"
-        },
-        "WIN_PREV_CLOSE": {
-            "preco": 177900.0,
-            "variacao_pct": 0.0,
-            "ticker_original": "WIN_PREV_CLOSE",
-            "status": "OK"
-        },
-        "WDO_FUT": {
-            "preco": 5167.0,
-            "variacao_pct": 0.31,
-            "ticker_original": "BMFBOVESPA:WDO1!",
-            "status": "OK"
-        },
-        "DI1_FUT": {
-            "preco": 13.63,
-            "variacao_pct": -0.29,
-            "ticker_original": "DI1_FUT",
-            "status": "OK"
-        },
         "VALE3": {
             "preco": 78.8,
             "variacao_pct": 0.45,
@@ -191,9 +173,15 @@
             "status": "OK"
         },
         "WIN_LAST_TICK": {
-            "preco": 177900.0,
+            "preco": 177725.0,
             "variacao_pct": 0.0,
             "ticker_original": "WIN_LAST_TICK",
+            "status": "OK"
+        },
+        "WDO_LAST_TICK": {
+            "preco": 5167.0,
+            "variacao_pct": 0.0,
+            "ticker_original": "WDO_LAST_TICK",
             "status": "OK"
         }
     }

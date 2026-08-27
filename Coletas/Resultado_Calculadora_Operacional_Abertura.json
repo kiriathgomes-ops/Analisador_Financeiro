@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "timestamp": "2026-08-27T19:01:08.400841",
+    "timestamp": "2026-08-27T19:41:10.859001",
     "origem": "Pipeline_Completo_V3",
     "versao": "3.1_WIN",
     "arquivos_presentes": {
@@ -31,7 +31,7 @@
   },
   "indicadores_compostos": {
     "indicador_mercado_externo": {
-      "valor_pct": 6.926,
+      "valor_pct": 5.4648,
       "classificacao": "MUITO_FORTE",
       "sinal_operacional": "COMPRA",
       "rotulo_completo": "MUITO_FORTE_COMPRA",
@@ -50,36 +50,28 @@
   "analise_tendencias": {},
   "estimativa_abertura": {
     "WIN_INDICE": {
-      "variacao_teorica_pct": 0.5234,
-      "pontos_ajuste_base": 177489.0,
-      "abertura_teorica_pontos": 178418.0
+      "variacao_teorica_pct": 0.2546,
+      "pontos_ajuste_base": 177725.0,
+      "abertura_teorica_pontos": 178178.0
     }
   },
   "pivot_points": {
-    "WIN_FUT": {
-      "PP": 177981.67,
-      "R1": 179053.33,
-      "R2": 180206.67,
-      "S1": 176828.33,
-      "S2": 175756.67
-    }
+    "WIN_FUT": null
   },
   "resumo_macro": {
     "vix": 14.5,
     "di1_2027": 13.63,
     "di1_2029": 14.075,
     "iron_ore": 98.25,
-    "crude_oil": 83.53,
-    "gold": 4601.183
+    "crude_oil": 83.63,
+    "gold": 4609.32
   },
   "decisao_core": {
     "win": {
-      "score_numeric": 7.5,
-      "vies_final": "FORTE_COMPRA",
+      "score_numeric": 2.5,
+      "vies_final": "MODERADO_COMPRA",
       "fatores_relevantes": [
-        "Teórico WIN positivo (+0.52%)",
-        "Commodities e Mercado Externo favoráveis (+6.93%)",
-        "🔺 Last acima do ajuste em 411 pts (viés comprador)"
+        "Commodities e Mercado Externo favoráveis (+5.46%)"
       ]
     }
   }

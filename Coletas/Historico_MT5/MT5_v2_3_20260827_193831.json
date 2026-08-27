@@ -1,6 +1,6 @@
 {
     "versao_coletor": "2.3",
-    "timestamp": "2026-08-27T19:41:10.310",
+    "timestamp": "2026-08-27T19:38:31.067",
     "mt5": {
         "conectado": true,
         "versao": [
@@ -14,7 +14,7 @@
             "ativo": "WIN",
             "descricao": "Mini Índice B3",
             "contrato_principal": "WINV26",
-            "timestamp": "2026-08-27T19:41:10.312",
+            "timestamp": "2026-08-27T19:38:31.070",
             "bid": 177715.0,
             "ask": 177720.0,
             "last": 177725.0,
@@ -30,7 +30,7 @@
             "spread": 5.0,
             "preco_teorico": null,
             "tick_time": "2026-08-27T15:31:17",
-            "tick_idade_seg": 14993,
+            "tick_idade_seg": 14834,
             "tick_stale": true,
             "vencimento": "2026-10-13T21:00:00",
             "market_book": {
@@ -63,7 +63,7 @@
             "ativo": "WDO",
             "descricao": "Mini Dólar Futuro B3",
             "contrato_principal": "WDOU26",
-            "timestamp": "2026-08-27T19:41:10.314",
+            "timestamp": "2026-08-27T19:38:31.074",
             "bid": 5166.5,
             "ask": 5167.0,
             "last": 5167.0,
@@ -79,7 +79,7 @@
             "spread": 0.5,
             "preco_teorico": null,
             "tick_time": "2026-08-27T15:29:59",
-            "tick_idade_seg": 15071,
+            "tick_idade_seg": 14912,
             "tick_stale": true,
             "vencimento": "2026-09-01T20:59:00",
             "market_book": {
@@ -200,7 +200,7 @@
             "ativo": "DI1",
             "descricao": "DI Futuro B3",
             "contrato_principal": "DI1F27",
-            "timestamp": "2026-08-27T19:41:10.317",
+            "timestamp": "2026-08-27T19:38:31.076",
             "bid": 13.63,
             "ask": 13.635,
             "last": 13.63,
@@ -216,7 +216,7 @@
             "spread": 0.0,
             "preco_teorico": null,
             "tick_time": "2026-08-27T14:59:59",
-            "tick_idade_seg": 16871,
+            "tick_idade_seg": 16712,
             "tick_stale": true,
             "vencimento": "2027-01-03T21:00:00",
             "market_book": {
