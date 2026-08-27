@@ -1,0 +1,11 @@
+2026-08-26 22:43:31 | INFO     | Log iniciado → logs\preco_teorico_WINV26_20260826_224331.log
+2026-08-26 22:43:31 | INFO     | =================================================================
+2026-08-26 22:43:31 | INFO     | Monitor de Preço Teórico iniciado | Símbolo: WINV26
+2026-08-26 22:43:31 | INFO     | Intervalo: 2s | Janela: 08:50:00 → 09:15:00
+2026-08-26 22:43:31 | INFO     | Alerta sonoro: ATIVADO
+2026-08-26 22:43:31 | INFO     | =================================================================
+2026-08-26 22:43:31 | INFO     | Conectado | Conta: 4807017 | Corretora: Genial Investimentos Corretora de Valores Mobiliários S.A.
+2026-08-26 22:43:31 | INFO     | Fora do horário de leilão (22:43:31). Aguardando...
+2026-08-26 22:43:37 | INFO     | Monitor interrompido pelo usuário (Ctrl+C)
+2026-08-26 22:43:37 | INFO     | Conexão MT5 encerrada
+2026-08-26 22:43:37 | INFO     | Log completo salvo em: logs\preco_teorico_WINV26_20260826_224331.log
