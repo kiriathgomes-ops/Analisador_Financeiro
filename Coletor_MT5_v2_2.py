@@ -1,530 +1,855 @@
 # ================================================================
-# COLETOR MT5 v2.3
-# Mercado B3 - WIN / WDO / DI1
+# COLETOR MT5 v2.2
+# Mercado B3 - WINFUT / WDO / DI1
 #
-# Melhorias vs 2.2:
-#   - 1 conexão reutilizável (Coletor.py não reconecta para ações)
-#   - retry de initialize (terminal ocupado)
-#   - login opcional via .env (MT5_LOGIN / MT5_PASSWORD / MT5_SERVER)
-#   - contrato: liquidez (volume) no vencimento da frente; fallback PREFIXO$
-#   - last: last > mid(bid,ask) > teórico
-#   - prev_close: session_close ou D1[-2]
-#   - idade do tick (stale)
-#   - book opcional (MT5_COLETAR_BOOK=1)
-#   - histórico rotativo (máx. 288 arquivos ≈ 24h @ 5 min)
-#   - status PARCIAL se um ativo falhar (não zera o JSON inteiro)
+# NÃO ALTERA OS COLETORES ANTERIORES
 # ================================================================
 
-from __future__ import annotations
-
+import MetaTrader5 as mt5
 import json
 import os
-from datetime import datetime, timedelta
-from typing import Any, Optional
+from datetime import datetime
 
-try:
-    import MetaTrader5 as mt5
-    MT5_OK = True
-except ImportError:
-    mt5 = None
-    MT5_OK = False
+
+# ================================================================
+# CONFIGURAÇÃO
+# ================================================================
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 COLETAS_DIR = os.path.join(BASE_DIR, "Coletas")
 HISTORICO_DIR = os.path.join(COLETAS_DIR, "Historico_MT5")
-ARQUIVO_ATUAL = os.path.join(COLETAS_DIR, "Dados_MT5_v2_2.json")
+
+ARQUIVO_ATUAL = os.path.join(
+    COLETAS_DIR,
+    "Dados_MT5_v2_2.json"
+)
 
 os.makedirs(COLETAS_DIR, exist_ok=True)
 os.makedirs(HISTORICO_DIR, exist_ok=True)
 
-VERSAO = "2.3"
-MAX_HISTORICO = 288  # 24h se o pipeline roda a cada 5 min
-TICK_STALE_SEG = 120  # tick com mais de 2 min = aviso
+
+# ================================================================
+# ATIVOS
+# ================================================================
 
 ATIVOS = {
-    "WIN": {"prefixo": "WIN", "descricao": "Mini Índice B3"},
-    "WDO": {"prefixo": "WDO", "descricao": "Mini Dólar Futuro B3"},
-    "DI1": {"prefixo": "DI1", "descricao": "DI Futuro B3"},
+    "WIN": {
+        "prefixo": "WIN",
+        "descricao": "Mini Índice B3"
+    },
+
+    "WDO": {
+        "prefixo": "WDO",
+        "descricao": "Mini Dólar B3"
+    },
+
+    "DI1": {
+        "prefixo": "DI1",
+        "descricao": "DI Futuro B3"
+    }
 }
 
-# Letras de vencimento B3 (evita filtrar C/P de forma ingênua)
-MESES_B3 = set("FGHJKMNQUVXZ")
 
+# ================================================================
+# CONEXÃO MT5
+# ================================================================
 
-def agora() -> str:
-    return datetime.now().isoformat(timespec="milliseconds")
+def conectar_mt5():
 
-
-def _f(v, default=0.0) -> float:
-    try:
-        if v is None:
-            return default
-        return float(v)
-    except (TypeError, ValueError):
-        return default
-
-
-# ----------------------------------------------------------------
-# Conexão
-# ----------------------------------------------------------------
-
-_CONECTADO = False
-
-
-def conectar_mt5(tentativas: int = 3) -> bool:
-    """Anexa ao terminal já aberto, ou faz login se houver credenciais no env."""
-    global _CONECTADO
-    if not MT5_OK:
-        print("❌ MetaTrader5 não instalado (pip install MetaTrader5)")
-        return False
-
-    if _CONECTADO:
-        info = mt5.terminal_info()
-        if info is not None:
-            return True
-
-    print("\n" + "=" * 70)
-    print(f"INICIANDO COLETOR MT5 v{VERSAO}")
+    print()
+    print("=" * 70)
+    print("🚀 INICIANDO COLETOR MT5 v2.2")
     print("=" * 70)
 
-    login = os.getenv("MT5_LOGIN")
-    password = os.getenv("MT5_PASSWORD")
-    server = os.getenv("MT5_SERVER")
-    path = os.getenv("MT5_PATH")  # opcional: caminho do terminal64.exe
+    if not mt5.initialize():
+        print()
+        print("❌ FALHA AO INICIALIZAR MT5")
+        print("Erro:", mt5.last_error())
+        return False
 
-    kwargs: dict[str, Any] = {}
-    if path:
-        kwargs["path"] = path
-    if login and password and server:
-        try:
-            kwargs["login"] = int(login)
-        except ValueError:
-            print("⚠️ MT5_LOGIN inválido — tentando anexar ao terminal aberto")
-        else:
-            kwargs["password"] = password
-            kwargs["server"] = server
+    # Confirma se o terminal está de fato ligado à corretora
+    terminal = mt5.terminal_info()
+    conta = mt5.account_info()
+    versao = mt5.version()
 
-    ultimo_erro = None
-    for i in range(1, tentativas + 1):
-        ok = mt5.initialize(**kwargs) if kwargs else mt5.initialize()
-        if ok:
-            _CONECTADO = True
-            versao = mt5.version()
-            term = mt5.terminal_info()
-            print(f"MT5 conectado (tentativa {i}/{tentativas})")
-            print(f"   Versão: {versao}")
-            if term:
-                print(f"   Empresa: {getattr(term, 'company', '')}")
-                print(f"   Conectado à corretora: {getattr(term, 'connected', None)}")
-            return True
-        ultimo_erro = mt5.last_error()
-        print(f"⚠️ initialize falhou ({i}/{tentativas}): {ultimo_erro}")
+    conectado = bool(terminal and getattr(terminal, "connected", False))
+    empresa = getattr(terminal, "company", None) if terminal else None
+
+    print()
+    print("🔌 MT5")
+    print(f"   Versão: {versao}")
+    print(f"   Empresa: {empresa}")
+    print(f"   Conectado à corretora: {conectado}")
+    if conta:
+        print(f"   Conta: {getattr(conta, 'login', '?')}")
+
+    if not conectado:
+        print()
+        print("⚠️ MT5 abriu, mas NÃO está conectado à corretora.")
+        print("   Abra o terminal, faça login e tente de novo.")
+        print("   Pipeline seguirá com cache, se houver.")
         try:
             mt5.shutdown()
         except Exception:
             pass
-
-    print(f"❌ FALHA AO INICIALIZAR MT5: {ultimo_erro}")
-    _CONECTADO = False
-    return False
-
-
-def desconectar_mt5() -> None:
-    global _CONECTADO
-    if not MT5_OK:
-        return
-    try:
-        mt5.shutdown()
-    except Exception:
-        pass
-    _CONECTADO = False
-    print("\nMT5 desconectado.\n")
-
-
-# ----------------------------------------------------------------
-# Contratos
-# ----------------------------------------------------------------
-
-def _eh_opcao(nome: str, prefixo: str) -> bool:
-    resto = nome[len(prefixo):]
-    if "C" in resto and any(ch.isdigit() for ch in resto):
-        # WINQ26C... opções; WINQ26 não
-        # Heurística: C ou P seguido de strike (dígitos depois de C/P no meio)
-        if "C" in resto[1:] or "P" in resto[1:]:
-            return True
-    return False
-
-
-def _eh_futuro_datado(nome: str, prefixo: str) -> bool:
-    """WINQ26, WDOV26, DI1F27 — prefixo + mês B3 + ano."""
-    if not nome.startswith(prefixo):
         return False
-    if "$" in nome or "@" in nome:
-        return False
-    resto = nome[len(prefixo):]
-    if not resto:
-        return False
-    if _eh_opcao(nome, prefixo):
-        return False
-    # DI1F27 / WINQ26
-    letra = resto[0]
-    return letra in MESES_B3 or resto[:1].isalpha()
+
+    return True
 
 
-def obter_contratos(prefixo: str) -> list:
-    if not MT5_OK:
-        return []
-    grupo = f"{prefixo}*"
-    simbolos = mt5.symbols_get(group=grupo)
-    if not simbolos:
-        simbolos = mt5.symbols_get()
-    if not simbolos:
+# ================================================================
+# DATA/HORA
+# ================================================================
+
+def agora():
+
+    return datetime.now().isoformat(timespec="milliseconds")
+
+
+# ================================================================
+# IDENTIFICAÇÃO DO CONTRATO
+# ================================================================
+
+def obter_contratos(prefixo):
+
+    """
+    Procura somente contratos reais do ativo (rápido).
+
+    Estratégia (evita symbols_get() de toda a corretora, que trava no Windows):
+      1) symbols_get(group="PREFIX*") se o broker suportar
+      2) Candidatos por código de mês B3 (ex: WINV26, WDOU26, DI1F27)
+      3) Fallback: varrer symbols_get() completo só se 1 e 2 falharem
+    """
+
+    terminal = mt5.terminal_info()
+    if terminal is None or not getattr(terminal, "connected", False):
+        print(f"   ⚠️ obter_contratos({prefixo}): MT5 sem conexão — abortando busca.")
         return []
 
-    contratos = []
-    agora_dt = datetime.now()
-    for s in simbolos:
-        nome = s.name
+    def _eh_contrato_valido(nome: str) -> bool:
         if not nome.startswith(prefixo):
-            continue
+            return False
         if "$" in nome or "@" in nome:
-            continue
-        if not _eh_futuro_datado(nome, prefixo):
-            continue
+            return False
+        # opções: C/P após o prefixo (heurística)
+        resto = nome[len(prefixo):]
+        if "C" in resto or "P" in resto:
+            # DI1 e WIN usam letras de mês; letras de opção costumam vir no meio
+            # Mantém filtro leve: se terminar com C/P + dígitos de strike, ignora
+            if any(ch.isdigit() for ch in resto) and (resto.endswith("C") or resto.endswith("P")):
+                return False
+        return True
 
-        mt5.symbol_select(nome, True)
-        tick = mt5.symbol_info_tick(nome)
-        volume = _f(tick.volume) if tick else 0.0
-        bid = _f(tick.bid) if tick else 0.0
-        ask = _f(tick.ask) if tick else 0.0
-        last = _f(tick.last) if tick else 0.0
-
-        expiracao = getattr(s, "expiration_time", 0) or 0
-        exp_dt = None
-        if expiracao:
+    def _monta_info(s) -> dict:
+        nome = s.name
+        data_expiracao = getattr(s, "expiration_time", 0) or 0
+        if data_expiracao:
             try:
-                exp_dt = datetime.fromtimestamp(expiracao)
+                data_expiracao = datetime.fromtimestamp(data_expiracao)
             except Exception:
-                exp_dt = None
+                data_expiracao = None
+        else:
+            data_expiracao = None
 
-        if exp_dt and exp_dt <= agora_dt:
-            continue
+        tick = mt5.symbol_info_tick(nome)
+        if tick:
+            volume = float(getattr(tick, "volume", 0) or 0)
+            bid = float(getattr(tick, "bid", 0) or 0)
+            ask = float(getattr(tick, "ask", 0) or 0)
+            last = float(getattr(tick, "last", 0) or 0)
+        else:
+            volume = bid = ask = last = 0.0
 
-        contratos.append({
+        return {
             "nome": nome,
-            "expiracao": exp_dt,
+            "simbolo": s,
+            "expiracao": data_expiracao,
             "volume": volume,
             "bid": bid,
             "ask": ask,
             "last": last,
-            "liquidez": volume + (1.0 if last > 0 else 0.0) + (1.0 if bid > 0 and ask > 0 else 0.0),
-        })
+        }
+
+    contratos = []
+    vistos = set()
+
+    # ---- 1) Filtro por grupo (rápido) ----
+    for group in (f"{prefixo}*", f"*{prefixo}*"):
+        try:
+            simbolos = mt5.symbols_get(group=group)
+        except Exception:
+            simbolos = None
+        if not simbolos:
+            continue
+        print(f"   🔎 {prefixo}: {len(simbolos)} símbolos via group='{group}'")
+        for s in simbolos:
+            nome = s.name
+            if nome in vistos or not _eh_contrato_valido(nome):
+                continue
+            vistos.add(nome)
+            mt5.symbol_select(nome, True)
+            contratos.append(_monta_info(s))
+        if contratos:
+            return contratos
+
+    # ---- 2) Candidatos explícitos (mês B3 + ano) ----
+    # Códigos de mês B3: F G H J K M N Q U V X Z
+    meses = list("FGHJKMNQUVXZ")
+    agora_dt = datetime.now()
+    anos = [agora_dt.year % 100, (agora_dt.year + 1) % 100]
+    candidatos = []
+    for aa in anos:
+        for m in meses:
+            candidatos.append(f"{prefixo}{m}{aa:02d}")
+    # Contínuos / genéricos comuns na Genial
+    if prefixo == "WIN":
+        candidatos.extend(["WIN$", "WINV26", "WINZ26"])
+    elif prefixo == "WDO":
+        candidatos.extend(["WDO$", "WDOU26", "WDOV26"])
+    elif prefixo == "DI1":
+        candidatos.extend(["DI1F27", "DI1F28", "DI1F29"])
+
+    print(f"   🔎 {prefixo}: testando {len(candidatos)} candidatos diretos...")
+    for nome in candidatos:
+        if nome in vistos:
+            continue
+        info_s = mt5.symbol_info(nome)
+        if info_s is None:
+            continue
+        if not _eh_contrato_valido(nome):
+            continue
+        vistos.add(nome)
+        mt5.symbol_select(nome, True)
+        contratos.append(_monta_info(info_s))
+
+    if contratos:
+        print(f"   ✅ {prefixo}: {len(contratos)} contratos via candidatos")
+        return contratos
+
+    # ---- 3) Fallback completo (pode ser lento) ----
+    print(f"   ⏳ {prefixo}: fallback symbols_get() completo (pode demorar)...")
+    simbolos = mt5.symbols_get()
+    if simbolos is None:
+        print(f"   ⚠️ symbols_get() retornou None (prefixo={prefixo})")
+        return []
+
+    for s in simbolos:
+        nome = s.name
+        if nome in vistos or not _eh_contrato_valido(nome):
+            continue
+        vistos.add(nome)
+        mt5.symbol_select(nome, True)
+        contratos.append(_monta_info(s))
+
+    print(f"   ✅ {prefixo}: {len(contratos)} contratos via varredura completa")
     return contratos
 
 
-def _tentar_continuo(prefixo: str) -> Optional[dict]:
-    """Fallback WIN$ / WDO$ quando a corretora não lista o datado."""
-    nome = f"{prefixo}$"
-    if not mt5.symbol_select(nome, True):
-        return None
-    tick = mt5.symbol_info_tick(nome)
-    if tick is None:
-        return None
-    last = _f(tick.last)
-    bid = _f(tick.bid)
-    ask = _f(tick.ask)
-    if last <= 0 and bid <= 0 and ask <= 0:
-        return None
-    return {
-        "nome": nome,
-        "expiracao": None,
-        "volume": _f(tick.volume),
-        "bid": bid,
-        "ask": ask,
-        "last": last,
-        "liquidez": 0,
-    }
+def selecionar_contrato(prefixo):
 
-
-def selecionar_contrato(prefixo: str) -> tuple:
-    """
-    Frente líquida: entre os 2 vencimentos mais próximos, pega o de maior volume.
-    Se não houver datado, tenta PREFIXO$.
-    """
     contratos = obter_contratos(prefixo)
-    if not contratos:
-        cont = _tentar_continuo(prefixo)
-        return (cont, []) if cont else (None, [])
 
-    com_exp = [c for c in contratos if c["expiracao"]]
-    com_exp.sort(key=lambda x: x["expiracao"].timestamp())
-    frente = com_exp[:2] if com_exp else contratos[:2]
-    frente.sort(key=lambda x: -x["liquidez"])
-    principal = frente[0]
-    # lista vigente ordenada por vencimento
-    vigentes = com_exp if com_exp else contratos
-    vigentes.sort(key=lambda x: (x["expiracao"].timestamp() if x["expiracao"] else 9e18, -x["volume"]))
-    return principal, vigentes
+    agora_dt = datetime.now()
+
+    validos = []
+
+    for c in contratos:
+
+        expiracao = c["expiracao"]
+
+        # --------------------------------------------------------
+        # Sem data de vencimento
+        # --------------------------------------------------------
+
+        if expiracao is None:
+            continue
+
+        # --------------------------------------------------------
+        # Contrato vencido
+        # --------------------------------------------------------
+
+        if expiracao <= agora_dt:
+            continue
+
+        # --------------------------------------------------------
+        # Não considerar contratos sem mercado
+        # --------------------------------------------------------
+
+        if (
+            c["bid"] <= 0
+            and c["ask"] <= 0
+            and c["last"] <= 0
+        ):
+            continue
+
+        validos.append(c)
+
+    # ------------------------------------------------------------
+    # Ordenação
+    #
+    # Primeiro:
+    #   contrato vigente
+    #
+    # Depois:
+    #   maior volume
+    #
+    # ------------------------------------------------------------
+
+    validos.sort(
+        key=lambda x: (
+            x["volume"],
+            -x["expiracao"].timestamp()
+        ),
+        reverse=True
+    )
+
+    if not validos:
+
+        return None, []
+
+    principal = validos[0]
+
+    return principal, validos
 
 
-def obter_preco_teorico(nome: str) -> Optional[float]:
+# ================================================================
+# PREÇO TEÓRICO
+# ================================================================
+
+def obter_preco_teorico(nome):
+
     info = mt5.symbol_info(nome)
+
     if info is None:
         return None
+
     try:
-        valor = float(getattr(info, "price_theoretical", 0.0) or 0.0)
-        return valor if valor > 0 else None
+
+        valor = getattr(
+            info,
+            "price_theoretical",
+            None
+        )
+
+        if valor is None:
+            return None
+
+        valor = float(valor)
+
+        if valor <= 0:
+            return None
+
+        return valor
+
     except Exception:
+
         return None
 
 
-def obter_book(nome: str) -> dict:
+# ================================================================
+# MARKET BOOK
+# ================================================================
+
+def obter_book(nome):
+
     resultado = {
         "disponivel": False,
         "quantidade_niveis": 0,
         "bids": [],
-        "asks": [],
+        "asks": []
     }
-    if os.getenv("MT5_COLETAR_BOOK", "0") not in ("1", "true", "True", "yes"):
-        return resultado
+
     try:
+
+        # --------------------------------------------------------
+        # Assina Market Book
+        # --------------------------------------------------------
+
         if not mt5.market_book_add(nome):
+
             return resultado
+
+        # --------------------------------------------------------
+        # Obtém Book
+        # --------------------------------------------------------
+
         book = mt5.market_book_get(nome)
+
         if not book:
+
             mt5.market_book_release(nome)
+
             return resultado
+
         resultado["disponivel"] = True
+
         for nivel in book:
-            tipo = getattr(nivel, "type", None)
+
+            tipo = getattr(
+                nivel,
+                "type",
+                None
+            )
+
+            preco = float(
+                getattr(
+                    nivel,
+                    "price",
+                    0
+                ) or 0
+            )
+
+            volume = float(
+                getattr(
+                    nivel,
+                    "volume",
+                    0
+                ) or 0
+            )
+
             item = {
-                "preco": _f(getattr(nivel, "price", 0.0)),
-                "volume": _f(getattr(nivel, "volume", 0.0)),
+                "preco": preco,
+                "volume": volume
             }
+
+            # ----------------------------------------------------
+            # Tipos do Market Book
+            # ----------------------------------------------------
+
             if tipo == mt5.BOOK_TYPE_BUY:
+
                 resultado["bids"].append(item)
+
             elif tipo == mt5.BOOK_TYPE_SELL:
+
                 resultado["asks"].append(item)
+
         resultado["quantidade_niveis"] = len(book)
+
         mt5.market_book_release(nome)
+
     except Exception:
+
         try:
             mt5.market_book_release(nome)
         except Exception:
             pass
+
     return resultado
 
 
-def _ohlc_d1(nome: str) -> dict:
-    out = {"open": None, "high": None, "low": None, "close": None, "prev_close_d1": None}
-    rates = mt5.copy_rates_from_pos(nome, mt5.TIMEFRAME_D1, 0, 2)
-    if rates is None or len(rates) == 0:
-        return out
-    r0 = rates[0]
-    try:
-        out["open"] = float(r0["open"])
-        out["high"] = float(r0["high"])
-        out["low"] = float(r0["low"])
-        out["close"] = float(r0["close"])
-    except Exception:
-        out["open"] = float(r0[1])
-        out["high"] = float(r0[2])
-        out["low"] = float(r0[3])
-        out["close"] = float(r0[4])
-    if len(rates) > 1:
-        r1 = rates[1]
-        try:
-            out["prev_close_d1"] = float(r1["close"])
-        except Exception:
-            out["prev_close_d1"] = float(r1[4])
-    return out
+# ================================================================
+# COLETA DE UM ATIVO
+# ================================================================
 
+def coletar_ativo(nome_ativo, configuracao):
 
-def _preco_last(tick, teorico: Optional[float]) -> tuple[float, str]:
-    last = _f(tick.last)
-    if last > 0:
-        return last, "last"
-    bid, ask = _f(tick.bid), _f(tick.ask)
-    if bid > 0 and ask > 0:
-        return round((bid + ask) / 2.0, 2), "mid_bid_ask"
-    if bid > 0:
-        return bid, "bid"
-    if ask > 0:
-        return ask, "ask"
-    if teorico and teorico > 0:
-        return float(teorico), "teorico"
-    return 0.0, "vazio"
-
-
-def coletar_ativo(nome_ativo: str, configuracao: dict) -> dict:
     prefixo = configuracao["prefixo"]
-    principal, contratos_validos = selecionar_contrato(prefixo)
+
+    principal, contratos = selecionar_contrato(prefixo)
 
     if principal is None:
-        print(f"\n{nome_ativo}: nenhum contrato vigente")
-        return {"ativo": nome_ativo, "status": "sem_contrato"}
+
+        print()
+        print(f"📌 {nome_ativo}")
+        print("   ❌ Nenhum contrato vigente encontrado")
+
+        return {
+            "ativo": nome_ativo,
+            "status": "sem_contrato"
+        }
 
     nome = principal["nome"]
-    mt5.symbol_select(nome, True)
-    tick = mt5.symbol_info_tick(nome)
-    info_symbol = mt5.symbol_info(nome)
 
-    if tick is None or info_symbol is None:
-        print(f"\n{nome_ativo} ({nome}): sem tick")
-        return {"ativo": nome_ativo, "status": "sem_tick", "contrato": nome}
+    # ------------------------------------------------------------
+    # Garantir símbolo selecionado
+    # ------------------------------------------------------------
+
+    mt5.symbol_select(nome, True)
+
+    tick = mt5.symbol_info_tick(nome)
+
+    if tick is None:
+
+        print()
+        print(f"📌 {nome_ativo}")
+        print(f"   Contrato: {nome}")
+        print("   ❌ Não foi possível obter tick")
+
+        return {
+            "ativo": nome_ativo,
+            "status": "sem_tick",
+            "contrato": nome
+        }
+
+    # ------------------------------------------------------------
+    # Preços
+    # ------------------------------------------------------------
+
+    bid = float(
+        getattr(tick, "bid", 0) or 0
+    )
+
+    ask = float(
+        getattr(tick, "ask", 0) or 0
+    )
+
+    last = float(
+        getattr(tick, "last", 0) or 0
+    )
+
+    volume = float(
+        getattr(tick, "volume", 0) or 0
+    )
+
+    spread = None
+
+    if bid > 0 and ask > 0:
+
+        spread = ask - bid
+
+    # ------------------------------------------------------------
+    # OHLC D1 + fechamento anterior (para pivots / WIN_FUT / WDO_FUT)
+    # ------------------------------------------------------------
+
+    open_d1 = None
+    high_d1 = None
+    low_d1 = None
+    close_d1 = None
+    volume_d1 = None
+    prev_close = None
+    change_percent = None
+
+    try:
+        info = mt5.symbol_info(nome)
+        if info is not None:
+            prev_close = float(getattr(info, "session_close", 0) or 0) or None
+
+        # copy_rates_from_pos: array ordenado do mais ANTIGO → mais RECENTE
+        # rates[-1] = barra atual (hoje) | rates[-2] = dia anterior
+        rates = mt5.copy_rates_from_pos(nome, mt5.TIMEFRAME_D1, 0, 3)
+        if rates is not None and len(rates) > 0:
+            r_atual = rates[-1]
+            try:
+                open_d1 = float(r_atual["open"])
+                high_d1 = float(r_atual["high"])
+                low_d1 = float(r_atual["low"])
+                close_d1 = float(r_atual["close"])
+                volume_d1 = (
+                    float(r_atual["tick_volume"])
+                    if "tick_volume" in r_atual.dtype.names
+                    else None
+                )
+            except Exception:
+                open_d1 = float(r_atual[1])
+                high_d1 = float(r_atual[2])
+                low_d1 = float(r_atual[3])
+                close_d1 = float(r_atual[4])
+                volume_d1 = float(r_atual[5]) if len(r_atual) > 5 else None
+
+            # Fechamento anterior: session_close ou close da barra D1 anterior
+            if (prev_close is None or prev_close <= 0) and len(rates) >= 2:
+                r_ant = rates[-2]
+                try:
+                    prev_close = float(r_ant["close"])
+                except Exception:
+                    prev_close = float(r_ant[4])
+
+        preco_ref = last if last > 0 else (close_d1 or 0)
+        if prev_close and prev_close > 0 and preco_ref > 0:
+            change_percent = round(((preco_ref / prev_close) - 1) * 100, 4)
+    except Exception as e:
+        print(f"   ⚠️ OHLC D1 ({nome}): {e}")
+
+    # ------------------------------------------------------------
+    # Preço teórico
+    # ------------------------------------------------------------
 
     teorico = obter_preco_teorico(nome)
-    last, fonte_last = _preco_last(tick, teorico)
-    bid = _f(tick.bid)
-    ask = _f(tick.ask)
-    volume = _f(tick.volume)
 
-    ohlc = _ohlc_d1(nome)
-    session_close = _f(getattr(info_symbol, "session_close", 0.0))
-    prev_close = session_close if session_close > 0 else (ohlc["prev_close_d1"] or 0.0)
-
-    spread = round(ask - bid, 2) if bid > 0 and ask > 0 else None
-    var_abs = round(last - prev_close, 2) if prev_close > 0 and last > 0 else 0.0
-    var_pct = round(((last / prev_close) - 1) * 100, 2) if prev_close > 0 and last > 0 else 0.0
-
-    tick_time = getattr(tick, "time", 0) or 0
-    idade = None
-    stale = False
-    if tick_time:
-        try:
-            idade = int((datetime.now() - datetime.fromtimestamp(tick_time)).total_seconds())
-            stale = idade > TICK_STALE_SEG
-        except Exception:
-            idade = None
+    # ------------------------------------------------------------
+    # Book
+    # ------------------------------------------------------------
 
     book = obter_book(nome)
 
+    # ------------------------------------------------------------
+    # Contratos vigentes
+    # ------------------------------------------------------------
+
     contratos_saida = []
-    for c in contratos_validos:
+
+    for c in contratos:
+
         contratos_saida.append({
             "contrato": c["nome"],
-            "expiracao": c["expiracao"].isoformat() if c["expiracao"] else None,
+            "expiracao": (
+                c["expiracao"].isoformat()
+                if c["expiracao"]
+                else None
+            ),
             "volume": c["volume"],
             "bid": c["bid"],
             "ask": c["ask"],
-            "last": c["last"],
+            "last": c["last"]
         })
 
-    status = "OK" if last > 0 else "SEM_LAST"
-    if stale:
-        status = "STALE" if last > 0 else "SEM_LAST_STALE"
+    # ------------------------------------------------------------
+    # Resultado
+    # ------------------------------------------------------------
 
     dados = {
+
         "ativo": nome_ativo,
+
         "descricao": configuracao["descricao"],
+
         "contrato_principal": nome,
+
         "timestamp": agora(),
+
         "bid": bid,
+
         "ask": ask,
+
         "last": last,
-        "fonte_last": fonte_last,
-        "open": ohlc["open"],
-        "high": ohlc["high"],
-        "low": ohlc["low"],
-        "session_close": session_close,
-        "prev_close": prev_close,
-        "change_percent": var_pct,
-        "change_abs": var_abs,
+
         "volume": volume,
+
         "spread": spread,
+
+        # OHLC diário (pivots / WIN_FUT / WDO_FUT)
+        "open": open_d1,
+        "high": high_d1,
+        "low": low_d1,
+        "close": close_d1 if close_d1 else (last if last > 0 else None),
+        "volume_d1": volume_d1,
+        "prev_close": prev_close,
+        "change_percent": change_percent,
+        "session_close": prev_close,
+
         "preco_teorico": teorico,
-        "tick_time": datetime.fromtimestamp(tick_time).isoformat() if tick_time else None,
-        "tick_idade_seg": idade,
-        "tick_stale": stale,
-        "vencimento": principal["expiracao"].isoformat() if principal.get("expiracao") else None,
+
+        "vencimento": (
+            principal["expiracao"].isoformat()
+            if principal["expiracao"]
+            else None
+        ),
+
         "market_book": book,
+
         "contratos_vigentes": contratos_saida,
-        "status": status,
+
+        "status": "OK"
     }
 
-    print(f"\n{nome_ativo} ({nome}) [{status}] last={last} via {fonte_last} prev={prev_close} var={var_pct}%")
-    if stale:
-        print(f"   ⚠️ tick stale ({idade}s)")
+    # ------------------------------------------------------------
+    # Console
+    # ------------------------------------------------------------
+
+    print()
+    print(f"📌 {nome_ativo}")
+    print(f"   Contrato principal: {nome}")
+
+    print()
+    print("   Contratos vigentes:")
+
+    for c in contratos_saida:
+
+        print(
+            f"      • {c['contrato']} | "
+            f"Volume: {c['volume']}"
+        )
+
+    print()
+    print(f"   Bid:    {bid}")
+    print(f"   Ask:    {ask}")
+    print(f"   Last:   {last}")
+    print(f"   Volume: {volume}")
+    print(f"   Spread: {spread}")
+    if high_d1 is not None:
+        print(f"   D1 O/H/L/C: {open_d1} / {high_d1} / {low_d1} / {close_d1}")
+    if prev_close:
+        print(f"   Prev close: {prev_close} | var: {change_percent}%")
+
+    if teorico is not None:
+
+        print(
+            f"   Preço teórico: {teorico}"
+        )
+
+    else:
+
+        print(
+            "   Preço teórico: "
+            "⚠️ indisponível"
+        )
+
+    # ------------------------------------------------------------
+    # Book
+    # ------------------------------------------------------------
+
+    if book["disponivel"]:
+
+        print(
+            "   Market Book: "
+            f"✅ {book['quantidade_niveis']} níveis"
+        )
+
+    else:
+
+        print(
+            "   Market Book: "
+            "⚠️ indisponível/vazio"
+        )
+
     return dados
 
 
-def _podar_historico() -> None:
-    try:
-        arquivos = [
-            os.path.join(HISTORICO_DIR, n)
-            for n in os.listdir(HISTORICO_DIR)
-            if n.endswith(".json")
-        ]
-        arquivos.sort(key=lambda p: os.path.getmtime(p), reverse=True)
-        for velho in arquivos[MAX_HISTORICO:]:
-            try:
-                os.remove(velho)
-            except OSError:
-                pass
-    except OSError:
-        pass
+# ================================================================
+# SALVAR JSON
+# ================================================================
 
+def salvar_json(dados):
 
-def salvar_json(dados: dict) -> str:
-    with open(ARQUIVO_ATUAL, "w", encoding="utf-8") as f:
-        json.dump(dados, f, ensure_ascii=False, indent=4)
+    # ------------------------------------------------------------
+    # Arquivo atual
+    # ------------------------------------------------------------
+
+    with open(
+        ARQUIVO_ATUAL,
+        "w",
+        encoding="utf-8"
+    ) as arquivo:
+
+        json.dump(
+            dados,
+            arquivo,
+            ensure_ascii=False,
+            indent=4
+        )
+
+    # ------------------------------------------------------------
+    # Histórico
+    # ------------------------------------------------------------
 
     agora_dt = datetime.now()
-    nome_historico = f"MT5_v2_3_{agora_dt.strftime('%Y%m%d_%H%M%S')}.json"
-    caminho_historico = os.path.join(HISTORICO_DIR, nome_historico)
-    with open(caminho_historico, "w", encoding="utf-8") as f:
-        json.dump(dados, f, ensure_ascii=False, indent=4)
-    _podar_historico()
-    return caminho_historico
+
+    nome_historico = (
+        f"MT5_v2_2_"
+        f"{agora_dt.strftime('%Y%m%d_%H%M%S_%f')}.json"
+    )
+
+    arquivo_historico = os.path.join(
+        HISTORICO_DIR,
+        nome_historico
+    )
+
+    with open(
+        arquivo_historico,
+        "w",
+        encoding="utf-8"
+    ) as arquivo:
+
+        json.dump(
+            dados,
+            arquivo,
+            ensure_ascii=False,
+            indent=4
+        )
+
+    return arquivo_historico
 
 
-def executar_coleta_mt5_v2(desconectar: bool = True) -> Optional[dict]:
+# ================================================================
+# FUNÇÃO PARA INTEGRAÇÃO COM O PIPELINE (Coletor.py)
+# ================================================================
+
+def executar_coleta_mt5_v2():
     """
-    deso:
-      desconectar=False  → deixa o MT5 aberto para o Coletor.py coletar ações B3
-                           no mesmo ciclo (depois chame desconectar_mt5()).
+    Função principal para ser chamada pelo Coletor.py / pipeline.
+    Retorna o dicionário completo dos dados coletados ou None em caso de falha.
+    Também grava Dados_MT5_v2_2.json e o histórico.
+    Nunca deve travar o pipeline: se MT5 estiver offline, retorna None cedo.
     """
     if not conectar_mt5():
         return {
-            "versao_coletor": VERSAO,
+            "versao_coletor": "2.2",
             "timestamp": agora(),
             "mt5": {"conectado": False},
             "ativos": {},
-            "status": "ERRO_CONEXAO",
+            "status": "OFFLINE",
         }
 
     try:
-        dados = {
-            "versao_coletor": VERSAO,
-            "timestamp": agora(),
-            "mt5": {"conectado": True, "versao": list(mt5.version()) if mt5.version() else None},
-            "ativos": {},
-            "status": "OK",
-        }
-        falhas = 0
-        for nome_ativo, config in ATIVOS.items():
-            item = coletar_ativo(nome_ativo, config)
-            dados["ativos"][nome_ativo] = item
-            if item.get("status") not in ("OK", "STALE"):
-                falhas += 1
-        if falhas:
-            dados["status"] = "PARCIAL"
-        salvar_json(dados)
-        return dados
-    except Exception as erro:
-        print(f"\n❌ ERRO DURANTE A COLETA v{VERSAO}: {erro}")
-        return {
-            "versao_coletor": VERSAO,
-            "timestamp": agora(),
-            "mt5": {"conectado": True},
-            "ativos": {},
-            "status": "ERRO",
-            "erro": str(erro),
-        }
-    finally:
-        if desconectar:
-            desconectar_mt5()
+        timestamp = agora()
 
+        print()
+        print("=" * 70)
+        print("📊 COLETOR MT5 v2.2 (integração pipeline)")
+        print("=" * 70)
+        print(f"🕒 Coleta: {timestamp}")
+
+        dados = {
+            "versao_coletor": "2.2",
+            "timestamp": timestamp,
+            "mt5": {
+                "conectado": True,
+                "versao": mt5.version()
+            },
+            "ativos": {},
+            "status": "OK"
+        }
+
+        for nome_ativo, configuracao in ATIVOS.items():
+            print(f"\n➡️  Coletando {nome_ativo} ({configuracao['descricao']})...")
+            dados["ativos"][nome_ativo] = coletar_ativo(
+                nome_ativo,
+                configuracao
+            )
+
+        print()
+        print("=" * 70)
+
+        arquivo_historico = salvar_json(dados)
+
+        print()
+        print("💾 Arquivo atual:")
+        print(f"   {ARQUIVO_ATUAL}")
+        print()
+        print("📚 Histórico:")
+        print(f"   {arquivo_historico}")
+
+        return dados
+
+    except Exception as erro:
+        print()
+        print("❌ ERRO DURANTE A COLETA v2.2")
+        print(f"   {erro}")
+        return None
+
+    finally:
+        mt5.shutdown()
+        print()
+        print("🔌 MT5 desconectado.")
+        print()
+
+
+# ================================================================
+# MAIN (execução direta)
+# ================================================================
+
+def main():
+    executar_coleta_mt5_v2()
+
+
+# ================================================================
+# EXECUÇÃO
+# ================================================================
 
 if __name__ == "__main__":
-    executar_coleta_mt5_v2(desconectar=True)
+    main()
+
+
+

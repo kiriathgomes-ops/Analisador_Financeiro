@@ -706,13 +706,19 @@ def executar_pipeline_coleta():
         try:
             from Coletor_MT5_v2_2 import executar_coleta_mt5_v2
             dados_mt5 = executar_coleta_mt5_v2()
-            if dados_mt5 and dados_mt5.get("status") == "OK":
+            status_mt5 = (dados_mt5 or {}).get("status")
+            if status_mt5 == "OK":
                 print("   ✅ MT5 v2.2 coletado com sucesso.")
                 mt5_ok = True
+            elif status_mt5 == "OFFLINE":
+                print("   ⚠️ MT5 offline — usando cache de LAST/FUT se disponível.")
             else:
-                print("   ⚠️ Coleta MT5 v2.2 retornou status não-OK.")
+                print(f"   ⚠️ Coleta MT5 v2.2 status={status_mt5!r}.")
         except ImportError:
             print("   ⚠️ Módulo Coletor_MT5_v2_2 não encontrado.")
+        except KeyboardInterrupt:
+            print("   ⚠️ Coleta MT5 interrompida pelo usuário.")
+            raise
         except Exception as e:
             print(f"   ⚠️ Erro ao executar Coletor_MT5_v2_2: {e}")
 
@@ -730,44 +736,112 @@ def executar_pipeline_coleta():
             except Exception as e:
                 print(f"   ⚠️ Erro ao executar Coletor_MT5 (v1): {e}")
 
-        # 6.3 Extrai os lasts (lê preferencialmente o v2.2, com fallback automático)
+        # 6.3 Extrai lasts + OHLC e monta WIN_FUT / WDO_FUT a partir do MT5
         lasts = capturar_last_do_mt5()
-        if lasts:
-            timestamp_atual = datetime.now().isoformat()
-            if "WIN" in lasts:
-                fonte_usada = lasts["WIN"].get("fonte", "MT5")
-                coletas.append({
-                    "ativo": "WIN_LAST_TICK",
-                    "fonte": fonte_usada,
-                    "timestamp": timestamp_atual,
-                    "status": "OK",
-                    "dados_reais": {
-                        "close": lasts["WIN"]["last"],
-                        "open": None,
-                        "high": None,
-                        "low": None,
-                        "change_percent": None,
-                        "volume": None,
-                    },
-                })
-            if "WDO" in lasts:
-                fonte_usada = lasts["WDO"].get("fonte", "MT5")
-                coletas.append({
-                    "ativo": "WDO_LAST_TICK",
-                    "fonte": fonte_usada,
-                    "timestamp": timestamp_atual,
-                    "status": "OK",
-                    "dados_reais": {
-                        "close": lasts["WDO"]["last"],
-                        "open": None,
-                        "high": None,
-                        "low": None,
-                        "change_percent": None,
-                        "volume": None,
-                    },
-                })
+        mt5_json = {}
+        if os.path.exists(FILE_MT5_V2):
+            try:
+                with open(FILE_MT5_V2, "r", encoding="utf-8") as f:
+                    mt5_json = json.load(f)
+            except Exception:
+                mt5_json = {}
+        ativos_mt5 = (mt5_json.get("ativos") or {}) if isinstance(mt5_json, dict) else {}
+
+        timestamp_atual = datetime.now().isoformat()
+
+        # Mapa: chave MT5 → (ativo_last, ativo_futuro_bruto para MAPEAMENTO_TICKERS)
+        mapa_mt5 = {
+            "WIN": ("WIN_LAST_TICK", "BMFBOVESPA:WIN1!"),
+            "WDO": ("WDO_LAST_TICK", "BMFBOVESPA:WDO1!"),
+        }
+
+        for prefixo, (ativo_last, ativo_fut) in mapa_mt5.items():
+            info = ativos_mt5.get(prefixo) or {}
+            last_val = None
+            if lasts and prefixo in lasts:
+                last_val = lasts[prefixo].get("last")
+                fonte_usada = lasts[prefixo].get("fonte", "MT5_v2.2")
+            else:
+                last_val = info.get("last")
+                fonte_usada = "MT5_v2.2"
+
+            if last_val is None or float(last_val or 0) <= 0:
+                continue
+
+            last_val = float(last_val)
+            open_v = info.get("open")
+            high_v = info.get("high")
+            low_v = info.get("low")
+            # close do futuro: last (mais atual) ou close D1
+            close_v = last_val
+            vol_v = info.get("volume_d1") or info.get("volume")
+            var_pct = info.get("change_percent")
+            prev_c = info.get("prev_close") or info.get("session_close")
+
+            if var_pct is None and prev_c and float(prev_c or 0) > 0:
+                var_pct = round(((last_val / float(prev_c)) - 1) * 100, 4)
+
+            # LAST TICK (overnight / referência)
+            coletas.append({
+                "ativo": ativo_last,
+                "fonte": fonte_usada,
+                "timestamp": timestamp_atual,
+                "status": "OK",
+                "dados_reais": {
+                    "close": last_val,
+                    "open": open_v,
+                    "high": high_v,
+                    "low": low_v,
+                    "change_percent": var_pct,
+                    "volume": vol_v,
+                    "fechamento_anterior": prev_c,
+                },
+            })
+
+            # WIN_FUT / WDO_FUT via MT5 (substitui TradingView WIN1!/WDO1!)
+            # Inclui OHLC D1 para pivots na CalculadoraEstimativaAbertura
+            coletas.append({
+                "ativo": ativo_fut,
+                "fonte": "MT5_v2.2",
+                "timestamp": timestamp_atual,
+                "status": "OK",
+                "dados_reais": {
+                    "close": close_v,
+                    "open": float(open_v) if open_v is not None else None,
+                    "high": float(high_v) if high_v is not None else None,
+                    "low": float(low_v) if low_v is not None else None,
+                    "change_percent": var_pct,
+                    "volume": float(vol_v) if vol_v is not None else None,
+                    "fechamento_anterior": float(prev_c) if prev_c else None,
+                },
+            })
+            print(
+                f"   ✅ {prefixo}_FUT via MT5: last={last_val} "
+                f"OHLC=({open_v}/{high_v}/{low_v}) var={var_pct}"
+            )
     else:
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] Fora da janela de ajuste. LAST TICK NÃO coletado.")
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Fora da janela de ajuste. LAST TICK / FUT MT5 NÃO coletado ao vivo.")
+        # Fora da janela: tenta reutilizar WIN_FUT/WDO_FUT e lasts do cache ROM/RAM
+        for arquivo_cache in [FILE_RAM, FILE_ROM0]:
+            if not os.path.exists(arquivo_cache):
+                continue
+            try:
+                with open(arquivo_cache, "r", encoding="utf-8") as f:
+                    cache = json.load(f)
+                for item in cache.get("coletas", []):
+                    if item.get("ativo") in (
+                        "WIN_LAST_TICK", "WDO_LAST_TICK",
+                        "BMFBOVESPA:WIN1!", "BMFBOVESPA:WDO1!",
+                    ):
+                        item = dict(item)
+                        item["fonte"] = f"CACHE_DISCO ({os.path.basename(arquivo_cache)})"
+                        item["timestamp"] = datetime.now().isoformat()
+                        coletas.append(item)
+                if any(c.get("ativo") == "WIN_LAST_TICK" for c in coletas):
+                    print(f"   ✅ WIN/WDO FUT+LAST reutilizados do cache ({os.path.basename(arquivo_cache)})")
+                    break
+            except Exception as e:
+                print(f"   ⚠️ Cache FUT/LAST ({arquivo_cache}): {e}")
 
     # Monta estrutura da coleta bruta
     conteudo_saida = {

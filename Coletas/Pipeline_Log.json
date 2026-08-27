@@ -1,97 +1,97 @@
 {
-    "data_execucao": "2026-08-27 19:41:11",
-    "status_geral": "ERRO",
+    "data_execucao": "2026-08-27 20:31:33",
+    "status_geral": "SUCESSO",
     "etapas": [
         {
             "etapa": "0 - LIMPEZA DE IMAGENS TRADINGVIEW",
             "script": "Limpar_Imagens_TradingView.py",
-            "inicio": "2026-08-27 19:41:06",
-            "fim": "2026-08-27 19:41:07",
+            "inicio": "2026-08-27 20:31:24",
+            "fim": "2026-08-27 20:31:24",
             "status": "OK"
         },
         {
             "etapa": "1 - COLETA MERCADO GLOBAL",
             "script": "Coletor.py",
-            "inicio": "2026-08-27 19:41:07",
-            "fim": "2026-08-27 19:41:10",
+            "inicio": "2026-08-27 20:31:24",
+            "fim": "2026-08-27 20:31:31",
             "status": "OK"
         },
         {
             "etapa": "2 - COLETA NOTICIAS ECONOMICAS",
             "script": "Coleta_Noticias_Calendario.py",
-            "inicio": "2026-08-27 19:41:10",
-            "fim": "2026-08-27 19:41:10",
+            "inicio": "2026-08-27 20:31:31",
+            "fim": "2026-08-27 20:31:31",
             "status": "OK"
         },
         {
             "etapa": "3 - ANALISE IMPACTO NOTICIAS",
             "script": "Analise_Noticias.py",
-            "inicio": "2026-08-27 19:41:10",
-            "fim": "2026-08-27 19:41:10",
+            "inicio": "2026-08-27 20:31:31",
+            "fim": "2026-08-27 20:31:31",
             "status": "OK"
         },
         {
             "etapa": "4 - VALIDACAO DOS DADOS",
             "script": "Validador.py",
-            "inicio": "2026-08-27 19:41:10",
-            "fim": "2026-08-27 19:41:10",
+            "inicio": "2026-08-27 20:31:31",
+            "fim": "2026-08-27 20:31:31",
             "status": "OK"
         },
         {
             "etapa": "5 - CALCULOS MACRO E INDICADORES",
             "script": "Calculadora.py",
-            "inicio": "2026-08-27 19:41:10",
-            "fim": "2026-08-27 19:41:10",
+            "inicio": "2026-08-27 20:31:31",
+            "fim": "2026-08-27 20:31:31",
             "status": "OK"
         },
         {
             "etapa": "6 - ESTIMATIVA ABERTURA WIN/WDO",
             "script": "CalculadoraEstimativaAbertura.py",
-            "inicio": "2026-08-27 19:41:10",
-            "fim": "2026-08-27 19:41:10",
+            "inicio": "2026-08-27 20:31:31",
+            "fim": "2026-08-27 20:31:31",
             "status": "OK"
         },
         {
             "etapa": "7 - RESULTADO OPERACIONAL",
             "script": "Gerar_Resultado_Operacional_Abertura.py",
-            "inicio": "2026-08-27 19:41:10",
-            "fim": "2026-08-27 19:41:10",
+            "inicio": "2026-08-27 20:31:31",
+            "fim": "2026-08-27 20:31:32",
             "status": "OK"
         },
         {
             "etapa": "8 - ENGINE DE VIES INSTITUCIONAL",
             "script": "Engine_Vies.py",
-            "inicio": "2026-08-27 19:41:10",
-            "fim": "2026-08-27 19:41:10",
+            "inicio": "2026-08-27 20:31:32",
+            "fim": "2026-08-27 20:31:32",
             "status": "OK"
         },
         {
             "etapa": "8.1 - MOTOR SMC POR REGRAS (MT5)",
             "script": "Rodar_SMC_Regras.py",
-            "inicio": "2026-08-27 19:41:10",
-            "fim": "2026-08-27 19:41:11",
+            "inicio": "2026-08-27 20:31:32",
+            "fim": "2026-08-27 20:31:33",
             "status": "OK"
         },
         {
             "etapa": "9 - GERADOR RELATORIO FINAL",
             "script": "Gerar_Relatorio_Mensagem.py",
-            "inicio": "2026-08-27 19:41:11",
-            "fim": "2026-08-27 19:41:11",
+            "inicio": "2026-08-27 20:31:33",
+            "fim": "2026-08-27 20:31:33",
             "status": "OK"
         },
         {
             "etapa": "10 - V2 SESSAO WINFUT",
             "script": "v2_gravar_sessao_win.py",
-            "inicio": "2026-08-27 19:41:11",
-            "fim": "2026-08-27 19:41:11",
+            "inicio": "2026-08-27 20:31:33",
+            "fim": "2026-08-27 20:31:33",
             "status": "OK"
         },
         {
             "etapa": "11 - V2 SESSAO + DECISAO",
             "script": "v2_rodar_decisao_completa.py",
-            "inicio": "2026-08-27 19:41:11",
-            "fim": "2026-08-27 19:41:11",
-            "status": "ERRO"
+            "inicio": "2026-08-27 20:31:33",
+            "fim": "2026-08-27 20:31:33",
+            "status": "OK"
         }
     ]
 }

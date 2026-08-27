@@ -130,6 +130,8 @@ def _ticker_fef2() -> str:
 TICKER_FEF2 = _ticker_fef2()
 
 TICKERS_TRADINGVIEW: List[str] = [
+    # WIN/WDO NÃO vêm mais do TV — OHLC/last via MT5 (WIN_FUT / WDO_FUT)
+    # Ajuste oficial continua em coletar_ajuste_oficial (B3_AJUSTE_*)
     "BMFBOVESPA:DI1F2027",
     "BMFBOVESPA:DI1F2029",
     "TVC:VIX",
@@ -144,7 +146,7 @@ TICKERS_TRADINGVIEW: List[str] = [
     "FX_IDC:USDBRL",
 ]
 
-# WIN/WDO no scanner (ajuste / referência) — usados em coletas dedicadas
+# Referências explícitas (ajuste dedicado / mapeamento)
 TICKER_WIN_TV = "BMFBOVESPA:WIN1!"
 TICKER_WDO_TV = "BMFBOVESPA:WDO1!"
 

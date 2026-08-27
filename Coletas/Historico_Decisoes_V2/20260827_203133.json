@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "timestamp": "2026-08-27T20:33:29.590918",
+    "timestamp": "2026-08-27T20:31:33.630338",
     "versao": "V2.2",
     "fonte": "v2_orchestrator"
   },
@@ -157,7 +157,7 @@
         "metricas": true,
         "noticias": true
       },
-      "timestamp_build": "2026-08-27T20:33:29.590734"
+      "timestamp_build": "2026-08-27T20:31:33.630181"
     }
   },
   "opening_scenario": {
@@ -213,7 +213,7 @@
     }
   },
   "decisao": {
-    "timestamp": "2026-08-27T20:33:29.590901",
+    "timestamp": "2026-08-27T20:31:33.630331",
     "ativo": "WIN",
     "vies_final": "VENDA",
     "confianca": 86,
