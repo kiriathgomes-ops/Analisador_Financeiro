@@ -20,6 +20,15 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+
+
+# Banner migração V1 → V2 (Fase 3)
+st.warning(
+    "⚠️ **PÁGINA LEGADO** — A decisão oficial é a **V2** "
+    "(`Coletas/Decisao_V2.json` e o menu **🎯 Decisão V2**). "
+    "Para comparar V1 × V2 use a tela oficial **Comparador V1 × V2**."
+)
+
 # CSS (mesmo de antes, mantido)
 st.markdown("""
 <style>
@@ -96,6 +105,7 @@ if not dados:
 
 st.title("🔮 Previsão Inteligente de Abertura")
 st.caption("Baseado em dados do pipeline, gap, ajuste, cenários e comparativo com legado")
+st.warning("⚠️ O motor V1 (Core Engine) está sendo descontinuado. A decisão oficial é gerada exclusivamente pelo V2.")
 
 ts = dados.get("timestamp", "")
 if ts:

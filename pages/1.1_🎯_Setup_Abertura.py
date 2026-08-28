@@ -231,6 +231,7 @@ TICKER_MAP = {
 COLETAS_DIR = Path(BASE_DIR) / "Coletas"
 PROMPT_DIR = Path(BASE_DIR) / "PromptIA"
 
+
 ARQUIVOS = {
     "noticias_0900": COLETAS_DIR / "Noticias_Calendario_0900.json",
     "metricas": COLETAS_DIR / "Metricas_Calculadas.json",
@@ -353,6 +354,12 @@ class SetupService:
         self.cfg = config
         self.dados = dados
         self._parse()
+
+        # Força a não usar V1, mesmo se presente
+        self.decisao_v2_raw = self.dados.get("decisao_v2", {}) or {}
+        self.tem_v2 = bool(self.decisao_v2_raw.get("decisao"))
+        # Ignora completamente a chave "decisao" (V1)
+        self.decisao_v1_raw = {}  # <-- força vazio
 
     def _parse(self):
         noticias = self.dados.get("noticias_0900", {})
@@ -1338,8 +1345,8 @@ def render_sidebar_09h():
         "Notícias": ARQUIVOS["noticias_0900"],
         "Métricas": ARQUIVOS["metricas"],
         "Estimativa": ARQUIVOS["estimativa"],
-        "Decisão V1": ARQUIVOS["decisao"],
-        "Decisão V2": ARQUIVOS["decisao_v2"],
+        "Decisão V1 (legado)": ARQUIVOS["decisao"],
+        "Decisão V2 (oficial)": ARQUIVOS["decisao_v2"],
         "Tendências": ARQUIVOS["tendencias"],
         "Resultado": ARQUIVOS["resultado_operacional"],
         "Análise SMC": ARQUIVOS["analise_smc"],
@@ -1361,6 +1368,7 @@ def render_bloco_decisao_v2(service: SetupService):
     """Card prioritário com a decisão do motor V2."""
     st.markdown("---")
     st.subheader("🚀 Decisão V2 (motor prioritário)")
+    st.info("✅ Esta é a decisão oficial do motor V2. O motor V1 (Core Engine) foi descontinuado.")
 
     if not service.tem_decisao_v2():
         st.warning(
@@ -1994,13 +2002,15 @@ def render_bloco_2_decisao_risco(service: SetupService):
             st.caption(f"Alvo ≈ {da.preco_atual - CONFIG.alvo_min_pts:,.0f}-")
 
     with col_core:
-        st.markdown("#### Core Engine (V1)")
-        fonte = "V2 ativa no topo" if service.tem_decisao_v2() else "V1 (fallback)"
-        st.caption(f"Fonte prioritária: **{fonte}**")
-        st.info(f"""
-**WIN:** `{cw.vies}` (score: {cw.score})
-**WDO:** `{cwdo.vies}` (score: {cwdo.score})
-        """)
+         st.markdown("#### Core Engine (V2)")
+         st.caption("Fonte oficial: **Decisao_V2.json**")
+         d2 = service.decisao_v2()
+         st.info(f"""
+    **WIN:** `{d2.get('vies', 'NEUTRO')}` (confiança: {d2.get('confianca', 0)}%)
+    **Entrada:** {d2.get('entrada', '—')}  |  **Stop:** {d2.get('stop', '—')}
+    **Alvo 1:** {d2.get('alvo1', '—')}  |  **Alvo 2:** {d2.get('alvo2', '—')}
+         """)
+
 
     if cw.fatores:
         with st.expander("Fatores relevantes"):
@@ -2783,12 +2793,13 @@ def main():
     dados_tendencias = dados.get("tendencias", {})
     fonte_dados = "DadosAtivosUnificados.json" if ativos else "N/A"
 
+    # "decisao": dados.get("decisao", {}),
     # Dados para o 09h
     dados_09h = {
         "noticias_0900": dados.get("noticias_0900", {}),
         "metricas": dados.get("metricas", {}),
         "estimativa": dados.get("estimativa", {}),
-        "decisao": dados.get("decisao", {}),
+   
         "decisao_v2": dados.get("decisao_v2", {}),
         "ativos": ativos_data,
         "tendencias": dados_tendencias,

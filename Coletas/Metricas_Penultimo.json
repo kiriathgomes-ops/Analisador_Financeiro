@@ -1,13 +1,13 @@
 {
   "atual": {
-    "indicador_mercado_externo": 1.81,
-    "indicador_adrs_brasileiras": -2.87,
-    "timestamp": "2026-08-27T10:24:03.581917"
+    "indicador_mercado_externo": 5.0,
+    "indicador_adrs_brasileiras": 0.86,
+    "timestamp": "2026-08-27T23:04:03.902071"
   },
   "anterior": {
-    "indicador_mercado_externo": 1.75,
-    "indicador_adrs_brasileiras": -2.87,
-    "timestamp": "2026-08-27T10:19:03.528714"
+    "indicador_mercado_externo": 4.86,
+    "indicador_adrs_brasileiras": 0.86,
+    "timestamp": "2026-08-27T22:59:04.541113"
   },
-  "atualizado_em": "2026-08-27T10:26:04"
+  "atualizado_em": "2026-08-27T23:04:32"
 }

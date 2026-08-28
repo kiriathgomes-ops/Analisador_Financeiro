@@ -33,6 +33,15 @@ st.set_page_config(
     layout="wide",
 )
 
+
+
+# Banner migração V1 → V2 (Fase 3)
+st.warning(
+    "⚠️ **PÁGINA LEGADO** — A decisão oficial é a **V2** "
+    "(`Coletas/Decisao_V2.json` e o menu **🎯 Decisão V2**). "
+    "Esta tela não alimenta mais o fluxo operacional."
+)
+
 # Tema escuro dos gráficos
 PLOTLY_LAYOUT = dict(
     paper_bgcolor="rgba(0,0,0,0)",
@@ -444,3 +453,4 @@ st.caption(
     f"Coleta: {session.metadata.timestamp_coleta or '—'} · "
     "Assistente de cenário — não é recomendação de trade."
 )
+

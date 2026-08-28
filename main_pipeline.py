@@ -174,6 +174,7 @@ def executar_pipeline():
     # Lista de tuplas contendo ("Nome do Passo no Log", "Nome do Arquivo Script Python")
     # Nota: A linha comentada abaixo foi mantida conforme o script original:
     #    ("2.1 - COLETA NOTICIAS ECONOMICAS", "MapearTendencia15Min.py"),
+    #    ("8 - ENGINE DE VIES INSTITUCIONAL", "Engine_Vies.py"),
     etapas = [
         ("0 - LIMPEZA DE IMAGENS TRADINGVIEW" , "Limpar_Imagens_TradingView.py"),
         ("1 - COLETA MERCADO GLOBAL", "Coletor.py"),
@@ -183,7 +184,7 @@ def executar_pipeline():
         ("5 - CALCULOS MACRO E INDICADORES", "Calculadora.py"),
         ("6 - ESTIMATIVA ABERTURA WIN/WDO", "CalculadoraEstimativaAbertura.py"),
         ("7 - RESULTADO OPERACIONAL","Gerar_Resultado_Operacional_Abertura.py"),
-        ("8 - ENGINE DE VIES INSTITUCIONAL", "Engine_Vies.py"),
+       
         ("8.1 - MOTOR SMC POR REGRAS (MT5)", "Rodar_SMC_Regras.py"),
         ("9 - GERADOR RELATORIO FINAL", "Gerar_Relatorio_Mensagem.py"),
         ("10 - V2 SESSAO WINFUT", "v2_gravar_sessao_win.py"),

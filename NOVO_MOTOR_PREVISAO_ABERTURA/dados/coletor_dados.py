@@ -31,8 +31,8 @@ def coletar_dados_entrada() -> Optional[DadosEntrada]:
     indicadores = metricas.get("indicadores_compostos", {})
     macro = metricas.get("indicadores_macro", {})
     adrs_data = metricas.get("performance_relativa", {}).get("adrs_brasileiras", {})
-    decisao = carregar_json("Decisao_Core.json")
-    win_core = decisao.get("analise_operacional", {}).get("WIN_INDICE", {})
+    decisao_v2 = carregar_json("Decisao_V2.json")
+    win_core = decisao_v2.get("decisao", {})  # V2 já tem a decisão diretamente
     tendencias_raw = carregar_json("Analise_Tendencias.json")
     tendencia_win_data = None
     for chave in ["WIN_FUT", "BMFBOVESPA:WIN1!"]:

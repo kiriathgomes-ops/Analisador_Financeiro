@@ -17,6 +17,7 @@ from v2.core.engines.decision_engine import DecisionEngine
 
 st.set_page_config(page_title="Comparador V1 × V2", layout="wide")
 st.title("⚖️ Comparador de Decisões – V1 (Legado) vs V2")
+st.warning("⚠️ A V1 (Core Engine) está descontinuada. A decisão oficial é a V2.")
 
 market = MarketService().build()
 prediction = PredictionService().get_prediction()

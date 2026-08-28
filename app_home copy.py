@@ -1,10 +1,8 @@
 # ============================================================
 # ARQUIVO: app_home.py
 # MOTIVO: Home / Landing Page + Roteador Central (st.navigation)
-# VERSÃO: 2.1 — menu agrupado Decisão V2 / Operacional / Legado
-# DATA: 27/08/2026 (migração V1 → V2)
+# VERSÃO CORRIGIDA - Execução simplificada com pg.run()
 # ============================================================
-
 
 import os
 import sys
@@ -322,100 +320,44 @@ page_home = st.Page(
     render_home_page,
     title="Home / Dashboard",
     icon="🏠",
-    default=True,
+    default=True
 )
 
-# ------------------------------------------------------------
-# Páginas legadas de DECISÃO (mostrar com aviso no menu)
-# ------------------------------------------------------------
-LEGADO_DECISAO = {
-    "1.2_🔮_Previsao_Inteligente_Abertura.py",
-    "1.3_🔮_Previsao_Inteligente_Abertura_Comparador.py",
-    "2.0_📈_Previsao_Abertura_WINFUT.py",
-}
-
-# 2. Core Engine (já migrado para V2 — destaque)
-core_engine = None
-core_path = PASTA_PAGES / "5.3_⚙️_Core_Engine.py"
-if core_path.exists():
-    core_engine = st.Page(
-        core_path.relative_to(BASE_DIR).as_posix(),
-        title="Core Engine (V2)",
-        icon="⚙️",
-    )
-
-# 3. Pasta pages/ — separar operacional vs legado de decisão
-paginas_operacional = []
-paginas_legado = []
+# 2. Mapeamento Automático da pasta 'pages/'
+modulos_standard = []
 if PASTA_PAGES.exists():
     for arq in sorted(PASTA_PAGES.glob("*.py")):
-        if arq.name.startswith("__"):
-            continue
-        # Core Engine já tratado acima
-        if arq.name == "5.3_⚙️_Core_Engine.py":
-            continue
-
-        rel_path = arq.relative_to(BASE_DIR).as_posix()
-        nome_limpo = arq.stem
-        for prefixo in [
-            "10_", "4_", "5_", "6_", "7_", "8_", "21_",
-            "🎯_", "🔢_", "⚙️_", "🔬_", "📡_", "📊_", "📅_",
-            "🤖_", "📥_", "🗺️_", "🔑_", "⚡_", "📈_", "🔮_",
-        ]:
-            nome_limpo = nome_limpo.replace(prefixo, "")
-
-        titulo = nome_limpo.replace("_", " ").strip()
-
-        if arq.name in LEGADO_DECISAO:
-            paginas_legado.append(
-                st.Page(rel_path, title=f"[LEGADO] {titulo}", icon="⚠️")
-            )
-        else:
-            paginas_operacional.append(
-                st.Page(rel_path, title=titulo, icon="📌")
+        if not arq.name.startswith("__"):
+            rel_path = arq.relative_to(BASE_DIR).as_posix()
+            nome_limpo = arq.stem
+            for prefixo in ["10_", "4_", "5_", "6_", "🎯_", "🔢_", "⚙️_", "🔬_"]:
+                nome_limpo = nome_limpo.replace(prefixo, "")
+            
+            modulos_standard.append(
+                st.Page(rel_path, title=nome_limpo.replace("_", " ").strip(), icon="📌")
             )
 
-# 4. Pasta v2/pages/ — decisão oficial
+# 3. Mapeamento Automático da pasta 'v2/'
 paginas_v2 = []
 if PASTA_V2.exists():
     for arq in sorted(PASTA_V2.glob("*.py")):
-        if arq.name.startswith("__"):
-            continue
-        rel_path = arq.relative_to(BASE_DIR).as_posix()
-        mapa_titulo = {
-            "1.1_dashboard_v2": "Dashboard V2",
-            "1.2_comparador": "Comparador V1 × V2",
-            "1.3_analise_detalhada": "Análise Detalhada",
-        }
-        chave = arq.stem
-        titulo = mapa_titulo.get(chave, chave.replace("_", " ").title())
-        paginas_v2.append(
-            st.Page(rel_path, title=titulo, icon="🚀")
-        )
+        if not arq.name.startswith("__"):
+            rel_path = arq.relative_to(BASE_DIR).as_posix()
+            nome_limpo = arq.stem.replace("_", " ").title()
+            paginas_v2.append(
+                st.Page(rel_path, title=f"{nome_limpo} (v2)", icon="🚀")
+            )
 
-# ------------------------------------------------------------
-# Estrutura do Menu (ordem de exibição)
-# ------------------------------------------------------------
+# Estrutura do Menu de Navegação Global
 estrutura_menu = {
     "Navegação Principal": [page_home],
 }
 
-# Decisão oficial em destaque
-bloco_decisao = []
-if core_engine is not None:
-    bloco_decisao.append(core_engine)
-bloco_decisao.extend(paginas_v2)
-if bloco_decisao:
-    estrutura_menu["🎯 Decisão V2 (oficial)"] = bloco_decisao
+if modulos_standard:
+    estrutura_menu["Módulos Standard"] = modulos_standard
 
-# Demais módulos operacionais
-if paginas_operacional:
-    estrutura_menu["Operacional"] = paginas_operacional
-
-# Legado por último
-if paginas_legado:
-    estrutura_menu["⚠️ Legado (somente referência)"] = paginas_legado
-
+if paginas_v2:
+    estrutura_menu["Módulos v2 (Externos)"] = paginas_v2
 
 # Configurações globais do Streamlit
 st.set_page_config(

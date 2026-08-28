@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "timestamp": "2026-08-27T20:34:29.819054",
+    "timestamp": "2026-08-27T21:21:44.803536",
     "status_pipeline": "OK",
     "ativo_foco": "WIN_INDICE"
   },
@@ -9,7 +9,7 @@
       "score_numeric": 2.5,
       "vies_final": "MODERADO_COMPRA",
       "fatores_relevantes": [
-        "Commodities e Mercado Externo favoráveis (+5.45%)",
+        "Commodities e Mercado Externo favoráveis (+5.13%)",
         "⚖️ Spread Last vs Ajuste na normalidade (-97 pts)"
       ]
     }

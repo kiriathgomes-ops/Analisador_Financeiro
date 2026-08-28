@@ -1,8 +1,8 @@
 {
   "metadata": {
-    "timestamp": "2026-08-27T20:34:47.726402",
-    "origem": "Pipeline_Completo_V3",
-    "versao": "3.1_WIN",
+    "timestamp": "2026-08-27T23:04:04.100692",
+    "origem": "Pipeline_Completo_V2",
+    "versao": "2.0_V2",
     "arquivos_presentes": {
       "metricas": true,
       "estimativa": true,
@@ -31,7 +31,7 @@
   },
   "indicadores_compostos": {
     "indicador_mercado_externo": {
-      "valor_pct": 5.4528,
+      "valor_pct": 4.9959,
       "classificacao": "MUITO_FORTE",
       "sinal_operacional": "COMPRA",
       "rotulo_completo": "MUITO_FORTE_COMPRA",
@@ -50,9 +50,9 @@
   "analise_tendencias": {},
   "estimativa_abertura": {
     "WIN_INDICE": {
-      "variacao_teorica_pct": 0.244,
+      "variacao_teorica_pct": 0.2343,
       "pontos_ajuste_base": 177822.0,
-      "abertura_teorica_pontos": 178256.0
+      "abertura_teorica_pontos": 178239.0
     }
   },
   "pivot_points": {
@@ -68,18 +68,25 @@
     "vix": 14.5,
     "di1_2027": 13.63,
     "di1_2029": 14.075,
-    "iron_ore": 98.25,
-    "crude_oil": 83.62,
-    "gold": 4600.77
+    "iron_ore": 98.4,
+    "crude_oil": 83.11,
+    "gold": 4576.623
   },
   "decisao_core": {
     "win": {
-      "score_numeric": 2.5,
-      "vies_final": "MODERADO_COMPRA",
+      "vies_final": "VENDA",
+      "score_numeric": -8.6,
       "fatores_relevantes": [
-        "Commodities e Mercado Externo favoráveis (+5.45%)",
-        "⚖️ Spread Last vs Ajuste na normalidade (-97 pts)"
-      ]
+        "Mercado Externo: +4.86% (COMPRA)",
+        "ADRs: +0.86% (COMPRA)",
+        "Tendência: Estavel_E_Estavel (NEUTRO)",
+        "Predição: VENDA (score 64.0)"
+      ],
+      "confianca": 86,
+      "entrada": 177340,
+      "stop": 178635,
+      "alvo_1": 175195,
+      "alvo_2": 174995
     }
   }
 }

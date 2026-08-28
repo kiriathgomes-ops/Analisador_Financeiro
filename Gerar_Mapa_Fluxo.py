@@ -66,7 +66,7 @@ SCRIPT_METADATA = {
     },
     "Gerar_Resultado_Operacional_Abertura.py": {
         "descricao": "Consolida métricas, estimativas, decisões e tendências em relatório operacional final",
-        "entrada": ["Metricas_Calculadas.json", "EstimativaAbertura.json", "Decisao_Core.json", 
+        "entrada": ["Metricas_Calculadas.json", "EstimativaAbertura.json", "Decisao_V2.json", 
                     "DadosAtivosUnificados.json", "Analise_Tendencias.json", "Noticias_Calendario_0900.json"],
         "saida": ["Resultado_Calculadora_Operacional_Abertura.json"]
     },
@@ -74,7 +74,7 @@ SCRIPT_METADATA = {
         "descricao": "Core Engine V1 - Gera viés operacional (score e direção) para o WIN",
         "entrada": ["EstimativaAbertura.json", "Metricas_Calculadas.json", 
                     "Noticias_Impacto_Dia.json", "DadosAtivosUnificados.json"],
-        "saida": ["Decisao_Core.json"]
+        "saida": ["Decisao_V2.json"]
     },
     "Rodar_SMC_Regras.py": {
         "descricao": "Motor de regras SMC/ICT (swings, BOS, FVG, Order Blocks, Liquidez)",

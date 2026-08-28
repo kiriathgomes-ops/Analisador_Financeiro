@@ -1,16 +1,18 @@
 # ============================================================
-# ARQUIVO: pages/5_⚙️_Core_Engine.py
+# ARQUIVO: pages/5.3_⚙️_Core_Engine.py
 #
 # MOTIVO:
-# Visualização do Core Engine
-# Decisão Quantitativa Final - Foco Exclusivo WIN (Mini Índice)
+# Visualização do Core Engine V2 (decisão oficial)
+# Decisão Quantitativa Final – consumindo Decisao_V2.json
 #
-# VERSÃO COM PIVOT POINTS DO WIN
+# VERSÃO: 2.0 (migração V1 → V2)
+# DATA: 27/08/2026
 # ============================================================
 
 import json
 import os
-from typing import Dict, Any, Tuple
+from datetime import datetime
+from typing import Optional, Dict, Any
 
 import streamlit as st
 
@@ -19,7 +21,7 @@ import streamlit as st
 # ============================================================
 
 st.set_page_config(
-    page_title="Core Engine (WIN) - Quant Terminal",
+    page_title="Core Engine V2 - Quant Terminal",
     page_icon="⚙️",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -99,6 +101,16 @@ st.markdown(
         color: #ff3d00;
         font-weight: bold;
     }
+
+    .legado-banner {
+        background: #3d2a10;
+        border: 1px solid #ffc107;
+        border-radius: 8px;
+        padding: 10px 16px;
+        color: #ffc107;
+        font-size: 0.85rem;
+        margin-bottom: 16px;
+    }
     </style>
     """,
     unsafe_allow_html=True
@@ -112,7 +124,8 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 COLETAS_DIR = os.path.join(BASE_DIR, "Coletas")
 
 ARQUIVOS = {
-    "decisao": os.path.join(COLETAS_DIR, "Decisao_Core.json"),
+    "decisao_v2": os.path.join(COLETAS_DIR, "Decisao_V2.json"),      # <-- PRIORIDADE
+    "decisao_v1": os.path.join(COLETAS_DIR, "Decisao_Core.json"),    # <-- apenas para referência
     "validacao": os.path.join(COLETAS_DIR, "Dados_Validados.json"),
     "noticias": os.path.join(COLETAS_DIR, "Noticias_Impacto_Dia.json"),
     "metricas": os.path.join(COLETAS_DIR, "Metricas_Calculadas.json"),
@@ -121,34 +134,25 @@ ARQUIVOS = {
 }
 
 # ============================================================
-# LEITOR JSON E HELPER DE FORÇA
+# LEITOR JSON
 # ============================================================
 
 @st.cache_data(ttl=60, show_spinner=False)
 def carregar_json(caminho: str) -> Dict[str, Any]:
-    """Lê arquivos JSON com validação de existência, tamanho e erros de sintaxe."""
-    if not os.path.exists(caminho) or os.path.getsize(caminho) == 0:
+    if not os.path.exists(caminho):
         return {}
     try:
         with open(caminho, "r", encoding="utf-8") as f:
             return json.load(f)
-    except json.JSONDecodeError as e:
-        st.warning(f"⚠️ Erro de sintaxe JSON em `{os.path.basename(caminho)}`: {e}")
-        return {}
-    except Exception as e:
-        st.error(f"❌ Erro de leitura em `{os.path.basename(caminho)}`: {e}")
+    except Exception:
         return {}
 
-def calcular_nivel_forca(score: float) -> Tuple[str, str]:
-    """Calcula texto e classe de cor para o nível de força baseado no score."""
-    if abs(score) >= 4.0:
-        return "FORTE", "score-high"
-    elif abs(score) >= 1.5:
-        return "MODERADA", "score-mid"
-    return "FRACA", "score-low"
+# ============================================================
+# CARREGAR DADOS
+# ============================================================
 
-# Carregamento dos dados via cache
-decisao = carregar_json(ARQUIVOS["decisao"])
+decisao_v2 = carregar_json(ARQUIVOS["decisao_v2"])
+decisao_v1 = carregar_json(ARQUIVOS["decisao_v1"])  # apenas para referência
 validacao = carregar_json(ARQUIVOS["validacao"])
 noticias = carregar_json(ARQUIVOS["noticias"])
 metricas = carregar_json(ARQUIVOS["metricas"])
@@ -159,20 +163,19 @@ estimativa = carregar_json(ARQUIVOS["estimativa"])
 # SIDEBAR
 # ============================================================
 
-st.sidebar.title("⚙️ Core Engine")
-st.sidebar.caption("Decisão Quantitativa (WIN)")
+st.sidebar.title("⚙️ Core Engine V2")
+st.sidebar.caption("Decisão Quantitativa Final (V2)")
 st.sidebar.divider()
 
-# Status dos arquivos no disco
+# Status dos dados
 st.sidebar.markdown("### Status dos Dados")
 for nome, caminho in ARQUIVOS.items():
-    existe = os.path.exists(caminho) and os.path.getsize(caminho) > 0
-    icone = "✅" if existe else "❌"
-    st.sidebar.caption(f"{icone} {nome.capitalize()}")
+    existe = "✅" if os.path.exists(caminho) else "❌"
+    st.sidebar.caption(f"{existe} {nome.capitalize()}")
 
 st.sidebar.divider()
 
-if st.sidebar.button("🔄 Atualizar", use_container_width=True):
+if st.sidebar.button("🔄 Atualizar", width="stretch"):
     st.cache_data.clear()
     st.rerun()
 
@@ -180,169 +183,228 @@ if st.sidebar.button("🔄 Atualizar", use_container_width=True):
 # CABEÇALHO
 # ============================================================
 
-st.title("⚙️ Core Engine — Mini Índice (WIN)")
-st.caption("Resultado final gerado pelo Engine_Vies.py")
+st.title("⚙️ Core Engine — Decisão Quantitativa V2")
+st.caption("Fonte oficial: Decisao_V2.json (motor V2)")
 
-if not decisao:
-    st.error("Decisao_Core.json não encontrado ou inválido.")
-    st.info("Execute primeiro: python main_pipeline.py")
+# Verifica se a V2 está disponível
+if not decisao_v2:
+    st.error("❌ Decisao_V2.json não encontrado. Execute o pipeline V2 primeiro.")
+    st.info("💡 Rode: `python v2_rodar_decisao_completa.py`")
     st.stop()
 
-timestamp = decisao.get("metadata", {}).get("timestamp", "N/A")
-st.info(f"⏱ Última decisão: {timestamp}")
+timestamp = decisao_v2.get("metadata", {}).get("timestamp", "N/A")
+st.info(f"⏱ Última decisão V2: {timestamp}")
 
 # ============================================================
-# ANÁLISE OPERACIONAL - WIN
+# BANNER DE DESCONTINUAÇÃO DA V1 (se disponível)
+# ============================================================
+if decisao_v1:
+    st.markdown(
+        """
+        <div class="legado-banner">
+            ⚠️ <b>Motor V1 (Core Engine) está descontinuado</b> – esta página exibe apenas a decisão V2.
+            A V1 é mantida apenas para referência histórica.
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+# ============================================================
+# DECISÃO V2 – DADOS PRINCIPAIS
 # ============================================================
 
 st.divider()
-st.subheader("🎯 Decisão do Core Engine")
+st.subheader("🎯 Decisão do Core Engine V2")
 
-analise_op = decisao.get("analise_operacional", {})
-win_core = analise_op.get("WIN_INDICE", {})
+# Estrutura do V2: decisao_v2["decisao"] contém os campos principais
+decisao_data = decisao_v2.get("decisao", {}) if isinstance(decisao_v2, dict) else {}
 
-win_vies = win_core.get("vies_final", "NEUTRO")
-win_score = float(win_core.get("score_numeric", 0))
-win_fatores = win_core.get("fatores_relevantes", [])
+vies = decisao_data.get("vies_final", "NEUTRO")
+confianca = decisao_data.get("confianca", 0)
+entrada = decisao_data.get("entrada")
+stop = decisao_data.get("stop_loss")
+alvo1 = decisao_data.get("alvo_1")
+alvo2 = decisao_data.get("alvo_2")
+invalidacao = decisao_data.get("invalidacao", "N/A")
+motivos = decisao_data.get("motivos", [])
+riscos = decisao_data.get("riscos", [])
 
-if "COMPRA" in win_vies.upper():
-    win_box_class = "buy-box"
-    win_emoji = "🟢"
-elif "VENDA" in win_vies.upper():
-    win_box_class = "sell-box"
-    win_emoji = "🔴"
+# Define cor e classe
+if "COMPRA" in vies.upper() or vies.upper() in ("ALTA", "BULL"):
+    box_class = "buy-box"
+    emoji = "🟢"
+elif "VENDA" in vies.upper() or vies.upper() in ("BAIXA", "BEAR"):
+    box_class = "sell-box"
+    emoji = "🔴"
 else:
-    win_box_class = "neutral-box"
-    win_emoji = "🟡"
+    box_class = "neutral-box"
+    emoji = "🟡"
 
-win_forca_texto, win_forca_cor = calcular_nivel_forca(win_score)
+# Força da decisão (baseado na confiança)
+if confianca >= 80:
+    forca_texto = "FORTE"
+    forca_cor = "score-high"
+elif confianca >= 60:
+    forca_texto = "MODERADA"
+    forca_cor = "score-mid"
+else:
+    forca_texto = "FRACA"
+    forca_cor = "score-low"
 
-# Painel Centralizado da Decisão do WIN
 st.markdown(f"""
-<div class="{win_box_class}">
-    <h2>{win_emoji} {win_vies}</h2>
-    <h4>Score: <span class="{win_forca_cor}">{win_score:.2f}</span></h4>
-    <p>Força: {win_forca_texto}</p>
+<div class="{box_class}">
+    <h2>{emoji} {vies}</h2>
+    <h4>Confiança: <span class="{forca_cor}">{confianca}%</span></h4>
+    <p>Força: {forca_texto}</p>
 </div>
 """, unsafe_allow_html=True)
 
-if win_fatores:
-    st.write("")
-    with st.expander("📋 Fatores relevantes do WIN", expanded=True):
-        for f in win_fatores:
-            st.markdown(f"""
-            <div class="card-fator">
-                <span class="fator-tag">Fator</span>
-                {f}
-            </div>
-            """, unsafe_allow_html=True)
-
 # ============================================================
-# TENDÊNCIA E ABERTURA TEÓRICA
+# NÍVEIS OPERACIONAIS (entrada, stop, alvos)
 # ============================================================
 
-st.divider()
-col_tend, col_abert = st.columns(2)
-
-with col_tend:
-    st.subheader("📈 Tendência (15min)")
-    if tendencias:
-        win_tend = tendencias.get("WIN_FUT") or tendencias.get("BMFBOVESPA:WIN1!")
-        if isinstance(win_tend, dict):
-            padrao = win_tend.get("padrao_comportamento", "N/A")
-            intervalo = win_tend.get("intervalo_5_para_0") or {}
-            var = intervalo.get("variacao_pct", 0)
-            emoji_tend = "🟢" if var > 0 else "🔴" if var < 0 else "🟡"
-            
-            st.markdown(f"""
-            <div class="info-box">
-                <b>Padrão:</b> {emoji_tend} {padrao}<br>
-                <b>Variação:</b> {var:+.2f}%
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.caption("Sem dados de tendência para WIN_FUT.")
-    else:
-        st.caption("Analise_Tendencias.json não carregado.")
-
-with col_abert:
-    st.subheader("📊 Abertura Teórica")
-    if estimativa:
-        est_abertura = estimativa.get("estimativa_abertura", {}) or estimativa.get("estimativas_abertura", {})
-        win_est = est_abertura.get("WIN_INDICE", {})
-        
-        if win_est:
-            pts = win_est.get("abertura_teorica_pontos", 0)
-            var = win_est.get("variacao_teorica_pct", 0)
-            
-            st.metric(
-                label="WIN Abertura Teórica",
-                value=f"{pts:,.0f} pts",
-                delta=f"{var:+.2f}%"
-            )
-        else:
-            st.warning("Dados do WIN_INDICE não encontrados no JSON.")
-    else:
-        st.caption("EstimativaAbertura.json não carregado.")
-
-# ============================================================
-# PIVOT POINTS (WIN)
-# ============================================================
-
-if estimativa:
-    pivots_data = estimativa.get("pivot_points", {})
-    win_pivots = pivots_data.get("WIN_FUT") or pivots_data.get("WIN_INDICE", {})
-    
-    if win_pivots:
-        st.divider()
-        st.subheader("📌 Pivot Points (WIN)")
-        
-        r2 = win_pivots.get("R2", 0)
-        r1 = win_pivots.get("R1", 0)
-        pp = win_pivots.get("PP", 0)
-        s1 = win_pivots.get("S1", 0)
-        s2 = win_pivots.get("S2", 0)
-        
-        col_r2, col_r1, col_pp, col_s1, col_s2 = st.columns(5)
-        
-        col_r2.metric("Resistência 2 (R2)", f"{r2:,.2f}")
-        col_r1.metric("Resistência 1 (R1)", f"{r1:,.2f}")
-        col_pp.metric("Pivot Point (PP)", f"{pp:,.2f}")
-        col_s1.metric("Suporte 1 (S1)", f"{s1:,.2f}")
-        col_s2.metric("Suporte 2 (S2)", f"{s2:,.2f}")
-
-# ============================================================
-# MATRIZ DE DADOS (Auditoria)
-# ============================================================
-
-st.divider()
-st.subheader("📊 Auditoria dos Dados")
+st.markdown("### 📊 Níveis Operacionais")
 
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
-    st.metric("Decisão", "✅" if decisao else "❌")
+    st.metric("🎯 Entrada", f"{entrada:,.0f}" if entrada is not None else "—")
 
 with col2:
-    st.metric("Dados Validados", len(validacao.get("ativos_validados", [])))
+    st.metric("🛑 Stop Loss", f"{stop:,.0f}" if stop is not None else "—")
 
 with col3:
-    st.metric("Eventos Notícias", len(noticias.get("horarios", [])))
+    st.metric("🎯 Alvo 1", f"{alvo1:,.0f}" if alvo1 is not None else "—")
 
 with col4:
-    st.metric("Métricas", len(metricas) if isinstance(metricas, dict) else 0)
+    st.metric("🎯 Alvo 2", f"{alvo2:,.0f}" if alvo2 is not None else "—")
+
+if invalidacao:
+    st.info(f"⚠️ **Invalidação:** {invalidacao}")
+
+# ============================================================
+# FATORES RELEVANTES E RISCOS (V2)
+# ============================================================
+
+col1, col2 = st.columns(2)
+
+with col1:
+    st.markdown("#### ✅ Fatores que motivaram a decisão")
+    if motivos:
+        for m in motivos:
+            st.markdown(f"""
+            <div class="card-fator">
+                <span class="fator-tag">Fator</span>
+                {m}
+            </div>
+            """, unsafe_allow_html=True)
+    else:
+        st.write("Nenhum fator listado.")
+
+with col2:
+    st.markdown("#### ⚠️ Riscos identificados")
+    if riscos:
+        for r in riscos:
+            st.markdown(f"""
+            <div class="card-fator" style="border-left-color: #ff3d00;">
+                <span class="fator-tag" style="background:rgba(255,61,0,0.15);color:#ff3d00;">Risco</span>
+                {r}
+            </div>
+            """, unsafe_allow_html=True)
+    else:
+        st.write("Nenhum risco listado.")
+
+# ============================================================
+# MÉTRICAS E CONTEXTOS AUXILIARES (oriundos de outros JSONs)
+# ============================================================
+
+st.divider()
+st.subheader("📈 Contexto e Métricas Auxiliares")
+
+# Abertura teórica (da estimativa)
+win_est = estimativa.get("estimativa_abertura", {}).get("WIN_INDICE", {})
+wdo_est = estimativa.get("estimativa_abertura", {}).get("WDO_DOLAR", {})
+
+col1, col2 = st.columns(2)
+with col1:
+    if win_est:
+        st.metric(
+            "WIN Abertura Teórica",
+            f"{win_est.get('abertura_teorica_pontos', 0):,.0f} pts",
+            f"{win_est.get('variacao_teorica_pct', 0):+.2f}%"
+        )
+with col2:
+    if wdo_est:
+        st.metric(
+            "WDO Abertura Teórica",
+            f"{wdo_est.get('abertura_teorica_pontos', 0):,.2f} pts",
+            f"{wdo_est.get('variacao_teorica_pct', 0):+.2f}%"
+        )
+
+# Métricas macro (da Calculadora)
+if metricas:
+    indicadores = metricas.get("indicadores_compostos", {})
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric(
+            "🌍 Mercado Externo",
+            f"{indicadores.get('indicador_mercado_externo', 0):+.2f}%",
+            "Compra" if indicadores.get('indicador_mercado_externo', 0) > 0 else "Venda" if indicadores.get('indicador_mercado_externo', 0) < 0 else "Neutro"
+        )
+    with col2:
+        st.metric(
+            "🇧🇷 ADRs Brasileiras",
+            f"{indicadores.get('indicador_adrs_brasileiras', 0):+.2f}%",
+            "Compra" if indicadores.get('indicador_adrs_brasileiras', 0) > 0 else "Venda" if indicadores.get('indicador_adrs_brasileiras', 0) < 0 else "Neutro"
+        )
+
+# Tendência (se disponível)
+if tendencias:
+    win_tend = tendencias.get("WIN_FUT") or tendencias.get("BMFBOVESPA:WIN1!")
+    if win_tend:
+        padrao = win_tend.get("padrao_comportamento", "N/A")
+        var = win_tend.get("intervalo_5_para_0", {}).get("variacao_pct", 0)
+        emoji_tend = "🟢" if var > 0 else "🔴" if var < 0 else "🟡"
+        st.markdown(f"""
+        <div class="info-box">
+            <b>📈 Tendência WIN (15min):</b> {emoji_tend} {padrao} ({var:+.2f}%)
+        </div>
+        """, unsafe_allow_html=True)
+
+# ============================================================
+# AUDITORIA – contexto de disponibilidade dos serviços V2
+# ============================================================
+
+st.divider()
+st.subheader("🔍 Auditoria V2")
+
+contextos = decisao_v2.get("contextos", {})
+if contextos:
+    col1, col2, col3, col4, col5 = st.columns(5)
+    with col1:
+        st.metric("Market", "✅" if contextos.get("market_ok") else "❌")
+    with col2:
+        st.metric("Prediction", "✅" if contextos.get("prediction_ok") else "❌")
+    with col3:
+        st.metric("News", "✅" if contextos.get("news_ok") else "❌")
+    with col4:
+        st.metric("Vision", "✅" if contextos.get("vision_ok") else "❌")
+    with col5:
+        st.metric("Session", "✅" if contextos.get("session_ok") else "❌")
+else:
+    st.caption("Contextos não disponíveis no JSON V2.")
 
 # ============================================================
 # JSON COMPLETO (para debug)
 # ============================================================
 
 st.divider()
-with st.expander("📄 Visualizar JSON Completo do Core"):
-    st.json(decisao)
+with st.expander("📄 Visualizar JSON Completo do V2"):
+    st.json(decisao_v2)
 
 # ============================================================
 # RODAPÉ
 # ============================================================
 
 st.divider()
-st.caption("Analisador Financeiro - Core Engine Quant v2.0 (WIN Focus)")
+st.caption("Analisador Financeiro - Core Engine V2 • Decisão oficial • v2.0")

@@ -119,6 +119,10 @@ TIMEOUT_FINNHUB = 5
 TIMEOUT_BACEN = 10
 TIMEOUT_TRADINGVIEW_CALENDARIO = 15
 
+MAX_TENTATIVAS_MT5 = 3
+TICK_STALE_SEG = 120
+
+
 # ------------------------------------------------------------
 # 6. TICKERS — TRADINGVIEW SCANNER
 # ------------------------------------------------------------
@@ -313,7 +317,7 @@ PESO_ESTRELAS: Dict[int, int] = {1: 1, 2: 3, 3: 6}
 # 12. FLAGS DE MIGRAÇÃO V1 → V2
 # ------------------------------------------------------------
 USAR_DECISAO_V2 = True  # Páginas e orquestrador preferem Decisao_V2.json
-ENGINE_VIES_COMO_FALLBACK = True  # PredictionService ainda pode usar Engine_Vies
+ENGINE_VIES_COMO_FALLBACK = False  # PredictionService ainda pode usar Engine_Vies
 # Quando False: PredictionService não chama mais Engine_Vies (Fase 2)
 
 # Fonte oficial de previsão (documentação / logs)

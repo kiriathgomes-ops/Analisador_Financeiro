@@ -13,8 +13,8 @@ Inclui o melhor das versões anterior e Híbrido:
 - Interface interativa (Ctrl+V, botões rápidos)
 - Rotação automática de chaves API (KeyManager)
 
-Arquivo único: pages/7_🤖_IA_Imagem.py
-Versão: 5.0 (unificado)
+Arquivo único: pages/7.4_🤖_IA_Imagem.py
+Versão: 5.1 (migração V2)
 """
 
 import sys
@@ -486,30 +486,52 @@ def garantir_portugues(resposta: str) -> str:
     return aviso + forcar_portugues(resposta)
 
 # ============================================================
-# FUNÇÕES DE DADOS DO PIPELINE (VERSÃO RICA)
+# FUNÇÕES DE DADOS DO PIPELINE (VERSÃO V2)
 # ============================================================
 
 @st.cache_data(ttl=30, show_spinner=False)
 def carregar_dados_pipeline() -> Dict[str, Any]:
-    """Carrega TODOS os dados do pipeline (versão rica)."""
+    """
+    Carrega TODOS os dados do pipeline.
+    AGORA: Decisão oficial = Decisao_V2.json (V2)
+    """
     dados = {}
     
-    # 1. Decisão Core
-    caminho = COLETAS_DIR / "Decisao_Core.json"
+    # 1. DECISÃO V2 (OFICIAL)
+    caminho = COLETAS_DIR / "Decisao_V2.json"   # <-- ALTERADO para V2
     if os.path.exists(caminho):
         try:
-            with open(caminho, "r") as f:
+            with open(caminho, "r", encoding="utf-8") as f:
                 decisao = json.load(f)
-                win_core = decisao.get("analise_operacional", {}).get("WIN_INDICE", {})
-                dados["win_vies"] = win_core.get("vies_final", "N/A")
-                dados["win_score"] = win_core.get("score_numeric", 0)
-                dados["win_fatores"] = win_core.get("fatores_relevantes", [])
+                # Extrai os campos do V2
+                decisao_data = decisao.get("decisao", {})
+                dados["win_vies"] = decisao_data.get("vies_final", "N/A")
+                dados["win_confianca"] = decisao_data.get("confianca", 0)  # 0-100
+                dados["win_fatores"] = decisao_data.get("motivos", [])
                 
-                wdo_core = decisao.get("analise_operacional", {}).get("WDO_DOLAR", {})
-                dados["wdo_vies"] = wdo_core.get("vies_final", "N/A")
-                dados["wdo_score"] = wdo_core.get("score_numeric", 0)
-        except:
-            pass
+                # Campos operacionais V2
+                dados["win_entrada"] = decisao_data.get("entrada")
+                dados["win_stop"] = decisao_data.get("stop_loss")
+                dados["win_alvo1"] = decisao_data.get("alvo_1")
+                dados["win_alvo2"] = decisao_data.get("alvo_2")
+                
+                # Converte confiança (0-100) para score numérico (-10 a +10)
+                # compatível com o que as páginas antigas esperam
+                vies = dados["win_vies"]
+                conf = dados["win_confianca"]
+                if "COMPRA" in vies.upper() or vies.upper() in ("ALTA", "BULL"):
+                    dados["win_score"] = round((conf / 100) * 10, 2)
+                elif "VENDA" in vies.upper() or vies.upper() in ("BAIXA", "BEAR"):
+                    dados["win_score"] = round(-(conf / 100) * 10, 2)
+                else:
+                    dados["win_score"] = 0.0
+                    
+                # WDO (se disponível no V2 – atualmente apenas WIN é foco)
+                # Podemos deixar como N/A ou buscar se houver no futuro
+                dados["wdo_vies"] = "N/A"
+                dados["wdo_score"] = 0.0
+        except Exception as e:
+            print(f"[ERRO] Falha ao carregar Decisao_V2.json: {e}")
     
     # 2. Estimativa de Abertura
     caminho = COLETAS_DIR / "EstimativaAbertura.json"
@@ -517,13 +539,13 @@ def carregar_dados_pipeline() -> Dict[str, Any]:
         try:
             with open(caminho, "r") as f:
                 estimativa = json.load(f)
-                win_est = estimativa.get("estimativas_abertura", {}).get("WIN_INDICE", {})
+                win_est = estimativa.get("estimativa_abertura", {}).get("WIN_INDICE", {})
                 dados["abertura_teorica"] = win_est.get("abertura_teorica_pontos", 0)
                 dados["variacao_teorica"] = win_est.get("variacao_teorica_pct", 0)
                 dados["pontos_ajuste"] = win_est.get("pontos_ajuste_base", 0)
                 dados["gap"] = dados["abertura_teorica"] - dados["pontos_ajuste"] if dados["abertura_teorica"] else 0
                 
-                wdo_est = estimativa.get("estimativas_abertura", {}).get("WDO_DOLAR", {})
+                wdo_est = estimativa.get("estimativa_abertura", {}).get("WDO_DOLAR", {})
                 dados["wdo_abertura"] = wdo_est.get("abertura_teorica_pontos", 0)
                 dados["wdo_variacao"] = wdo_est.get("variacao_teorica_pct", 0)
                 
@@ -641,31 +663,35 @@ def carregar_dados_pipeline() -> Dict[str, Any]:
     return dados
 
 # ============================================================
-# FUNÇÃO DE MONTAR CONTEXTO (VERSÃO RICA + FORMATADA)
+# FUNÇÃO DE MONTAR CONTEXTO (VERSÃO V2)
 # ============================================================
 
 def montar_contexto_pipeline(dados: Dict[str, Any]) -> str:
-    """Monta contexto completo e formatado do pipeline."""
+    """Monta contexto completo e formatado do pipeline (com dados V2)."""
     if not dados:
         return ""
     
     contexto = """
-📊 **DADOS DO PIPELINE - Use como referência na análise:**
+📊 **DADOS DO PIPELINE (V2) - Use como referência na análise:**
 
 """
     
     # ==========================================================
-    # 1. CORE ENGINE
+    # 1. CORE ENGINE V2
     # ==========================================================
-    contexto += "### 🎯 Core Engine\n"
+    contexto += "### 🎯 Core Engine V2 (oficial)\n"
     if dados.get("win_vies"):
-        contexto += f"• **WIN:** {dados['win_vies']} (Score: {dados.get('win_score', 0):.2f})\n"
-    if dados.get("wdo_vies"):
-        contexto += f"• **WDO:** {dados['wdo_vies']} (Score: {dados.get('wdo_score', 0):.2f})\n"
+        contexto += f"• **WIN:** {dados['win_vies']} (Confiança: {dados.get('win_confianca', 0)}%)\n"
+        contexto += f"• **Score numérico:** {dados.get('win_score', 0):.2f}\n"
+        if dados.get("win_entrada"):
+            contexto += f"• **Entrada:** {dados['win_entrada']:.0f} | **Stop:** {dados['win_stop']:.0f}\n"
+            contexto += f"• **Alvo 1:** {dados['win_alvo1']:.0f} | **Alvo 2:** {dados['win_alvo2']:.0f}\n"
+    else:
+        contexto += "• **WIN:** N/A\n"
     
     # Fatores do WIN (se disponíveis)
     if dados.get("win_fatores"):
-        contexto += "• **Fatores WIN:**\n"
+        contexto += "• **Fatores:**\n"
         for fator in dados["win_fatores"][:3]:
             contexto += f"  - {fator}\n"
     contexto += "\n"
@@ -683,7 +709,7 @@ def montar_contexto_pipeline(dados: Dict[str, Any]) -> str:
     contexto += "\n"
     
     # ==========================================================
-    # 3. PREÇOS ATUAIS (MAIS DETALHADO)
+    # 3. PREÇOS ATUAIS
     # ==========================================================
     contexto += "### 💰 Preços e Variações\n"
     if dados.get("preco_win"):
@@ -837,7 +863,7 @@ def analisar_grafico(
 ) -> str:
     """
     Análise de gráfico com:
-    - Contexto rico do pipeline
+    - Contexto rico do pipeline (V2)
     - Tradução forçada PT-BR
     - Prompt ultra-restritivo SMC/ICT
     - Rotação automática de chaves (KeyManager)
@@ -946,7 +972,7 @@ def analisar_grafico(
 # ============================================================
 
 st.title("🐶 Spike - IA Imagem | Chat + Visão SMC")
-st.caption("SMC/ICT • PT-BR forçado • Pipeline completo • Rotação de chaves • v5.0 unificado")
+st.caption("SMC/ICT • PT-BR forçado • Pipeline completo (V2) • Rotação de chaves • v5.1")
 
 # ============================================================
 # SIDEBAR
@@ -958,17 +984,17 @@ with st.sidebar:
     st.markdown("""
     <div class="sidebar-info">
         <div class="label">Status</div>
-        <div class="value">🟢 Online • PT-BR • Pipeline</div>
+        <div class="value">🟢 Online • PT-BR • Pipeline V2</div>
     </div>
     """, unsafe_allow_html=True)
     
-    st.subheader("📊 Dados do Pipeline")
+    st.subheader("📊 Dados do Pipeline (V2)")
     
     dados_pipeline = carregar_dados_pipeline()
     if dados_pipeline:
-        st.success("✅ Dados carregados")
+        st.success("✅ Dados V2 carregados")
         if dados_pipeline.get("win_vies"):
-            st.caption(f"WIN: {dados_pipeline['win_vies']} (score: {dados_pipeline.get('win_score', 0):.2f})")
+            st.caption(f"WIN: {dados_pipeline['win_vies']} (conf: {dados_pipeline.get('win_confianca', 0)}%)")
         if dados_pipeline.get("preco_win"):
             st.caption(f"WIN Preço: {dados_pipeline['preco_win']:,.0f}")
         if dados_pipeline.get("vix"):
@@ -1039,11 +1065,11 @@ with messages_container:
             <h3>🇧🇷 Análise de Gráficos em Português</h3>
             <p>Envie um print do seu gráfico (clique em Anexar ou cole com <strong>Ctrl + V</strong>) para obter uma leitura completa com conceitos <strong>SMC/ICT</strong>.</p>
             <p style="color: #8b949e; font-size: 0.9rem;">
-                📊 A IA tem acesso a <strong>TODOS os dados do pipeline</strong> e <strong>FORÇA</strong> a resposta em português.
+                📊 A IA tem acesso a <strong>TODOS os dados do pipeline V2</strong> e <strong>FORÇA</strong> a resposta em português.
             </p>
             <div style="margin-top:8px;">
                 <span class="smc-tag">🇧🇷 PT-BR</span>
-                <span class="smc-tag">📊 Pipeline Completo</span>
+                <span class="smc-tag">📊 Pipeline V2</span>
                 <span class="smc-tag">🧠 SMC/ICT</span>
                 <span class="smc-tag">🛡️ Tradução Forçada</span>
                 <span class="smc-tag">🔥 Rotação de Chaves</span>
@@ -1103,7 +1129,7 @@ if enviar and prompt_input:
     dados_pipeline = carregar_dados_pipeline()
     
     if uploaded_file:
-        with st.spinner("🧠 Analisando gráfico com SMC/ICT + dados do pipeline (PT-BR FORÇADO)..."):
+        with st.spinner("🧠 Analisando gráfico com SMC/ICT + dados do pipeline V2 (PT-BR FORÇADO)..."):
             try:
                 uploaded_file.seek(0)
                 img = Image.open(uploaded_file)
@@ -1194,7 +1220,7 @@ if uploaded_file:
                     dados_pipeline = carregar_dados_pipeline()
                     resposta = analisar_grafico(
                         imagem_base64=b64,
-                        pergunta_trader="Análise SMC/ICT completa do gráfico, considerando todos os dados do pipeline.",
+                        pergunta_trader="Análise SMC/ICT completa do gráfico, considerando todos os dados do pipeline V2.",
                         dados_pipeline=dados_pipeline
                     )
                     st.session_state.messages.append({"role": "user", "content": "📊 Análise SMC Completa"})
@@ -1220,7 +1246,7 @@ if uploaded_file:
                     dados_pipeline = carregar_dados_pipeline()
                     resposta = analisar_grafico(
                         imagem_base64=b64,
-                        pergunta_trader="Identifique os melhores pontos de ENTRADA e SAÍDA baseado no SMC/ICT e nos dados do pipeline.",
+                        pergunta_trader="Identifique os melhores pontos de ENTRADA e SAÍDA baseado no SMC/ICT e nos dados do pipeline V2.",
                         dados_pipeline=dados_pipeline
                     )
                     st.session_state.messages.append({"role": "user", "content": "🎯 Entrada e Saída"})
@@ -1246,7 +1272,7 @@ if uploaded_file:
                     dados_pipeline = carregar_dados_pipeline()
                     resposta = analisar_grafico(
                         imagem_base64=b64,
-                        pergunta_trader="Liste todos os níveis chave: suportes, resistências, OB e FVG, considerando os dados do pipeline.",
+                        pergunta_trader="Liste todos os níveis chave: suportes, resistências, OB e FVG, considerando os dados do pipeline V2.",
                         dados_pipeline=dados_pipeline
                     )
                     st.session_state.messages.append({"role": "user", "content": "📈 Níveis Chave"})
@@ -1272,7 +1298,7 @@ if uploaded_file:
                     dados_pipeline = carregar_dados_pipeline()
                     resposta = analisar_grafico(
                         imagem_base64=b64,
-                        pergunta_trader="Resuma em 5 frases a tendência, a recomendação e a confluência com os dados do pipeline.",
+                        pergunta_trader="Resuma em 5 frases a tendência, a recomendação e a confluência com os dados do pipeline V2.",
                         dados_pipeline=dados_pipeline
                     )
                     st.session_state.messages.append({"role": "user", "content": "📝 Resumo Executivo"})
@@ -1286,4 +1312,4 @@ if uploaded_file:
 # ============================================================
 
 st.markdown("---")
-st.caption("🐶 Spike - IA Imagem • SMC/ICT • PT-BR • Pipeline • KeyManager • v5.0 unificado")
+st.caption("🐶 Spike - IA Imagem • SMC/ICT • PT-BR • Pipeline V2 • KeyManager • v5.1")

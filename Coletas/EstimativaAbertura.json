@@ -1,13 +1,13 @@
 {
   "metadata_calculo": {
-    "timestamp_calculo": "2026-08-27T20:31:31.942056",
+    "timestamp_calculo": "2026-08-27T23:04:03.995089",
     "total_ativos_processados": 32
   },
   "estimativa_abertura": {
     "WIN_INDICE": {
-      "variacao_teorica_pct": 0.244,
+      "variacao_teorica_pct": 0.2343,
       "pontos_ajuste_base": 177822.0,
-      "abertura_teorica_pontos": 178256.0
+      "abertura_teorica_pontos": 178239.0
     }
   },
   "pivot_points": {
@@ -23,8 +23,8 @@
     "vix": 14.5,
     "di1_2027": 13.63,
     "di1_2029": 14.075,
-    "iron_ore": 98.25,
-    "crude_oil": 83.62,
-    "gold": 4600.77
+    "iron_ore": 98.4,
+    "crude_oil": 83.11,
+    "gold": 4576.623
   }
 }

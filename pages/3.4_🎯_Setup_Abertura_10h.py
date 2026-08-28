@@ -615,8 +615,7 @@ with st.sidebar:
     files = {
         "Ativos": "DadosAtivosUnificados.json",
         "Métricas": "Metricas_Calculadas.json",
-        "Decisão V2": "Decisao_V2.json",
-        "Decisão V1": "Decisao_Core.json",
+        "Decisão V2 (oficial)": "Decisao_V2.json",
         "Tendências": "Analise_Tendencias.json",
         "Notícias 09:00": "Noticias_Calendario_0900.json",
     }

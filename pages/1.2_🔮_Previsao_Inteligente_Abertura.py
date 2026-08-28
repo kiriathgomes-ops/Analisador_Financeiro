@@ -25,6 +25,15 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+
+
+# Banner migração V1 → V2 (Fase 3)
+st.warning(
+    "⚠️ **PÁGINA LEGADO** — A decisão oficial é a **V2** "
+    "(`Coletas/Decisao_V2.json` e o menu **🎯 Decisão V2**). "
+    "Use esta tela apenas para comparação histórica com o NOVO_MOTOR isolado."
+)
+
 # ============================================================
 # CSS PERSONALIZADO
 # ============================================================

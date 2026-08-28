@@ -7,6 +7,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
 
+# Importa a flag de migração do config
+try:
+    from config import ENGINE_VIES_COMO_FALLBACK
+except ImportError:
+    ENGINE_VIES_COMO_FALLBACK = False  # fallback seguro
+
 try:
     from NOVO_MOTOR_PREVISAO_ABERTURA.core.motor_previsao import executar_previsao
     NOVO_MOTOR_DISPONIVEL = True
@@ -21,9 +27,12 @@ except ImportError:
 
 from ..contracts import PredictionContext
 
+
 class PredictionService:
     def get_prediction(self) -> Optional[PredictionContext]:
-        # Novo Motor
+        # ------------------------------------------------------------
+        # 1. Tenta o NOVO_MOTOR (fonte oficial)
+        # ------------------------------------------------------------
         if NOVO_MOTOR_DISPONIVEL:
             try:
                 dados = executar_previsao()
@@ -31,11 +40,24 @@ class PredictionService:
                     return self._criar_contexto_novo_motor(dados)
                 else:
                     print("⚠️ PredictionService: Novo Motor retornou score baixo ou vazio.")
+                    # Se o motor existe mas deu score baixo, não usamos fallback
+                    # a menos que explicitamente permitido
+                    if not ENGINE_VIES_COMO_FALLBACK:
+                        return self._criar_contexto_neutro(
+                            motivo="NOVO_MOTOR score baixo (< 20)"
+                        )
             except Exception as e:
                 print(f"⚠️ PredictionService: erro no Novo Motor: {e}")
+                if not ENGINE_VIES_COMO_FALLBACK:
+                    return self._criar_contexto_neutro(
+                        motivo=f"Erro no NOVO_MOTOR: {str(e)}"
+                    )
 
-        # Fallback Engine_Vies
-        if LEGADO_DISPONIVEL:
+        # ------------------------------------------------------------
+        # 2. Fallback condicional (somente se a flag permitir)
+        # ------------------------------------------------------------
+        if ENGINE_VIES_COMO_FALLBACK and LEGADO_DISPONIVEL:
+            print("⚠️ PredictionService: usando fallback Engine_Vies (flag ativa)")
             try:
                 dados_legado = executar_core()
                 if dados_legado:
@@ -72,6 +94,10 @@ class PredictionService:
             except Exception as e:
                 print(f"⚠️ PredictionService: erro no fallback: {e}")
 
+        # ------------------------------------------------------------
+        # 3. Nenhuma fonte disponível → retorna None
+        # ------------------------------------------------------------
+        print("❌ PredictionService: nenhuma fonte de previsão disponível.")
         return None
 
     def _criar_contexto_novo_motor(self, dados: Dict) -> PredictionContext:
@@ -93,4 +119,26 @@ class PredictionService:
             cenario_principal=dados.get("cenario_principal", {}),
             cenario_alternativo=dados.get("cenario_alternativo", {}),
             metadados=dados.get("metadados", {})
+        )
+
+    def _criar_contexto_neutro(self, motivo: str) -> PredictionContext:
+        """Retorna um contexto NEUTRO com score 0 para quando o motor falha."""
+        return PredictionContext(
+            timestamp=datetime.now(),
+            ativo="WIN",
+            abertura_projetada=0.0,
+            faixa_provavel_inferior=0.0,
+            faixa_provavel_superior=0.0,
+            gap_pontos=0.0,
+            gap_percentual=0.0,
+            gap_intensidade="N/A",
+            classificacao_gap="N/A",
+            direcao_prevista="NEUTRO",
+            score=0.0,
+            score_classificacao="FRACO",
+            score_detalhes={},
+            analise_ajuste={},
+            cenario_principal={},
+            cenario_alternativo={},
+            metadados={"fonte": "NOVO_MOTOR", "motivo_neutro": motivo}
         )
