@@ -1,73 +1,12 @@
 {
   "metadata": {
     "fonte": "TradingView API",
-    "timestamp": "2026-08-27T08:07:49.156210",
-    "data_referencia": "2026-08-27",
+    "timestamp": "2026-08-30T18:23:12.505627",
+    "data_referencia": "2026-08-30",
     "filtros": "Brasil e EUA (2 e 3 Estrelas)"
   },
   "calendario_eventos": {
-    "quantidade_eventos": 6,
-    "eventos": [
-      {
-        "hora": "21:00",
-        "pais": "United States",
-        "moeda": "USD",
-        "evento": "Jackson Hole Symposium",
-        "importancia": 2,
-        "anterior": "",
-        "previsao": "",
-        "atual": ""
-      },
-      {
-        "hora": "09:00",
-        "pais": "Brazil",
-        "moeda": "BRL",
-        "evento": "Unemployment Rate",
-        "importancia": 3,
-        "anterior": "5.4",
-        "previsao": "5.3",
-        "atual": ""
-      },
-      {
-        "hora": "09:30",
-        "pais": "United States",
-        "moeda": "USD",
-        "evento": "Wholesale Inventories MoM Adv",
-        "importancia": 2,
-        "anterior": "0.2",
-        "previsao": "0.1",
-        "atual": ""
-      },
-      {
-        "hora": "09:30",
-        "pais": "United States",
-        "moeda": "USD",
-        "evento": "Retail Inventories Ex Autos MoM Adv",
-        "importancia": 2,
-        "anterior": "-0.4",
-        "previsao": "",
-        "atual": ""
-      },
-      {
-        "hora": "09:30",
-        "pais": "United States",
-        "moeda": "USD",
-        "evento": "Goods Trade Balance Adv",
-        "importancia": 2,
-        "anterior": "-101.4",
-        "previsao": "-99",
-        "atual": ""
-      },
-      {
-        "hora": "09:30",
-        "pais": "United States",
-        "moeda": "USD",
-        "evento": "Initial Jobless Claims",
-        "importancia": 2,
-        "anterior": "206",
-        "previsao": "208",
-        "atual": ""
-      }
-    ]
+    "quantidade_eventos": 0,
+    "eventos": []
   }
 }

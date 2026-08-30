@@ -1,6 +1,6 @@
 {
     "versao_coletor": "2.2",
-    "timestamp": "2026-08-30T19:24:03.606",
+    "timestamp": "2026-08-30T19:13:53.994",
     "mt5": {
         "conectado": true,
         "versao": [
@@ -14,7 +14,7 @@
             "ativo": "WIN",
             "descricao": "Mini Índice B3",
             "contrato_principal": "WINV26",
-            "timestamp": "2026-08-30T19:24:03.610",
+            "timestamp": "2026-08-30T19:13:53.999",
             "bid": 177735.0,
             "ask": 177755.0,
             "last": 177640.0,
@@ -60,7 +60,7 @@
             "ativo": "WDO",
             "descricao": "Mini Dólar B3",
             "contrato_principal": "WDOU26",
-            "timestamp": "2026-08-30T19:24:03.616",
+            "timestamp": "2026-08-30T19:13:54.006",
             "bid": 5184.5,
             "ask": 5188.5,
             "last": 5185.0,
@@ -122,7 +122,7 @@
             "ativo": "DI1",
             "descricao": "DI Futuro B3",
             "contrato_principal": "DI1V26",
-            "timestamp": "2026-08-30T19:24:03.619",
+            "timestamp": "2026-08-30T19:13:54.012",
             "bid": 13.801,
             "ask": 13.803,
             "last": 13.801,

@@ -114,6 +114,10 @@ if __name__ == "__main__":
         ".venv",        # Ambientes virtuais
         "venv",
         "*_rom*.json",  # Qualquer arquivo que contenha '_rom' e termine com .json
+        "/Historico/*"
+        
+
+
     ]
 
     consolidar_arquivos(

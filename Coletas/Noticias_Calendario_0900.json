@@ -1,23 +1,12 @@
 {
   "metadata": {
     "fonte": "TradingView API",
-    "timestamp": "2026-08-27T08:07:49.156210",
-    "data_referencia": "2026-08-27"
+    "timestamp": "2026-08-30T18:23:12.505627",
+    "data_referencia": "2026-08-30"
   },
   "alerta_noticia_0900": {
-    "tem_evento_3_estrelas": true,
-    "quantidade_eventos": 1,
-    "eventos": [
-      {
-        "hora": "09:00",
-        "pais": "Brazil",
-        "moeda": "BRL",
-        "evento": "Unemployment Rate",
-        "importancia": 3,
-        "anterior": "5.4",
-        "previsao": "5.3",
-        "atual": ""
-      }
-    ]
+    "tem_evento_3_estrelas": false,
+    "quantidade_eventos": 0,
+    "eventos": []
   }
 }

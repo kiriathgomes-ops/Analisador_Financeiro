@@ -1,0 +1,1096 @@
+{
+  "data": "2026-08-30",
+  "atualizacoes": [
+    {
+      "timestamp": "2026-08-30T19:13:41.796018",
+      "tag": "pipeline",
+      "metadata": {
+        "data_sessao": "2026-08-30",
+        "timestamp_coleta": "2026-08-30T19:13:40.928000",
+        "contrato_principal": "WINV26",
+        "fonte_last": "MT5_v2.2"
+      },
+      "precos": {
+        "ajuste": 178263.0,
+        "last_mt5": 177640.0,
+        "fechamento_anterior": null,
+        "pre_abertura": null
+      },
+      "distancias": {
+        "last_vs_ajuste_pts": -623.0,
+        "last_vs_ajuste_pct": -0.3495,
+        "pre_abertura_vs_ajuste_pts": null,
+        "pre_abertura_vs_fechamento_pts": null
+      },
+      "gap": {
+        "gap_projetado_pts": null,
+        "gap_projetado_pct": null,
+        "direcao_gap": "BAIXA"
+      },
+      "niveis": {
+        "pivot_pp": 177761.67,
+        "r1": 179098.33,
+        "r2": 180556.67,
+        "s1": 176303.33,
+        "s2": 174966.67
+      },
+      "cenario": {
+        "direcao_provavel": "BAIXA",
+        "probabilidade_direcao": 60.0,
+        "relacao_com_ajuste": {
+          "posicao": "ABAIXO",
+          "cenario_principal": "Preço bem abaixo do ajuste (-623 pts). Cenário principal: gap de baixa relevante — continuidade possível, mas falso rompimento e busca do ajuste ganham peso.",
+          "probabilidade_cenario": 35.0
+        },
+        "comportamentos": {
+          "romper_e_continuar": 25.0,
+          "testar_e_rejeitar": 10.0,
+          "testar_e_recuperar": 10.0,
+          "retornar_ao_ajuste": 20.0,
+          "falso_rompimento": 35.0
+        },
+        "niveis_observacao": {
+          "ajuste": 178263.0,
+          "pp": 177761.67,
+          "last_mt5": 177640.0,
+          "distancia_ajuste_pts": -623.0
+        },
+        "contexto_resumo": [
+          "VIX 14.4 (-0.55%)",
+          "ES -0.11%",
+          "NQ +0.03%",
+          "DXY +0.01%",
+          "USD/BRL +0.44%",
+          "ADRs BR -0.08%",
+          "Minério +2.97%",
+          "Petróleo +2.49%",
+          "Calendário: BAIXO (impacto 0)"
+        ],
+        "cenario_alternativo": "Alternativo: rompimento e continuidade (~25%). Monitorar invalidação do cenário principal.",
+        "confianca_geral": 70.0
+      },
+      "contexto_resumo": [
+        "VIX 14.4 (-0.55%)",
+        "ES -0.11%",
+        "NQ +0.03%",
+        "DXY +0.01%",
+        "USD/BRL +0.44%",
+        "ADRs BR -0.08%",
+        "Minério +2.97%",
+        "Petróleo +2.49%",
+        "Calendário: BAIXO (impacto 0)"
+      ],
+      "extras": {
+        "fontes_lidas": {
+          "mt5_v2_2": true,
+          "unificados": true,
+          "estimativa": true,
+          "metricas": true,
+          "noticias": true
+        },
+        "timestamp_build": "2026-08-30T19:13:41.795639"
+      }
+    },
+    {
+      "timestamp": "2026-08-30T19:13:41.979319",
+      "tag": "v2_orquestrador",
+      "metadata": {
+        "data_sessao": "2026-08-30",
+        "timestamp_coleta": "2026-08-30T19:13:40.928000",
+        "contrato_principal": "WINV26",
+        "fonte_last": "MT5_v2.2"
+      },
+      "precos": {
+        "ajuste": 178263.0,
+        "last_mt5": 177640.0,
+        "fechamento_anterior": null,
+        "pre_abertura": null
+      },
+      "distancias": {
+        "last_vs_ajuste_pts": -623.0,
+        "last_vs_ajuste_pct": -0.3495,
+        "pre_abertura_vs_ajuste_pts": null,
+        "pre_abertura_vs_fechamento_pts": null
+      },
+      "gap": {
+        "gap_projetado_pts": null,
+        "gap_projetado_pct": null,
+        "direcao_gap": "BAIXA"
+      },
+      "niveis": {
+        "pivot_pp": 177761.67,
+        "r1": 179098.33,
+        "r2": 180556.67,
+        "s1": 176303.33,
+        "s2": 174966.67
+      },
+      "cenario": {
+        "direcao_provavel": "BAIXA",
+        "probabilidade_direcao": 60.0,
+        "relacao_com_ajuste": {
+          "posicao": "ABAIXO",
+          "cenario_principal": "Preço bem abaixo do ajuste (-623 pts). Cenário principal: gap de baixa relevante — continuidade possível, mas falso rompimento e busca do ajuste ganham peso.",
+          "probabilidade_cenario": 35.0
+        },
+        "comportamentos": {
+          "romper_e_continuar": 25.0,
+          "testar_e_rejeitar": 10.0,
+          "testar_e_recuperar": 10.0,
+          "retornar_ao_ajuste": 20.0,
+          "falso_rompimento": 35.0
+        },
+        "niveis_observacao": {
+          "ajuste": 178263.0,
+          "pp": 177761.67,
+          "last_mt5": 177640.0,
+          "distancia_ajuste_pts": -623.0
+        },
+        "contexto_resumo": [
+          "VIX 14.4 (-0.55%)",
+          "ES -0.11%",
+          "NQ +0.03%",
+          "DXY +0.01%",
+          "USD/BRL +0.44%",
+          "ADRs BR -0.08%",
+          "Minério +2.97%",
+          "Petróleo +2.49%",
+          "Calendário: BAIXO (impacto 0)"
+        ],
+        "cenario_alternativo": "Alternativo: rompimento e continuidade (~25%). Monitorar invalidação do cenário principal.",
+        "confianca_geral": 70.0
+      },
+      "contexto_resumo": [
+        "VIX 14.4 (-0.55%)",
+        "ES -0.11%",
+        "NQ +0.03%",
+        "DXY +0.01%",
+        "USD/BRL +0.44%",
+        "ADRs BR -0.08%",
+        "Minério +2.97%",
+        "Petróleo +2.49%",
+        "Calendário: BAIXO (impacto 0)"
+      ],
+      "extras": {
+        "fontes_lidas": {
+          "mt5_v2_2": true,
+          "unificados": true,
+          "estimativa": true,
+          "metricas": true,
+          "noticias": true
+        },
+        "timestamp_build": "2026-08-30T19:13:41.976649"
+      }
+    },
+    {
+      "timestamp": "2026-08-30T19:13:48.715495",
+      "tag": "pipeline",
+      "metadata": {
+        "data_sessao": "2026-08-30",
+        "timestamp_coleta": "2026-08-30T19:13:47.679000",
+        "contrato_principal": "WINV26",
+        "fonte_last": "MT5_v2.2"
+      },
+      "precos": {
+        "ajuste": 178263.0,
+        "last_mt5": 177640.0,
+        "fechamento_anterior": null,
+        "pre_abertura": null
+      },
+      "distancias": {
+        "last_vs_ajuste_pts": -623.0,
+        "last_vs_ajuste_pct": -0.3495,
+        "pre_abertura_vs_ajuste_pts": null,
+        "pre_abertura_vs_fechamento_pts": null
+      },
+      "gap": {
+        "gap_projetado_pts": null,
+        "gap_projetado_pct": null,
+        "direcao_gap": "BAIXA"
+      },
+      "niveis": {
+        "pivot_pp": 177761.67,
+        "r1": 179098.33,
+        "r2": 180556.67,
+        "s1": 176303.33,
+        "s2": 174966.67
+      },
+      "cenario": {
+        "direcao_provavel": "BAIXA",
+        "probabilidade_direcao": 60.0,
+        "relacao_com_ajuste": {
+          "posicao": "ABAIXO",
+          "cenario_principal": "Preço bem abaixo do ajuste (-623 pts). Cenário principal: gap de baixa relevante — continuidade possível, mas falso rompimento e busca do ajuste ganham peso.",
+          "probabilidade_cenario": 35.0
+        },
+        "comportamentos": {
+          "romper_e_continuar": 25.0,
+          "testar_e_rejeitar": 10.0,
+          "testar_e_recuperar": 10.0,
+          "retornar_ao_ajuste": 20.0,
+          "falso_rompimento": 35.0
+        },
+        "niveis_observacao": {
+          "ajuste": 178263.0,
+          "pp": 177761.67,
+          "last_mt5": 177640.0,
+          "distancia_ajuste_pts": -623.0
+        },
+        "contexto_resumo": [
+          "VIX 14.4 (-0.55%)",
+          "ES -0.18%",
+          "NQ -0.06%",
+          "DXY +0.01%",
+          "USD/BRL +0.44%",
+          "ADRs BR -0.08%",
+          "Minério +2.97%",
+          "Petróleo +2.61%",
+          "Calendário: BAIXO (impacto 0)"
+        ],
+        "cenario_alternativo": "Alternativo: rompimento e continuidade (~25%). Monitorar invalidação do cenário principal.",
+        "confianca_geral": 70.0
+      },
+      "contexto_resumo": [
+        "VIX 14.4 (-0.55%)",
+        "ES -0.18%",
+        "NQ -0.06%",
+        "DXY +0.01%",
+        "USD/BRL +0.44%",
+        "ADRs BR -0.08%",
+        "Minério +2.97%",
+        "Petróleo +2.61%",
+        "Calendário: BAIXO (impacto 0)"
+      ],
+      "extras": {
+        "fontes_lidas": {
+          "mt5_v2_2": true,
+          "unificados": true,
+          "estimativa": true,
+          "metricas": true,
+          "noticias": true
+        },
+        "timestamp_build": "2026-08-30T19:13:48.714996"
+      }
+    },
+    {
+      "timestamp": "2026-08-30T19:13:48.896411",
+      "tag": "v2_orquestrador",
+      "metadata": {
+        "data_sessao": "2026-08-30",
+        "timestamp_coleta": "2026-08-30T19:13:47.679000",
+        "contrato_principal": "WINV26",
+        "fonte_last": "MT5_v2.2"
+      },
+      "precos": {
+        "ajuste": 178263.0,
+        "last_mt5": 177640.0,
+        "fechamento_anterior": null,
+        "pre_abertura": null
+      },
+      "distancias": {
+        "last_vs_ajuste_pts": -623.0,
+        "last_vs_ajuste_pct": -0.3495,
+        "pre_abertura_vs_ajuste_pts": null,
+        "pre_abertura_vs_fechamento_pts": null
+      },
+      "gap": {
+        "gap_projetado_pts": null,
+        "gap_projetado_pct": null,
+        "direcao_gap": "BAIXA"
+      },
+      "niveis": {
+        "pivot_pp": 177761.67,
+        "r1": 179098.33,
+        "r2": 180556.67,
+        "s1": 176303.33,
+        "s2": 174966.67
+      },
+      "cenario": {
+        "direcao_provavel": "BAIXA",
+        "probabilidade_direcao": 60.0,
+        "relacao_com_ajuste": {
+          "posicao": "ABAIXO",
+          "cenario_principal": "Preço bem abaixo do ajuste (-623 pts). Cenário principal: gap de baixa relevante — continuidade possível, mas falso rompimento e busca do ajuste ganham peso.",
+          "probabilidade_cenario": 35.0
+        },
+        "comportamentos": {
+          "romper_e_continuar": 25.0,
+          "testar_e_rejeitar": 10.0,
+          "testar_e_recuperar": 10.0,
+          "retornar_ao_ajuste": 20.0,
+          "falso_rompimento": 35.0
+        },
+        "niveis_observacao": {
+          "ajuste": 178263.0,
+          "pp": 177761.67,
+          "last_mt5": 177640.0,
+          "distancia_ajuste_pts": -623.0
+        },
+        "contexto_resumo": [
+          "VIX 14.4 (-0.55%)",
+          "ES -0.18%",
+          "NQ -0.06%",
+          "DXY +0.01%",
+          "USD/BRL +0.44%",
+          "ADRs BR -0.08%",
+          "Minério +2.97%",
+          "Petróleo +2.61%",
+          "Calendário: BAIXO (impacto 0)"
+        ],
+        "cenario_alternativo": "Alternativo: rompimento e continuidade (~25%). Monitorar invalidação do cenário principal.",
+        "confianca_geral": 70.0
+      },
+      "contexto_resumo": [
+        "VIX 14.4 (-0.55%)",
+        "ES -0.18%",
+        "NQ -0.06%",
+        "DXY +0.01%",
+        "USD/BRL +0.44%",
+        "ADRs BR -0.08%",
+        "Minério +2.97%",
+        "Petróleo +2.61%",
+        "Calendário: BAIXO (impacto 0)"
+      ],
+      "extras": {
+        "fontes_lidas": {
+          "mt5_v2_2": true,
+          "unificados": true,
+          "estimativa": true,
+          "metricas": true,
+          "noticias": true
+        },
+        "timestamp_build": "2026-08-30T19:13:48.893684"
+      }
+    },
+    {
+      "timestamp": "2026-08-30T19:13:55.007091",
+      "tag": "pipeline",
+      "metadata": {
+        "data_sessao": "2026-08-30",
+        "timestamp_coleta": "2026-08-30T19:13:53.994000",
+        "contrato_principal": "WINV26",
+        "fonte_last": "MT5_v2.2"
+      },
+      "precos": {
+        "ajuste": 178263.0,
+        "last_mt5": 177640.0,
+        "fechamento_anterior": null,
+        "pre_abertura": null
+      },
+      "distancias": {
+        "last_vs_ajuste_pts": -623.0,
+        "last_vs_ajuste_pct": -0.3495,
+        "pre_abertura_vs_ajuste_pts": null,
+        "pre_abertura_vs_fechamento_pts": null
+      },
+      "gap": {
+        "gap_projetado_pts": null,
+        "gap_projetado_pct": null,
+        "direcao_gap": "BAIXA"
+      },
+      "niveis": {
+        "pivot_pp": 177761.67,
+        "r1": 179098.33,
+        "r2": 180556.67,
+        "s1": 176303.33,
+        "s2": 174966.67
+      },
+      "cenario": {
+        "direcao_provavel": "BAIXA",
+        "probabilidade_direcao": 60.0,
+        "relacao_com_ajuste": {
+          "posicao": "ABAIXO",
+          "cenario_principal": "Preço bem abaixo do ajuste (-623 pts). Cenário principal: gap de baixa relevante — continuidade possível, mas falso rompimento e busca do ajuste ganham peso.",
+          "probabilidade_cenario": 35.0
+        },
+        "comportamentos": {
+          "romper_e_continuar": 25.0,
+          "testar_e_rejeitar": 10.0,
+          "testar_e_recuperar": 10.0,
+          "retornar_ao_ajuste": 20.0,
+          "falso_rompimento": 35.0
+        },
+        "niveis_observacao": {
+          "ajuste": 178263.0,
+          "pp": 177761.67,
+          "last_mt5": 177640.0,
+          "distancia_ajuste_pts": -623.0
+        },
+        "contexto_resumo": [
+          "VIX 14.4 (-0.55%)",
+          "ES -0.18%",
+          "NQ -0.06%",
+          "DXY +0.01%",
+          "USD/BRL +0.44%",
+          "ADRs BR -0.08%",
+          "Minério +2.97%",
+          "Petróleo +2.61%",
+          "Calendário: BAIXO (impacto 0)"
+        ],
+        "cenario_alternativo": "Alternativo: rompimento e continuidade (~25%). Monitorar invalidação do cenário principal.",
+        "confianca_geral": 70.0
+      },
+      "contexto_resumo": [
+        "VIX 14.4 (-0.55%)",
+        "ES -0.18%",
+        "NQ -0.06%",
+        "DXY +0.01%",
+        "USD/BRL +0.44%",
+        "ADRs BR -0.08%",
+        "Minério +2.97%",
+        "Petróleo +2.61%",
+        "Calendário: BAIXO (impacto 0)"
+      ],
+      "extras": {
+        "fontes_lidas": {
+          "mt5_v2_2": true,
+          "unificados": true,
+          "estimativa": true,
+          "metricas": true,
+          "noticias": true
+        },
+        "timestamp_build": "2026-08-30T19:13:55.006532"
+      }
+    },
+    {
+      "timestamp": "2026-08-30T19:13:55.233773",
+      "tag": "v2_orquestrador",
+      "metadata": {
+        "data_sessao": "2026-08-30",
+        "timestamp_coleta": "2026-08-30T19:13:53.994000",
+        "contrato_principal": "WINV26",
+        "fonte_last": "MT5_v2.2"
+      },
+      "precos": {
+        "ajuste": 178263.0,
+        "last_mt5": 177640.0,
+        "fechamento_anterior": null,
+        "pre_abertura": null
+      },
+      "distancias": {
+        "last_vs_ajuste_pts": -623.0,
+        "last_vs_ajuste_pct": -0.3495,
+        "pre_abertura_vs_ajuste_pts": null,
+        "pre_abertura_vs_fechamento_pts": null
+      },
+      "gap": {
+        "gap_projetado_pts": null,
+        "gap_projetado_pct": null,
+        "direcao_gap": "BAIXA"
+      },
+      "niveis": {
+        "pivot_pp": 177761.67,
+        "r1": 179098.33,
+        "r2": 180556.67,
+        "s1": 176303.33,
+        "s2": 174966.67
+      },
+      "cenario": {
+        "direcao_provavel": "BAIXA",
+        "probabilidade_direcao": 60.0,
+        "relacao_com_ajuste": {
+          "posicao": "ABAIXO",
+          "cenario_principal": "Preço bem abaixo do ajuste (-623 pts). Cenário principal: gap de baixa relevante — continuidade possível, mas falso rompimento e busca do ajuste ganham peso.",
+          "probabilidade_cenario": 35.0
+        },
+        "comportamentos": {
+          "romper_e_continuar": 25.0,
+          "testar_e_rejeitar": 10.0,
+          "testar_e_recuperar": 10.0,
+          "retornar_ao_ajuste": 20.0,
+          "falso_rompimento": 35.0
+        },
+        "niveis_observacao": {
+          "ajuste": 178263.0,
+          "pp": 177761.67,
+          "last_mt5": 177640.0,
+          "distancia_ajuste_pts": -623.0
+        },
+        "contexto_resumo": [
+          "VIX 14.4 (-0.55%)",
+          "ES -0.18%",
+          "NQ -0.06%",
+          "DXY +0.01%",
+          "USD/BRL +0.44%",
+          "ADRs BR -0.08%",
+          "Minério +2.97%",
+          "Petróleo +2.61%",
+          "Calendário: BAIXO (impacto 0)"
+        ],
+        "cenario_alternativo": "Alternativo: rompimento e continuidade (~25%). Monitorar invalidação do cenário principal.",
+        "confianca_geral": 70.0
+      },
+      "contexto_resumo": [
+        "VIX 14.4 (-0.55%)",
+        "ES -0.18%",
+        "NQ -0.06%",
+        "DXY +0.01%",
+        "USD/BRL +0.44%",
+        "ADRs BR -0.08%",
+        "Minério +2.97%",
+        "Petróleo +2.61%",
+        "Calendário: BAIXO (impacto 0)"
+      ],
+      "extras": {
+        "fontes_lidas": {
+          "mt5_v2_2": true,
+          "unificados": true,
+          "estimativa": true,
+          "metricas": true,
+          "noticias": true
+        },
+        "timestamp_build": "2026-08-30T19:13:55.229603"
+      }
+    },
+    {
+      "timestamp": "2026-08-30T19:14:04.793117",
+      "tag": "pipeline",
+      "metadata": {
+        "data_sessao": "2026-08-30",
+        "timestamp_coleta": "2026-08-30T19:14:03.733000",
+        "contrato_principal": "WINV26",
+        "fonte_last": "MT5_v2.2"
+      },
+      "precos": {
+        "ajuste": 178263.0,
+        "last_mt5": 177640.0,
+        "fechamento_anterior": null,
+        "pre_abertura": null
+      },
+      "distancias": {
+        "last_vs_ajuste_pts": -623.0,
+        "last_vs_ajuste_pct": -0.3495,
+        "pre_abertura_vs_ajuste_pts": null,
+        "pre_abertura_vs_fechamento_pts": null
+      },
+      "gap": {
+        "gap_projetado_pts": null,
+        "gap_projetado_pct": null,
+        "direcao_gap": "BAIXA"
+      },
+      "niveis": {
+        "pivot_pp": 177761.67,
+        "r1": 179098.33,
+        "r2": 180556.67,
+        "s1": 176303.33,
+        "s2": 174966.67
+      },
+      "cenario": {
+        "direcao_provavel": "BAIXA",
+        "probabilidade_direcao": 60.0,
+        "relacao_com_ajuste": {
+          "posicao": "ABAIXO",
+          "cenario_principal": "Preço bem abaixo do ajuste (-623 pts). Cenário principal: gap de baixa relevante — continuidade possível, mas falso rompimento e busca do ajuste ganham peso.",
+          "probabilidade_cenario": 35.0
+        },
+        "comportamentos": {
+          "romper_e_continuar": 25.0,
+          "testar_e_rejeitar": 10.0,
+          "testar_e_recuperar": 10.0,
+          "retornar_ao_ajuste": 20.0,
+          "falso_rompimento": 35.0
+        },
+        "niveis_observacao": {
+          "ajuste": 178263.0,
+          "pp": 177761.67,
+          "last_mt5": 177640.0,
+          "distancia_ajuste_pts": -623.0
+        },
+        "contexto_resumo": [
+          "VIX 14.4 (-0.55%)",
+          "ES -0.18%",
+          "NQ -0.06%",
+          "DXY +0.01%",
+          "USD/BRL +0.44%",
+          "ADRs BR -0.08%",
+          "Minério +2.97%",
+          "Petróleo +2.61%",
+          "Calendário: BAIXO (impacto 0)"
+        ],
+        "cenario_alternativo": "Alternativo: rompimento e continuidade (~25%). Monitorar invalidação do cenário principal.",
+        "confianca_geral": 70.0
+      },
+      "contexto_resumo": [
+        "VIX 14.4 (-0.55%)",
+        "ES -0.18%",
+        "NQ -0.06%",
+        "DXY +0.01%",
+        "USD/BRL +0.44%",
+        "ADRs BR -0.08%",
+        "Minério +2.97%",
+        "Petróleo +2.61%",
+        "Calendário: BAIXO (impacto 0)"
+      ],
+      "extras": {
+        "fontes_lidas": {
+          "mt5_v2_2": true,
+          "unificados": true,
+          "estimativa": true,
+          "metricas": true,
+          "noticias": true
+        },
+        "timestamp_build": "2026-08-30T19:14:04.791642"
+      }
+    },
+    {
+      "timestamp": "2026-08-30T19:14:05.051403",
+      "tag": "v2_orquestrador",
+      "metadata": {
+        "data_sessao": "2026-08-30",
+        "timestamp_coleta": "2026-08-30T19:14:03.733000",
+        "contrato_principal": "WINV26",
+        "fonte_last": "MT5_v2.2"
+      },
+      "precos": {
+        "ajuste": 178263.0,
+        "last_mt5": 177640.0,
+        "fechamento_anterior": null,
+        "pre_abertura": null
+      },
+      "distancias": {
+        "last_vs_ajuste_pts": -623.0,
+        "last_vs_ajuste_pct": -0.3495,
+        "pre_abertura_vs_ajuste_pts": null,
+        "pre_abertura_vs_fechamento_pts": null
+      },
+      "gap": {
+        "gap_projetado_pts": null,
+        "gap_projetado_pct": null,
+        "direcao_gap": "BAIXA"
+      },
+      "niveis": {
+        "pivot_pp": 177761.67,
+        "r1": 179098.33,
+        "r2": 180556.67,
+        "s1": 176303.33,
+        "s2": 174966.67
+      },
+      "cenario": {
+        "direcao_provavel": "BAIXA",
+        "probabilidade_direcao": 60.0,
+        "relacao_com_ajuste": {
+          "posicao": "ABAIXO",
+          "cenario_principal": "Preço bem abaixo do ajuste (-623 pts). Cenário principal: gap de baixa relevante — continuidade possível, mas falso rompimento e busca do ajuste ganham peso.",
+          "probabilidade_cenario": 35.0
+        },
+        "comportamentos": {
+          "romper_e_continuar": 25.0,
+          "testar_e_rejeitar": 10.0,
+          "testar_e_recuperar": 10.0,
+          "retornar_ao_ajuste": 20.0,
+          "falso_rompimento": 35.0
+        },
+        "niveis_observacao": {
+          "ajuste": 178263.0,
+          "pp": 177761.67,
+          "last_mt5": 177640.0,
+          "distancia_ajuste_pts": -623.0
+        },
+        "contexto_resumo": [
+          "VIX 14.4 (-0.55%)",
+          "ES -0.18%",
+          "NQ -0.06%",
+          "DXY +0.01%",
+          "USD/BRL +0.44%",
+          "ADRs BR -0.08%",
+          "Minério +2.97%",
+          "Petróleo +2.61%",
+          "Calendário: BAIXO (impacto 0)"
+        ],
+        "cenario_alternativo": "Alternativo: rompimento e continuidade (~25%). Monitorar invalidação do cenário principal.",
+        "confianca_geral": 70.0
+      },
+      "contexto_resumo": [
+        "VIX 14.4 (-0.55%)",
+        "ES -0.18%",
+        "NQ -0.06%",
+        "DXY +0.01%",
+        "USD/BRL +0.44%",
+        "ADRs BR -0.08%",
+        "Minério +2.97%",
+        "Petróleo +2.61%",
+        "Calendário: BAIXO (impacto 0)"
+      ],
+      "extras": {
+        "fontes_lidas": {
+          "mt5_v2_2": true,
+          "unificados": true,
+          "estimativa": true,
+          "metricas": true,
+          "noticias": true
+        },
+        "timestamp_build": "2026-08-30T19:14:05.047080"
+      }
+    },
+    {
+      "timestamp": "2026-08-30T19:19:05.262705",
+      "tag": "pipeline",
+      "metadata": {
+        "data_sessao": "2026-08-30",
+        "timestamp_coleta": "2026-08-30T19:19:04.436000",
+        "contrato_principal": "WINV26",
+        "fonte_last": "MT5_v2.2"
+      },
+      "precos": {
+        "ajuste": 178263.0,
+        "last_mt5": 177640.0,
+        "fechamento_anterior": null,
+        "pre_abertura": null
+      },
+      "distancias": {
+        "last_vs_ajuste_pts": -623.0,
+        "last_vs_ajuste_pct": -0.3495,
+        "pre_abertura_vs_ajuste_pts": null,
+        "pre_abertura_vs_fechamento_pts": null
+      },
+      "gap": {
+        "gap_projetado_pts": null,
+        "gap_projetado_pct": null,
+        "direcao_gap": "BAIXA"
+      },
+      "niveis": {
+        "pivot_pp": 177761.67,
+        "r1": 179098.33,
+        "r2": 180556.67,
+        "s1": 176303.33,
+        "s2": 174966.67
+      },
+      "cenario": {
+        "direcao_provavel": "BAIXA",
+        "probabilidade_direcao": 60.0,
+        "relacao_com_ajuste": {
+          "posicao": "ABAIXO",
+          "cenario_principal": "Preço bem abaixo do ajuste (-623 pts). Cenário principal: gap de baixa relevante — continuidade possível, mas falso rompimento e busca do ajuste ganham peso.",
+          "probabilidade_cenario": 35.0
+        },
+        "comportamentos": {
+          "romper_e_continuar": 25.0,
+          "testar_e_rejeitar": 10.0,
+          "testar_e_recuperar": 10.0,
+          "retornar_ao_ajuste": 20.0,
+          "falso_rompimento": 35.0
+        },
+        "niveis_observacao": {
+          "ajuste": 178263.0,
+          "pp": 177761.67,
+          "last_mt5": 177640.0,
+          "distancia_ajuste_pts": -623.0
+        },
+        "contexto_resumo": [
+          "VIX 14.4 (-0.55%)",
+          "ES -0.18%",
+          "NQ -0.10%",
+          "DXY +0.02%",
+          "USD/BRL +0.44%",
+          "ADRs BR -0.08%",
+          "Minério +2.97%",
+          "Petróleo +2.22%",
+          "Calendário: BAIXO (impacto 0)"
+        ],
+        "cenario_alternativo": "Alternativo: rompimento e continuidade (~25%). Monitorar invalidação do cenário principal.",
+        "confianca_geral": 70.0
+      },
+      "contexto_resumo": [
+        "VIX 14.4 (-0.55%)",
+        "ES -0.18%",
+        "NQ -0.10%",
+        "DXY +0.02%",
+        "USD/BRL +0.44%",
+        "ADRs BR -0.08%",
+        "Minério +2.97%",
+        "Petróleo +2.22%",
+        "Calendário: BAIXO (impacto 0)"
+      ],
+      "extras": {
+        "fontes_lidas": {
+          "mt5_v2_2": true,
+          "unificados": true,
+          "estimativa": true,
+          "metricas": true,
+          "noticias": true
+        },
+        "timestamp_build": "2026-08-30T19:19:05.261994"
+      }
+    },
+    {
+      "timestamp": "2026-08-30T19:19:05.425815",
+      "tag": "v2_orquestrador",
+      "metadata": {
+        "data_sessao": "2026-08-30",
+        "timestamp_coleta": "2026-08-30T19:19:04.436000",
+        "contrato_principal": "WINV26",
+        "fonte_last": "MT5_v2.2"
+      },
+      "precos": {
+        "ajuste": 178263.0,
+        "last_mt5": 177640.0,
+        "fechamento_anterior": null,
+        "pre_abertura": null
+      },
+      "distancias": {
+        "last_vs_ajuste_pts": -623.0,
+        "last_vs_ajuste_pct": -0.3495,
+        "pre_abertura_vs_ajuste_pts": null,
+        "pre_abertura_vs_fechamento_pts": null
+      },
+      "gap": {
+        "gap_projetado_pts": null,
+        "gap_projetado_pct": null,
+        "direcao_gap": "BAIXA"
+      },
+      "niveis": {
+        "pivot_pp": 177761.67,
+        "r1": 179098.33,
+        "r2": 180556.67,
+        "s1": 176303.33,
+        "s2": 174966.67
+      },
+      "cenario": {
+        "direcao_provavel": "BAIXA",
+        "probabilidade_direcao": 60.0,
+        "relacao_com_ajuste": {
+          "posicao": "ABAIXO",
+          "cenario_principal": "Preço bem abaixo do ajuste (-623 pts). Cenário principal: gap de baixa relevante — continuidade possível, mas falso rompimento e busca do ajuste ganham peso.",
+          "probabilidade_cenario": 35.0
+        },
+        "comportamentos": {
+          "romper_e_continuar": 25.0,
+          "testar_e_rejeitar": 10.0,
+          "testar_e_recuperar": 10.0,
+          "retornar_ao_ajuste": 20.0,
+          "falso_rompimento": 35.0
+        },
+        "niveis_observacao": {
+          "ajuste": 178263.0,
+          "pp": 177761.67,
+          "last_mt5": 177640.0,
+          "distancia_ajuste_pts": -623.0
+        },
+        "contexto_resumo": [
+          "VIX 14.4 (-0.55%)",
+          "ES -0.18%",
+          "NQ -0.10%",
+          "DXY +0.02%",
+          "USD/BRL +0.44%",
+          "ADRs BR -0.08%",
+          "Minério +2.97%",
+          "Petróleo +2.22%",
+          "Calendário: BAIXO (impacto 0)"
+        ],
+        "cenario_alternativo": "Alternativo: rompimento e continuidade (~25%). Monitorar invalidação do cenário principal.",
+        "confianca_geral": 70.0
+      },
+      "contexto_resumo": [
+        "VIX 14.4 (-0.55%)",
+        "ES -0.18%",
+        "NQ -0.10%",
+        "DXY +0.02%",
+        "USD/BRL +0.44%",
+        "ADRs BR -0.08%",
+        "Minério +2.97%",
+        "Petróleo +2.22%",
+        "Calendário: BAIXO (impacto 0)"
+      ],
+      "extras": {
+        "fontes_lidas": {
+          "mt5_v2_2": true,
+          "unificados": true,
+          "estimativa": true,
+          "metricas": true,
+          "noticias": true
+        },
+        "timestamp_build": "2026-08-30T19:19:05.423094"
+      }
+    },
+    {
+      "timestamp": "2026-08-30T19:24:04.419599",
+      "tag": "pipeline",
+      "metadata": {
+        "data_sessao": "2026-08-30",
+        "timestamp_coleta": "2026-08-30T19:24:03.606000",
+        "contrato_principal": "WINV26",
+        "fonte_last": "MT5_v2.2"
+      },
+      "precos": {
+        "ajuste": 178263.0,
+        "last_mt5": 177640.0,
+        "fechamento_anterior": null,
+        "pre_abertura": null
+      },
+      "distancias": {
+        "last_vs_ajuste_pts": -623.0,
+        "last_vs_ajuste_pct": -0.3495,
+        "pre_abertura_vs_ajuste_pts": null,
+        "pre_abertura_vs_fechamento_pts": null
+      },
+      "gap": {
+        "gap_projetado_pts": null,
+        "gap_projetado_pct": null,
+        "direcao_gap": "BAIXA"
+      },
+      "niveis": {
+        "pivot_pp": 177761.67,
+        "r1": 179098.33,
+        "r2": 180556.67,
+        "s1": 176303.33,
+        "s2": 174966.67
+      },
+      "cenario": {
+        "direcao_provavel": "BAIXA",
+        "probabilidade_direcao": 60.0,
+        "relacao_com_ajuste": {
+          "posicao": "ABAIXO",
+          "cenario_principal": "Preço bem abaixo do ajuste (-623 pts). Cenário principal: gap de baixa relevante — continuidade possível, mas falso rompimento e busca do ajuste ganham peso.",
+          "probabilidade_cenario": 35.0
+        },
+        "comportamentos": {
+          "romper_e_continuar": 25.0,
+          "testar_e_rejeitar": 10.0,
+          "testar_e_recuperar": 10.0,
+          "retornar_ao_ajuste": 20.0,
+          "falso_rompimento": 35.0
+        },
+        "niveis_observacao": {
+          "ajuste": 178263.0,
+          "pp": 177761.67,
+          "last_mt5": 177640.0,
+          "distancia_ajuste_pts": -623.0
+        },
+        "contexto_resumo": [
+          "VIX 14.4 (-0.55%)",
+          "ES -0.16%",
+          "NQ -0.08%",
+          "DXY +0.01%",
+          "USD/BRL +0.44%",
+          "ADRs BR -0.08%",
+          "Minério +2.97%",
+          "Petróleo +1.97%",
+          "Calendário: BAIXO (impacto 0)"
+        ],
+        "cenario_alternativo": "Alternativo: rompimento e continuidade (~25%). Monitorar invalidação do cenário principal.",
+        "confianca_geral": 70.0
+      },
+      "contexto_resumo": [
+        "VIX 14.4 (-0.55%)",
+        "ES -0.16%",
+        "NQ -0.08%",
+        "DXY +0.01%",
+        "USD/BRL +0.44%",
+        "ADRs BR -0.08%",
+        "Minério +2.97%",
+        "Petróleo +1.97%",
+        "Calendário: BAIXO (impacto 0)"
+      ],
+      "extras": {
+        "fontes_lidas": {
+          "mt5_v2_2": true,
+          "unificados": true,
+          "estimativa": true,
+          "metricas": true,
+          "noticias": true
+        },
+        "timestamp_build": "2026-08-30T19:24:04.418881"
+      }
+    },
+    {
+      "timestamp": "2026-08-30T19:24:04.615058",
+      "tag": "v2_orquestrador",
+      "metadata": {
+        "data_sessao": "2026-08-30",
+        "timestamp_coleta": "2026-08-30T19:24:03.606000",
+        "contrato_principal": "WINV26",
+        "fonte_last": "MT5_v2.2"
+      },
+      "precos": {
+        "ajuste": 178263.0,
+        "last_mt5": 177640.0,
+        "fechamento_anterior": null,
+        "pre_abertura": null
+      },
+      "distancias": {
+        "last_vs_ajuste_pts": -623.0,
+        "last_vs_ajuste_pct": -0.3495,
+        "pre_abertura_vs_ajuste_pts": null,
+        "pre_abertura_vs_fechamento_pts": null
+      },
+      "gap": {
+        "gap_projetado_pts": null,
+        "gap_projetado_pct": null,
+        "direcao_gap": "BAIXA"
+      },
+      "niveis": {
+        "pivot_pp": 177761.67,
+        "r1": 179098.33,
+        "r2": 180556.67,
+        "s1": 176303.33,
+        "s2": 174966.67
+      },
+      "cenario": {
+        "direcao_provavel": "BAIXA",
+        "probabilidade_direcao": 60.0,
+        "relacao_com_ajuste": {
+          "posicao": "ABAIXO",
+          "cenario_principal": "Preço bem abaixo do ajuste (-623 pts). Cenário principal: gap de baixa relevante — continuidade possível, mas falso rompimento e busca do ajuste ganham peso.",
+          "probabilidade_cenario": 35.0
+        },
+        "comportamentos": {
+          "romper_e_continuar": 25.0,
+          "testar_e_rejeitar": 10.0,
+          "testar_e_recuperar": 10.0,
+          "retornar_ao_ajuste": 20.0,
+          "falso_rompimento": 35.0
+        },
+        "niveis_observacao": {
+          "ajuste": 178263.0,
+          "pp": 177761.67,
+          "last_mt5": 177640.0,
+          "distancia_ajuste_pts": -623.0
+        },
+        "contexto_resumo": [
+          "VIX 14.4 (-0.55%)",
+          "ES -0.16%",
+          "NQ -0.08%",
+          "DXY +0.01%",
+          "USD/BRL +0.44%",
+          "ADRs BR -0.08%",
+          "Minério +2.97%",
+          "Petróleo +1.97%",
+          "Calendário: BAIXO (impacto 0)"
+        ],
+        "cenario_alternativo": "Alternativo: rompimento e continuidade (~25%). Monitorar invalidação do cenário principal.",
+        "confianca_geral": 70.0
+      },
+      "contexto_resumo": [
+        "VIX 14.4 (-0.55%)",
+        "ES -0.16%",
+        "NQ -0.08%",
+        "DXY +0.01%",
+        "USD/BRL +0.44%",
+        "ADRs BR -0.08%",
+        "Minério +2.97%",
+        "Petróleo +1.97%",
+        "Calendário: BAIXO (impacto 0)"
+      ],
+      "extras": {
+        "fontes_lidas": {
+          "mt5_v2_2": true,
+          "unificados": true,
+          "estimativa": true,
+          "metricas": true,
+          "noticias": true
+        },
+        "timestamp_build": "2026-08-30T19:24:04.610912"
+      }
+    }
+  ],
+  "ultima_atualizacao": "2026-08-30T19:24:04.615058",
+  "total_snapshots": 12,
+  "ultimo": {
+    "contrato": "WINV26",
+    "ajuste": 178263.0,
+    "last_mt5": 177640.0,
+    "distancia_pts": -623.0,
+    "posicao": "ABAIXO",
+    "direcao": "BAIXA",
+    "cenario_principal": "Preço bem abaixo do ajuste (-623 pts). Cenário principal: gap de baixa relevante — continuidade possível, mas falso rompimento e busca do ajuste ganham peso."
+  }
+}
