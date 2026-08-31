@@ -1,407 +1,118 @@
-# ============================================================
-# DASHBOARD ANALISE DE TENDÊNCIA
-#
-# Fonte:
-# Coletas/Analise_Tendencias.json
-#
-# VERSÃO MELHORADA - Com atalhos e melhor visualização
-#
-# ============================================================
+# -*- coding: utf-8 -*-
+"""
+Módulo: pages/6.1_🔬_Analise_Tendencia.py
+Versão: 2.0 - Otimizado para Produção V2
+Objetivo: Renderizar a análise de tendência sequencial (10m ➔ 5m ➔ 0m) dos ativos do ecossistema.
+"""
 
 import streamlit as st
 import json
-from pathlib import Path
 import pandas as pd
-from datetime import datetime
+from config import FILE_TENDENCIAS  # Importação centralizada do config V2
 
-# ============================================================
-# CONFIGURAÇÃO
-# ============================================================
-
-BASE_DIR = Path(__file__).resolve().parent.parent
-COLETAS_DIR = BASE_DIR / "Coletas"
-
-ARQUIVO = COLETAS_DIR / "Analise_Tendencias.json"
-
-# ============================================================
-# CONFIG STREAMLIT
-# ============================================================
-
-st.set_page_config(
-    page_title="Análise Tendência",
-    page_icon="📈",
-    layout="wide"
-)
-
-# ============================================================
-# CSS VISUAL MELHORADO
-# ============================================================
-
-st.markdown(
-    """
-    <style>
-    .stApp {
-        background-color: #0e1117;
-    }
-
-    .card-tendencia {
-        background: linear-gradient(145deg, #161b24 0%, #1c2230 100%);
-        border-radius: 10px;
-        padding: 15px;
-        border: 1px solid #2a3a4a;
-        margin-bottom: 10px;
-    }
-
-    .card-tendencia .label {
-        color: #8b949e;
-        font-size: 0.75rem;
-    }
-
-    .card-tendencia .valor {
-        font-size: 1.1rem;
-        font-weight: 600;
-    }
-
-    .tendencia-up {
-        color: #00c853;
-    }
-    .tendencia-down {
-        color: #ff3d00;
-    }
-    .tendencia-neutral {
-        color: #ffc107;
-    }
-
-    .card-atalho {
-        background-color: #161b22;
-        padding: 12px 16px;
-        border-radius: 8px;
-        border-left: 3px solid #00d4ff;
-        margin-bottom: 8px;
-        cursor: pointer;
-    }
-    .card-atalho:hover {
-        background-color: #1e2a3a;
-    }
-
-    .info-box {
-        background-color: #1a1c2a;
-        border: 1px solid #2a2d3a;
-        border-radius: 8px;
-        padding: 12px 16px;
-        font-size: 0.85rem;
-        color: #cccccc;
-        margin-top: 8px;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
-# ============================================================
-# FUNÇÕES
-# ============================================================
-
-@st.cache_data(ttl=30, show_spinner=False)
-def carregar_dados():
-    if not ARQUIVO.exists():
+def carregar_json_defensivo(caminho):
+    if not caminho.exists():
         return {}
     try:
-        with open(ARQUIVO, "r", encoding="utf-8") as f:
+        with open(caminho, "r", encoding="utf-8") as f:
             return json.load(f)
-    except Exception:
+    except:
         return {}
 
-def classificar_padrao(padrao):
-    """Classifica o padrão de comportamento."""
-    if padrao == "SUBIU_E_SUBIU":
-        return "🟢 Compra Forte", "tendencia-up"
-    elif padrao == "SUBIU_E_ESTAVEL":
-        return "🟡 Compra Perdendo Força", "tendencia-neutral"
-    elif padrao == "DESCEU_E_SUBIU":
-        return "🔵 Reversão Compra", "tendencia-up"
-    elif padrao == "DESCEU_E_DESCEU":
-        return "🔴 Venda Forte", "tendencia-down"
-    elif padrao == "SUBIU_E_DESCEU":
-        return "🟠 Reversão Venda", "tendencia-down"
-    else:
-        return "⚪ Neutro", "tendencia-neutral"
+# Configuração da página Streamlit
+st.set_page_config(page_title="Quant Terminal - Análise de Tendência", layout="wide")
 
-# ============================================================
-# CARREGAR DADOS
-# ============================================================
+# --- CARGA DOS DADOS V2 ---
+dados_tendencias = carregar_json_defensivo(FILE_TENDENCIAS)
 
-dados = carregar_dados()
+st.markdown("<h2 style='color:#00d4ff;'>🔬 Análise Cíclica de Tendência (Janela Móvel)</h2>", unsafe_allow_html=True)
+st.caption("Mapeamento sequencial de variação de preços a cada 5 minutos (10m ➔ 5m ➔ Atual)")
 
-# ============================================================
-# SIDEBAR
-# ============================================================
-
-st.sidebar.title("📈 Análise Tendência")
-st.sidebar.caption("Fluxo das últimas 3 coletas")
-st.sidebar.markdown("---")
-
-# Status dos dados
-st.sidebar.markdown("### Status")
-if ARQUIVO.exists():
-    timestamp = datetime.fromtimestamp(ARQUIVO.stat().st_mtime).strftime("%H:%M:%S")
-    st.sidebar.success(f"✅ Dados carregados\nÚltima: {timestamp}")
-else:
-    st.sidebar.error("❌ Arquivo não encontrado")
-
-st.sidebar.markdown("---")
-if st.sidebar.button("🔄 Atualizar Dados", width="stretch"):
-    st.cache_data.clear()
-    st.rerun()
-
-# ============================================================
-# TITULO
-# ============================================================
-
-st.title("📈 Análise Institucional de Tendência")
-st.caption("Comparativo das últimas 3 coletas: 10 minutos → 5 minutos → Atual")
-
-if not dados:
-    st.warning("Arquivo Analise_Tendencias.json não encontrado.")
-    st.info("Execute `rodar_pipeline_3x.bat` para gerar os dados.")
+if not dados_tendencias:
+    st.warning("⚠️ Arquivo de tendências não encontrado ou vazio. Certifique-se de que o pipeline rodou a rotação temporal (rodar_pipeline_3x.bat).")
     st.stop()
 
-# ============================================================
-# ATALHOS PARA ATIVOS PRINCIPAIS
-# ============================================================
+# --- SEÇÃO 1: OS MAIORES DRIVERS DO MINI ÍNDICE (WIN) ---
+st.markdown("### 🎯 Direcionadores Críticos do WIN")
+st.caption("Acompanhamento imediato dos ativos com maior peso de correlação com o Mini Índice")
 
-st.subheader("🎯 Ativos Principais")
+# Lista ordenada de prioridade para o trade de índice
+drivers_win = ["WIN_LAST_TICK", "CME_MINI:ES1!", "AMEX:EWZ", "VALE3", "PETR4", "BMFBOVESPA:DI1F2029"]
 
-# Mapeamento de ativos principais
-ativos_principais = {
-    "WIN_FUT": "📊 WIN",
-    "WDO_FUT": "💵 WDO",
-    "SP500_FUT": "🇺🇸 S&P500",
-    "NASDAQ_FUT": "💻 Nasdaq",
-    "VIX": "⚠️ VIX",
-    "EWZ": "🇧🇷 EWZ",
-}
+cols = st.columns(len(drivers_win))
 
-col_atalhos = st.columns(min(6, len(ativos_principais)))
-
-for i, (chave, nome) in enumerate(ativos_principais.items()):
-    # Tenta encontrar o ativo no dados (pode estar como BMFBOVESPA:WIN1!)
-    info = None
-    for key in [chave, f"BMFBOVESPA:{chave.split('_')[0]}1!"]:
-        if key in dados:
-            info = dados[key]
-            break
-    
-    with col_atalhos[i % len(col_atalhos)]:
-        if info:
-            padrao = info.get("padrao_comportamento", "N/A")
-            var = info.get("intervalo_5_para_0", {}).get("variacao_pct", 0)
-            emoji = "🟢" if var > 0 else "🔴" if var < 0 else "🟡"
-            st.metric(
-                nome,
-                f"{emoji} {padrao}",
-                f"{var:+.2f}%"
+for idx, ativo in enumerate(drivers_win):
+    with cols[idx]:
+        if ativo in dados_tendencias:
+            info = dados_tendencias[ativo]
+            padrao = info.get("padrao_comportamento", "Estavel_E_Estavel")
+            var_atual = info.get("intervalo_5_para_0", {}).get("variacao_pct", 0.0)
+            
+            # Formatação visual amigável do nome para exibição na UI
+            nome_exibicao = ativo.replace("CME_MINI:", "").replace("AMEX:", "").replace("BMFBOVESPA:", "")
+            
+            # Lógica de cor baseada no padrão de comportamento recente
+            if "Alta_E_Alta" in padrao:
+                cor_box = "rgba(0, 255, 136, 0.15)"
+                border_color = "#00ff88"
+                txt_status = "🚀 Forte Alta"
+            elif "Baixa_E_Baixa" in padrao:
+                cor_box = "rgba(255, 107, 107, 0.15)"
+                border_color = "#ff6b6b"
+                txt_status = "📉 Forte Baixa"
+            elif "Alta" in padrao.split("_E_")[-1]:
+                cor_box = "rgba(0, 212, 255, 0.1)"
+                border_color = "#00d4ff"
+                txt_status = "🔺 Recompondo"
+            elif "Baixa" in padrao.split("_E_")[-1]:
+                cor_box = "rgba(255, 170, 0, 0.1)"
+                border_color = "#ffaa00"
+                txt_status = "🔻 Corrigindo"
+            else:
+                cor_box = "rgba(255, 255, 255, 0.05)"
+                border_color = "#888"
+                txt_status = "⚖️ Estável"
+                
+            st.markdown(
+                f"<div style='background-color:{cor_box}; padding:12px; border-radius:8px; border:1px solid {border_color}; text-align:center; height:100%;'>"
+                f"<b style='font-size:1.1rem; color:#fff;'>{nome_exibicao}</b><br>"
+                f"<span style='font-size:1.3rem; font-weight:bold;'>{var_atual:+.3f}%</span><br>"
+                f"<span style='font-size:0.85rem; color:#ccc;'>{txt_status}</span>"
+                f"</div>", 
+                unsafe_allow_html=True
             )
         else:
-            st.metric(nome, "N/A")
+            st.markdown("<div style='text-align:center; padding:15px; color:#555;'>Falta Snapshot</div>", unsafe_allow_html=True)
 
 st.markdown("---")
 
-# ============================================================
-# TRANSFORMA EM DATAFRAME
-# ============================================================
+# --- SEÇÃO 2: MATRIZ COMPLETA DE DADOS EM TABELA (PANDAS) ---
+st.markdown("### 📋 Grade Geral de Rotação de Memória Temporal")
+st.caption("Histórico milimétrico de variação de preços coletados pelo pipeline")
 
-lista = []
-for ativo, info in dados.items():
-    padrao = info.get("padrao_comportamento", "N/A")
-    classificacao, css_class = classificar_padrao(padrao)
-    
+linhas_tabela = []
+
+for ativo, info in dados_tendencias.items():
     precos = info.get("precos", {})
-    intervalo_10_5 = info.get("intervalo_10_para_5", {})
-    intervalo_5_0 = info.get("intervalo_5_para_0", {})
+    int_10_5 = info.get("intervalo_10_para_5", {})
+    int_5_0 = info.get("intervalo_5_para_0", {})
     
-    lista.append({
-        "Ativo": ativo,
-        "10 Min": precos.get("10m", 0),
-        "5 Min": precos.get("5m", 0),
-        "Atual": precos.get("0m", 0),
-        "10→5": intervalo_10_5.get("tendencia", "N/A"),
-        "5→0": intervalo_5_0.get("tendencia", "N/A"),
-        "Var Último Movimento %": intervalo_5_0.get("variacao_pct", 0),
-        "Padrão": padrao,
-        "Classificação": classificacao,
+    # Limpeza de nomes longos para a tabela ficar scannable
+    nome_limpo = ativo.split(":")[-1] if ":" in ativo else ativo
+    
+    linhas_tabela.append({
+        "Ativo": nome_limpo,
+        "Preço 10m atrás": f"{precos.get('10m', 0.0):,.3f}" if precos.get('10m') else "—",
+        "Preço 5m atrás": f"{precos.get('5m', 0.0):,.3f}" if precos.get('5m') else "—",
+        "Preço Atual (0m)": f"{precos.get('0m', 0.0):,.3f}" if precos.get('0m') else "—",
+        "Var. 10m ➔ 5m": f"{int_10_5.get('variacao_pct', 0.0):+.3f}%",
+        "Var. 5m ➔ Atual": f"{int_5_0.get('variacao_pct', 0.0):+.3f}%",
+        "Padrão Dinâmico": info.get("padrao_comportamento", "Estavel_E_Estavel").replace("_E_", " ➔ ")
     })
 
-df = pd.DataFrame(lista)
-
-# ============================================================
-# FILTROS
-# ============================================================
-
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    filtro_classificacao = st.multiselect(
-        "Classificação",
-        df["Classificação"].unique(),
-        default=df["Classificação"].unique()
-    )
-
-with col2:
-    filtro_tendencia = st.multiselect(
-        "Tendência (5→0)",
-        df["5→0"].unique(),
-        default=df["5→0"].unique()
-    )
-
-with col3:
-    busca = st.text_input("🔍 Buscar ativo", placeholder="Ex: WIN, VIX, PETR...")
-
-df_view = df[
-    (df["Classificação"].isin(filtro_classificacao)) &
-    (df["5→0"].isin(filtro_tendencia))
-]
-
-if busca:
-    df_view = df_view[df_view["Ativo"].str.contains(busca.upper(), na=False)]
-
-# ============================================================
-# INDICADORES
-# ============================================================
-
-c1, c2, c3, c4, c5 = st.columns(5)
-
-with c1:
-    st.metric("📊 Total Ativos", len(df))
-
-with c2:
-    compra_forte = len(df[df["Classificação"] == "🟢 Compra Forte"])
-    st.metric("🟢 Compra Forte", compra_forte)
-
-with c3:
-    venda_forte = len(df[df["Classificação"] == "🔴 Venda Forte"])
-    st.metric("🔴 Venda Forte", venda_forte)
-
-with c4:
-    reversao = len(df[df["Classificação"].str.contains("Reversão", na=False)])
-    st.metric("🔄 Reversões", reversao)
-
-with c5:
-    neutro = len(df[df["Classificação"] == "⚪ Neutro"])
-    st.metric("⚪ Neutro", neutro)
-
-st.markdown("---")
-
-# ============================================================
-# TABELA PRINCIPAL
-# ============================================================
-
-st.subheader("📊 Fluxo das últimas coletas")
-
-# Formatação da tabela
-def color_var(val):
-    if val > 0.5:
-        return 'color: #00c853; font-weight: bold'
-    elif val < -0.5:
-        return 'color: #ff3d00; font-weight: bold'
-    return 'color: #ffc107'
-
-st.dataframe(
-    df_view.sort_values("Var Último Movimento %", ascending=False),
-    width="stretch",
-    height=500,
-    column_config={
-        "Ativo": st.column_config.TextColumn("Ativo", width="medium"),
-        "10 Min": st.column_config.NumberColumn("10 Min", format="%.2f"),
-        "5 Min": st.column_config.NumberColumn("5 Min", format="%.2f"),
-        "Atual": st.column_config.NumberColumn("Atual", format="%.2f"),
-        "10→5": st.column_config.TextColumn("10→5", width="small"),
-        "5→0": st.column_config.TextColumn("5→0", width="small"),
-        "Var Último Movimento %": st.column_config.NumberColumn(
-            "Var %",
-            format="%+.2f%%"
-        ),
-        "Padrão": st.column_config.TextColumn("Padrão", width="medium"),
-        "Classificação": st.column_config.TextColumn("Classificação", width="medium"),
-    }
-)
-
-# ============================================================
-# RANKING OPERACIONAL
-# ============================================================
-
-st.divider()
-st.subheader("🔥 Ranking Operacional")
-
-colA, colB = st.columns(2)
-
-with colA:
-    st.markdown("### 🟢 Maiores Forças Compradoras")
-    compra = df[df["Classificação"] == "🟢 Compra Forte"]
-    if not compra.empty:
-        st.dataframe(
-            compra.sort_values("Var Último Movimento %", ascending=False),
-            width="stretch",
-            column_config={
-                "Ativo": "Ativo",
-                "Var Último Movimento %": st.column_config.NumberColumn(
-                    "Var %",
-                    format="%+.2f%%"
-                ),
-                "Padrão": "Padrão",
-            }
-        )
-    else:
-        st.info("Nenhum ativo com compra forte")
-
-with colB:
-    st.markdown("### 🔴 Maiores Forças Vendedoras")
-    venda = df[df["Classificação"] == "🔴 Venda Forte"]
-    if not venda.empty:
-        st.dataframe(
-            venda.sort_values("Var Último Movimento %", ascending=True),
-            width="stretch",
-            column_config={
-                "Ativo": "Ativo",
-                "Var Último Movimento %": st.column_config.NumberColumn(
-                    "Var %",
-                    format="%+.2f%%"
-                ),
-                "Padrão": "Padrão",
-            }
-        )
-    else:
-        st.info("Nenhum ativo com venda forte")
-
-# ============================================================
-# RESUMO DOS ATIVOS PRINCIPAIS
-# ============================================================
-
-st.divider()
-st.subheader("📋 Resumo dos Ativos Principais")
-
-# Filtra apenas os ativos principais
-principais_df = df[df["Ativo"].str.contains("WIN|WDO|VIX|EWZ|SP500|NASDAQ", case=False, na=False)]
-
-if not principais_df.empty:
-    st.dataframe(
-        principais_df[["Ativo", "Padrão", "Var Último Movimento %", "Classificação"]],
-        width="stretch",
-        hide_index=True,
-        column_config={
-            "Ativo": "Ativo",
-            "Padrão": "Padrão",
-            "Var Último Movimento %": st.column_config.NumberColumn(
-                "Var %",
-                format="%+.2f%%"
-            ),
-            "Classificação": "Classificação",
-        }
-    )
-
-# ============================================================
-# RODAPÉ
-# ============================================================
-
-st.divider()
-st.caption("Análise de Tendência - Analisador Financeiro Quant v2.0")
+if linhas_tabela:
+    df_tendencias = pd.DataFrame(linhas_tabela)
+    # Exibe como dataframe Streamlit nativo ocupando a largura total
+    st.dataframe(df_tendencias.set_index("Ativo"), use_container_width=True)
+else:
+    st.caption("Aguardando novas coletas do orquestrador para preencher a grade geral.")

@@ -1,263 +1,136 @@
-# v2/pages/dashboard_v2.py
+# -*- coding: utf-8 -*-
+"""
+Módulo: v2/pages/1.1_dashboard_v2.py
+Versão: 2.5 - Produção Oficial V2
+Objetivo: Painel principal (Dashboard Master) para exibição do Viés Confluente V2 e Gatilhos.
+"""
+
 import streamlit as st
-import sys
+import json
 import pandas as pd
-from pathlib import Path
 from datetime import datetime
+import plotly.graph_objects as go
 
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
-sys.path.insert(0, str(BASE_DIR))
+# Ingestão de caminhos centralizados e estáveis do config.py
+from config import FILE_DECISAO_V2
 
-from v2.core.services.market_service import MarketService
-from v2.core.services.prediction_service import PredictionService
-from v2.core.services.news_service import NewsService
-from v2.core.services.vision_service import VisionService
-from v2.core.engines.confluence_engine import ConfluenceEngine
-from v2.core.engines.decision_engine import DecisionEngine
+def carregar_json_defensivo(caminho):
+    if not caminho.exists():
+        return {}
+    try:
+        with open(caminho, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except:
+        return {}
 
-st.set_page_config(page_title="Dashboard V2 - Análise Detalhada", layout="wide")
-st.title("🚀 Dashboard V2 - Analisador Financeiro")
-st.caption("Decisão com análise de contribuição dos fatores")
+# Configuração da página Streamlit (Layout Wide para painéis de monitoramento)
+st.set_page_config(page_title="Quant Terminal - Dashboard V2", layout="wide")
 
-# CSS personalizado para cores e cards
-st.markdown("""
-<style>
-    .card-compra {
-        background: linear-gradient(135deg, #0d381e, #1a5a2e);
-        border-left: 5px solid #00c853;
-        border-radius: 10px;
-        padding: 16px;
-        margin: 8px 0;
-    }
-    .card-venda {
-        background: linear-gradient(135deg, #3d0d0d, #5a1a1a);
-        border-left: 5px solid #ff3d00;
-        border-radius: 10px;
-        padding: 16px;
-        margin: 8px 0;
-    }
-    .card-neutro {
-        background: linear-gradient(135deg, #1a1c23, #2a2d3a);
-        border-left: 5px solid #ffc107;
-        border-radius: 10px;
-        padding: 16px;
-        margin: 8px 0;
-    }
-    .badge-compra {
-        background: #00c853;
-        color: #000;
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-weight: 700;
-        font-size: 0.8rem;
-    }
-    .badge-venda {
-        background: #ff3d00;
-        color: #fff;
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-weight: 700;
-        font-size: 0.8rem;
-    }
-    .badge-neutro {
-        background: #ffc107;
-        color: #000;
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-weight: 700;
-        font-size: 0.8rem;
-    }
-    .progress-bar {
-        height: 10px;
-        border-radius: 10px;
-        background: #2a2d4a;
-        margin: 6px 0;
-    }
-    .progress-bar .fill-compra {
-        background: linear-gradient(90deg, #00c853, #00ff88);
-        height: 100%;
-        border-radius: 10px;
-        transition: width 0.5s ease;
-    }
-    .progress-bar .fill-venda {
-        background: linear-gradient(90deg, #ff3d00, #ff6d00);
-        height: 100%;
-        border-radius: 10px;
-        transition: width 0.5s ease;
-    }
-    .progress-bar .fill-neutro {
-        background: linear-gradient(90deg, #ffc107, #ffdd57);
-        height: 100%;
-        border-radius: 10px;
-    }
-</style>
-""", unsafe_allow_html=True)
+# --- CARGA DA FONTE DA VERDADE (V2) ---
+dados_v2 = carregar_json_defensivo(FILE_DECISAO_V2)
 
-# Carregar dados
-market = MarketService().build()
-prediction = PredictionService().get_prediction()
-news = NewsService().get_news()
-vision = VisionService(market_context=market).get_vision()
+# --- CABEÇALHO PRINCIPAL ---
+st.markdown("<h2 style='color:#00d4ff;'>🚀 Quant Terminal — Dashboard de Decisão Master V2</h2>", unsafe_allow_html=True)
+st.caption(f"Pipeline Sincronizado | Horário do Snapshot: {dados_v2.get('metadata', {}).get('timestamp', 'N/A')}")
 
-if not market:
-    st.error("❌ MarketContext não disponível.")
+if not dados_v2:
+    st.error("⚠️ Erro Crítico: O arquivo 'Decisao_V2.json' não foi encontrado. Execute o main_pipeline.py para consolidar a tomada de decisão.")
     st.stop()
 
-# Executar Motores
-engine = ConfluenceEngine()
-resultado = engine.processar(market, prediction, news, vision)
-decisao = DecisionEngine().gerar_decisao(resultado, market)
+decisao_data = dados_v2.get("decisao", {})
+vies_final = decisao_data.get("vies_final", "NEUTRO")
+confianca = decisao_data.get("confianca", 0)
 
 # ============================================================
-# 1. PAINEL SUPERIOR (Cotações)
+# SEÇÃO 1: PAINEL MASTER DE SINAL (KPIs DE FLUXO)
 # ============================================================
-st.subheader("📊 Cotações em Tempo Real")
-col1, col2, col3, col4 = st.columns(4)
+col_sinal, col_alvos = st.columns([1, 2], gap="large")
 
-with col1:
-    cor_win = "green" if market.win_fut.variacao_pct > 0 else "red"
-    st.metric("WIN", f"{market.win_fut.preco:.0f}", f"{market.win_fut.variacao_pct:+.2f}%", delta_color="normal")
-with col2:
-    cor_wdo = "green" if market.wdo_fut.variacao_pct > 0 else "red"
-    st.metric("WDO", f"{market.wdo_fut.preco:.2f}", f"{market.wdo_fut.variacao_pct:+.2f}%", delta_color="normal")
-with col3:
-    st.metric("VIX", f"{market.vix.preco:.2f}", f"{market.vix.variacao_pct:+.2f}%", delta_color="inverse")
-with col4:
-    st.metric("Tendência", market.tendencia_win_padrao or "N/A")
-
-st.divider()
-
-# ============================================================
-# 2. DECISÃO E VIÉS (com cards coloridos)
-# ============================================================
-st.subheader("🎯 Decisão Final")
-
-col1, col2 = st.columns([1, 1])
-
-with col1:
-    vies = resultado["vies"]
-    if vies == "COMPRA":
-        card_class = "card-compra"
-        badge = '<span class="badge-compra">🟢 COMPRA</span>'
-    elif vies == "VENDA":
-        card_class = "card-venda"
-        badge = '<span class="badge-venda">🔴 VENDA</span>'
+with col_sinal:
+    st.markdown("### 📡 Viés Direcional Consolidado")
+    
+    # Renderização de Bloco Estilizado com base no viés institucional do Orquestrador
+    if "COMPRA" in vies_final.upper() or vies_final.upper() in ["ALTA", "BULL"]:
+        st.markdown(
+            f"<div style='background-color:rgba(0, 255, 136, 0.1); padding:24px; border-radius:12px; border:2px solid #00ff88; text-align:center;'>"
+            f"<span style='font-size:1.1rem; color:#8b949e; letter-spacing:1px;'>DIREÇÃO DE PREVISTA</span><br>"
+            f"<span style='font-size:2.8rem; font-weight:bold; color:#00ff88; letter-spacing:-1px;'>COMPRA</span><br>"
+            f"<span style='font-size:1.6rem; font-weight:bold; color:#fff;'>{confianca}% Confluência</span>"
+            f"</div>", 
+            unsafe_allow_html=True
+        )
+    elif "VENDA" in vies_final.upper() or vies_final.upper() in ["BAIXA", "BEAR"]:
+        st.markdown(
+            f"<div style='background-color:rgba(255, 107, 107, 0.1); padding:24px; border-radius:12px; border:2px solid #ff6b6b; text-align:center;'>"
+            f"<span style='font-size:1.1rem; color:#8b949e; letter-spacing:1px;'>DIREÇÃO PREVISTA</span><br>"
+            f"<span style='font-size:2.8rem; font-weight:bold; color:#ff6b6b; letter-spacing:-1px;'>VENDA</span><br>"
+            f"<span style='font-size:1.6rem; font-weight:bold; color:#fff;'>{confianca}% Confluência</span>"
+            f"</div>", 
+            unsafe_allow_html=True
+        )
     else:
-        card_class = "card-neutro"
-        badge = '<span class="badge-neutro">🟡 NEUTRO</span>'
+        st.markdown(
+            f"<div style='background-color:rgba(255, 255, 255, 0.05); padding:24px; border-radius:12px; border:2px solid #888; text-align:center;'>"
+            f"<span style='font-size:1.1rem; color:#8b949e; letter-spacing:1px;'>DIREÇÃO PREVISTA</span><br>"
+            f"<span style='font-size:2.8rem; font-weight:bold; color:#ccc; letter-spacing:-1px;'>NEUTRO</span><br>"
+            f"<span style='font-size:1.6rem; font-weight:bold; color:#fff;'>{confianca}% Equilíbrio</span>"
+            f"</div>", 
+            unsafe_allow_html=True
+        )
 
-    st.markdown(f"""
-    <div class="{card_class}">
-        <h3 style="margin:0;">Viés Consolidado</h3>
-        <div style="font-size:2rem; font-weight:700;">{badge}</div>
-        <div style="font-size:1.2rem;">Confiança: {resultado['confianca']}%</div>
-        <div class="progress-bar">
-            <div class="fill-{vies.lower() if vies in ['COMPRA','VENDA'] else 'neutro'}" style="width:{resultado['confianca']}%;"></div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+with col_alvos:
+    st.markdown("### 🎯 Gatilhos e Limites Operacionais do Robô")
+    
+    # Cards de métricas com os preços de disparo injetados dinamicamente
+    k1, k2, k3 = st.columns(3)
+    k1.metric("Gatilho Entry (Stop Order)", f"{decisao_data.get('entrada', 0):,.0f} pts" if decisao_data.get('entrada') else "—")
+    k2.metric("Stop Loss Técnico", f"{decisao_data.get('stop_loss', 0):,.0f} pts" if decisao_data.get('stop_loss') else "—", delta_color="inverse")
+    k3.metric("Alvo Projeção (Take 1)", f"{decisao_data.get('alvo_1', 0):,.0f} pts" if decisao_data.get('alvo_1') else "—")
+    
+    st.markdown(f"⚠️ **Regra de Invalidação / Desmonte de Posição:** `{decisao_data.get('invalidacao', 'Aguardando Rompimento')}`")
 
-with col2:
-    if decisao.entrada:
-        st.success(f"✅ **Entrada autorizada** em {decisao.entrada:.0f}")
-        st.metric("Stop Loss", f"{decisao.stop_loss:.0f}", delta="Loss")
-        st.metric("Alvo 1", f"{decisao.alvo_1:.0f}", delta="Alvo")
-        st.metric("Alvo 2", f"{decisao.alvo_2:.0f}", delta="Alvo")
+st.markdown("---")
+
+# ============================================================
+# SEÇÃO 2: AUDITORIA DE ARGUMENTOS E FATORES DE RISCO
+# ============================================================
+col_argumentos, col_travas = st.columns(2)
+
+with col_argumentos:
+    st.markdown("### 📝 Argumentos e Confluência de Submotores")
+    motivos = decisao_data.get("motivos", [])
+    if motivos:
+        for m in motivos:
+            st.markdown(f"• {m}")
     else:
-        st.warning(f"⏳ {decisao.invalidacao}")
+        st.caption("Mesa neutra. Sem vetores de força confluentes mapeados nas últimas barras.")
 
-st.divider()
-
-# ============================================================
-# 3. ANÁLISE DE CONTRIBUIÇÃO DOS FATORES
-# ============================================================
-st.subheader("🧮 Análise de Contribuição dos Fatores")
-
-col1, col2 = st.columns([2, 1])
-
-with col1:
-    # Gráfico de barras com cores
-    votos = resultado["votos"]
-    df_votos = pd.DataFrame({
-        "Direção": ["COMPRA", "VENDA"],
-        "Pontuação": [votos["COMPRA"], votos["VENDA"]]
-    })
-    # Usar cores condicionais
-    import plotly.express as px
-    fig = px.bar(df_votos, x="Direção", y="Pontuação", 
-                 color="Direção",
-                 color_discrete_map={"COMPRA": "#00c853", "VENDA": "#ff3d00"},
-                 title="Votos por Direção",
-                 text_auto=True)
-    fig.update_layout(plot_bgcolor="#0e1117", paper_bgcolor="#0e1117", font_color="#e6edf3")
-    st.plotly_chart(fig, use_container_width=True)
-
-with col2:
-    st.markdown("### 📊 Resumo dos Votos")
-    st.metric("COMPRA", f"{votos['COMPRA']:.2f}", delta="Votos")
-    st.metric("VENDA", f"{votos['VENDA']:.2f}", delta="Votos")
-    st.caption(f"Diferença: {votos['COMPRA'] - votos['VENDA']:+.2f}")
-
-# Diagnóstico textual dinâmico
-st.markdown("### 📝 Diagnóstico da Decisão")
-
-motivos = resultado["motivos"]
-fatores_compra = [m for m in motivos if "COMPRA" in m]
-fatores_venda = [m for m in motivos if "VENDA" in m]
-fatores_neutros = [m for m in motivos if "NEUTRO" in m or "neutro" in m.lower()]
-
-diagnostico = []
-
-if fatores_compra and fatores_venda:
-    diagnostico.append("⚖️ **Disputa de forças:**")
-    if votos["COMPRA"] > votos["VENDA"]:
-        diagnostico.append(f"   - A **COMPRA** está predominando com **{votos['COMPRA']:.2f}** votos.")
-        diagnostico.append(f"   - Principais fatores de COMPRA: {', '.join(fatores_compra)}")
-        diagnostico.append(f"   - Fatores de VENDA (com **{votos['VENDA']:.2f}** votos) estão perdendo: {', '.join(fatores_venda)}")
+with col_travas:
+    st.markdown("### 🛡️ Trava de Volatilidade e Alertas de Risco")
+    riscos = decisao_data.get("riscos", [])
+    if riscos:
+        for r in riscos:
+            st.markdown(f"❌ **ALERTA DE RISCO:** {r}")
     else:
-        diagnostico.append(f"   - A **VENDA** está predominando com **{votos['VENDA']:.2f}** votos.")
-        diagnostico.append(f"   - Principais fatores de VENDA: {', '.join(fatores_venda)}")
-        diagnostico.append(f"   - Fatores de COMPRA (com **{votos['COMPRA']:.2f}** votos) estão perdendo: {', '.join(fatores_compra)}")
+        st.success("🟢 Alinhamento de risco limpo. Sem anomalias de spread ou volatilidade excessiva no robô.")
 
-if fatores_neutros:
-    diagnostico.append(f"🟡 **Fatores Neutros/Divergentes:** {', '.join(fatores_neutros)}")
-
-if resultado["vies"] == "COMPRA":
-    diagnostico.append(f"✅ **Veredito:** A **COMPRA** venceu com **{resultado['confianca']}%** de confiança.")
-elif resultado["vies"] == "VENDA":
-    diagnostico.append(f"✅ **Veredito:** A **VENDA** venceu com **{resultado['confianca']}%** de confiança.")
-else:
-    diagnostico.append(f"🟡 **Veredito:** **NEUTRO** com **{resultado['confianca']}%** de confiança. Aguardando definição.")
-
-for linha in diagnostico:
-    st.markdown(linha)
-
-st.caption("💡 A pontuação é calculada com base nos pesos de cada fator (Mercado, ADRs, Tendência, Predição, Visão SMC).")
-
-st.divider()
+st.markdown("---")
 
 # ============================================================
-# 4. DETALHES DOS MOTIVOS E RISCOS
+# SEÇÃO 3: VERIFICAÇÃO DE SAÚDE DOS CONTEXTOS V2
 # ============================================================
-with st.expander("📋 Ver lista completa de Motivos e Riscos"):
-    st.write("**Motivos:**")
-    for m in resultado["motivos"]:
-        st.write(f"- {m}")
-    st.write("**Riscos:**")
-    for r in resultado["riscos"]:
-        st.write(f"- {r}")
+st.markdown("### ⚙️ Painel de Auditoria de Contextos Operacionais")
+ctx = dados_v2.get("contextos", {})
 
-# ============================================================
-# 5. NÍVEIS DE PREÇO (PIVOTS)
-# ============================================================
-if "pivots" in decisao.metadados:
-    st.subheader("📍 Níveis de Preço (Pivots)")
-    p = decisao.metadados["pivots"]
-    col1, col2, col3, col4, col5 = st.columns(5)
-    with col1: st.metric("R2", f"{p.get('r2', 0):.0f}")
-    with col2: st.metric("R1", f"{p.get('r1', 0):.0f}")
-    with col3: st.metric("PP", f"{p.get('pp', 0):.0f}")
-    with col4: st.metric("S1", f"{p.get('s1', 0):.0f}")
-    with col5: st.metric("S2", f"{p.get('s2', 0):.0f}")
+def formatar_status_ctx(flag_ok):
+    return "🟢 INTEGRAL" if flag_ok else "🔴 INDISPONÍVEL / OFFLINE"
 
-st.caption(f"Última atualização: {datetime.now().strftime('%H:%M:%S')}")
+cx1, cx2, cx3, cx4, cx5 = st.columns(5)
+cx1.markdown(f"<div style='background-color:#161b24; padding:10px; border-radius:6px; text-align:center;'>📊 <b>Market Context</b><br><span style='font-size:0.85rem; font-weight:bold;'>{formatar_status_ctx(ctx.get('market_ok'))}</span></div>", unsafe_allow_html=True)
+cx2.markdown(f"<div style='background-color:#161b24; padding:10px; border-radius:6px; text-align:center;'>🔮 <b>Prediction Context</b><br><span style='font-size:0.85rem; font-weight:bold;'>{formatar_status_ctx(ctx.get('prediction_ok'))}</span></div>", unsafe_allow_html=True)
+cx3.markdown(f"<div style='background-color:#161b24; padding:10px; border-radius:6px; text-align:center;'>📰 <b>News Context</b><br><span style='font-size:0.85rem; font-weight:bold;'>{formatar_status_ctx(ctx.get('news_ok'))}</span></div>", unsafe_allow_html=True)
+cx4.markdown(f"<div style='background-color:#161b24; padding:10px; border-radius:6px; text-align:center;'>👁️ <b>Vision AI Context</b><br><span style='font-size:0.85rem; font-weight:bold;'>{formatar_status_ctx(ctx.get('vision_ok'))}</span></div>", unsafe_allow_html=True)
+cx5.markdown(f"<div style='background-color:#161b24; padding:10px; border-radius:6px; text-align:center;'>🏦 <b>Session History</b><br><span style='font-size:0.85rem; font-weight:bold;'>{formatar_status_ctx(ctx.get('session_ok'))}</span></div>", unsafe_allow_html=True)
+
+st.markdown("---")
+st.caption("🔒 Terminal de Produção V2 sincronizado — Dados processados de forma síncrona com os motores matemáticos de back-end.")

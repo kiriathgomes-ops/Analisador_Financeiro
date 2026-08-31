@@ -1,250 +1,134 @@
-# ============================================================
-# PÁGINA: Análise Ações B3 × ADRs
-# Dashboard de comparação entre ações locais e ADRs americanos
-# ============================================================
-
-from __future__ import annotations
-
-import json
-import sys
-from pathlib import Path
-from datetime import datetime
+# -*- coding: utf-8 -*-
+"""
+Módulo: pages/3.3_📊_Acoes_e_ADRs.py
+Versão: 2.0 - Otimizado para Produção V2
+Objetivo: Dashboard de correlação e performance relativa entre Ações B3 e ADRs em Nova York
+"""
 
 import streamlit as st
-import plotly.graph_objects as go
-import plotly.express as px
+import json
 import pandas as pd
+from datetime import datetime
 
-# Garante import da raiz do projeto
-ROOT = Path(__file__).resolve().parent.parent
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+# Importações de caminhos padronizados do config.py da V2
+from config import FILE_UNIFICADO, FILE_METRICAS, MAPEAMENTO_ADR_B3
 
-st.set_page_config(
-    page_title="Ações B3 × ADRs",
-    page_icon="📊",
-    layout="wide",
-)
+def carregar_json_defensivo(caminho):
+    if not caminho.exists():
+        return {}
+    try:
+        with open(caminho, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except:
+        return {}
 
-# Tema escuro dos gráficos
-PLOTLY_LAYOUT = dict(
-    paper_bgcolor="rgba(0,0,0,0)",
-    plot_bgcolor="rgba(0,0,0,0)",
-    font=dict(color="#e6edf3", size=13),
-    margin=dict(l=40, r=20, t=40, b=40),
-)
+# Configuração da página Streamlit
+st.set_page_config(page_title="Quant Terminal - Ações e ADRs", layout="wide")
 
-st.title("📊 Ações B3 × ADRs")
-st.caption("Comparativo de preços, variação e prêmio/desconto entre ações locais e seus ADRs")
+# --- CARGA DE DADOS DO BACKEND V2 ---
+dados_unificados = carregar_json_defensivo(FILE_UNIFICADO)
+dados_metricas = carregar_json_defensivo(FILE_METRICAS)
 
-# ------------------------------------------------------------
-# Pares oficiais de comparação
-# ------------------------------------------------------------
-PARES = [
-    {"acao": "VALE3",  "adr": "VALE_ADR",  "nome": "Vale"},
-    {"acao": "PETR4",  "adr": "PETR_ADR",  "nome": "Petrobras"},
-    {"acao": "ITUB4",  "adr": "ITUB_ADR",  "nome": "Itaú"},
-    {"acao": "BBAS3",  "adr": "BBAS_ADR",  "nome": "Banco do Brasil"},
-    {"acao": "BBDC4",  "adr": "BBD_ADR",   "nome": "Bradesco"},
-    {"acao": "B3SA3",  "adr": "B3_ADR",    "nome": "B3"},
-]
+st.markdown("<h2 style='color:#00d4ff;'>📊 Correlação de Performance: B3 vs ADRs NY</h2>", unsafe_allow_html=True)
+st.caption(f"Dados atualizados via pipeline quantitativo em: {dados_unificados.get('metadata', {}).get('timestamp', 'N/A')}")
 
-# ------------------------------------------------------------
-# Carregar dados
-# ------------------------------------------------------------
-@st.cache_data(ttl=30)
-def carregar_unificado():
-    path = ROOT / "Coletas" / "DadosAtivosUnificados.json"
-    if not path.exists():
-        return None
-    with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
+# --- SEÇÃO 1: METRICAS COMPOSTAS E FLUXO GERAL ---
+st.markdown("### 🏦 Termômetro Estatístico de Fluxo Estrangeiro")
+ind_compostos = dados_metricas.get("indicadores_compostos", {})
+ind_adrs = ind_compostos.get("indicador_adrs_brasileiras")
+ind_externo = ind_compostos.get("indicador_mercado_externo")
 
+c1, c2, c3 = st.columns(3)
 
-dados = carregar_unificado()
-
-if dados is None:
-    st.error("Arquivo `Coletas/DadosAtivosUnificados.json` não encontrado. Execute o Coletor.py primeiro.")
-    st.stop()
-
-ativos = dados.get("ativos", {})
-meta = dados.get("metadata", {})
-timestamp = meta.get("timestamp", "—")
-
-col_btn, col_info = st.columns([1, 4])
-with col_btn:
-    if st.button("🔄 Atualizar", use_container_width=True):
-        st.cache_data.clear()
-        st.rerun()
-with col_info:
-    st.caption(f"Última coleta: **{timestamp}** · Total de ativos: {meta.get('total_ativos', '—')}")
-
-# ------------------------------------------------------------
-# Montar DataFrame de comparação
-# ------------------------------------------------------------
-linhas = []
-for p in PARES:
-    acao = ativos.get(p["acao"], {})
-    adr  = ativos.get(p["adr"], {})
-
-    preco_acao = acao.get("preco")
-    preco_adr  = adr.get("preco")
-    var_acao   = acao.get("variacao_pct")
-    var_adr    = adr.get("variacao_pct")
-    status_acao = acao.get("status", "—")
-    status_adr  = adr.get("status", "—")
-
-    # Diferença de variação (ADR - Ação)
-    delta_var = None
-    if var_acao is not None and var_adr is not None:
-        delta_var = round(var_adr - var_acao, 2)
-
-    linhas.append({
-        "Empresa": p["nome"],
-        "Ação B3": p["acao"],
-        "Preço Ação": preco_acao,
-        "Var% Ação": var_acao,
-        "ADR": p["adr"],
-        "Preço ADR": preco_adr,
-        "Var% ADR": var_adr,
-        "Δ Var% (ADR − Ação)": delta_var,
-        "Status Ação": status_acao,
-        "Status ADR": status_adr,
-    })
-
-df = pd.DataFrame(linhas)
-
-# ------------------------------------------------------------
-# 1. Tabela principal
-# ------------------------------------------------------------
-st.subheader("Comparativo Ação × ADR")
-
-def color_delta(val):
-    if val is None or pd.isna(val):
-        return ""
-    if val > 0.15:
-        return "background-color: rgba(0,180,0,0.25)"
-    if val < -0.15:
-        return "background-color: rgba(220,50,50,0.25)"
-    return ""
-
-styled = (
-    df.style
-    .format({
-        "Preço Ação": "{:.2f}",
-        "Preço ADR": "{:.2f}",
-        "Var% Ação": "{:+.2f}%",
-        "Var% ADR": "{:+.2f}%",
-        "Δ Var% (ADR − Ação)": "{:+.2f}",
-    }, na_rep="—")
-    .map(color_delta, subset=["Δ Var% (ADR − Ação)"])
-)
-
-st.dataframe(styled, use_container_width=True, hide_index=True)
-
-st.caption(
-    "Δ Var% positivo = ADR subindo mais (ou caindo menos) que a ação local. "
-    "Valores em destaque forte indicam divergência > 0,15 p.p."
-)
-
-# ------------------------------------------------------------
-# 2. Gráfico de barras – Variação lado a lado
-# ------------------------------------------------------------
-st.subheader("Variação do dia (%)")
-
-df_plot = df.dropna(subset=["Var% Ação", "Var% ADR"]).copy()
-if not df_plot.empty:
-    fig = go.Figure()
-
-    fig.add_trace(go.Bar(
-        name="Ação B3",
-        x=df_plot["Empresa"],
-        y=df_plot["Var% Ação"],
-        marker_color="#58a6ff",
-        text=[f"{v:+.2f}%" for v in df_plot["Var% Ação"]],
-        textposition="outside",
-    ))
-    fig.add_trace(go.Bar(
-        name="ADR",
-        x=df_plot["Empresa"],
-        y=df_plot["Var% ADR"],
-        marker_color="#3fb950",
-        text=[f"{v:+.2f}%" for v in df_plot["Var% ADR"]],
-        textposition="outside",
-    ))
-
-    fig.update_layout(
-        **PLOTLY_LAYOUT,
-        barmode="group",
-        yaxis_title="Variação %",
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        height=420,
+# Indicador de ADRs (Soma/Média das variações das ADRs Brasileiras)
+if ind_adrs is not None:
+    c1.metric(
+        label="Indicador Composto ADRs BR", 
+        value=f"{ind_adrs:+.2f}%",
+        delta="Fluxo Comprador" if ind_adrs > 0.5 else ("Fluxo Vendedor" if ind_adrs < -0.5 else "Estável"),
+        delta_color="normal" if abs(ind_adrs) > 0.5 else "off"
     )
-    st.plotly_chart(fig, use_container_width=True)
 else:
-    st.info("Sem dados de variação disponíveis para o gráfico.")
+    c1.metric(label="Indicador Composto ADRs BR", value="Aguardando dados...")
 
-# ------------------------------------------------------------
-# 3. Cards individuais por empresa
-# ------------------------------------------------------------
-st.subheader("Detalhe por empresa")
-
-cols = st.columns(3)
-for i, p in enumerate(PARES):
-    with cols[i % 3]:
-        acao = ativos.get(p["acao"], {})
-        adr  = ativos.get(p["adr"], {})
-
-        preco_acao = acao.get("preco")
-        preco_adr  = adr.get("preco")
-        var_acao   = acao.get("variacao_pct")
-        var_adr    = adr.get("variacao_pct")
-
-        with st.container(border=True):
-            st.markdown(f"**{p['nome']}**")
-            c1, c2 = st.columns(2)
-            with c1:
-                st.metric(
-                    p["acao"],
-                    f"{preco_acao:.2f}" if preco_acao is not None else "—",
-                    delta=f"{var_acao:+.2f}%" if var_acao is not None else None,
-                )
-            with c2:
-                st.metric(
-                    p["adr"].replace("_ADR", ""),
-                    f"{preco_adr:.2f}" if preco_adr is not None else "—",
-                    delta=f"{var_adr:+.2f}%" if var_adr is not None else None,
-                )
-
-            if var_acao is not None and var_adr is not None:
-                delta = var_adr - var_acao
-                if abs(delta) < 0.15:
-                    st.caption(f"Δ {delta:+.2f} p.p. · alinhados")
-                elif delta > 0:
-                    st.caption(f"Δ {delta:+.2f} p.p. · ADR mais forte")
-                else:
-                    st.caption(f"Δ {delta:+.2f} p.p. · Ação mais forte")
-
-# ------------------------------------------------------------
-# 4. EWZ (contexto Brasil)
-# ------------------------------------------------------------
-st.subheader("Contexto — EWZ (ETF Brasil)")
-
-ewz = ativos.get("EWZ", {})
-if ewz:
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        st.metric("Preço EWZ", f"{ewz.get('preco', 0):.2f}")
-    with c2:
-        var = ewz.get("variacao_pct")
-        st.metric("Variação", f"{var:+.2f}%" if var is not None else "—")
-    with c3:
-        st.metric("Status", ewz.get("status", "—"))
+# Indicador de Mercado Externo (VIX, Petróleo, Minério combinados)
+if ind_externo is not None:
+    c2.metric(
+        label="Indicador de Mercado Externo", 
+        value=f"{ind_externo:+.2f}%",
+        delta="Favorável ao Risco" if ind_externo > 0 else "Aversão ao Risco",
+        delta_color="normal"
+    )
 else:
-    st.info("EWZ não encontrado na coleta.")
+    c2.metric(label="Indicador de Mercado Externo", value="Aguardando dados...")
 
-st.divider()
-st.caption(
-    "Fonte: DadosAtivosUnificados.json · Ações via MetaTrader 5 · ADRs/EWZ via Finnhub · "
-    "Página gerada automaticamente a partir do Coletor."
-)
+# ETF EWZ (Fundo de índice do Brasil negociado em NY)
+ewz_pct = dados_metricas.get("performance_relativa", {}).get("ewz_change_pct", 0.0)
+if ewz_pct is not None:
+    c3.metric(
+        label="EWZ (ETF Brasil em NY)", 
+        value=f"{ewz_pct:+.2f}%",
+        delta_color="off"
+    )
+
+st.markdown("---")
+
+# --- SEÇÃO 2: TABELA DE COMPARAÇÃO PARALELA INDIVIDUAIZADA ---
+st.markdown("### 🔍 Desempenho Setorial Lado a Lado")
+st.caption("Cruzamento analítico entre a variação do papel local na B3 (via MT5) vs sua ADR correspondente (via Finnhub)")
+
+ativos_unificados = dados_unificados.get("ativos", {})
+perf_relativa = dados_metricas.get("performance_relativa", {})
+adrs_brasileiras = perf_relativa.get("adrs_brasileiras", {})
+
+# Mapeamento local inverso para construir a tabela de forma organizada
+# Chave: Ticker B3 | Valor: ID da ADR no dicionário de métricas
+MAPEAMENTO_TABELA = {
+    "VALE3": "VALE_ADR",
+    "PETR4": "PETR_ADR",
+    "ITUB4": "ITUB_ADR",
+    "BBAS3": "BBAS_ADR",
+    "BBDC4": "BBD_ADR",
+}
+
+linhas_tabela = []
+
+for ticker_b3, id_adr in MAPEAMENTO_TABELA.items():
+    if ticker_b3 in ativos_unificados and id_adr in adrs_brasileiras:
+        info_b3 = ativos_unificados[ticker_b3]
+        info_adr = adrs_brasileiras[id_adr]
+        
+        var_b3 = info_b3.get("variacao_pct", 0.0)
+        var_adr = info_adr.get("change_percent", 0.0)
+        preco_adr = info_adr.get("close", 0.0)
+        preco_b3 = info_b3.get("preco", 0.0)
+        
+        # Descolamento Relativo = Performance NY - Performance Local
+        descolamento = var_adr - var_b3
+        
+        if descolamento > 0.4:
+            status = "🔺 ADR puxando (Viés de Alta na abertura local)"
+        elif descolamento < -0.4:
+            status = "🔻 B3 esticada (Viés de Baixa / Realização local)"
+        else:
+            status = "⚖️ Arbitragem em Equilíbrio"
+            
+        linhas_tabela.append({
+            "Ativo B3": ticker_b3,
+            "Cotação B3": f"R$ {preco_b3:,.2f}",
+            "Var B3": f"{var_b3:+.2f}%",
+            "ADR NY": id_adr.replace("_ADR", ""),
+            "Cotação ADR": f"US$ {preco_adr:,.2f}",
+            "Var ADR": f"{var_adr:+.2f}%",
+            "Descolamento": f"{descolamento:+.2f}%",
+            "Diagnóstico": status
+        })
+
+if linhas_tabela:
+    df_setorial = pd.DataFrame(linhas_tabela)
+    st.dataframe(df_setorial.set_index("Ativo B3"), use_container_width=True)
+else:
+    st.warning("⚠️ Suporte de ativos incompleto nos arquivos do pipeline para montar a matriz setorial.")
+
+st.markdown("---")
+st.markdown("💡 **Nota de Trading:** Grandes descolamentos (maiores que ±0.50%) em papéis de alta liquidez como VALE3 e PETR4 costumam ser fechados rapidamente por robôs de arbitragem institucionais de alta frequência nas primeiras horas do pregão à vista brasileiro.")

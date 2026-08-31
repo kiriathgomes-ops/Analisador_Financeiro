@@ -1,363 +1,176 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-pages/8_📥_Gerador_Profit_Pro.py
-================================
-Gera script .txt de linhas horizontais para o Profit Pro.
-
-Fontes de níveis (nesta ordem de prioridade na UI):
-1. AnaliseGraficaSMC_Regras.json  (motor de regras)
-2. AnaliseGraficaSMC.json         (visão IA, se existir)
-3. Texto colado da IA             (tabela markdown / regex)
+Módulo: pages/7.3_📥_Gerador_Profit_Pro.py
+Versão: 4.0 - SMC Multi-Levels (Produção V2)
+Objetivo: Gerar scripts NTSL dinâmicos plotando TODOS os níveis mapeados pelo Motor e pela Visão IA.
 """
 
-from __future__ import annotations
-
+import streamlit as st
 import json
-import os
 import re
+import pandas as pd 
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
 
-import streamlit as st
-from dotenv import load_dotenv
+# Importação de caminhos centralizados do seu config.py
+from config import COLETAS_DIR, FILE_DECISAO_V2, FILE_SMC_REGRAS
 
-load_dotenv()
+# Definição do caminho do arquivo de Visão IA
+FILE_SMC_VISAO_IA = COLETAS_DIR / "AnaliseGraficaSMC.json"
 
-st.set_page_config(
-    page_title="Gerador Profit Pro - Spike",
-    page_icon="📥",
-    layout="wide",
-)
-
-st.markdown(
-    """
-<style>
-.stApp {
-    background: linear-gradient(180deg, #0a0e17 0%, #0e1117 50%, #121620 100%);
-}
-.card-gerador {
-    background: #161b22;
-    border-radius: 12px;
-    padding: 20px;
-    border: 1px solid #2a2d4a;
-    margin-top: 12px;
-}
-.card-gerador h4 { color: #00d4ff; margin-top: 0; }
-.card-nivel {
-    background: #1a1c2a;
-    border-left: 4px solid #58a6ff;
-    padding: 10px 16px;
-    margin: 6px 0;
-    border-radius: 6px;
-    font-size: 0.9rem;
-}
-</style>
-""",
-    unsafe_allow_html=True,
-)
-
-BASE_DIR = Path(__file__).resolve().parent.parent
-COLETAS_DIR = BASE_DIR / "Coletas"
-ARQ_REGRAS = COLETAS_DIR / "AnaliseGraficaSMC_Regras.json"
-ARQ_VISAO = COLETAS_DIR / "AnaliseGraficaSMC.json"
-
-MAPEAMENTO_CORES = {
-    "STRONG HIGH": "clRed",
-    "STRONG LOW": "clGreen",
-    "WEAK HIGH": "clRed",
-    "WEAK LOW": "clGreen",
-    "SUPPLY ZONE": "clRed",
-    "DEMAND ZONE": "clGreen",
-    "ORDER BLOCK": "clRed",
-    "OB VENDA": "clRed",
-    "OB COMPRA": "clGreen",
-    "FVG": "clYellow",
-    "FAIR VALUE GAP": "clYellow",
-    "EQH": "clBlue",
-    "EQL": "clBlue",
-    "LIQUIDEZ": "clBlue",
-    "BSL": "clBlue",
-    "SSL": "clBlue",
-    "PDH": "clFuchsia",
-    "PDL": "clFuchsia",
-    "PWH": "clAqua",
-    "PWL": "clAqua",
-    "EQUILIBRIUM": "clWhite",
-    "COTAÇÃO ATUAL": "clYellow",
-    "REJEIÇÃO": "clSilver",
-    "PIVOT": "clSilver",
-    "BOS": "clLime",
-    "CHOCH": "clLime",
-    "ENTRADA": "clAqua",
-    "STOP": "clRed",
-    "ALVO": "clLime",
-    "DEFAULT": "clSilver",
-}
-
-
-def obter_cor(conceito: str) -> str:
-    conceito_upper = conceito.upper()
-    for chave, cor in MAPEAMENTO_CORES.items():
-        if chave in conceito_upper:
-            return cor
-    return MAPEAMENTO_CORES["DEFAULT"]
-
-
-def carregar_json(path: Path) -> Dict[str, Any]:
-    if not path.exists():
+def carregar_json_defensivo(caminho_path):
+    """Carrega arquivos JSON de forma defensiva protegendo a UI contra falhas."""
+    if not caminho_path.exists():
         return {}
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(caminho_path, "r", encoding="utf-8") as f:
             return json.load(f)
-    except Exception:
+    except:
         return {}
 
+# --- CONFIGURAÇÃO GLOBAL ---
+st.set_page_config(page_title="Quant Terminal - Gerador Multi-Levels", layout="wide")
 
-def niveis_from_regras(dados: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """Converte AnaliseGraficaSMC_Regras.json em lista de níveis Profit."""
-    niveis: List[Dict[str, Any]] = []
+# Carga de arquivos V2
+regras_algo = carregar_json_defensivo(FILE_SMC_REGRAS)
+visao_ia = carregar_json_defensivo(FILE_SMC_VISAO_IA)
 
-    def add(preco: float, descricao: str, tipo: str):
-        if preco is None:
-            return
-        try:
-            p = float(preco)
-        except (TypeError, ValueError):
-            return
-        if p <= 0:
-            return
-        niveis.append(
-            {
-                "tipo": tipo,
-                "preco": p,
-                "descricao": descricao,
-                "observacao": "",
-                "cor": obter_cor(tipo + " " + descricao),
-            }
-        )
+# --- CORPO DA INTERFACE ---
+st.markdown("<h2 style='color:#00d4ff;'>📥 Gerador ProfitPro - Plotagem de Níveis em Massa</h2>", unsafe_allow_html=True)
+st.caption("Exportador dinâmico de código NTSL contendo mapeamento completo de estruturas macro e micro")
 
-    for ob in dados.get("order_blocks") or []:
-        tipo = f"OB {ob.get('tipo', '')}".strip()
-        add(ob.get("preco"), tipo, tipo)
-        # bordas do bloco
-        add(ob.get("high"), f"{tipo} High", tipo)
-        add(ob.get("low"), f"{tipo} Low", tipo)
-
-    for fvg in dados.get("fair_value_gaps") or []:
-        if fvg.get("preenchido"):
-            continue
-        tipo = f"FVG {fvg.get('tipo', '')}".strip()
-        mid = (float(fvg.get("superior", 0)) + float(fvg.get("inferior", 0))) / 2
-        add(mid, tipo, "FVG")
-        add(fvg.get("superior"), f"{tipo} Top", "FVG")
-        add(fvg.get("inferior"), f"{tipo} Bot", "FVG")
-
-    liq = dados.get("liquidez") or {}
-    for p in liq.get("bsl") or []:
-        add(p, "BSL Liquidez", "BSL")
-    for p in liq.get("ssl") or []:
-        add(p, "SSL Liquidez", "SSL")
-
-    if dados.get("entrada_sugerida"):
-        add(dados["entrada_sugerida"], "Entrada sugerida", "ENTRADA")
-    if dados.get("stop_sugerido"):
-        add(dados["stop_sugerido"], "Stop sugerido", "STOP")
-    for i, a in enumerate(dados.get("alvos") or [], 1):
-        add(a, f"Alvo {i}", "ALVO")
-
-    if dados.get("preco_atual"):
-        add(dados["preco_atual"], "Cotação atual", "COTAÇÃO ATUAL")
-
-    # dedup por preço arredondado
-    vistos = set()
-    unicos = []
-    for n in niveis:
-        chave = round(n["preco"], 0)
-        if chave not in vistos:
-            vistos.add(chave)
-            unicos.append(n)
-    unicos.sort(key=lambda x: x["preco"], reverse=True)
-    return unicos
-
-
-def extrair_niveis_do_texto(resposta_ia: str) -> List[Dict[str, Any]]:
-    niveis: List[Dict[str, Any]] = []
-    linhas_tabela = [l.strip() for l in resposta_ia.split("\n") if l.strip().startswith("|")]
-
-    if len(linhas_tabela) >= 2:
-        for linha in linhas_tabela:
-            if re.match(r"^\|\s*-+", linha):
-                continue
-            cols = [c.strip() for c in linha.strip("|").split("|")]
-            if len(cols) < 2:
-                continue
-            if cols[0].lower() in ("nível", "nivel", "preço", "preco", "conceito", "tipo"):
-                continue
-            preco = None
-            descricao = cols[0]
-            for c in cols:
-                m = re.search(r"(\d{2,3}(?:[.\s]\d{3})+(?:[.,]\d+)?|\d{4,})", c.replace(" ", ""))
-                if m:
-                    try:
-                        preco = float(m.group(1).replace(".", "").replace(",", "."))
-                        if preco < 1000:
-                            preco = float(m.group(1).replace(",", ""))
-                    except ValueError:
-                        continue
-                    break
-            if preco and preco > 1000:
-                niveis.append(
-                    {
-                        "tipo": descricao,
-                        "preco": preco,
-                        "descricao": descricao,
-                        "observacao": cols[2] if len(cols) > 2 else "",
-                        "cor": obter_cor(descricao),
-                    }
-                )
-
-    # fallback regex preços
-    if not niveis:
-        for m in re.finditer(
-            r"(OB|FVG|BSL|SSL|Swing|Suporte|Resistência|Alvo|Stop|Entrada)[^\d]{0,40}(\d{2,3}[.\s]?\d{3})",
-            resposta_ia,
-            flags=re.IGNORECASE,
-        ):
-            try:
-                preco = float(m.group(2).replace(" ", "").replace(".", ""))
-                if preco < 10000:
-                    preco = float(m.group(2).replace(" ", "").replace(",", "."))
-                niveis.append(
-                    {
-                        "tipo": m.group(1),
-                        "preco": preco,
-                        "descricao": m.group(0)[:60],
-                        "observacao": "",
-                        "cor": obter_cor(m.group(1)),
-                    }
-                )
-            except ValueError:
-                continue
-
-    vistos = set()
-    unicos = []
-    for n in niveis:
-        chave = (n["tipo"], round(n["preco"], 0))
-        if chave not in vistos:
-            vistos.add(chave)
-            unicos.append(n)
-    return unicos
-
-
-def gerar_script_profit_pro(niveis: List[Dict[str, Any]]) -> str:
-    linhas = []
-    linhas.append("// ==========================================")
-    linhas.append("// SCRIPT GERADO PELO SPIKE - NÍVEIS SMC/ICT")
-    linhas.append(f"// DATA: {datetime.now().strftime('%d/%m/%Y %H:%M')}")
-    linhas.append(f"// TOTAL DE NÍVEIS: {len(niveis)}")
-    linhas.append("// ==========================================")
-    linhas.append("")
-    linhas.append("var")
-    for i in range(1, len(niveis) + 1):
-        linhas.append(f"  Linha{i} : float;")
-    linhas.append("")
-    linhas.append("inicio")
-    linhas.append("  // DEFINIÇÃO DOS NÍVEIS DE PREÇO //////////////////////////////////////////////////")
-    for i, nivel in enumerate(niveis, start=1):
-        preco = nivel["preco"]
-        linhas.append(f"  Linha{i} := {preco:.0f}; // {nivel['descricao']}")
-    linhas.append("")
-    linhas.append("  // PLOTAGEM DE LINHAS HORIZONTAIS CUSTOMIZADAS ////////////////////////////////////")
-    for i, nivel in enumerate(niveis, start=1):
-        cor = nivel["cor"]
-        descricao = nivel["descricao"].replace('"', "")
-        linhas.append(
-            f'  HorizontalLineCustom(Linha{i}, {cor}, 1, 0, "{descricao}", 10, tpTopRight, Date, 0, MinPriceIncrement);'
-        )
-    linhas.append("fim;")
-    return "\n".join(linhas)
-
-
-# ============================================================
-# UI
-# ============================================================
-st.title("📥 Gerador de Script para Profit Pro")
-st.caption("Níveis SMC por regras, visão IA ou texto colado → script .txt Profit")
-
-fonte = st.radio(
-    "Fonte dos níveis",
-    [
-        "Motor SMC Regras (JSON)",
-        "Visão IA (AnaliseGraficaSMC.json)",
-        "Colar texto da IA",
-    ],
-    horizontal=True,
+# --- SELEÇÃO DE INTELIGÊNCIA ---
+fonte_dados = st.selectbox(
+    "🧠 Selecione a matriz de dados para extração de níveis:",
+    ["Motor de Regras Algorítmico (AnaliseGraficaSMC_Regras.json)", "Visão Inteligência Artificial (AnaliseGraficaSMC.json)"]
 )
 
-niveis: List[Dict[str, Any]] = []
-origem = ""
+st.markdown("---")
 
-if fonte == "Motor SMC Regras (JSON)":
-    dados = carregar_json(ARQ_REGRAS)
-    if not dados:
-        st.warning("Arquivo `Coletas/AnaliseGraficaSMC_Regras.json` não encontrado. Rode o pipeline ou a página SMC Regras.")
-    elif dados.get("erro"):
-        st.error(f"JSON de regras com erro: {dados['erro']}")
-    else:
-        niveis = niveis_from_regras(dados)
-        origem = f"regras • bias={dados.get('bias_direcional')} • {dados.get('timestamp', '')}"
-        st.success(f"{len(niveis)} níveis extraídos do motor de regras")
+# Dicionário unificado para guardar os níveis e suas respectivas cores de exibição no Profit
+# Chave: Preço (int) | Valor: Cor do Profit (clVerde, clVermelho, clAzul, etc)
+niveis_mapeados = {}
 
-elif fonte == "Visão IA (AnaliseGraficaSMC.json)":
-    dados = carregar_json(ARQ_VISAO)
-    if not dados:
-        st.warning("`AnaliseGraficaSMC.json` não encontrado.")
-    else:
-        # tenta mesmos campos; senão usa estruturas_coletadas como texto
-        niveis = niveis_from_regras(dados)
-        if not niveis:
-            texto = "\n".join(dados.get("estruturas_coletadas") or [])
-            texto += "\n" + "\n".join(dados.get("liquidez_relevante") or [])
-            niveis = extrair_niveis_do_texto(texto)
-        origem = "visão IA"
-        st.success(f"{len(niveis)} níveis a partir da visão")
+if "Motor de Regras" in fonte_dados:
+    st.markdown("### 📊 Níveis Identificados: Motor Matemático MT5")
+    
+    # 1. Coleta de Order Blocks
+    for ob in regras_algo.get("order_blocks", []):
+        preco = int(ob.get("preco", 0))
+        if preco > 0:
+            niveis_mapeados[preco] = "clVerde" if ob.get("tipo") == "COMPRA" else "clVermelho"
+            
+    # 2. Coleta de Fair Value Gaps (Usa o ponto médio do Gap para traçar a linha)
+    for fvg in regras_algo.get("fair_value_gaps", []):
+        sup = fvg.get("superior", 0)
+        inf = fvg.get("inferior", 0)
+        if sup > 0 and inf > 0:
+            meio_fvg = int((sup + inf) / 2)
+            niveis_mapeados[meio_fvg] = "clAmarelo"
+            
+    # 3. Coleta de Liquidez (BSL e SSL)
+    liq = regras_algo.get("liquidez", {})
+    for p in liq.get("bsl", []):
+        niveis_mapeados[int(p)] = "clAzul"
+    for p in liq.get("ssl", []):
+        niveis_mapeados[int(p)] = "clFucsia"
+        
+    # 4. Gatilhos operacionais adicionais se houverem
+    if regras_algo.get("entrada_sugeriga"):
+        niveis_mapeados[int(regras_algo["entrada_sugerida"])] = "clBranco"
 
 else:
-    st.markdown("### Cole a resposta da IA (tabela SMC)")
-    resposta_ia = st.text_area(
-        "📝 Resposta da IA",
-        placeholder="Cole aqui a tabela ou análise SMC...",
-        height=240,
-    )
-    if st.button("🔍 Extrair do texto", type="primary"):
-        niveis = extrair_niveis_do_texto(resposta_ia or "")
-        origem = "texto colado"
-        if not niveis:
-            st.warning("Nenhum nível identificado.")
+    st.markdown("### 🤖 Níveis Identificados: Visão IA / Spike Imagem")
+    
+    # Varre as estruturas textuais e extrai os números usando Regex de forma defensiva
+    estruturas = visao_ia.get("estruturas_coletadas", [])
+    
+    for est in estruturas:
+        # Encontra a pontuação no início da string (ex: "178.270: OB VENDA")
+        match = re.match(r"^([\d\.]+)", est.strip())
+        if match:
+            try:
+                preco_limpo = int(match.group(1).replace(".", ""))
+                
+                # Heurística de cor baseada no texto descritivo capturado pela IA
+                est_lower = est.lower()
+                if "compra" in est_lower or "low" in est_lower or "suporte" in est_lower:
+                    cor = "clVerde"
+                elif "venda" in est_lower or "high" in est_lower or "resistencia" in est_lower:
+                    cor = "clVermelho"
+                elif "fvg" in est_lower:
+                    cor = "clAmarelo"
+                else:
+                    cor = "clBranco"
+                    
+                niveis_mapeados[preco_limpo] = cor
+            except:
+                continue
+
+# --- CONSTRUÇÃO DINÂMICA DO CÓDIGO NTSL (PROFITPRO) ---
+if niveis_mapeados:
+    # Remove duplicidades mantendo a ordenação por preço
+    precos_ordenados = sorted(list(niveis_mapeados.keys()))
+    total_niveis = len(precos_ordenados)
+    
+    # 1. Montagem do Bloco de Variáveis (Var)
+    linhas_var = []
+    for idx in range(1, total_niveis + 1):
+        linhas_var.append(f"  Nivel_{idx} : Real;")
+    bloco_var = "\n".join(linhas_var)
+    
+    # 2. Montagem do Bloco de Atribuição e Plotagem (Inicio)
+    linhas_codigo = []
+    for idx, preco in enumerate(precos_ordenados, start=1):
+        cor_escolhida = niveis_mapeados[preco]
+        
+        # Constrói o bloco Pascal para cada linha achada no JSON do seu ecossistema
+        linhas_codigo.append(f"  Nivel_{idx} := {preco};")
+        
+        if idx == 1:
+            linhas_codigo.append(f"  Plot(Nivel_{idx});")
+            linhas_codigo.append(f"  SetPlotColor(1, {cor_escolhida});")
         else:
-            st.success(f"{len(niveis)} níveis extraídos")
+            linhas_codigo.append(f"  Plot{idx}(Nivel_{idx});")
+            linhas_codigo.append(f"  SetPlotColor({idx}, {cor_escolhida});")
+            
+        # Linha pontilhada (estilo 1) para FVGs e Liquidez, contínua para OBs
+        if cor_escolhida in ["clAmarelo", "clAzul", "clFucsia"]:
+            linhas_codigo.append(f"  SetPlotStyle({idx}, 1);")
+            
+    bloco_atribuicao = "\n".join(linhas_codigo)
+    
+    # 3. Compilação do Script NTSL Final
+    script_final = f"""{{
+    Script NTSL gerado automaticamente pelo Quant Terminal V2 Python
+    Fonte de Inteligencia: {fonte_dados}
+    Total de Niveis Identificados: {total_niveis}
+    Data de Geracao: {datetime.now().strftime('%d/%m/%Y às %H:%M:%S')}
+    
+    Legenda de Cores Injetadas:
+    • Verde    ➔ Regiões de Compra / OB Compra / Strong Low
+    • Vermelho ➔ Regiões de Venda / OB Venda / Strong High
+    • Amarelo  ➔ Fair Value Gaps (FVG) / Desequilíbrio
+    • Azul     ➔ Liquidez Compradora (BSL)
+    • Fucsia   ➔ Liquidez Vendedora (SSL)
+}}
+Var
+{bloco_var}
 
-if niveis:
-    st.markdown("---")
-    st.markdown(f"### Níveis ({len(niveis)}) · {origem}")
-    for n in niveis:
-        st.markdown(
-            f'<div class="card-nivel"><b>{n["preco"]:,.0f}</b> — {n["descricao"]} '
-            f'<span style="opacity:.6">({n["cor"]})</span></div>',
-            unsafe_allow_html=True,
-        )
+Inicio
+{bloco_atribuicao}
+Fim;"""
 
-    script = gerar_script_profit_pro(niveis)
-    st.markdown("### Script Profit Pro")
-    st.code(script, language="pascal")
-    st.download_button(
-        "⬇️ Baixar .txt",
-        data=script,
-        file_name=f"niveis_smc_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
-        mime="text/plain",
-    )
-    st.info("No Profit Pro: abra o editor de estratégia/indicador e cole o script (sintaxe HorizontalLineCustom).")
+    # --- EXIBIÇÃO NA UI STREAMLIT ---
+    st.markdown(f"#### 📜 Código NTSL Gerado ({total_niveis} Níveis Ativos)")
+    st.code(script_final, language="pascal")
+    
+    # Painel de conferência em colunas ou expander
+    with st.expander("🔍 Visualizar Tabela de Auditoria dos Níveis Injetados"):
+        linhas_auditoria = []
+        for p in precos_ordenados:
+            linhas_auditoria.append({"Preço (Pontos)": f"{p:,.0f}", "Cor Associada": niveis_mapeados[p].replace("cl", "")})
+        st.table(pd.DataFrame(linhas_auditoria))
 
-st.caption("Spike • Gerador Profit Pro • Regras + Visão + Texto")
+else:
+    st.warning("⚠️ Nenhum nível válido foi encontrado no arquivo JSON selecionado. Aguardando processamento do pipeline.")

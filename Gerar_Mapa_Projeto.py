@@ -1,136 +1,120 @@
-# ============================================================
-# ARQUIVO: Mapa_Projeto.py
-# GERA MAPA AUTOMÁTICO DO PROJETO
-# ============================================================
+# -*- coding: utf-8 -*-
+"""
+Módulo: Gerar_Mapa_Projeto.py
+Versão: 2.0 - Otimizado para Produção V2
+Objetivo: Classificar os arquivos do inventário técnico e gerar o Mapa_Projeto.json.
+"""
 
 import json
 import os
 from datetime import datetime
+from config import COLETAS_DIR
 
-# ------------------------------------------------------------
-# CONFIGURAÇÃO DE CAMINHOS SEGUROS
-# ------------------------------------------------------------
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-COLETAS_DIR = os.path.join(BASE_DIR, "Coletas")
-PASTA_SAIDA = os.path.join(COLETAS_DIR, "Mapa_Projeto.json")
+# Definição segura do arquivo de saída baseado no config
+FILE_MAPA_PROJETO = COLETAS_DIR / "Mapa_Projeto.json"
 
-# ------------------------------------------------------------
-# IMPORTA INVENTÁRIO AUTOMÁTICO
-# ------------------------------------------------------------
-try:
-    from Coletas.ArquivosApp import ARQUIVOS_PROJETO
-except ImportError:
-    # Se chamado de dentro do módulo ou diretório diferente
-    try:
-        from ArquivosApp import ARQUIVOS_PROJETO
-    except ImportError:
-        ARQUIVOS_PROJETO = []
+def classificar_arquivo(nome_arquivo: str, local_relativo: str) -> str:
+    """
+    Classifica os módulos do projeto em categorias lógicas baseadas 
+    na nomenclatura e na estrutura de pastas da V1 e V2.
+    """
+    nome = nome_arquivo.lower()
+    local = local_relativo.lower()
 
+    # 1. Novas Estruturas e Contratos Oficiais da V2
+    if "v2/" in local or "v2_" in nome:
+        if "pages" in local or "page" in nome:
+            return "INTERFACE_V2"
+        return "CORE_V2"
 
-# ------------------------------------------------------------
-# CLASSIFICAÇÃO DOS MÓDULOS
-# ------------------------------------------------------------
-def classificar_arquivo(nome):
-    nome = nome.lower()
-
-    # 1. Módulos de Notícias e Macro
+    # 2. Módulos de Notícias, Calendário e Macro
     if "noticia" in nome or "calendario" in nome:
         if nome.endswith(".py"):
             return "NOTICIAS_MACRO"
         return "DADOS"
 
-    # 2. Coletor Geral
+    # 3. Motores Ingestão e Coletores
     if "coleta" in nome or "coletor" in nome:
         return "COLETA"
 
-    # 3. Validação e Testes
-    if "valid" in nome or "teste" in nome or "fonte" in nome:
+    # 4. Sanitização, Validação e Testes Smoke
+    if "valid" in nome or "teste" in nome or "smoke" in nome:
         return "VALIDACAO"
 
-    # 4. Cálculos e Estimativas
+    # 5. Motores de Cálculo e Estimativas Quantitativas
     if "calcul" in nome or "metrica" in nome or "estimativa" in nome:
         return "CALCULOS"
 
-    # 5. Core Engine / Decisao
+    # 6. Orquestradores, Pipelines e Core Engines
     if "engine" in nome or "decisao" in nome or "pipeline" in nome:
-        return "CORE"
+        return "CORE_V1"
 
-    # 6. Relatórios
+    # 7. Relatórios de Auditoria e Mensageria
     if "relatorio" in nome or "mensagem" in nome:
         return "RELATORIOS"
 
-    # 7. Interfaces (App / Streamlit Pages)
-    if "app" in nome or "page" in nome or "pages" in nome:
-        return "INTERFACE"
+    # 8. Interfaces Visuais Standard (Streamlit Pages)
+    if "app" in nome or "page" in nome or "pages/" in local:
+        return "INTERFACE_V1"
 
-    # 8. Arquivos de Dados soltos
-    if nome.endswith(".json") or nome.endswith(".csv"):
+    # 9. Arquivos de Dados Soltos
+    if nome.endswith(".json") or nome.endswith(".csv") or nome.endswith(".log"):
         return "DADOS"
 
     return "OUTROS"
 
+def executar_mapeamento_projeto():
+    print("=" * 60)
+    print(" 🗺️ EXECUTANDO ATUALIZAÇÃO DO MAPA LOGÍSTICO DO PROJETO (V2)")
+    print("=" * 60)
 
-# ------------------------------------------------------------
-# GERA MAPA
-# ------------------------------------------------------------
-def gerar_mapa():
+    # Importa de forma segura o inventário gerado pela etapa anterior do pipeline
+    try:
+        from Coletas.ArquivosApp import ARQUIVOS_PROJETO
+    except ImportError:
+        print("❌ [ERRO] Inventário básico 'ArquivosApp.py' não localizado na pasta Coletas.")
+        print("   -> Certifique-se de que a etapa 'Gerar_Mapa_Inventario_Tecnico.py' rodou primeiro.")
+        return
+
     mapa = {
         "metadata": {
             "projeto": "Analisador_Financeiro",
             "gerado_em": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "fonte": "Coletas/Mapa_Inventario_Tecnico.json",
+            "fonte": "Coletas/ArquivosApp.py",
+            "versao_arquitetura": "V2.0 (Fase 3 Unificada)"
         },
         "estrutura": {},
-        "total_arquivos": len(ARQUIVOS_PROJETO),
+        "total_arquivos_catalogados": len(ARQUIVOS_PROJETO),
     }
 
+    # Distribui os arquivos nas novas gavetas lógicas da V2
     for item in ARQUIVOS_PROJETO:
-        categoria = classificar_arquivo(item["arquivo"])
+        categoria = classificar_arquivo(item["arquivo"], item["local"])
 
         if categoria not in mapa["estrutura"]:
             mapa["estrutura"][categoria] = []
 
-        mapa["estrutura"][categoria].append(
-            {
-                "arquivo": item["arquivo"],
-                "local": item["local"],
-                "tipo": item["tipo"],
-                "tamanho_kb": item["tamanho_kb"],
-                "ultima_alteracao": item["ultima_alteracao"],
-            }
-        )
+        mapa["estrutura"][categoria].append({
+            "arquivo": item["arquivo"],
+            "local": item["local"],
+            "tipo": item["tipo"],
+            "tamanho_kb": item["tamanho_kb"],
+            "ultima_alteracao": item["ultima_alteracao"],
+        })
 
-    return mapa
-
-
-# ------------------------------------------------------------
-# SALVAR JSON
-# ------------------------------------------------------------
-def salvar_mapa():
-    if not ARQUIVOS_PROJETO:
-        print("[ERRO] Nenhum arquivo foi encontrado no inventário `ARQUIVOS_PROJETO`.")
-        return
-
-    mapa = gerar_mapa()
-
-    os.makedirs(COLETAS_DIR, exist_ok=True)
-
-    with open(PASTA_SAIDA, "w", encoding="utf-8") as arquivo:
-        json.dump(mapa, arquivo, indent=4, ensure_ascii=False)
-
-    print("=" * 60)
-    print(" MAPA DO PROJETO GERADO COM SUCESSO ")
-    print("=" * 60)
-
-    print(f"\nArquivos analisados: {mapa['total_arquivos']}\n")
-
-    for categoria, lista in mapa["estrutura"].items():
-        print(f"  • {categoria:<15} : {len(lista)} arquivos")
-
-    print("\nArquivo criado:")
-    print(os.path.abspath(PASTA_SAIDA))
-    print("=" * 60)
-
+    # Persistência estável em disco do arquivo de auditoria consumido pelo Streamlit
+    try:
+        COLETAS_DIR.mkdir(parents=True, exist_ok=True)
+        with open(FILE_MAPA_PROJETO, "w", encoding="utf-8") as arquivo:
+            json.dump(mapa, arquivo, indent=4, ensure_ascii=False)
+            
+        print(f"📊 Inventário Analisado: {mapa['total_arquivos_catalogados']} arquivos.")
+        for categoria, lista in mapa["grid_estrutura" if "grid" in mapa else "estrutura"].items():
+            print(f"  • {categoria:<15} : {len(lista)} arquivos cadastrados")
+            
+        print(f"\n✅ Mapa do projeto gerado com sucesso em: {FILE_MAPA_PROJETO.name}\n")
+    except Exception as e:
+        print(f"❌ Erro ao salvar o arquivo Mapa_Projeto.json: {e}")
 
 if __name__ == "__main__":
-    salvar_mapa()
+    executar_mapeamento_projeto()

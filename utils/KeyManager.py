@@ -1,124 +1,101 @@
-# utils/KeyManager.py
+# -*- coding: utf-8 -*-
+"""
+Módulo: utils/KeyManager.py
+Versão: 2.1 - Blindagem de Credenciais (V2)
+Objetivo: Gerenciar, validar e mascarar chaves de API de forma segura.
+"""
+
 import os
-from datetime import datetime, timedelta
-from typing import Optional, Dict, Any
+import sys
+import logging
 from pathlib import Path
+
+# Garante a carga das variáveis do .env a partir da raiz do projeto
+BASE_DIR = Path(__file__).resolve().parent.parent
+try:
+    from dotenv import load_dotenv
+    load_dotenv(dotenv_path=BASE_DIR / ".env")
+except ImportError:
+    pass
+
+# Configuração básica de segurança de logs
+logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
 
 class KeyManager:
     """
-    Gerenciador de chaves API com rotação automática
+    Centraliza a validação, carga e mascaramento de credenciais críticas
+    do ecossistema quantitativo.
     """
-    
     def __init__(self):
-        self.keys = self._carregar_chaves()
-        self.index = 0
-        self.log_file = Path("Coletas/token_usage.log")
-        self.log_file.parent.mkdir(exist_ok=True)
-    
-    def _carregar_chaves(self) -> list:
-        """Carrega todas as chaves do .env"""
-        keys = []
-        i = 1
-        while True:
-            key = os.getenv(f"GROQ_API_KEY_{i}")
-            if key:
-                keys.append({
-                    "key": key,
-                    "nome": f"Key_{i}",
-                    "ativa": True,
-                    "ultimo_uso": None,
-                    "total_tokens": 0,
-                    "rate_limit_ate": None
-                })
-                i += 1
-            else:
-                break
-        
-        # Fallback: usa a chave padrão
-        if not keys:
-            key_padrao = os.getenv("GROQ_API_KEY")
-            if key_padrao:
-                keys.append({
-                    "key": key_padrao,
-                    "nome": "Key_Padrao",
-                    "ativa": True,
-                    "ultimo_uso": None,
-                    "total_tokens": 0,
-                    "rate_limit_ate": None
-                })
-        
-        print(f"🔑 {len(keys)} chave(s) carregada(s)")
-        return keys
-    
-    def get_next_key(self) -> Optional[str]:
-        """Retorna a próxima chave disponível"""
-        if not self.keys:
-            print("❌ Nenhuma chave configurada!")
-            return None
-        
-        tentativas = 0
-        max_tentativas = len(self.keys)
-        
-        while tentativas < max_tentativas:
-            key_info = self.keys[self.index]
-            
-            # Verifica se a chave está em rate limit
-            if key_info["rate_limit_ate"]:
-                if datetime.now() < key_info["rate_limit_ate"]:
-                    self.index = (self.index + 1) % len(self.keys)
-                    tentativas += 1
-                    continue
-            
-            # Chave disponível
-            key_info["ultimo_uso"] = datetime.now()
-            self.index = (self.index + 1) % len(self.keys)
-            print(f"🔑 Usando {key_info['nome']}")
-            return key_info["key"]
-        
-        print("⚠️ Todas as chaves estão em rate limit!")
-        return None
-    
-    def registrar_uso(self, key_utilizada: str, tokens_usados: int):
-        """Registra o uso de uma chave"""
-        for k in self.keys:
-            if k["key"] == key_utilizada:
-                k["total_tokens"] += tokens_usados
-                k["ultimo_uso"] = datetime.now()
-                
-                with open(self.log_file, "a", encoding="utf-8") as f:
-                    f.write(f"{k['nome']}: {tokens_usados} tokens | {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-                break
-    
-    def marcar_rate_limit(self, key_utilizada: str, tempo_espera_minutos: int = 120):
-        """Marca uma chave como em rate limit"""
-        for k in self.keys:
-            if k["key"] == key_utilizada:
-                k["rate_limit_ate"] = datetime.now() + timedelta(minutes=tempo_espera_minutos)
-                print(f"⏳ {k['nome']} em rate limit até {k['rate_limit_ate'].strftime('%H:%M')}")
-                break
-    
-    def get_status(self) -> Dict[str, Any]:
-        """Retorna o status de todas as chaves"""
-        status = {}
-        for k in self.keys:
-            nome = k["nome"]
-            status[nome] = {
-                "ativa": k["ativa"],
-                "total_tokens": k["total_tokens"],
-                "rate_limit_ate": k["rate_limit_ate"].strftime("%H:%M") if k["rate_limit_ate"] else None,
-                "ultimo_uso": k["ultimo_uso"].strftime("%H:%M:%S") if k["ultimo_uso"] else "Nunca"
-            }
-        return status
+        # Definição das chaves obrigatórias mapeadas na V2
+        self.chaves_requeridas = [
+            "FINNHUB_API_KEY",
+            "GROQ_API_KEY",
+            "TELEGRAM_TOKEN",
+            "TELEGRAM_CHAT",
+            "MT5_LOGIN"
+        ]
 
-# Instância global
+    def verificar_presenca_credenciais(self) -> dict:
+        """
+        Varre o ambiente e retorna um dicionário com o status de presença (True/False)
+        de cada token, sem expor os valores confidenciais.
+        """
+        status_chaves = {}
+        for chave in self.chaves_requeridas:
+            valor = os.getenv(chave)
+            status_chaves[chave] = bool(valor and len(valor.strip()) > 0)
+        return status_chaves
+
+    def obter_chave_mascarada(self, nome_chave: str) -> str:
+        """
+        Retorna uma versão higienizada e mascarada de uma chave para auditoria visual na UI.
+        Exemplo: gsk_u...xxxx
+        """
+        valor = os.getenv(nome_chave)
+        if not valor:
+            return "❌ AUSENTE NO ARQUIVO .ENV"
+        
+        valor_limpo = valor.strip()
+        if len(valor_limpo) <= 8:
+            return "⚠️ CONFIGURAÇÃO INVÁLIDA / CHAVE CURTA CRÍTICA"
+            
+        # Máscara de segurança: mostra os primeiros 5 caracteres e os últimos 4
+        return f"✅ ATIVO ({valor_limpo[:5]}...{valor_limpo[-4:]})"
+
+    def obter_cliente_groq(self):
+        """
+        Instancia e retorna o cliente Groq de inferência de IA isolando erros de token
+        para evitar queda total do orquestrador do pipeline.
+        """
+        groq_key = os.getenv("GROQ_API_KEY")
+        if not groq_key:
+            logging.error("[KEYMANAGER] GROQ_API_KEY não localizada no ambiente.")
+            return None
+            
+        try:
+            from groq import Groq
+            # Retorna o cliente autenticado de forma isolada
+            return Groq(api_key=groq_key.strip())
+        except Exception as e:
+            logging.error(f"[KEYMANAGER] Falha ao instanciar o cliente Groq Cloud: {e}")
+            return None
+
+# Instanciação global do módulo de controle de segurança do projeto
 key_manager = KeyManager()
 
-def get_groq_client():
-    """Retorna um cliente Groq com a próxima chave disponível"""
-    from groq import Groq
+# Atalhos de compatibilidade (Aliases) para o pipeline principal
+get_groq_client = key_manager.get_groq_client if hasattr(key_manager, 'get_groq_client') else key_manager.obter_cliente_groq
+
+if __name__ == "__main__":
+    print("=" * 60)
+    print(" 🔒 AUDITORIA DE CRIPTOGRAFIA E CHAVES (SMOKE CHECK)")
+    print("=" * 60)
     
-    key = key_manager.get_next_key()
-    if not key:
-        raise Exception("❌ Nenhuma chave API disponível no momento!")
-    
-    return Groq(api_key=key), key
+    status = key_manager.verificar_presenca_credenciais()
+    for k, v in status.items():
+        status_txt = "PRESENTE (OK)" if v else "⚠️ AUSENTE"
+        print(f"  • {k:<18} : {status_txt}")
+        if v:
+            print(f"    └─ Máscara UI  : {key_manager.obter_chave_mascarada(k)}")
+    print("=" * 60)

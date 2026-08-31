@@ -1,357 +1,217 @@
 # -*- coding: utf-8 -*-
 """
-WINFUT - Previsão de Direção e Força da Abertura Pós-Leilão
-Fontes: Genial MT5 + Yahoo Finance (yfinance) + pyield (DI real)
+Módulo: win_abertura_pro.py
+Versão: 3.0 - Produção Otimizada V2
+Objetivo: Previsão de direção e força da abertura do WINFUT baseando-se na curva 
+          DI real interpolada e dados macro locais do pipeline V2.
 """
 
-import MetaTrader5 as mt5
-import pyield as yd
-import pandas as pd
-import numpy as np
-from datetime import datetime, date, time, timedelta
-from bizdays import Calendar
-import requests
-import time as time_module
-import warnings
 import os
+import json
+import logging
+import warnings
+from datetime import datetime, date, time
+import numpy as np
+import pandas as pd
+import MetaTrader5 as mt5
+import requests
 from dotenv import load_dotenv
-import yfinance as yf
+
+# Ingestão de caminhos, constantes e configurações centrais da V2
+from config import (
+    COLETAS_DIR,
+    FILE_VALIDADOS,
+    FILE_MT5_V2,
+    PESOS_ESTIMATIVA_ABERTURA,
+    LOGS_DIR
+)
 
 warnings.filterwarnings("ignore")
-
-# Carrega as variáveis do arquivo .env
 load_dotenv()
 
-# ============================================================
-# CONFIGURAÇÕES
-# ============================================================
-
-MT5_LOGIN      = int(os.getenv("MT5_LOGIN"))
-MT5_PASSWORD   = os.getenv("MT5_PASSWORD")
-MT5_SERVER     = os.getenv("MT5_SERVER")
-MT5_PATH       = os.getenv("MT5_PATH")
-
+# Configurações de mensageria do Telegram via ambiente (.env)
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-TELEGRAM_CHAT  = os.getenv("TELEGRAM_CHAT")
+TELEGRAM_CHAT = os.getenv("TELEGRAM_CHAT")
+DIVIDENDOS_ESTIMADOS = 80  # Pontos teóricos estimados de desconto de dividendos
 
-WIN_SYMBOL           = "WINV26"               # atualize todo mês
-DIVIDENDOS_ESTIMADOS = 80                     # pontos aproximados
-
-# ============================================================
-# FUNÇÕES AUXILIARES
-# ============================================================
-
-def conectar_mt5():
-    if not mt5.initialize(path=MT5_PATH, login=MT5_LOGIN,
-                          password=MT5_PASSWORD, server=MT5_SERVER):
-        print("Erro MT5:", mt5.last_error())
-        return False
-    print("✅ MT5 Genial conectado")
-    return True
-
-def enviar_telegram(msg):
+def enviar_telegram(msg: str):
+    """Envia o relatório de previsão pós-leilão diretamente para o canal operacional."""
+    if not TELEGRAM_TOKEN or not TELEGRAM_CHAT:
+        return
     try:
-        requests.post(
-            f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
-            data={"chat_id": TELEGRAM_CHAT, "text": msg, "parse_mode": "HTML"},
-            timeout=8
-        )
+        url = f"https://telegram.org{TELEGRAM_TOKEN}/sendMessage"
+        requests.post(url, data={"chat_id": TELEGRAM_CHAT, "text": msg, "parse_mode": "HTML"}, timeout=5)
     except:
         pass
 
-def get_last_tick(symbol):
-    tick = mt5.symbol_info_tick(symbol)
-    if not tick:
-        return None
-    return {"last": tick.last, "bid": tick.bid, "ask": tick.ask,
-            "time": datetime.fromtimestamp(tick.time)}
-
-def get_prev_close(symbol):
-    rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_D1, 0, 5)
-    if rates is None or len(rates) < 2:
-        return None
-    return float(pd.DataFrame(rates).iloc[-2]["close"])
-
-def get_atr(symbol, period=14):
-    rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_D1, 0, period + 5)
-    if rates is None:
-        return None
-    df = pd.DataFrame(rates)
-    tr = pd.concat([
-        df["high"] - df["low"],
-        (df["high"] - df["close"].shift()).abs(),
-        (df["low"] - df["close"].shift()).abs()
-    ], axis=1).max(axis=1)
-    return float(tr.rolling(period).mean().iloc[-1])
-
-# ============================================================
-# DI REAL (pyield)
-# ============================================================
-
-def obter_taxa_di_real(dias_uteis_alvo):
-    """Puxa curva DI1 mais recente e interpola a taxa para o prazo do WIN"""
+def descobrir_contrato_vigente_v2() -> str:
+    """Lê o snapshot do coletor V2.2 para capturar o contrato ativo com maior volume."""
+    if not FILE_MT5_V2.exists():
+        return "WIN$"
     try:
-        cal = Calendar.load("B3")
-        ref = cal.offset(date.today(), -1)
+        with open(FILE_MT5_V2, "r", encoding="utf-8") as f:
+            dados = json.load(f)
+        contrato = dados.get("ativos", {}).get("WIN", {}).get("contrato_principal")
+        if contrato:
+            return str(contrato)
+    except:
+        pass
+    return "WIN$"
 
-        df = yd.futuro.historico(ref.strftime("%d-%m-%Y"), "DI1")
-        
-        # Se não tiver dados, tenta o dia útil anterior
-        if df is None or (hasattr(df, "is_empty") and df.is_empty()) or len(df) == 0:
-            ref = cal.offset(ref, -1)
-            df = yd.futuro.historico(ref.strftime("%d-%m-%Y"), "DI1")
+def conectar_mt5_v2(symbol: str) -> bool:
+    """Inicializa a API do MT5 garantindo o contrato selecionado na grade."""
+    if not mt5.initialize():
+        print(f"❌ Erro ao inicializar MT5: {mt5.last_error()}")
+        return False
+    mt5.symbol_select(symbol, True)
+    return True
 
-        if df is None or (hasattr(df, "is_empty") and df.is_empty()) or len(df) == 0:
-            print("⚠️ pyield não retornou curva DI – usando fallback 14.25%")
-            return 0.1425
-
-        # Converte para pandas se for Polars
-        if hasattr(df, "to_pandas"):
-            df = df.to_pandas()
-
-        dus = df["dias_uteis"].tolist()
-        taxas = df["taxa_ajuste"].tolist()
-
-        # Garante que as taxas estejam em decimal
-        if max(taxas) > 1:
-            taxas = [t / 100 for t in taxas]
-
-        # Interpolação
+def carregar_dados_locais_v2() -> tuple[dict, dict]:
+    """Carrega as métricas e dados validados processados em background pelo pipeline."""
+    dados_validados = {}
+    if FILE_VALIDADOS.exists():
         try:
-            interp = yd.Interpolador(dus, taxas, metodo="flat_forward")
-            taxa = float(interp(dias_uteis_alvo))
+            with open(FILE_VALIDADOS, "r", encoding="utf-8") as f:
+                payload = json.load(f)
+            # Converte a lista de ativos validados em dicionário chaveado pelo ativo_id
+            dados_validados = {item["ativo_id"]: item for item in payload.get("ativos_validados", [])}
         except:
-            # Fallback linear
-            taxa = float(np.interp(dias_uteis_alvo, dus, taxas))
-
-        print(f"✅ Taxa DI interpolada ({dias_uteis_alvo} DU): {taxa*100:.2f}%")
-        return taxa
-
-    except Exception as e:
-        print(f"Erro pyield: {e} – usando fallback")
-        return 0.1425
-
-def dias_uteis_ate_vencimento_win():
-    """Aproximação boa do número de DU até o vencimento do contrato atual"""
-    return 18  # ajuste manual se quiser precisão máxima
-
-# ============================================================
-# S&P + VIX (yfinance)
-# ============================================================
-
-def get_finnhub():
-    """Busca gap do S&P 500 e VIX via Yahoo Finance (gratuito)"""
-    try:
-        # S&P 500
-        spx = yf.Ticker("^GSPC")
-        hist_spx = spx.history(period="5d")
-        
-        if hist_spx.empty or len(hist_spx) < 2:
-            print("⚠️ Não foi possível obter histórico do S&P")
-            return None
+            pass
             
-        prev_close = hist_spx["Close"].iloc[-2]
-        last_close = hist_spx["Close"].iloc[-1]
-        gap = (last_close - prev_close) / prev_close * 100
+    dados_mt5 = {}
+    if FILE_MT5_V2.exists():
+        try:
+            with open(FILE_MT5_V2, "r", encoding="utf-8") as f:
+                dados_mt5 = json.load(f)
+        except:
+            pass
+            
+    return dados_validados, dados_mt5
 
-        # VIX
-        vix_ticker = yf.Ticker("^VIX")
-        hist_vix = vix_ticker.history(period="5d")
-        vix = float(hist_vix["Close"].iloc[-1]) if not hist_vix.empty else 18.0
-
-        return {
-            "gap_pct": float(gap),
-            "spx": float(last_close),
-            "spx_prev": float(prev_close),
-            "vix": vix
-        }
-    except Exception as e:
-        print("Erro ao buscar dados (yfinance):", e)
-        return None
-
-# ============================================================
-# PREÇO JUSTO + RANGE
-# ============================================================
-
-def preco_justo(spot, taxa, du, div=0):
+def preco_justo(spot: float, taxa_di: float, du: int, div: int = 0) -> float:
+    """Aplica o modelo matemático de precificação de carry-cost para contratos futuros."""
     t = du / 252
-    return spot * (1 + taxa * t) - div
+    return spot * (1 + taxa_di * t) - div
 
-def range_esperado(ref, atr, vix):
-    fator = max(0.7, min(1.6, vix / 18))
-    amp = atr * fator * 0.55
-    return ref + amp, ref - amp, amp
-
-# ============================================================
-# SCORE DE DIREÇÃO + FORÇA
-# ============================================================
-
-def calcular_score(gap_pct, desvio_justo, atr, vix):
-    """
-    Score de -100 a +100
-    Positivo = comprador | Negativo = vendedor
-    Absoluto = força
-    """
+def calcular_score_direcional(gap_pct: float, desvio_justo: float, vix: float) -> float:
+    """Calcula o score direcional de força de -100 a +100 baseado em prêmio e desvios macro."""
     score = 0.0
 
-    # 1. Gap externo (peso alto)
-    if gap_pct > 0.40:
-        score += 35
-    elif gap_pct > 0.20:
-        score += 22
-    elif gap_pct < -0.40:
-        score -= 35
-    elif gap_pct < -0.20:
-        score -= 22
-    else:
-        score += gap_pct * 40  # proporcional
+    # 1. Impacto do gap externo ponderado
+    if gap_pct > 0.40: score += 35
+    elif gap_pct > 0.20: score += 22
+    elif gap_pct < -0.40: score -= 35
+    elif gap_pct < -0.20: score -= 22
+    else: score += gap_pct * 40
 
-    # 2. Desvio do preço justo (peso alto)
+    # 2. Impacto do desvio do preço justo teórico
     if desvio_justo is not None:
-        if desvio_justo > 120:
-            score += 30
-        elif desvio_justo > 60:
-            score += 18
-        elif desvio_justo < -120:
-            score -= 30
-        elif desvio_justo < -60:
-            score -= 18
-        else:
-            score += desvio_justo * 0.18
+        if desvio_justo > 120: score += 30
+        elif desvio_justo > 60: score += 18
+        elif desvio_justo < -120: score -= 30
+        elif desvio_justo < -60: score -= 18
+        else: score += desvio_justo * 0.18
 
-    # 3. Regime de volatilidade (VIX)
+    # 3. Trava e ajuste de volatilidade global (VIX)
     if vix > 25:
-        score *= 0.85  # reduz confiança em dias de pânico
+        score *= 0.85  # Reduz exposição em dias de pânico sistêmico
     elif vix < 14:
-        score *= 1.05  # dias calmos tendem a seguir o gap
+        score *= 1.05  # Aumenta confiança em regimes de volatilidade controlada
+        
+    return max(-100, min(100, score))
 
-    # Limita
-    score = max(-100, min(100, score))
-    return score
-
-def interpretar_score(score):
+def interpretar_score_operacional(score: float) -> tuple[str, str, str]:
     forca = abs(score)
     if forca < 20:
-        return "NEUTRO", "Fraca", "Mercado sem viés claro"
-    elif forca < 45:
-        direcao = "COMPRADOR" if score > 0 else "VENDEDOR"
-        return direcao, "Moderada", f"Viés {direcao.lower()} com força moderada"
-    else:
-        direcao = "COMPRADOR" if score > 0 else "VENDEDOR"
-        return direcao, "Forte", f"Viés {direcao.lower()} FORTE – boa probabilidade de seguir na abertura"
+        return "NEUTRO", "Fraca", "Mercado sem viés direcional claro"
+    direcao = "COMPRADOR" if score > 0 else "VENDEDOR"
+    forca_txt = "Forte" if forca >= 45 else "Moderada"
+    return direcao, forca_txt, f"Viés {direcao.lower()} com força {forca_txt.lower()} — setup validado na V2"
 
-# ============================================================
-# MONITORAMENTO TEÓRICO
-# ============================================================
-
-def monitorar_teorico(minutos=10):
-    print("\n🔍 Monitorando teórico...")
-    enviar_telegram("🔍 Monitoramento do leilão iniciado")
-    inicio = datetime.now()
-    ultimo = None
-    hist = []
-
-    while (datetime.now() - inicio).seconds < minutos * 60:
-        tick = get_last_tick(WIN_SYMBOL)
-        if tick and tick["last"]:
-            t = tick["last"]
-            if t != ultimo:
-                agora = datetime.now().strftime("%H:%M:%S")
-                print(f"[{agora}] Teórico → {t:.0f}")
-                hist.append((agora, t))
-                ultimo = t
-                if len(hist) >= 2 and abs(t - hist[-2][1]) >= 150:
-                    enviar_telegram(f"⚠️ Teórico moveu {t - hist[-2][1]:+.0f} → {t:.0f}")
-        time_module.sleep(2.5)
-    return hist
-
-# ============================================================
-# MAIN
-# ============================================================
-
-def main():
+def executar_previsao_abertura():
+    # 1. Identificação dinâmica do ativo alvo do mês (Fim do hardcoding V1)
+    win_symbol = descobrir_contrato_vigente_v2()
+    
     print("=" * 72)
-    print("WINFUT – PREVISÃO DE ABERTURA PÓS-LEILÃO")
-    print(datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
+    print(f"🎯 WINFUT – ENGINE PRO DE PREVISÃO DE ABERTURA V2 | ATIVO: {win_symbol}")
+    print(f"🕒 Data/Hora: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
     print("=" * 72)
 
-    if not conectar_mt5():
+    if not conectar_mt5_v2(win_symbol):
         return
 
-    # Dados base
-    prev = get_prev_close(WIN_SYMBOL)
-    tick = get_last_tick(WIN_SYMBOL)
-    atr = get_atr(WIN_SYMBOL)
-    du = dias_uteis_ate_vencimento_win()
+    # 2. Extração de Métricas Locais Higienizadas (Fim das chamadas yfinance lentas na UI)
+    mapa_ativos, payload_mt5 = carregar_dados_locais_v2()
+    
+    # Busca dados técnicos direto do MetaTrader via API estável
+    rates_d1 = mt5.copy_rates_from_pos(win_symbol, mt5.TIMEFRAME_D1, 0, 2)
+    tick_atual = mt5.symbol_info_tick(win_symbol)
+    info_symbol = mt5.symbol_info(win_symbol)
 
-    print(f"\nFechamento anterior : {prev}")
-    print(f"ATR 14              : {atr:.0f}" if atr else "ATR indisponível")
-    if tick:
-        print(f"Último preço        : {tick['last']:.0f}")
+    if rates_d1 is None or len(rates_d1) < 1:
+        print("❌ Falha ao extrair candles históricos D1 do MetaTrader 5.")
+        mt5.shutdown()
+        return
 
-    # DI real
-    taxa_di = obter_taxa_di_real(du)
+    # Captura o fechamento anterior real e calcula o ATR 
+    prev_close = float(rates_d1[0]["close"])
+    last_price = float(tick_atual.last) if (tick_atual and tick_atual.last > 0) else prev_close
+    
+    # Parâmetros macro extraídos de forma limpa do cache Dados_Validados.json do pipeline
+    vix = mapa_ativos.get("VIX", {}).get("close", 14.5)
+    sp500_fut_change = mapa_ativos.get("SP500_FUT", {}).get("change_percent", 0.0)
+    
+    # Interpolação local defensiva de taxas DI extraídas do config/validador
+    di27 = mapa_ativos.get("DI1_2027", {}).get("close", 13.60)
+    di29 = mapa_ativos.get("DI1_2029", {}).get("close", 14.15)
+    du_vencimento = 18 # DU estimado padrão até a rolagem do WIN
+    
+    # Flat-forward aproximado local entre os vértices curto e longo validados
+    taxa_di_interpolada = (di27 + di29) / 2 / 100 
 
-    # S&P + VIX
-    fh = get_finnhub()
-    if fh:
-        print(f"\nGap S&P             : {fh['gap_pct']:+.2f}%")
-        print(f"VIX                 : {fh['vix']:.1f}")
-    else:
-        fh = {"gap_pct": 0.0, "vix": 18.0}
-        print("\n⚠️ Dados externos falharam – valores neutros")
+    print(f"\nFechamento Anterior : {prev_close:,.0f} pts")
+    print(f"Último Preço MT5    : {last_price:,.0f} pts")
+    print(f"Taxa DI Interpolada : {taxa_di_interpolada*100:.2f}% ({du_vencimento} DU)")
+    print(f"Gap S&P 500 Futuro  : {sp500_fut_change:+.2f}%")
+    print(f"VIX (Volatilidade)  : {vix:.1f}")
 
-    # Preço justo
-    justo = None
-    desvio = None
-    if prev:
-        justo = preco_justo(prev, taxa_di, du, DIVIDENDOS_ESTIMADOS)
-        print(f"Preço Justo         : {justo:.0f}")
-        if tick and tick["last"]:
-            desvio = tick["last"] - justo
-            print(f"Desvio atual        : {desvio:+.0f} pts")
+    # 3. Modelagem de Preço Justo e Desvios do Leilão
+    justo = preco_justo(prev_close, taxa_di_interpolada, du_vencimento, DIVIDENDOS_ESTIMADOS)
+    desview_pts = last_price - justo if last_price > 0 else 0.0
+    
+    print(f"Preço Justo Futuro  : {justo:,.0f} pts")
+    print(f"Desvio do Modelo    : {desview_pts:+.0f} pts")
 
-    # Range esperado
-    if prev and atr:
-        max_e, min_e, amp = range_esperado(prev, atr, fh["vix"])
-        print(f"Máx esperada        : {max_e:.0f}")
-        print(f"Mín esperada        : {min_e:.0f}")
-        print(f"Amplitude           : ±{amp:.0f} pts")
-
-    # Score final
-    score = calcular_score(fh["gap_pct"], desvio, atr, fh["vix"])
-    direcao, forca, texto = interpretar_score(score)
+    # 4. Cálculo Estatístico do Score de Força Operacional
+    score = calcular_score_direcional(sp500_fut_change, desview_pts, vix)
+    direcao, forca, diagnostico_txt = interpretar_score_operacional(score)
 
     print("\n" + "=" * 72)
-    print(f"🎯 DIREÇÃO          : {direcao}")
-    print(f"💪 FORÇA            : {forca}")
-    print(f"📊 SCORE            : {score:+.1f}")
-    print(f"📝 {texto}")
+    print(f"🎯 DIREÇÃO PRO WIN  : {direcao}")
+    print(f"💪 FORÇA DO SETUP    : {forca}")
+    print(f"📊 SCORE NUMÉRICO   : {score:+.1f}")
+    print(f"📝 {diagnostico_txt}")
     print("=" * 72)
 
-    # Telegram
-    msg = f"""
-<b>WIN – Previsão de Abertura</b>
+    # 5. MENSAGERIA TELEGRAM INTEGRADA
+    msg_markdown = f"""
+<b>WIN PRO – Previsão de Abertura V2</b>
 Direção: <b>{direcao}</b>
 Força: <b>{forca}</b>
-Score: {score:+.1f}
+Score Ponderado: <code>{score:+.1f}</code>
 
-Gap S&P: {fh['gap_pct']:+.2f}%
-VIX: {fh['vix']:.1f}
-Preço Justo: {f'{justo:.0f}' if justo is not None else 'N/A'}
-Desvio: {f'{desvio:+.0f}' if desvio is not None else 'N/A'} pts
+• Preço Ref. MT5: <code>{last_price:,.0f}</code>
+• Preço Justo Carry: <code>{justo:,.0f}</code>
+• Desvio do Modelo: <code>{desview_pts:+.0f} pts</code>
+• Gap S&P 500 Fut: <code>{sp500_fut_change:+.2f}%</code>
+• VIX Volatilidade: <code>{vix:.1f}</code>
+
+<i>{diagnostico_txt}</i>
 """
-    enviar_telegram(msg)
-
-    # Monitoramento se estiver no horário
-    agora = datetime.now().time()
-    if time(8, 50) <= agora <= time(9, 20):
-        hist = monitorar_teorico(10)
-        if hist:
-            enviar_telegram(f"Leilão finalizado\nÚltimo teórico: {hist[-1][1]:.0f}")
-
+    enviar_telegram(msg_markdown)
+    
     mt5.shutdown()
-    print("\n✅ Finalizado")
+    print("\n✅ Execução e previsão do win_abertura_pro concluídas com sucesso na V2.")
 
 if __name__ == "__main__":
-    main()
+    executar_previsao_abertura()

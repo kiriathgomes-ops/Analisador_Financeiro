@@ -1,410 +1,121 @@
-# ============================================================
-# ARQUIVO: pages/5.3_⚙️_Core_Engine.py
-#
-# MOTIVO:
-# Visualização do Core Engine V2 (decisão oficial)
-# Decisão Quantitativa Final – consumindo Decisao_V2.json
-#
-# VERSÃO: 2.0 (migração V1 → V2)
-# DATA: 27/08/2026
-# ============================================================
-
-import json
-import os
-from datetime import datetime
-from typing import Optional, Dict, Any
+# -*- coding: utf-8 -*-
+"""
+Módulo: pages/5.3_⚙️_Core_Engine.py
+Versão: 3.0 - Central de Auditoria V2
+Objetivo: Interface de controle, monitoramento e auditoria da tomada de decisão do Orquestrador V2.
+"""
 
 import streamlit as st
+import json
+from datetime import datetime
+import pandas as pd
 
-# ============================================================
-# CONFIGURAÇÃO
-# ============================================================
+# Importação de caminhos centralizados do config.py da V2
+from config import FILE_DECISAO_V2, FILE_DECISAO_CORE
 
-st.set_page_config(
-    page_title="Core Engine V2 - Quant Terminal",
-    page_icon="⚙️",
-    layout="wide",
-    initial_sidebar_state="expanded",
-)
-
-# ============================================================
-# CSS VISUAL MELHORADO
-# ============================================================
-
-st.markdown(
-    """
-    <style>
-    .stApp {
-        background-color: #0e1117;
-    }
-
-    .buy-box {
-        background-color: #063b22;
-        border: 2px solid #00ff88;
-        padding: 25px;
-        border-radius: 12px;
-        text-align: center;
-    }
-
-    .sell-box {
-        background-color: #420d12;
-        border: 2px solid #ff4b4b;
-        padding: 25px;
-        border-radius: 12px;
-        text-align: center;
-    }
-
-    .neutral-box {
-        background-color: #1a1c23;
-        border: 2px solid #ffc107;
-        padding: 25px;
-        border-radius: 12px;
-        text-align: center;
-    }
-
-    .card-fator {
-        background-color: #161b22;
-        padding: 12px 16px;
-        border-radius: 8px;
-        border-left: 3px solid #7c5cfc;
-        margin-bottom: 8px;
-    }
-
-    .card-fator .fator-tag {
-        background: rgba(124, 92, 252, 0.15);
-        color: #a78bfa;
-        padding: 2px 10px;
-        border-radius: 12px;
-        font-size: 0.7rem;
-        display: inline-block;
-    }
-
-    .info-box {
-        background-color: #1a1c2a;
-        border: 1px solid #2a2d3a;
-        border-radius: 8px;
-        padding: 12px 16px;
-        font-size: 0.85rem;
-        color: #cccccc;
-        margin-top: 8px;
-    }
-
-    .score-high {
-        color: #00c853;
-        font-weight: bold;
-    }
-    .score-mid {
-        color: #ffc107;
-        font-weight: bold;
-    }
-    .score-low {
-        color: #ff3d00;
-        font-weight: bold;
-    }
-
-    .legado-banner {
-        background: #3d2a10;
-        border: 1px solid #ffc107;
-        border-radius: 8px;
-        padding: 10px 16px;
-        color: #ffc107;
-        font-size: 0.85rem;
-        margin-bottom: 16px;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
-# ============================================================
-# CAMINHOS
-# ============================================================
-
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-COLETAS_DIR = os.path.join(BASE_DIR, "Coletas")
-
-ARQUIVOS = {
-    "decisao_v2": os.path.join(COLETAS_DIR, "Decisao_V2.json"),      # <-- PRIORIDADE
-    "decisao_v1": os.path.join(COLETAS_DIR, "Decisao_Core.json"),    # <-- apenas para referência
-    "validacao": os.path.join(COLETAS_DIR, "Dados_Validados.json"),
-    "noticias": os.path.join(COLETAS_DIR, "Noticias_Impacto_Dia.json"),
-    "metricas": os.path.join(COLETAS_DIR, "Metricas_Calculadas.json"),
-    "tendencias": os.path.join(COLETAS_DIR, "Analise_Tendencias.json"),
-    "estimativa": os.path.join(COLETAS_DIR, "EstimativaAbertura.json"),
-}
-
-# ============================================================
-# LEITOR JSON
-# ============================================================
-
-@st.cache_data(ttl=60, show_spinner=False)
-def carregar_json(caminho: str) -> Dict[str, Any]:
-    if not os.path.exists(caminho):
+def carregar_json_defensivo(caminho):
+    if not caminho.exists():
         return {}
     try:
         with open(caminho, "r", encoding="utf-8") as f:
             return json.load(f)
-    except Exception:
+    except:
         return {}
 
-# ============================================================
-# CARREGAR DADOS
-# ============================================================
+# Configuração da página Streamlit
+st.set_page_config(page_title="Quant Terminal - Core Engine V2", layout="wide")
 
-decisao_v2 = carregar_json(ARQUIVOS["decisao_v2"])
-decisao_v1 = carregar_json(ARQUIVOS["decisao_v1"])  # apenas para referência
-validacao = carregar_json(ARQUIVOS["validacao"])
-noticias = carregar_json(ARQUIVOS["noticias"])
-metricas = carregar_json(ARQUIVOS["metricas"])
-tendencias = carregar_json(ARQUIVOS["tendencias"])
-estimativa = carregar_json(ARQUIVOS["estimativa"])
+# --- CARGA DOS PAYLOADS DE DECISÃO ---
+dados_v2 = carregar_json_defensivo(FILE_DECISAO_V2)
+dados_v1_legado = carregar_json_defensivo(FILE_DECISAO_CORE)
 
-# ============================================================
-# SIDEBAR
-# ============================================================
+st.markdown("<h2 style='color:#00d4ff;'>⚙️ Core Decision Engine — Central de Orquestração</h2>", unsafe_allow_html=True)
+st.caption(f"Status da Matriz de Decisão V2 | Snapshot: {dados_v2.get('metadata', {}).get('timestamp', 'N/A')}")
 
-st.sidebar.title("⚙️ Core Engine V2")
-st.sidebar.caption("Decisão Quantitativa Final (V2)")
-st.sidebar.divider()
-
-# Status dos dados
-st.sidebar.markdown("### Status dos Dados")
-for nome, caminho in ARQUIVOS.items():
-    existe = "✅" if os.path.exists(caminho) else "❌"
-    st.sidebar.caption(f"{existe} {nome.capitalize()}")
-
-st.sidebar.divider()
-
-if st.sidebar.button("🔄 Atualizar", width="stretch"):
-    st.cache_data.clear()
-    st.rerun()
-
-# ============================================================
-# CABEÇALHO
-# ============================================================
-
-st.title("⚙️ Core Engine — Decisão Quantitativa V2")
-st.caption("Fonte oficial: Decisao_V2.json (motor V2)")
-
-# Verifica se a V2 está disponível
-if not decisao_v2:
-    st.error("❌ Decisao_V2.json não encontrado. Execute o pipeline V2 primeiro.")
-    st.info("💡 Rode: `python v2_rodar_decisao_completa.py`")
+if not dados_v2:
+    st.error("⚠️ Erro Crítico: Arquivo Decisao_V2.json não encontrado. O pipeline operacional V2 precisa ser executado.")
     st.stop()
 
-timestamp = decisao_v2.get("metadata", {}).get("timestamp", "N/A")
-st.info(f"⏱ Última decisão V2: {timestamp}")
+# --- SEÇÃO 1: AUDITORIA DOS 5 CONTEXTOS DO ORQUESTRADOR V2 ---
+st.markdown("### 📡 Saúde e Integridade dos Motores Contextuais (V2)")
+st.caption("Verificação em tempo real de execução e resposta de cada braço analítico do pipeline")
 
-# ============================================================
-# BANNER DE DESCONTINUAÇÃO DA V1 (se disponível)
-# ============================================================
-if decisao_v1:
-    st.markdown(
-        """
-        <div class="legado-banner">
-            ⚠️ <b>Motor V1 (Core Engine) está descontinuado</b> – esta página exibe apenas a decisão V2.
-            A V1 é mantida apenas para referência histórica.
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+ctx = dados_v2.get("contextos", {})
 
-# ============================================================
-# DECISÃO V2 – DADOS PRINCIPAIS
-# ============================================================
+# Ícones dinâmicos de status
+def obter_badge_status(flag_ok):
+    return "🟢 Concluído / Integridade OK" if flag_ok else "🔴 Falhou / Offline (Usando Fallback/Cache)"
 
-st.divider()
-st.subheader("🎯 Decisão do Core Engine V2")
+c1, c2, c3, c4, c5 = st.columns(5)
+c1.markdown(f"<div style='background-color:#161b24; padding:10px; border-radius:8px; text-align:center; border-top:3px solid #00ff88;'>📊 <b>Market Context</b><br><span style='font-size:0.85rem;'>{obter_badge_status(ctx.get('market_ok'))}</span></div>", unsafe_allow_html=True)
+c2.markdown(f"<div style='background-color:#161b24; padding:10px; border-radius:8px; text-align:center; border-top:3px solid #00ff88;'>🔮 <b>Prediction Context</b><br><span style='font-size:0.85rem;'>{obter_badge_status(ctx.get('prediction_ok'))}</span></div>", unsafe_allow_html=True)
+c3.markdown(f"<div style='background-color:#161b24; padding:10px; border-radius:8px; text-align:center; border-top:3px solid #00ff88;'>📰 <b>News Context</b><br><span style='font-size:0.85rem;'>{obter_badge_status(ctx.get('news_ok'))}</span></div>", unsafe_allow_html=True)
+c4.markdown(f"<div style='background-color:#161b24; padding:10px; border-radius:8px; text-align:center; border-top:3px solid #00ff88;'>👁️ <b>Vision AI Context</b><br><span style='font-size:0.85rem;'>{obter_badge_status(ctx.get('vision_ok'))}</span></div>", unsafe_allow_html=True)
+c5.markdown(f"<div style='background-color:#161b24; padding:10px; border-radius:8px; text-align:center; border-top:3px solid #00ff88;'>🏦 <b>Session History</b><br><span style='font-size:0.85rem;'>{obter_badge_status(ctx.get('session_ok'))}</span></div>", unsafe_allow_html=True)
 
-# Estrutura do V2: decisao_v2["decisao"] contém os campos principais
-decisao_data = decisao_v2.get("decisao", {}) if isinstance(decisao_v2, dict) else {}
+st.markdown("---")
 
-vies = decisao_data.get("vies_final", "NEUTRO")
+# --- SEÇÃO 2: RESULTADO CONSOLIDADO DA VERDADE (V2) ---
+st.markdown("### 🎯 Parâmetros Finais de Tomada de Decisão (Gatilhos)")
+
+decisao_data = dados_v2.get("decisao", {})
+vies_final = decisao_data.get("vies_final", "NEUTRO")
 confianca = decisao_data.get("confianca", 0)
-entrada = decisao_data.get("entrada")
-stop = decisao_data.get("stop_loss")
-alvo1 = decisao_data.get("alvo_1")
-alvo2 = decisao_data.get("alvo_2")
-invalidacao = decisao_data.get("invalidacao", "N/A")
-motivos = decisao_data.get("motivos", [])
-riscos = decisao_data.get("riscos", [])
 
-# Define cor e classe
-if "COMPRA" in vies.upper() or vies.upper() in ("ALTA", "BULL"):
-    box_class = "buy-box"
-    emoji = "🟢"
-elif "VENDA" in vies.upper() or vies.upper() in ("BAIXA", "BEAR"):
-    box_class = "sell-box"
-    emoji = "🔴"
-else:
-    box_class = "neutral-box"
-    emoji = "🟡"
+col_vies, col_parametros = st.columns([1, 2])
 
-# Força da decisão (baseado na confiança)
-if confianca >= 80:
-    forca_texto = "FORTE"
-    forca_cor = "score-high"
-elif confianca >= 60:
-    forca_texto = "MODERADA"
-    forca_cor = "score-mid"
-else:
-    forca_texto = "FRACA"
-    forca_cor = "score-low"
+with col_vies:
+    if "COMPRA" in vies_final.upper() or vies_final.upper() == "ALTA":
+        st.markdown(f"<div style='background-color:rgba(0, 255, 136, 0.1); padding:20px; border-radius:12px; border:1px solid #00ff88; text-align:center;'><span style='font-size:1rem; color:#8b949e;'>VIÉS CORE V2</span><br><span style='font-size:2rem; font-weight:bold; color:#00ff88;'>COMPRA</span><br><span style='font-size:1.5rem; font-weight:bold;'>{confianca}%</span> de Força</div>", unsafe_allow_html=True)
+    elif "VENDA" in vies_final.upper() or vies_final.upper() == "BAIXA":
+        st.markdown(f"<div style='background-color:rgba(255, 107, 107, 0.1); padding:20px; border-radius:12px; border:1px solid #ff6b6b; text-align:center;'><span style='font-size:1rem; color:#8b949e;'>VIÉS CORE V2</span><br><span style='font-size:2rem; font-weight:bold; color:#ff6b6b;'>VENDA</span><br><span style='font-size:1.5rem; font-weight:bold;'>{confianca}%</span> de Força</div>", unsafe_allow_html=True)
+    else:
+        st.markdown(f"<div style='background-color:rgba(255, 255, 255, 0.05); padding:20px; border-radius:12px; border:1px solid #888; text-align:center;'><span style='font-size:1rem; color:#8b949e;'>VIÉS CORE V2</span><br><span style='font-size:2rem; font-weight:bold; color:#ccc;'>NEUTRO</span><br><span style='font-size:1.5rem; font-weight:bold;'>{confianca}%</span> de Força</div>", unsafe_allow_html=True)
 
-st.markdown(f"""
-<div class="{box_class}">
-    <h2>{emoji} {vies}</h2>
-    <h4>Confiança: <span class="{forca_cor}">{confianca}%</span></h4>
-    <p>Força: {forca_texto}</p>
-</div>
-""", unsafe_allow_html=True)
+with col_parametros:
+    # Mostra os gatilhos matemáticos de ordens gerados na V2
+    p_col1, p_col2, p_col3 = st.columns(3)
+    p_col1.metric("Ordem Gatilho (Stop Entry)", f"{decisao_data.get('entrada', 0):,.0f} pts" if decisao_data.get('entrada') else "—")
+    p_col2.metric("Stop Loss Proteção", f"{decisao_data.get('stop_loss', 0):,.0f} pts" if decisao_data.get('stop_loss') else "—")
+    p_col3.metric("Alvo Principal (Take 1)", f"{decisao_data.get('alvo_1', 0):,.0f} pts" if decisao_data.get('alvo_1') else "—")
+    
+    st.markdown(f"🚨 **Nível de Invalidação do Setup:** `{decisao_data.get('invalidacao', 'Não Mapeado')}`")
 
-# ============================================================
-# NÍVEIS OPERACIONAIS (entrada, stop, alvos)
-# ============================================================
+# --- SEÇÃO 3: AUDITORIA DE CRITÉRIOS (POR QUE TOMOU ESSA DECISÃO?) ---
+st.markdown("---")
+st.markdown("### 📝 Fatores Determinantes e Modelagem de Riscos")
 
-st.markdown("### 📊 Níveis Operacionais")
+col_motivos, col_riscos = st.columns(2)
 
-col1, col2, col3, col4 = st.columns(4)
-
-with col1:
-    st.metric("🎯 Entrada", f"{entrada:,.0f}" if entrada is not None else "—")
-
-with col2:
-    st.metric("🛑 Stop Loss", f"{stop:,.0f}" if stop is not None else "—")
-
-with col3:
-    st.metric("🎯 Alvo 1", f"{alvo1:,.0f}" if alvo1 is not None else "—")
-
-with col4:
-    st.metric("🎯 Alvo 2", f"{alvo2:,.0f}" if alvo2 is not None else "—")
-
-if invalidacao:
-    st.info(f"⚠️ **Invalidação:** {invalidacao}")
-
-# ============================================================
-# FATORES RELEVANTES E RISCOS (V2)
-# ============================================================
-
-col1, col2 = st.columns(2)
-
-with col1:
-    st.markdown("#### ✅ Fatores que motivaram a decisão")
+with col_motivos:
+    st.markdown("**Fatores de Confluência Encontrados (Motivos):**")
+    motivos = decisao_data.get("motivos", [])
     if motivos:
         for m in motivos:
-            st.markdown(f"""
-            <div class="card-fator">
-                <span class="fator-tag">Fator</span>
-                {m}
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f"• {m}")
     else:
-        st.write("Nenhum fator listado.")
+        st.caption("Proporção neutra. Sem confluências expressivas registradas.")
 
-with col2:
-    st.markdown("#### ⚠️ Riscos identificados")
+with col_riscos:
+    st.markdown("**Trava Geral de Risco (Alertas Ativos):**")
+    riscos = decisao_data.get("riscos", [])
     if riscos:
         for r in riscos:
-            st.markdown(f"""
-            <div class="card-fator" style="border-left-color: #ff3d00;">
-                <span class="fator-tag" style="background:rgba(255,61,0,0.15);color:#ff3d00;">Risco</span>
-                {r}
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f"❌ {r}")
     else:
-        st.write("Nenhum risco listado.")
+        st.success("🟢 Alinhamento quantitativo limpo. Sem travas de volatilidade abusiva ou erros de cache.")
 
-# ============================================================
-# MÉTRICAS E CONTEXTOS AUXILIARES (oriundos de outros JSONs)
-# ============================================================
-
-st.divider()
-st.subheader("📈 Contexto e Métricas Auxiliares")
-
-# Abertura teórica (da estimativa)
-win_est = estimativa.get("estimativa_abertura", {}).get("WIN_INDICE", {})
-wdo_est = estimativa.get("estimativa_abertura", {}).get("WDO_DOLAR", {})
-
-col1, col2 = st.columns(2)
-with col1:
-    if win_est:
-        st.metric(
-            "WIN Abertura Teórica",
-            f"{win_est.get('abertura_teorica_pontos', 0):,.0f} pts",
-            f"{win_est.get('variacao_teorica_pct', 0):+.2f}%"
-        )
-with col2:
-    if wdo_est:
-        st.metric(
-            "WDO Abertura Teórica",
-            f"{wdo_est.get('abertura_teorica_pontos', 0):,.2f} pts",
-            f"{wdo_est.get('variacao_teorica_pct', 0):+.2f}%"
-        )
-
-# Métricas macro (da Calculadora)
-if metricas:
-    indicadores = metricas.get("indicadores_compostos", {})
-    col1, col2 = st.columns(2)
-    with col1:
-        st.metric(
-            "🌍 Mercado Externo",
-            f"{indicadores.get('indicador_mercado_externo', 0):+.2f}%",
-            "Compra" if indicadores.get('indicador_mercado_externo', 0) > 0 else "Venda" if indicadores.get('indicador_mercado_externo', 0) < 0 else "Neutro"
-        )
-    with col2:
-        st.metric(
-            "🇧🇷 ADRs Brasileiras",
-            f"{indicadores.get('indicador_adrs_brasileiras', 0):+.2f}%",
-            "Compra" if indicadores.get('indicador_adrs_brasileiras', 0) > 0 else "Venda" if indicadores.get('indicador_adrs_brasileiras', 0) < 0 else "Neutro"
-        )
-
-# Tendência (se disponível)
-if tendencias:
-    win_tend = tendencias.get("WIN_FUT") or tendencias.get("BMFBOVESPA:WIN1!")
-    if win_tend:
-        padrao = win_tend.get("padrao_comportamento", "N/A")
-        var = win_tend.get("intervalo_5_para_0", {}).get("variacao_pct", 0)
-        emoji_tend = "🟢" if var > 0 else "🔴" if var < 0 else "🟡"
+# --- SEÇÃO 4: HISTÓRICO / AUDITORIA DA V1 CONTRA A V2 ---
+st.markdown("---")
+with st.expander("📚 Histórico e Auditoria de Retrocompatibilidade (Módulo V1 Legado)"):
+    st.warning("⚠️ **ATENÇÃO:** O motor de viés institucional V1 está DESATIVADO do pipeline operacional conforme as regras de governança do projeto. Os dados abaixo servem exclusivamente para auditoria ou rollback emergencial.")
+    
+    if dados_v1_legado:
+        vies_v1 = dados_v1_legado.get("analise_operacional", {}).get("WIN_INDICE", {})
         st.markdown(f"""
-        <div class="info-box">
-            <b>📈 Tendência WIN (15min):</b> {emoji_tend} {padrao} ({var:+.2f}%)
-        </div>
-        """, unsafe_allow_html=True)
-
-# ============================================================
-# AUDITORIA – contexto de disponibilidade dos serviços V2
-# ============================================================
-
-st.divider()
-st.subheader("🔍 Auditoria V2")
-
-contextos = decisao_v2.get("contextos", {})
-if contextos:
-    col1, col2, col3, col4, col5 = st.columns(5)
-    with col1:
-        st.metric("Market", "✅" if contextos.get("market_ok") else "❌")
-    with col2:
-        st.metric("Prediction", "✅" if contextos.get("prediction_ok") else "❌")
-    with col3:
-        st.metric("News", "✅" if contextos.get("news_ok") else "❌")
-    with col4:
-        st.metric("Vision", "✅" if contextos.get("vision_ok") else "❌")
-    with col5:
-        st.metric("Session", "✅" if contextos.get("session_ok") else "❌")
-else:
-    st.caption("Contextos não disponíveis no JSON V2.")
-
-# ============================================================
-# JSON COMPLETO (para debug)
-# ============================================================
-
-st.divider()
-with st.expander("📄 Visualizar JSON Completo do V2"):
-    st.json(decisao_v2)
-
-# ============================================================
-# RODAPÉ
-# ============================================================
-
-st.divider()
-st.caption("Analisador Financeiro - Core Engine V2 • Decisão oficial • v2.0")
+        * **Último Viés V1 Registrado:** `{vies_v1.get('vies_final', 'NEUTRO')}`
+        * **Último Score Numérico V1:** `{vies_v1.get('score_numeric', 0.0)}` de limite de banda (-10.0 a +10.0)
+        * **Carimbado em:** `{dados_v1_legado.get('metadata', {}).get('timestamp', 'N/A')}`
+        """)
+    else:
+        st.caption("Nenhum cache de dados históricos do Core V1 encontrado em Coletas/Decisao_Core.json.")

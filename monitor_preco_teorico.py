@@ -1,157 +1,162 @@
-import MetaTrader5 as mt5
-import time
-from datetime import datetime, time as dt_time
-import logging
-from pathlib import Path
+# -*- coding: utf-8 -*-
+"""
+Módulo: monitor_preco_teorico.py
+Versão: 3.0 - Produção Otimizada V2
+Objetivo: Monitorar a formação de preço teórico e spreads do leilão B3 em tempo real via MT5.
+"""
+
 import sys
+import time
+import logging
+from datetime import datetime
+from pathlib import Path
+import MetaTrader5 as mt5
 
-# ==================== CONFIGURAÇÕES ====================
-SYMBOL = "WINV26"                    # Altere para o contrato vigente
+# Ingestão de caminhos, limites temporais e flags estáveis do seu config.py
+from config import (
+    LOGS_DIR,
+    FILE_MT5_V2,
+    JANELA_AJUSTE_INICIO,
+    JANELA_AJUSTE_FIM,
+    MAX_TENTATIVAS_MT5
+)
+
+# Configuração local baseada nas regras de negócio da V2
 INTERVALO_SEGUNDOS = 2
-LOG_DIR = Path("logs")
-HORARIO_INICIO_LEILAO = dt_time(8, 50)
-HORARIO_FIM_LEILAO = dt_time(9, 15)
-
-# Alerta
-ALERTA_SONORO = True                 # True = ativa o bip
-ALERTA_APENAS_PRIMEIRA_VEZ = True    # True = alerta só quando sai de 0 pela 1ª vez
-# =======================================================
-
-def configurar_logging():
-    LOG_DIR.mkdir(exist_ok=True)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_file = LOG_DIR / f"preco_teorico_{SYMBOL}_{timestamp}.log"
-
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s | %(levelname)-8s | %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-        handlers=[
-            logging.FileHandler(log_file, encoding="utf-8"),
-            logging.StreamHandler()
-        ]
-    )
-    logging.info(f"Log iniciado → {log_file}")
-    return log_file
+ALERTA_SONORO = True
+ALERTA_APENAS_PRIMEIRA_VEZ = True
 
 def tocar_alerta():
-    """Emite um alerta sonoro (funciona no Windows e na maioria dos terminais)."""
+    """Emite um sinal sonoro de aviso institucional na mesa de operações."""
     try:
-        # Windows
-        import winsound
-        winsound.Beep(1000, 400)   # frequência 1000 Hz, duração 400 ms
-        time.sleep(0.15)
-        winsound.Beep(1400, 400)
-    except ImportError:
-        # Linux / Mac / fallback
-        print("\a")                # bell character
-        sys.stdout.write("\a")
-        sys.stdout.flush()
+        if sys.platform == "win32":
+            import winsound
+            winsound.Beep(1000, 300)
+            time.sleep(0.1)
+            winsound.Beep(1300, 300)
+        else:
+            sys.stdout.write("\a")
+            sys.stdout.flush()
+    except:
+        pass
 
-def dentro_horario_leilao():
-    agora = datetime.now().time()
-    return HORARIO_INICIO_LEILAO <= agora <= HORARIO_FIM_LEILAO
+def descobrir_contrato_ativo_v2() -> str:
+    """
+    Lê defensivamente o snapshot gerado pelo Coletor MT5 v2.2 para capturar 
+    o contrato real vigente com maior volume ( WINV26, WINZ26, etc ).
+    """
+    if not FILE_MT5_V2.exists():
+        return "WIN$"  # Fallback contínuo caso o pipeline inicial não tenha rodado
+    try:
+        with open(FILE_MT5_V2, "r", encoding="utf-8") as f:
+            dados = json.load(f)
+        contrato = dados.get("ativos", {}).get("WIN", {}).get("contrato_principal")
+        if contrato:
+            return str(contrato)
+    except:
+        pass
+    return "WIN$"
 
-def conectar_mt5():
+def conectar_e_validar_mt5(symbol: str) -> bool:
+    """Inicializa a conexão com o terminal MetaTrader 5 e ativa o ativo na grade."""
     if not mt5.initialize():
-        logging.error(f"Falha ao inicializar MT5: {mt5.last_error()}")
+        logging.error(f"[LEILÃO] Falha ao conectar ao MT5: {mt5.last_error()}")
         return False
-
+        
+    # Garante que o contrato ativo esteja visível no Market Watch para receber ticks de leilão
+    if not mt5.symbol_select(symbol, True):
+        logging.error(f"[LEILÃO] Contrato '{symbol}' não pôde ser ativado no Market Watch.")
+        mt5.shutdown()
+        return False
+        
     conta = mt5.account_info()
     if conta:
-        logging.info(f"Conectado | Conta: {conta.login} | Corretora: {conta.company}")
-    else:
-        logging.warning("Conectado, mas não foi possível obter dados da conta")
-
-    if not mt5.symbol_select(SYMBOL, True):
-        logging.error(f"Não foi possível selecionar o símbolo {SYMBOL}")
-        return False
-
+        logging.info(f"🔌 MT5 Conectado | Corretora: {conta.company} | Conta ID: {conta.login}")
     return True
 
-def coletar_preco_teorico():
-    info = mt5.symbol_info(SYMBOL)
-    if info is None:
-        logging.error(f"Símbolo {SYMBOL} não encontrado")
-        return None
+def executar_monitoramento_leilao():
+    # Inicializa os logs centralizados na pasta /logs do seu projeto
+    LOGS_DIR.mkdir(parents=True, exist_ok=True)
+    log_file = LOGS_DIR / f"preco_teorico_WIN_V2.log"
+    
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s | %(levelname)-7s | %(message)s",
+        datefmt="%H:%M:%S",
+        handlers=[logging.FileHandler(log_file, encoding="utf-8"), logging.StreamHandler()]
+    )
 
-    return {
-        "timestamp": datetime.now(),
-        "teorico": info.price_theoretical,
-        "bid": info.bid,
-        "ask": info.ask,
-        "last": info.last,
-        "spread": round(info.ask - info.bid, 2) if info.bid and info.ask else None
-    }
-
-def main():
-    log_file = configurar_logging()
+    # Identificação dinâmica do contrato vigente para acabar com o hardcoding da V1
+    symbol_alvo = descobrir_contrato_ativo_v2()
+    
     logging.info("=" * 65)
-    logging.info(f"Monitor de Preço Teórico iniciado | Símbolo: {SYMBOL}")
-    logging.info(f"Intervalo: {INTERVALO_SEGUNDOS}s | Janela: {HORARIO_INICIO_LEILAO} → {HORARIO_FIM_LEILAO}")
-    logging.info(f"Alerta sonoro: {'ATIVADO' if ALERTA_SONORO else 'DESATIVADO'}")
+    logging.info(f"🚀 MONITOR DE PREÇO TEÓRICO ATIVADO | CONTRATO: {symbol_alvo}")
+    logging.info(f"🕒 Amostragem: {INTERVALO_SEGUNDOS}s | Alerta Sonoro: {'OK' if ALERTA_SONORO else 'OFF'}")
     logging.info("=" * 65)
 
-    if not conectar_mt5():
-        logging.error("Encerrando por falha de conexão")
+    if not conectar_e_validar_mt5(symbol_alvo):
         return
 
     ultimo_teorico = None
-    ja_alertou = False
-    contador = 0
+    ja_alertou_leilao = False
+    ciclos = 0
 
     try:
         while True:
-            agora = datetime.now()
+            agora_time = datetime.now().time()
+            ciclos += 1
 
-            if not dentro_horario_leilao():
-                logging.info(f"Fora do horário de leilão ({agora.strftime('%H:%M:%S')}). Aguardando...")
-                time.sleep(30)
+            # Extrai as propriedades completas do ativo via chamadas estruturadas do MT5
+            info_s = mt5.symbol_info(symbol_alvo)
+            if info_s is None:
+                logging.error(f"[ERRO] Falha crítica ao ler propriedades do ativo {symbol_alvo}")
+                time.sleep(5)
                 continue
 
-            dados = coletar_preco_teorico()
-            contador += 1
+            # Captura o preço teórico de leilão enviado pela B3
+            teorico = getattr(info_s, "price_theoretical", 0.0) or 0.0
+            bid = getattr(info_s, "bid", 0.0) or 0.0
+            ask = getattr(info_s, "ask", 0.0) or 0.0
+            last = getattr(info_s, "last", 0.0) or 0.0
+            spread = round(ask - bid, 2) if (bid > 0 and ask > 0) else 0.0
 
-            if dados is None:
-                time.sleep(INTERVALO_SEGUNDOS)
-                continue
+            mudou = (teorico != ultimo_teorico)
 
-            teorico = dados["teorico"]
-            mudou = teorico != ultimo_teorico
-
-            # ---- ALERTA ----
+            # ---- ENGINE DE ALERTA DE FORMAÇÃO DE GRADES ----
             if ALERTA_SONORO and teorico > 0:
                 if ALERTA_APENAS_PRIMEIRA_VEZ:
-                    if not ja_alertou:
+                    if not ja_alertou_leilao:
                         tocar_alerta()
-                        logging.info("🔔 ALERTA: Preço teórico detectado pela primeira vez!")
-                        ja_alertou = True
+                        logging.info("🔔 [ALERTA] Início do Leilão Oficial! Primeiro preço teórico formado.")
+                        ja_alertou_leilao = True
                 else:
-                    # Alerta sempre que o valor mudar e for > 0
                     if mudou:
                         tocar_alerta()
-                        logging.info(f"🔔 ALERTA: Preço teórico alterado → {teorico:.2f}")
+                        logging.info(f"🔔 [MOVIMENTO] Preço Teórico Alterado ➔ {teorico:,.0f} pts")
 
-            # Log (sempre que mudar ou a cada 10 ciclos)
-            if mudou or contador % 10 == 0:
-                status = "✅ TEÓRICO DISPONÍVEL" if teorico > 0 else "❌ TEÓRICO ZERADO"
+            # Registro inteligente de logs no terminal para não inundar o console
+            if mudou or (ciclos % 15 == 0):
+                status_txt = "✅ LEILÃO ATIVO" if teorico > 0 else "⚖️ AGUARDANDO BOOK"
                 logging.info(
-                    f"{status} | Teórico: {teorico:>10.2f} | "
-                    f"Bid: {dados['bid']:>10.2f} | Ask: {dados['ask']:>10.2f} | "
-                    f"Last: {dados['last']:>10.2f} | Spread: {dados['spread']}"
+                    f"{status_txt} | Teórico: {teorico:>8.0f} | "
+                    f"Bid/Ask: {bid:.0f}/{ask:.0f} | Last: {last:.0f} | Spread: {spread}"
                 )
                 ultimo_teorico = teorico
 
             time.sleep(INTERVALO_SEGUNDOS)
 
     except KeyboardInterrupt:
-        logging.info("Monitor interrompido pelo usuário (Ctrl+C)")
+        logging.info("ℹ️ Monitoramento interrompido via teclado pelo operador (Ctrl+C).")
     except Exception as e:
-        logging.exception(f"Erro inesperado: {e}")
+        logging.error(f"❌ Falha inesperada na execução do monitor de leilão: {e}")
     finally:
         mt5.shutdown()
-        logging.info("Conexão MT5 encerrada")
-        logging.info(f"Log completo salvo em: {log_file}")
+        logging.info("🔌 MetaTrader 5 desconectado de forma segura. Sessão encerrada.")
 
 if __name__ == "__main__":
-    main()
+    # Força UTF-8 no terminal Windows para evitar quebras de caracteres nos emojis
+    if sys.platform == "win32":
+        try: sys.stdout.reconfigure(encoding="utf-8")
+        except: pass
+        
+    executar_monitoramento_leilao()

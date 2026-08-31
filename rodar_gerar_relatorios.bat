@@ -1,41 +1,58 @@
 @echo off
-title Launcher Quant Terminal
+:: Configura o terminal para aceitar acentuação e emojis no padrão UTF-8 do Windows
+chcp 65001 >nul
+title Launcher Quant Terminal - Gerador de Relatórios V2
+color 0B
+
 echo ============================================================
-echo 🚀 INICIANDO QUANT TRADING GERAR RELATORIOS E MAPAS
+echo 🚀 QUANT TRADING TERMINAL - LAUNCHER DE RELATÓRIOS V2
 echo ============================================================
+echo.
+echo Horário de Início: %time%
+echo.
 
 echo ------------------------------------------------------------
-echo ⏳ Executando Passo 1: Gerar App Completo...
-echo (Aguarde a conclusao do processo de coleta...)
+echo ⏳ PASSO 1 [OBRIGATÓRIO]: Gerando Inventário Técnico Base...
 echo ------------------------------------------------------------
+:: Executa de forma síncrona. Os outros scripts dependem deste arquivo salvo no disco.
+python Gerar_Mapa_Inventario_Tecnico.py
 
-:: Executa o Gerar_App_Completo.py e AGUARDA a finalizacao antes de prosseguir
-python Gerar_App_Completo.py
-
-:: Verifica se a coleta rodou sem erros
+:: Verifica se o inventário foi gerado sem erros de execução
 if %ERRORLEVEL% NEQ 0 (
     echo.
-    echo ❌ ERRO ao executar Gerar_App_Completo.py!
-    echo Os scripts subsequentes foram cancelados para proteger os dados.
+    echo ❌ [ERRO CRÍTICO] Falha ao executar Gerar_Mapa_Inventario_Tecnico.py!
+    echo Os scripts subsequentes foram abortados para proteger a integridade dos dados.
+    echo.
     pause
     exit /b %ERRORLEVEL%
 )
 
 echo.
-echo ✅ Coleta de dados do Passo 1 concluida com sucesso!
-echo 🚀 Disparando os scripts restantes em janelas separadas...
+echo ✅ Inventário 'ArquivosApp.py' consolidado com sucesso!
+echo 🚀 PASSO 2: Disparando processamento de mapas e relatórios...
 echo ------------------------------------------------------------
 
-:: Inicia os demais scripts em paralelo em novas janelas de terminal
-start "2. Gerar Mapa de Inventario Tecnico" cmd /k "python Gerar_Mapa_Inventario_Tecnico.py"
-start "3. Coletas Arquivos App" cmd /k "python Gerar_ColetasArquivosApp.py"
-start "4. Gerar Mapa de Fluxo" cmd /k "python Gerar_Mapa_Fluxo.py"
-start "5. Gerar Mapa de Projeto" cmd /k "python Gerar_Mapa_Projeto.py"
-start "6. Gerar Relatorio Mensagem" cmd /k "python Gerar_Relatorio_Mensagem.py"
-start "7. Gerar Relatorio" cmd /k "python Gerar_Relatorio.py"
-start "8. Gerar Resultado Operacional" cmd /k "python Gerar_Resultado_Operacional_Abertura.py"
+:: Inicia as ferramentas de mapas de infraestrutura em paralelo em novas janelas ocultas/visíveis
+start "Mapeador de Projeto V2" cmd /c "python Gerar_Mapa_Projeto.py"
+start "Mapeador de Fluxo Dinâmico V2" cmd /c "python Gerar_Mapa_Fluxo.py"
+
+:: Executa a calculadora operacional de consolidação final do resultado
+start "Consolidador Operacional" cmd /c "python Gerar_Resultado_Operacional_Abertura.py"
 
 echo.
-echo ✅ Todos os servicos foram disparados com sucesso!
-echo Voce pode fechar esta janela do launcher se desejar.
+echo ------------------------------------------------------------
+echo ⏳ PASSO 3: Gerando Relatório Executivo de Auditoria Macro...
+echo ------------------------------------------------------------
+:: Executa o gerador de relatório macro oficial consolidado da V2
+python Gerar_Relatorio.py
+
+echo.
+echo ============================================================
+echo ✅ COMPILAÇÃO DE METADADOS E RELATÓRIOS CONCLUÍDA!
+echo ============================================================
+echo.
+echo Todos os serviços em lote e mapas V2 foram atualizados.
+echo Os arquivos estão prontos para consumo na interface Streamlit.
+echo.
 pause
+exit

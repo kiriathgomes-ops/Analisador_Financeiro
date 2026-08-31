@@ -1,89 +1,89 @@
 {
-    "data_execucao": "2026-08-30 19:24:04",
+    "data_execucao": "2026-08-30 21:14:08",
     "status_geral": "SUCESSO",
     "etapas": [
         {
             "etapa": "0 - LIMPEZA DE IMAGENS TRADINGVIEW",
             "script": "Limpar_Imagens_TradingView.py",
-            "inicio": "2026-08-30 19:24:00",
-            "fim": "2026-08-30 19:24:00",
+            "inicio": "2026-08-30 21:14:00",
+            "fim": "2026-08-30 21:14:00",
             "status": "OK"
         },
         {
             "etapa": "1 - COLETA MERCADO GLOBAL",
             "script": "Coletor.py",
-            "inicio": "2026-08-30 19:24:00",
-            "fim": "2026-08-30 19:24:03",
+            "inicio": "2026-08-30 21:14:00",
+            "fim": "2026-08-30 21:14:07",
             "status": "OK"
         },
         {
             "etapa": "2 - COLETA NOTICIAS ECONOMICAS",
             "script": "Coleta_Noticias_Calendario.py",
-            "inicio": "2026-08-30 19:24:03",
-            "fim": "2026-08-30 19:24:03",
+            "inicio": "2026-08-30 21:14:07",
+            "fim": "2026-08-30 21:14:07",
             "status": "OK"
         },
         {
             "etapa": "3 - ANALISE IMPACTO NOTICIAS",
             "script": "Analise_Noticias.py",
-            "inicio": "2026-08-30 19:24:03",
-            "fim": "2026-08-30 19:24:03",
+            "inicio": "2026-08-30 21:14:07",
+            "fim": "2026-08-30 21:14:07",
             "status": "OK"
         },
         {
             "etapa": "4 - VALIDACAO DOS DADOS",
             "script": "Validador.py",
-            "inicio": "2026-08-30 19:24:03",
-            "fim": "2026-08-30 19:24:03",
+            "inicio": "2026-08-30 21:14:07",
+            "fim": "2026-08-30 21:14:07",
             "status": "OK"
         },
         {
             "etapa": "5 - CALCULOS MACRO E INDICADORES",
             "script": "Calculadora.py",
-            "inicio": "2026-08-30 19:24:03",
-            "fim": "2026-08-30 19:24:03",
+            "inicio": "2026-08-30 21:14:07",
+            "fim": "2026-08-30 21:14:07",
             "status": "OK"
         },
         {
             "etapa": "6 - ESTIMATIVA ABERTURA WIN/WDO",
             "script": "CalculadoraEstimativaAbertura.py",
-            "inicio": "2026-08-30 19:24:03",
-            "fim": "2026-08-30 19:24:03",
+            "inicio": "2026-08-30 21:14:07",
+            "fim": "2026-08-30 21:14:07",
             "status": "OK"
         },
         {
             "etapa": "7 - RESULTADO OPERACIONAL",
             "script": "Gerar_Resultado_Operacional_Abertura.py",
-            "inicio": "2026-08-30 19:24:03",
-            "fim": "2026-08-30 19:24:04",
+            "inicio": "2026-08-30 21:14:07",
+            "fim": "2026-08-30 21:14:08",
             "status": "OK"
         },
         {
             "etapa": "8.1 - MOTOR SMC POR REGRAS (MT5)",
             "script": "Rodar_SMC_Regras.py",
-            "inicio": "2026-08-30 19:24:04",
-            "fim": "2026-08-30 19:24:04",
+            "inicio": "2026-08-30 21:14:08",
+            "fim": "2026-08-30 21:14:08",
             "status": "OK"
         },
         {
             "etapa": "9 - GERADOR RELATORIO FINAL",
             "script": "Gerar_Relatorio_Mensagem.py",
-            "inicio": "2026-08-30 19:24:04",
-            "fim": "2026-08-30 19:24:04",
+            "inicio": "2026-08-30 21:14:08",
+            "fim": "2026-08-30 21:14:08",
             "status": "OK"
         },
         {
             "etapa": "10 - V2 SESSAO WINFUT",
             "script": "v2_gravar_sessao_win.py",
-            "inicio": "2026-08-30 19:24:04",
-            "fim": "2026-08-30 19:24:04",
+            "inicio": "2026-08-30 21:14:08",
+            "fim": "2026-08-30 21:14:08",
             "status": "OK"
         },
         {
             "etapa": "11 - V2 SESSAO + DECISAO",
             "script": "v2_rodar_decisao_completa.py",
-            "inicio": "2026-08-30 19:24:04",
-            "fim": "2026-08-30 19:24:04",
+            "inicio": "2026-08-30 21:14:08",
+            "fim": "2026-08-30 21:14:08",
             "status": "OK"
         }
     ]
