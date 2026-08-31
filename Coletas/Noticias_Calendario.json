@@ -1,12 +1,43 @@
 {
   "metadata": {
     "fonte": "TradingView API",
-    "timestamp": "2026-08-30T18:23:12.505627",
-    "data_referencia": "2026-08-30",
+    "timestamp": "2026-08-31T08:02:55.237178",
+    "data_referencia": "2026-08-31",
     "filtros": "Brasil e EUA (2 e 3 Estrelas)"
   },
   "calendario_eventos": {
-    "quantidade_eventos": 0,
-    "eventos": []
+    "quantidade_eventos": 3,
+    "eventos": [
+      {
+        "hora": "08:30",
+        "pais": "Brazil",
+        "moeda": "BRL",
+        "evento": "Gross Debt to GDP",
+        "importancia": 3,
+        "anterior": "81.9",
+        "previsao": "82.15",
+        "atual": ""
+      },
+      {
+        "hora": "08:30",
+        "pais": "Brazil",
+        "moeda": "BRL",
+        "evento": "BCB Focus Market Readout",
+        "importancia": 2,
+        "anterior": "",
+        "previsao": "",
+        "atual": ""
+      },
+      {
+        "hora": "11:30",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "Dallas Fed Manufacturing Index",
+        "importancia": 2,
+        "anterior": "1.3",
+        "previsao": "",
+        "atual": ""
+      }
+    ]
   }
 }

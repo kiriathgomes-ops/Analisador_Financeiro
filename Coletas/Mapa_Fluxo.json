@@ -1,7 +1,7 @@
 {
     "metadata": {
         "projeto": "Analisador_Financeiro",
-        "gerado_em": "2026-08-27 19:01:07",
+        "gerado_em": "2026-08-31 08:05:01",
         "tipo": "Mapa de fluxo de dados (gerado dinamicamente)"
     },
     "pipeline": [
@@ -120,7 +120,7 @@
             "entrada": [
                 "Metricas_Calculadas.json",
                 "EstimativaAbertura.json",
-                "Decisao_Core.json",
+                "Decisao_V2.json",
                 "DadosAtivosUnificados.json",
                 "Analise_Tendencias.json",
                 "Noticias_Calendario_0900.json"
@@ -131,23 +131,6 @@
         },
         {
             "etapa": 9,
-            "nome": "8 - ENGINE DE VIES INSTITUCIONAL",
-            "descricao": "Core Engine V1 - Gera viés operacional (score e direção) para o WIN",
-            "arquivos": [
-                "Engine_Vies.py"
-            ],
-            "entrada": [
-                "EstimativaAbertura.json",
-                "Metricas_Calculadas.json",
-                "Noticias_Impacto_Dia.json",
-                "DadosAtivosUnificados.json"
-            ],
-            "saida": [
-                "Decisao_Core.json"
-            ]
-        },
-        {
-            "etapa": 10,
             "nome": "8.1 - MOTOR SMC POR REGRAS (MT5)",
             "descricao": "Motor de regras SMC/ICT (swings, BOS, FVG, Order Blocks, Liquidez)",
             "arquivos": [
@@ -161,7 +144,7 @@
             ]
         },
         {
-            "etapa": 11,
+            "etapa": 10,
             "nome": "9 - GERADOR RELATORIO FINAL",
             "descricao": "Gera relatório resumido em Markdown com estimativas e pivôs",
             "arquivos": [
@@ -175,7 +158,7 @@
             ]
         },
         {
-            "etapa": 12,
+            "etapa": 11,
             "nome": "10 - V2 SESSAO WINFUT",
             "descricao": "Grava sessão WINFUT (V2) no histórico de aberturas",
             "arquivos": [
@@ -189,7 +172,7 @@
             ]
         },
         {
-            "etapa": 13,
+            "etapa": 12,
             "nome": "11 - V2 SESSAO + DECISAO",
             "descricao": "Orquestrador V2 - Gera decisão completa com confluência e níveis operacionais",
             "arquivos": [

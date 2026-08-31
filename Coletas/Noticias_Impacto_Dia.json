@@ -1,19 +1,66 @@
 {
     "metadata": {
-        "timestamp": "2026-08-30T21:14:07.739074",
+        "timestamp": "2026-08-31T08:03:40.982679",
         "fonte": "Analise Noticias TV API V2"
     },
     "resumo": {
-        "impacto_total": 0,
-        "classificacao": "BAIXO"
+        "impacto_total": 12,
+        "classificacao": "ALTO"
     },
     "alertas": {
         "tem_3_estrelas_brasil_0900": false,
-        "tem_3_estrelas_outros_horarios": false,
-        "noticias_3_estrelas_outros_horarios": [],
+        "tem_3_estrelas_outros_horarios": true,
+        "noticias_3_estrelas_outros_horarios": [
+            {
+                "hora": "08:30",
+                "pais": "Brazil",
+                "moeda": "BRL",
+                "evento": "Gross Debt to GDP"
+            }
+        ],
         "tem_multiplas_2_estrelas_mesmo_horario": false,
         "horarios_multiplas_2_estrelas": [],
-        "risco_abertura_WIN": false
+        "risco_abertura_WIN": true
     },
-    "horarios": []
+    "horarios": [
+        {
+            "hora": "08:30",
+            "pontuacao": 9,
+            "classificacao": "ALTO",
+            "quantidade_eventos": 2,
+            "duas_estrelas_equivalente_alta": false,
+            "eventos": [
+                {
+                    "nome": "Gross Debt to GDP",
+                    "pais": "Brazil",
+                    "moeda": "BRL",
+                    "estrelas": 3,
+                    "peso": 6
+                },
+                {
+                    "nome": "BCB Focus Market Readout",
+                    "pais": "Brazil",
+                    "moeda": "BRL",
+                    "estrelas": 2,
+                    "peso": 3
+                }
+            ]
+        },
+        {
+            "hora": "11:30",
+            "pontuacao": 3,
+            "classificacao": "BAIXO",
+            "quantidade_eventos": 1,
+            "duas_estrelas_equivalente_alta": false,
+            "eventos": [
+                {
+                    "nome": "Dallas Fed Manufacturing Index",
+                    "pais": "United States",
+                    "moeda": "USD",
+                    "estrelas": 2,
+                    "peso": 3
+                }
+            ]
+        }
+    ]
 }
