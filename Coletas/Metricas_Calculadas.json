@@ -1,38 +1,63 @@
 {
   "metadata_calculo": {
-    "timestamp": "2026-08-31T08:03:41.166760",
-    "total_ativos_processados": 25
+    "timestamp": "2026-08-31T15:57:19.150178",
+    "total_ativos_processados": 32
   },
   "cambio_e_arbitragem": {
-    "usd_ptax": 5.1838,
-    "wdo_fut": 5185.0,
-    "spread_wdo_ptax_pontos": 1.2,
-    "spread_wdo_ptax_percentual": 0.0231
+    "usd_ptax": 5.181,
+    "wdo_fut": 5219.5,
+    "spread_wdo_ptax_pontos": 38.5,
+    "spread_wdo_ptax_percentual": 0.7431
   },
   "curva_juros_b3": {
-    "di1_2027_taxa": 13.61,
-    "di1_2029_taxa": 14.17,
-    "inclinacao_29_27_bps": 56.0
+    "di1_2027_taxa": 13.62,
+    "di1_2029_taxa": 14.19,
+    "inclinacao_29_27_bps": 57.0
   },
   "indicadores_macro": {
-    "vix": 15.2,
-    "vix_change_pct": 5.409153952843269,
-    "dxy": 99.549,
-    "crude_oil": 86.22,
-    "crude_oil_change_pct": 3.3812949640287684,
+    "vix": 15.06,
+    "vix_change_pct": 4.4382801664355105,
+    "dxy": 99.415,
+    "crude_oil": 85.87,
+    "crude_oil_change_pct": 2.9616306954436435,
     "iron_ore_fef2": {
-      "close": 99.6,
-      "change_percent": 0.8607594936708804
+      "close": 99.15,
+      "change_percent": -0.5017561465127948
     }
   },
   "performance_relativa": {
-    "ewz_change_pct": null,
-    "sp500_fut_change_pct": -0.15216265216265215,
-    "nasdaq_fut_change_pct": -0.09155102698212211,
-    "adrs_brasileiras": {}
+    "ewz_change_pct": 1.24,
+    "sp500_fut_change_pct": -0.5406630406630406,
+    "nasdaq_fut_change_pct": -0.32551476260310086,
+    "adrs_brasileiras": {
+      "BBD_ADR": {
+        "close": 3.28,
+        "change_percent": 0.92
+      },
+      "ITUB_ADR": {
+        "close": 7.6,
+        "change_percent": 1.33
+      },
+      "PETR_ADR": {
+        "close": 19.23,
+        "change_percent": 3.78
+      },
+      "VALE_ADR": {
+        "close": 15.1,
+        "change_percent": 0.47
+      },
+      "BBAS_ADR": {
+        "close": 3.99,
+        "change_percent": 0.76
+      },
+      "B3_ADR": {
+        "close": 9.18,
+        "change_percent": -0.76
+      }
+    }
   },
   "indicadores_compostos": {
-    "indicador_mercado_externo": -1.1671,
-    "indicador_adrs_brasileiras": null
+    "indicador_mercado_externo": -1.9784,
+    "indicador_adrs_brasileiras": 6.5
   }
 }

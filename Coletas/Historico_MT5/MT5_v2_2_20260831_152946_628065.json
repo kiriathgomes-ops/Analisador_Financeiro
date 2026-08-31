@@ -1,0 +1,313 @@
+{
+    "versao_coletor": "2.2",
+    "timestamp": "2026-08-31T15:29:46.604",
+    "mt5": {
+        "conectado": true,
+        "versao": [
+            500,
+            6140,
+            "21 Aug 2026"
+        ]
+    },
+    "ativos": {
+        "WIN": {
+            "ativo": "WIN",
+            "descricao": "Mini Índice B3",
+            "contrato_principal": "WINV26",
+            "timestamp": "2026-08-31T15:29:46.609",
+            "bid": 179975.0,
+            "ask": 179980.0,
+            "last": 179975.0,
+            "volume": 1.0,
+            "spread": 5.0,
+            "open": 178625.0,
+            "high": 181230.0,
+            "low": 178610.0,
+            "close": 179975.0,
+            "volume_d1": 2016632.0,
+            "prev_close": 177640.0,
+            "change_percent": 1.3145,
+            "session_close": 177640.0,
+            "preco_teorico": null,
+            "vencimento": "2026-10-13T21:00:00",
+            "market_book": {
+                "disponivel": false,
+                "quantidade_niveis": 0,
+                "bids": [],
+                "asks": []
+            },
+            "contratos_vigentes": [
+                {
+                    "contrato": "WINV26",
+                    "expiracao": "2026-10-13T21:00:00",
+                    "volume": 1.0,
+                    "bid": 179975.0,
+                    "ask": 179980.0,
+                    "last": 179975.0
+                },
+                {
+                    "contrato": "WINZ26",
+                    "expiracao": "2026-12-15T21:00:00",
+                    "volume": 1.0,
+                    "bid": 183540.0,
+                    "ask": 183570.0,
+                    "last": 183535.0
+                }
+            ],
+            "status": "OK"
+        },
+        "WDO": {
+            "ativo": "WDO",
+            "descricao": "Mini Dólar B3",
+            "contrato_principal": "WDOX26",
+            "timestamp": "2026-08-31T15:29:46.616",
+            "bid": 5252.5,
+            "ask": 5255.0,
+            "last": 5253.5,
+            "volume": 2.0,
+            "spread": 2.5,
+            "open": 5240.0,
+            "high": 5255.0,
+            "low": 5227.0,
+            "close": 5253.5,
+            "volume_d1": 383.0,
+            "prev_close": 5256.0,
+            "change_percent": -0.0476,
+            "session_close": 5256.0,
+            "preco_teorico": null,
+            "vencimento": "2026-11-03T20:59:00",
+            "market_book": {
+                "disponivel": false,
+                "quantidade_niveis": 0,
+                "bids": [],
+                "asks": []
+            },
+            "contratos_vigentes": [
+                {
+                    "contrato": "WDOX26",
+                    "expiracao": "2026-11-03T20:59:00",
+                    "volume": 2.0,
+                    "bid": 5252.5,
+                    "ask": 5255.0,
+                    "last": 5253.5
+                },
+                {
+                    "contrato": "WDOU26",
+                    "expiracao": "2026-09-01T20:59:00",
+                    "volume": 1.0,
+                    "bid": 5181.0,
+                    "ask": 5182.0,
+                    "last": 5181.5
+                },
+                {
+                    "contrato": "WDOV26",
+                    "expiracao": "2026-09-30T21:00:00",
+                    "volume": 1.0,
+                    "bid": 5222.0,
+                    "ask": 5222.5,
+                    "last": 5222.5
+                },
+                {
+                    "contrato": "WDOZ26",
+                    "expiracao": "2026-12-01T20:59:00",
+                    "volume": 1.0,
+                    "bid": 5278.5,
+                    "ask": 5290.0,
+                    "last": 5271.0
+                }
+            ],
+            "status": "OK"
+        },
+        "DI1": {
+            "ativo": "DI1",
+            "descricao": "DI Futuro B3",
+            "contrato_principal": "DI1V26",
+            "timestamp": "2026-08-31T15:29:46.624",
+            "bid": 13.794,
+            "ask": 13.795,
+            "last": 13.795,
+            "volume": 183.0,
+            "spread": 0.0009999999999994458,
+            "open": 13.791,
+            "high": 13.805,
+            "low": 13.79,
+            "close": 13.795,
+            "volume_d1": 5399.0,
+            "prev_close": 13.801,
+            "change_percent": -0.0435,
+            "session_close": 13.801,
+            "preco_teorico": null,
+            "vencimento": "2026-09-30T21:00:00",
+            "market_book": {
+                "disponivel": false,
+                "quantidade_niveis": 0,
+                "bids": [],
+                "asks": []
+            },
+            "contratos_vigentes": [
+                {
+                    "contrato": "DI1V26",
+                    "expiracao": "2026-09-30T21:00:00",
+                    "volume": 183.0,
+                    "bid": 13.794,
+                    "ask": 13.795,
+                    "last": 13.795
+                },
+                {
+                    "contrato": "DI1F40",
+                    "expiracao": "2040-01-01T21:00:00",
+                    "volume": 145.0,
+                    "bid": 14.52,
+                    "ask": 14.57,
+                    "last": 14.64
+                },
+                {
+                    "contrato": "DI1F27",
+                    "expiracao": "2027-01-03T21:00:00",
+                    "volume": 64.0,
+                    "bid": 13.61,
+                    "ask": 13.615,
+                    "last": 13.615
+                },
+                {
+                    "contrato": "DI1F31",
+                    "expiracao": "2031-01-01T21:00:00",
+                    "volume": 35.0,
+                    "bid": 14.5,
+                    "ask": 14.51,
+                    "last": 14.5
+                },
+                {
+                    "contrato": "DI1F30",
+                    "expiracao": "2030-01-01T21:00:00",
+                    "volume": 11.0,
+                    "bid": 14.405,
+                    "ask": 14.41,
+                    "last": 14.405
+                },
+                {
+                    "contrato": "DI1N29",
+                    "expiracao": "2029-07-01T21:00:00",
+                    "volume": 10.0,
+                    "bid": 14.33,
+                    "ask": 14.34,
+                    "last": 14.33
+                },
+                {
+                    "contrato": "DI1N30",
+                    "expiracao": "2030-06-30T21:00:00",
+                    "volume": 10.0,
+                    "bid": 14.45,
+                    "ask": 14.46,
+                    "last": 14.46
+                },
+                {
+                    "contrato": "DI1F32",
+                    "expiracao": "2032-01-01T21:00:00",
+                    "volume": 8.0,
+                    "bid": 14.58,
+                    "ask": 14.58,
+                    "last": 14.58
+                },
+                {
+                    "contrato": "DI1V29",
+                    "expiracao": "2029-09-30T21:00:00",
+                    "volume": 4.0,
+                    "bid": 14.365,
+                    "ask": 14.38,
+                    "last": 14.37
+                },
+                {
+                    "contrato": "DI1J30",
+                    "expiracao": "2030-03-31T21:00:00",
+                    "volume": 3.0,
+                    "bid": 14.415,
+                    "ask": 14.43,
+                    "last": 14.42
+                },
+                {
+                    "contrato": "DI1J29",
+                    "expiracao": "2029-04-01T21:00:00",
+                    "volume": 2.0,
+                    "bid": 14.26,
+                    "ask": 14.27,
+                    "last": 14.26
+                },
+                {
+                    "contrato": "DI1F34",
+                    "expiracao": "2034-01-01T21:00:00",
+                    "volume": 2.0,
+                    "bid": 14.6,
+                    "ask": 14.61,
+                    "last": 14.6
+                },
+                {
+                    "contrato": "DI1F28",
+                    "expiracao": "2027-12-30T21:00:00",
+                    "volume": 1.0,
+                    "bid": 13.81,
+                    "ask": 13.815,
+                    "last": 13.81
+                },
+                {
+                    "contrato": "DI1F29",
+                    "expiracao": "2029-01-01T21:00:00",
+                    "volume": 1.0,
+                    "bid": 14.19,
+                    "ask": 14.19,
+                    "last": 14.19
+                },
+                {
+                    "contrato": "DI1F33",
+                    "expiracao": "2033-01-02T21:00:00",
+                    "volume": 1.0,
+                    "bid": 14.61,
+                    "ask": 14.61,
+                    "last": 14.61
+                },
+                {
+                    "contrato": "DI1F35",
+                    "expiracao": "2035-01-01T21:00:00",
+                    "volume": 1.0,
+                    "bid": 14.6,
+                    "ask": 14.61,
+                    "last": 14.6
+                },
+                {
+                    "contrato": "DI1F36",
+                    "expiracao": "2036-01-01T21:00:00",
+                    "volume": 1.0,
+                    "bid": 14.57,
+                    "ask": 14.59,
+                    "last": 14.57
+                },
+                {
+                    "contrato": "DI1F37",
+                    "expiracao": "2037-01-01T21:00:00",
+                    "volume": 1.0,
+                    "bid": 14.59,
+                    "ask": 14.6,
+                    "last": 14.6
+                },
+                {
+                    "contrato": "DI1F38",
+                    "expiracao": "2038-01-03T21:00:00",
+                    "volume": 1.0,
+                    "bid": 14.56,
+                    "ask": 14.59,
+                    "last": 14.53
+                },
+                {
+                    "contrato": "DI1F39",
+                    "expiracao": "2039-01-02T21:00:00",
+                    "volume": 1.0,
+                    "bid": 14.54,
+                    "ask": 14.58,
+                    "last": 14.52
+                }
+            ],
+            "status": "OK"
+        }
+    },
+    "status": "OK"
+}

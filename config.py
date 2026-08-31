@@ -1,7 +1,7 @@
 # ============================================================
 # config.py — Configuração central do Analisador Financeiro
 # Roadmap A2 | Fase 1 da migração V1 → V2
-# Data: 27/08/2026
+# Data: 27/08/2026 | Atualizado 31/08/2026 — helpers pregão WIN
 #
 # Única fonte de:
 #   - Caminhos (BASE_DIR, Coletas, nomes de JSON)
@@ -109,9 +109,15 @@ FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY")
 # ------------------------------------------------------------
 # 5. JANELAS TEMPORAIS E TIMEOUTS
 # ------------------------------------------------------------
-# Janela de ajuste oficial B3 / overnight (last e ajuste vivos)
+# Janela de ajuste oficial B3 / overnight (ajuste TV vivo)
 JANELA_AJUSTE_INICIO = time(19, 0, 0)  # 19:00
 JANELA_AJUSTE_FIM = time(8, 50, 0)  # 08:50
+
+# Horário cheio do pregão WIN (B3)
+# WIN_FUT (contrato MT5) → sempre
+# WIN_LAST_TICK → somente FORA deste intervalo
+HORA_PREGAO_INICIO = time(9, 0, 0)   # 09:00
+HORA_PREGAO_FIM = time(18, 25, 0)    # 18:25
 
 # Timeouts de HTTP (segundos)
 TIMEOUT_TRADINGVIEW = 10
@@ -329,12 +335,25 @@ FONTE_OFICIAL_PREVISAO = "NOVO_MOTOR+OpeningScenario"  # ou "Engine_Vies" durant
 def esta_na_janela_ajuste() -> bool:
     """
     True entre 19:00 e 08:50 (overnight / pós-ajuste / pré-abertura).
-    Fora dessa janela, ajuste e WIN_LAST_TICK devem vir do cache (ROM/RAM).
+    Controla coleta ao vivo do AJUSTE oficial (TV).
     """
     from datetime import datetime
 
     agora = datetime.now().time()
     return agora >= JANELA_AJUSTE_INICIO or agora <= JANELA_AJUSTE_FIM
+
+
+def esta_no_pregao() -> bool:
+    """True no horário cheio do WIN (09:00–18:25)."""
+    from datetime import datetime
+
+    agora = datetime.now().time()
+    return HORA_PREGAO_INICIO <= agora <= HORA_PREGAO_FIM
+
+
+def esta_fora_do_pregao() -> bool:
+    """True fora do pregão — janela em que WIN_LAST_TICK deve ser coletado."""
+    return not esta_no_pregao()
 
 
 def caminho_json(nome: str) -> Path:

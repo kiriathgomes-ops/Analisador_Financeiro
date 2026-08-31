@@ -1,26 +1,19 @@
 # ============================================================
 # ARQUIVO: Coletor.py
-# DATA: 30/07/2026
+# DATA: 30/07/2026 | Atualizado 31/08/2026
 # AUTOR: Arquiteto de Sistemas
 # MOTIVO: Ingestão de Dados (BACEN SGS 10813 + TV + B3 WIN/WDO Separados)
 #         Engine de Rotação Temporal de Memória e
 #         Geração do Arquivo Unificado dos Ativos Mapeados.
-# MODIFICAÇÃO FINAL: Integração com MT5 para capturar o LAST TICK (WIN/WDO)
-#                    apenas dentro da janela de ajuste (19:00 - 08:50).
 #
-# ATUALIZAÇÃO 16/08/2026:
-#   - Integração prioritária com Coletor_MT5_v2_2 (seleção dinâmica de contrato)
-#   - Fallback automático para o coletor antigo (Coletor_MT5.py)
-#   - Preservação total da V1 (nenhum arquivo antigo foi removido)
-#   - ROTAÇÃO EXPANDIDA PARA 12 ARQUIVOS (0, 5, 10, ..., 55 min) → 60 min de histórico
-#
-# ATUALIZAÇÃO 18/08/2026 (Opção A):
-#   - ADRs + EWZ passam a ser coletados via Finnhub (mais estável)
-#   - Futuros ES e NQ CONTINUAM via TradingView (preços reais dos futuros)
-#   - Inclusão de novos ativos B3 via MetaTrader 5 (VALE3, PETR4, ITUB4, BBAS3, BBDC4, B3SA3)
-#   - Mantida toda a estrutura original (rotação, RAM/ROM, unificado, janela de ajuste)
+# ATUALIZAÇÃO 31/08/2026:
+#   - WIN_FUT (contrato MT5) SEMPRE ao vivo → candle atual
+#   - WIN_LAST_TICK: MT5 só FORA do pregão; no pregão CONGELADO (cache) e ainda sai no JSON
+#   - Idem WDO_FUT / WDO_LAST_TICK
+#   - Coletas HTTP paralelas + JSON compacto
 # ============================================================
 
+from __future__ import annotations
 
 import json
 import os
@@ -28,15 +21,15 @@ import shutil
 import ssl
 import sys
 import urllib.request
-from datetime import datetime, time
-from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 import MetaTrader5 as mt5
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
-# ------------------------------------------------------------
-# CONFIGURAÇÃO CENTRALIZADA (A2 — config.py)
-# ------------------------------------------------------------
 from config import (
     BASE_DIR,
     COLETAS_DIR,
@@ -56,11 +49,12 @@ from config import (
     TIMEOUT_FINNHUB,
     TIMEOUT_BACEN,
     esta_na_janela_ajuste,
+    esta_fora_do_pregao,
     JANELA_AJUSTE_INICIO,
     JANELA_AJUSTE_FIM,
 )
 
-# Compatibilidade: paths como str para código legado (os.path / open)
+# Compatibilidade: paths como str para código legado
 BASE_DIR = str(BASE_DIR)
 COLETAS_DIR = str(COLETAS_DIR)
 ARQUIVOS_ROM = [str(p) for p in ARQUIVOS_ROM]
@@ -70,39 +64,47 @@ FILE_UNIFICADO = str(FILE_UNIFICADO)
 FILE_MT5 = str(FILE_MT5)
 FILE_MT5_V2 = str(FILE_MT5_V2)
 
-# Alias id_limpo ← id_interno (config usa id_interno)
 for _cfg in ATIVOS_FINNHUB + ATIVOS_MT5_B3:
     if "id_interno" in _cfg and "id_limpo" not in _cfg:
         _cfg["id_limpo"] = _cfg["id_interno"]
 
 os.makedirs(COLETAS_DIR, exist_ok=True)
-ANO_ATUAL = datetime.now().year
 
-# TICKERS_TRADINGVIEW, ATIVOS_FINNHUB, ATIVOS_MT5_B3, MAPEAMENTO_TICKERS
-# e esta_na_janela_ajuste() vêm de config.py (A2).
 
 # ------------------------------------------------------------
-# FUNÇÃO PARA CAPTURAR LAST DO MT5
+# HTTP Session (pool + retry leve)
+# ------------------------------------------------------------
+def _build_session() -> requests.Session:
+    session = requests.Session()
+    retry = Retry(
+        total=2,
+        backoff_factor=0.3,
+        status_forcelist=(429, 500, 502, 503, 504),
+        allowed_methods=["GET", "POST"],
+    )
+    adapter = HTTPAdapter(max_retries=retry, pool_connections=10, pool_maxsize=10)
+    session.mount("https://", adapter)
+    session.mount("http://", adapter)
+    session.headers.update({"User-Agent": "Mozilla/5.0"})
+    return session
+
+
+_HTTP = _build_session()
+
+
+# ------------------------------------------------------------
+# LAST MT5 (leitura de arquivo já coletado)
 # ------------------------------------------------------------
 def capturar_last_do_mt5() -> dict:
     """
     Extrai o 'last' dos contratos principais de WIN e WDO.
 
-    Prioridade de leitura:
-      1. Dados_MT5_v2_2.json  (formato novo - seleção dinâmica por volume/vencimento)
-      2. Dados_MT5.json       (formato antigo - lista fixa)
-
-    Retorna dict no formato:
-      {
-        "WIN": {"contrato": "WINV26", "last": 128450.0, "timestamp": "..."},
-        "WDO": {"contrato": "WDOV26", "last": 5.432, "timestamp": "..."}
-      }
+    Prioridade:
+      1. Dados_MT5_v2_2.json
+      2. Dados_MT5.json (legado)
     """
-    resultado = {}
+    resultado: dict = {}
 
-    # ----------------------------------------------------------
-    # 1. Tenta o formato novo (v2.2) — preferencial
-    # ----------------------------------------------------------
     if os.path.exists(FILE_MT5_V2):
         try:
             with open(FILE_MT5_V2, "r", encoding="utf-8") as f:
@@ -126,19 +128,22 @@ def capturar_last_do_mt5() -> dict:
 
             if resultado:
                 if "WIN" in resultado:
-                    print(f"   ✅ Last WIN via MT5 v2.2: {resultado['WIN']['last']} ({resultado['WIN']['contrato']})")
+                    print(
+                        f"   ✅ Last WIN via MT5 v2.2: "
+                        f"{resultado['WIN']['last']} ({resultado['WIN']['contrato']})"
+                    )
                 if "WDO" in resultado:
-                    print(f"   ✅ Last WDO via MT5 v2.2: {resultado['WDO']['last']} ({resultado['WDO']['contrato']})")
+                    print(
+                        f"   ✅ Last WDO via MT5 v2.2: "
+                        f"{resultado['WDO']['last']} ({resultado['WDO']['contrato']})"
+                    )
                 return resultado
 
         except Exception as e:
             print(f"[AVISO] Falha ao ler Dados_MT5_v2_2.json: {e}. Tentando formato antigo...")
 
-    # ----------------------------------------------------------
-    # 2. Fallback: formato antigo (Dados_MT5.json)
-    # ----------------------------------------------------------
     if not os.path.exists(FILE_MT5):
-        print("[AVISO] Nenhum arquivo MT5 encontrado (v2.2 nem v1). Não será possível capturar o last.")
+        print("[AVISO] Nenhum arquivo MT5 encontrado (v2.2 nem v1).")
         return resultado
 
     try:
@@ -147,11 +152,9 @@ def capturar_last_do_mt5() -> dict:
 
         contratos = dados.get("contratos", {})
         timestamp = dados.get("timestamp", datetime.now().isoformat())
-
-        # Lista de prioridade do formato antigo (mantida por compatibilidade)
         mapeamento_contratos = {
             "WIN": ["WINQ26", "WINV26", "WINZ26"],
-            "WDO": ["WDOQ26", "WDOV26", "WDOZ26"],
+            "WDO": ["WDOQ26", "WDOV26", "WDOZ26", "WDOU26"],
         }
 
         for ativo, lista in mapeamento_contratos.items():
@@ -169,110 +172,96 @@ def capturar_last_do_mt5() -> dict:
                         break
 
         if "WIN" in resultado:
-            print(f"   ✅ Last WIN via MT5 v1: {resultado['WIN']['last']} ({resultado['WIN']['contrato']})")
+            print(
+                f"   ✅ Last WIN via MT5 v1: "
+                f"{resultado['WIN']['last']} ({resultado['WIN']['contrato']})"
+            )
         if "WDO" in resultado:
-            print(f"   ✅ Last WDO via MT5 v1: {resultado['WDO']['last']} ({resultado['WDO']['contrato']})")
-
+            print(
+                f"   ✅ Last WDO via MT5 v1: "
+                f"{resultado['WDO']['last']} ({resultado['WDO']['contrato']})"
+            )
         return resultado
 
     except Exception as e:
-        print(f"[ERRO] Falha ao ler Dados_MT5.json (formato antigo): {e}")
+        print(f"[ERRO] Falha ao ler Dados_MT5.json: {e}")
         return {}
 
 
 # ------------------------------------------------------------
-# FUNÇÕES DE COLETA FINNHUB (ADRs + EWZ)
+# Finnhub (paralelo)
 # ------------------------------------------------------------
-def coletar_finnhub():
-    """
-    Coleta os ativos configurados em ATIVOS_FINNHUB via API Finnhub.
-    Retorna lista no mesmo formato das outras funções de coleta do Coletor.py.
-    """
+def coletar_finnhub() -> List[Dict[str, Any]]:
     timestamp = datetime.now().isoformat()
-    resultados = []
-
     if not FINNHUB_API_KEY:
-        print("⚠️ [AVISO] Chave 'FINNHUB_API_KEY' não encontrada no arquivo .env")
-        return resultados
+        print("⚠️ [AVISO] FINNHUB_API_KEY ausente no .env")
+        return []
 
-    for cfg in ATIVOS_FINNHUB:
+    def _um(cfg: dict) -> dict:
         ticker = cfg["ticker_coleta"]
         url = f"https://finnhub.io/api/v1/quote?symbol={ticker}&token={FINNHUB_API_KEY}"
-
         try:
-            response = requests.get(url, timeout=5)
-            res = response.json()
-
+            res = _HTTP.get(url, timeout=TIMEOUT_FINNHUB or 5).json()
             if "error" in res:
-                print(f"⚠️ Erro de API Finnhub ({ticker}): {res['error']}")
-                resultados.append({
+                return {
                     "ativo": cfg["ativo"],
                     "fonte": "FINNHUB",
                     "timestamp": timestamp,
                     "status": "ERRO",
                     "dados_reais": None,
-                })
-                continue
-
+                }
             if "c" in res and res["c"] != 0:
-                preco = float(res["c"])
-                var_pct = round(float(res.get("dp", 0.0)), 2)
-                var_abs = round(float(res.get("d", 0.0)), 2)
-                fechamento_ant = float(res.get("pc", 0.0))
-
-                resultados.append({
+                return {
                     "ativo": cfg["ativo"],
                     "fonte": "FINNHUB",
                     "timestamp": timestamp,
                     "status": "OK",
                     "dados_reais": {
-                        "close": preco,
+                        "close": float(res["c"]),
                         "open": None,
                         "high": None,
                         "low": None,
-                        "change_percent": var_pct,
+                        "change_percent": round(float(res.get("dp", 0.0)), 2),
                         "volume": None,
-                        "var_abs": var_abs,
-                        "fechamento_anterior": fechamento_ant,
+                        "var_abs": round(float(res.get("d", 0.0)), 2),
+                        "fechamento_anterior": float(res.get("pc", 0.0)),
                     },
-                })
-            else:
-                resultados.append({
-                    "ativo": cfg["ativo"],
-                    "fonte": "FINNHUB",
-                    "timestamp": timestamp,
-                    "status": "SEM_DADOS",
-                    "dados_reais": None,
-                })
-
+                }
+            return {
+                "ativo": cfg["ativo"],
+                "fonte": "FINNHUB",
+                "timestamp": timestamp,
+                "status": "SEM_DADOS",
+                "dados_reais": None,
+            }
         except Exception as e:
-            print(f"❌ Erro de requisição Finnhub ({ticker}): {e}")
-            resultados.append({
+            print(f"❌ Finnhub ({ticker}): {e}")
+            return {
                 "ativo": cfg["ativo"],
                 "fonte": "FINNHUB",
                 "timestamp": timestamp,
                 "status": "ERRO",
                 "dados_reais": None,
-            })
+            }
 
-    return resultados
+    workers = min(8, max(1, len(ATIVOS_FINNHUB)))
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        return list(ex.map(_um, ATIVOS_FINNHUB))
 
 
 # ------------------------------------------------------------
-# FUNÇÃO DE COLETA DOS NOVOS ATIVOS B3 VIA METATRADER 5
+# Ações B3 via MT5
 # ------------------------------------------------------------
-def coletar_mt5_acoes_b3():
-    """
-    Coleta as ações B3 listadas em ATIVOS_MT5_B3 via MetaTrader 5.
-    Retorna lista no formato padrão do Coletor.py.
-    """
+def coletar_mt5_acoes_b3(mt5_ja_inicializado: bool = False) -> List[Dict[str, Any]]:
     timestamp = datetime.now().isoformat()
-    resultados = []
+    resultados: List[Dict[str, Any]] = []
 
-    mt5_ok = mt5.initialize()
-    if not mt5_ok:
-        print("⚠️ [AVISO] Não foi possível inicializar o MetaTrader 5 para ações B3.")
-        return resultados
+    own_init = False
+    if not mt5_ja_inicializado:
+        if not mt5.initialize():
+            print("⚠️ MT5 não inicializou para ações B3")
+            return resultados
+        own_init = True
 
     try:
         for cfg in ATIVOS_MT5_B3:
@@ -281,47 +270,7 @@ def coletar_mt5_acoes_b3():
             info = mt5.symbol_info(symbol)
             tick = mt5.symbol_info_tick(symbol)
 
-            if info and tick:
-                prev_close = float(getattr(info, "session_close", 0.0))
-                preco = float(
-                    tick.last
-                    if tick.last > 0
-                    else float(tick.bid if tick.bid > 0 else tick.ask)
-                )
-
-                if preco > 0:
-                    var_pct = (
-                        round(((preco / prev_close) - 1) * 100, 2)
-                        if prev_close > 0
-                        else 0.0
-                    )
-                    var_abs = round(preco - prev_close, 2) if prev_close > 0 else 0.0
-
-                    resultados.append({
-                        "ativo": cfg["ativo"],
-                        "fonte": "MetaTrader5",
-                        "timestamp": timestamp,
-                        "status": "OK",
-                        "dados_reais": {
-                            "close": preco,
-                            "open": None,
-                            "high": None,
-                            "low": None,
-                            "change_percent": var_pct,
-                            "volume": None,
-                            "var_abs": var_abs,
-                            "fechamento_anterior": prev_close,
-                        },
-                    })
-                else:
-                    resultados.append({
-                        "ativo": cfg["ativo"],
-                        "fonte": "MetaTrader5",
-                        "timestamp": timestamp,
-                        "status": "SEM_DADOS",
-                        "dados_reais": None,
-                    })
-            else:
+            if not info or not tick:
                 resultados.append({
                     "ativo": cfg["ativo"],
                     "fonte": "MetaTrader5",
@@ -329,73 +278,94 @@ def coletar_mt5_acoes_b3():
                     "status": "ERRO",
                     "dados_reais": None,
                 })
+                continue
+
+            prev_close = float(getattr(info, "session_close", 0.0) or 0.0)
+            preco = float(
+                tick.last if tick.last > 0 else (tick.bid if tick.bid > 0 else tick.ask)
+            )
+
+            if preco <= 0:
+                resultados.append({
+                    "ativo": cfg["ativo"],
+                    "fonte": "MetaTrader5",
+                    "timestamp": timestamp,
+                    "status": "SEM_DADOS",
+                    "dados_reais": None,
+                })
+                continue
+
+            var_pct = (
+                round(((preco / prev_close) - 1) * 100, 2) if prev_close > 0 else 0.0
+            )
+            resultados.append({
+                "ativo": cfg["ativo"],
+                "fonte": "MetaTrader5",
+                "timestamp": timestamp,
+                "status": "OK",
+                "dados_reais": {
+                    "close": preco,
+                    "open": None,
+                    "high": None,
+                    "low": None,
+                    "change_percent": var_pct,
+                    "volume": None,
+                    "var_abs": round(preco - prev_close, 2) if prev_close > 0 else 0.0,
+                    "fechamento_anterior": prev_close,
+                },
+            })
     finally:
-        mt5.shutdown()
+        if own_init:
+            mt5.shutdown()
 
     return resultados
 
 
 # ------------------------------------------------------------
-# FUNÇÕES DE COLETA DE DADOS (FASE 1)
+# BACEN PTAX
 # ------------------------------------------------------------
-
-def coletar_bacen_ptax():
-    """Coleta a PTAX oficial no Bacen via API SGS (Série 10813) com fallback via TradingView."""
+def coletar_bacen_ptax() -> dict:
     timestamp = datetime.now().isoformat()
-
-    url_sgs = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.10813/dados/ultimos/5?formato=json"
-
+    url_sgs = (
+        "https://api.bcb.gov.br/dados/serie/bcdata.sgs.10813/dados/ultimos/5?formato=json"
+    )
     ctx = ssl.create_default_context()
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
 
-    req_sgs = urllib.request.Request(
-        url_sgs,
-        headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"},
-    )
-
     try:
-        with urllib.request.urlopen(
-            req_sgs, context=ctx, timeout=10
-        ) as response:
-            if response.getcode() == 200:
-                res = json.loads(response.read().decode("utf-8"))
-                if res:
-                    ultimo_valor = float(res[-1]["valor"].replace(",", "."))
-                    return {
-                        "ativo": "USD_PTAX",
-                        "fonte": "BACEN_SGS_10813",
-                        "timestamp": timestamp,
-                        "status": "OK",
-                        "dados_reais": {
-                            "close": ultimo_valor,
-                            "open": None,
-                            "high": None,
-                            "low": None,
-                            "change_percent": None,
-                            "volume": None,
-                        },
-                    }
+        req = urllib.request.Request(url_sgs, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, context=ctx, timeout=TIMEOUT_BACEN or 10) as resp:
+            res = json.loads(resp.read().decode("utf-8"))
+            if res:
+                valor = float(res[-1]["valor"].replace(",", "."))
+                return {
+                    "ativo": "USD_PTAX",
+                    "fonte": "BACEN_SGS_10813",
+                    "timestamp": timestamp,
+                    "status": "OK",
+                    "dados_reais": {
+                        "close": valor,
+                        "open": None,
+                        "high": None,
+                        "low": None,
+                        "change_percent": None,
+                        "volume": None,
+                    },
+                }
     except Exception as e:
-        print(f"[AVISO] Falha na API SGS Bacen: {e}. Executando fallback...")
+        print(f"[AVISO] Bacen SGS: {e}. Fallback TV...")
 
-    # Fallback TradingView
     try:
-        url_tv = "https://scanner.tradingview.com/global/scan"
-        payload = {
-            "symbols": {"tickers": ["FX_IDC:USDBRL"]},
-            "columns": ["close"],
-        }
-        req_tv = urllib.request.Request(
-            url_tv,
-            data=json.dumps(payload).encode("utf-8"),
-            headers={
-                "Content-Type": "application/json",
-                "User-Agent": "Mozilla/5.0",
-            },
+        payload = {"symbols": {"tickers": ["FX_IDC:USDBRL"]}, "columns": ["close"]}
+        data = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(
+            "https://scanner.tradingview.com/global/scan",
+            data=data,
+            headers={"Content-Type": "application/json", "User-Agent": "Mozilla/5.0"},
         )
-        with urllib.request.urlopen(req_tv, timeout=10) as response:
-            res = json.loads(response.read().decode("utf-8"))
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            res = json.loads(resp.read().decode("utf-8"))
             vals = res.get("data", [])[0].get("d", [])
             if vals and vals[0] is not None:
                 return {
@@ -424,85 +394,71 @@ def coletar_bacen_ptax():
     }
 
 
-def coletar_ajuste_oficial():
-    """
-    Coleta os valores de Ajuste Oficial APENAS entre 19:00 e 08:50.
-    Fora desse horário, busca o último valor salvo no cache (RAM/ROM) para não quebrar o sistema.
-    """
+# ------------------------------------------------------------
+# Ajuste oficial (TV) — só na janela 19:00–08:50
+# ------------------------------------------------------------
+def coletar_ajuste_oficial() -> List[dict]:
     timestamp = datetime.now().isoformat()
     hora_atual = datetime.now().time()
 
-    # Limites de horário (Brasília) — centralizados em config.py
-    hora_inicio = JANELA_AJUSTE_INICIO  # 19:00
-    hora_fim = JANELA_AJUSTE_FIM        # 08:50
+    if JANELA_AJUSTE_FIM < hora_atual < JANELA_AJUSTE_INICIO:
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Fora da janela de ajuste. Cache...")
+        for arquivo_cache in (FILE_RAM, FILE_ROM0):
+            if not os.path.exists(arquivo_cache):
+                continue
+            try:
+                with open(arquivo_cache, "r", encoding="utf-8") as f:
+                    dados = json.load(f)
+                encontrados = [
+                    item
+                    for item in dados.get("coletas", [])
+                    if item.get("ativo") in ("B3_AJUSTE_WIN", "B3_AJUSTE_WDO")
+                ]
+                if encontrados:
+                    saida = []
+                    for item in encontrados:
+                        item = dict(item)
+                        item["fonte"] = "CACHE_DISCO (Fora da janela)"
+                        item["timestamp"] = timestamp
+                        saida.append(item)
+                    return saida
+            except Exception:
+                continue
+        return [
+            {
+                "ativo": "B3_AJUSTE_WIN",
+                "fonte": "NENHUM_DADO",
+                "timestamp": timestamp,
+                "status": "FORA_JANELA_SEM_CACHE",
+                "dados_reais": None,
+            },
+            {
+                "ativo": "B3_AJUSTE_WDO",
+                "fonte": "NENHUM_DADO",
+                "timestamp": timestamp,
+                "status": "FORA_JANELA_SEM_CACHE",
+                "dados_reais": None,
+            },
+        ]
 
-    # --- LÓGICA DE HORÁRIO ---
-    # Se estiver entre 08:50 e 19:00, NÃO faz a coleta ao vivo
-    if hora_fim < hora_atual < hora_inicio:
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] ⏳ Fora da janela de ajuste (19:00 - 08:50). Buscando último cache...")
-        
-        # Tenta carregar o último ajuste salvo no arquivo de RAM (ou ROM0)
-        cache_encontrado = []
-        for arquivo_cache in [FILE_RAM, FILE_ROM0]:
-            if os.path.exists(arquivo_cache):
-                try:
-                    with open(arquivo_cache, 'r', encoding='utf-8') as f:
-                        dados_cache = json.load(f)
-                        itens = dados_cache.get("coletas", [])
-                        # Filtra os ajustes
-                        for item in itens:
-                            if item.get("ativo") in ["B3_AJUSTE_WIN", "B3_AJUSTE_WDO"]:
-                                cache_encontrado.append(item)
-                    if cache_encontrado:
-                        break
-                except:
-                    continue
-        
-        if cache_encontrado:
-            # Retorna os dados do cache, mas marca a fonte como "CACHE"
-            for item in cache_encontrado:
-                item["fonte"] = "CACHE_DISCO (Fora da janela)"
-                item["timestamp"] = timestamp
-            return cache_encontrado
-        else:
-            print("   ⚠️ Nenhum cache de ajuste encontrado. Retornando dados vazios.")
-            return [
-                {
-                    "ativo": "B3_AJUSTE_WIN",
-                    "fonte": "NENHUM_DADO",
-                    "timestamp": timestamp,
-                    "status": "FORA_JANELA_SEM_CACHE",
-                    "dados_reais": None
-                },
-                {
-                    "ativo": "B3_AJUSTE_WDO",
-                    "fonte": "NENHUM_DADO",
-                    "timestamp": timestamp,
-                    "status": "FORA_JANELA_SEM_CACHE",
-                    "dados_reais": None
-                }
-            ]
-
-    # --- SE ESTIVER DENTRO DA JANELA (19:00 até 08:50) ---
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] ✅ Dentro da janela de ajuste. Coletando da API...")
-    headers = {"User-Agent": "Mozilla/5.0"}
-
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] Dentro da janela. Coletando ajuste TV...")
     simbolos = [
         {"ativo": "B3_AJUSTE_WIN", "ticker": "BMFBOVESPA:WIN1!"},
         {"ativo": "B3_AJUSTE_WDO", "ticker": "BMFBOVESPA:WDO1!"},
     ]
 
-    resultados = []
-    for item in simbolos:
-        url = f"https://scanner.tradingview.com/symbol?symbol={item['ticker']}&fields=close,change"
+    def _um(item: dict) -> dict:
+        url = (
+            f"https://scanner.tradingview.com/symbol?"
+            f"symbol={item['ticker']}&fields=close,change"
+        )
         try:
-            req = urllib.request.Request(url, headers=headers)
-            with urllib.request.urlopen(req, timeout=10) as response:
-                res = json.loads(response.read().decode("utf-8"))
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=TIMEOUT_TRADINGVIEW or 10) as resp:
+                res = json.loads(resp.read().decode("utf-8"))
                 close_val = res.get("close")
                 change_val = res.get("change", 0.0)
-
-                resultados.append({
+                return {
                     "ativo": item["ativo"],
                     "fonte": "TRADINGVIEW_DIRECT_SYMBOL",
                     "timestamp": timestamp,
@@ -515,369 +471,400 @@ def coletar_ajuste_oficial():
                         "change_percent": float(change_val) if change_val is not None else 0.0,
                         "volume": None,
                     },
-                })
+                }
         except Exception as e:
-            print(f"   ❌ Erro ao coletar {item['ativo']}: {e}")
-            resultados.append({
+            print(f"   ❌ Ajuste {item['ativo']}: {e}")
+            return {
                 "ativo": item["ativo"],
                 "fonte": "TRADINGVIEW_DIRECT_SYMBOL",
                 "timestamp": timestamp,
                 "status": "ERRO",
                 "dados_reais": None,
-            })
-    
-    return resultados
+            }
+
+    with ThreadPoolExecutor(max_workers=2) as ex:
+        return list(ex.map(_um, simbolos))
 
 
-def coletar_tradingview():
-    """
-    Coleta os ativos mapeados via Scanner API Oculta do TradingView.
-    Inclui os futuros ES e NQ (preços reais).
-    ADRs e EWZ foram movidos para Finnhub.
-    """
+# ------------------------------------------------------------
+# TradingView Scanner (batch)
+# ------------------------------------------------------------
+def coletar_tradingview() -> List[dict]:
     url = "https://scanner.tradingview.com/global/scan"
     timestamp = datetime.now().isoformat()
-
     payload = {
         "symbols": {"tickers": TICKERS_TRADINGVIEW},
         "columns": ["close", "open", "high", "low", "change", "volume"],
     }
-
-    headers = {
-        "Content-Type": "application/json",
-        "User-Agent": "Mozilla/5.0",
-    }
-
     try:
         data = json.dumps(payload).encode("utf-8")
-        req = urllib.request.Request(url, data=data, headers=headers)
-
-        with urllib.request.urlopen(req, timeout=10) as response:
-            res = json.loads(response.read().decode("utf-8"))
+        req = urllib.request.Request(
+            url,
+            data=data,
+            headers={"Content-Type": "application/json", "User-Agent": "Mozilla/5.0"},
+        )
+        with urllib.request.urlopen(req, timeout=TIMEOUT_TRADINGVIEW or 10) as resp:
+            res = json.loads(resp.read().decode("utf-8"))
             resultados = []
-
             for item in res.get("data", []):
                 ticker = item.get("s")
                 vals = item.get("d", [])
-
                 ticker_chave = "SGX:FEF2!" if ticker == TICKER_FEF2 else ticker
-
                 if len(vals) >= 5 and vals[0] is not None:
-                    close = float(vals[0])
-                    change_pct = float(vals[4]) if vals[4] is not None else 0.0
-
-                    resultados.append(
-                        {
-                            "ativo": ticker_chave,
-                            "fonte": "TRADINGVIEW_SCANNER",
-                            "timestamp": timestamp,
-                            "status": "OK",
-                            "dados_reais": {
-                                "close": close,
-                                "open": float(vals[1]) if vals[1] is not None else None,
-                                "high": float(vals[2]) if vals[2] is not None else None,
-                                "low": float(vals[3]) if vals[3] is not None else None,
-                                "change_percent": change_pct,
-                                "volume": float(vals[5]) if len(vals) > 5 and vals[5] is not None else None,
-                            },
-                        }
-                    )
-
+                    resultados.append({
+                        "ativo": ticker_chave,
+                        "fonte": "TRADINGVIEW_SCANNER",
+                        "timestamp": timestamp,
+                        "status": "OK",
+                        "dados_reais": {
+                            "close": float(vals[0]),
+                            "open": float(vals[1]) if vals[1] is not None else None,
+                            "high": float(vals[2]) if vals[2] is not None else None,
+                            "low": float(vals[3]) if vals[3] is not None else None,
+                            "change_percent": float(vals[4]) if vals[4] is not None else 0.0,
+                            "volume": (
+                                float(vals[5])
+                                if len(vals) > 5 and vals[5] is not None
+                                else None
+                            ),
+                        },
+                    })
             return resultados
     except Exception as e:
-        print(f"[ERRO] Falha na coleta TradingView: {e}")
+        print(f"[ERRO] TradingView Scanner: {e}")
         return []
 
 
 # ------------------------------------------------------------
-# ENGINE DE ROTAÇÃO E FORMATADOR UNIFICADO
+# Rotação e unificado
 # ------------------------------------------------------------
-
-def executar_rotacao_memoria(is_ram_mode=False):
-    """
-    Executa a rotação temporal dos 12 arquivos (0, 5, 10, ..., 55 min).
-    - Se is_ram_mode for True, apenas retorna o caminho do RAM (sem rotação).
-    - Caso contrário, desloca os arquivos do mais antigo para o mais recente.
-    """
+def executar_rotacao_memoria(is_ram_mode: bool = False) -> str:
     if is_ram_mode:
-        print(
-            f"[{datetime.now().strftime('%H:%M:%S')}] Modo RAM ativado. Ignorando rotação temporal."
-        )
         return FILE_RAM
 
     print(
-        f"[{datetime.now().strftime('%H:%M:%S')}] Executando rotação de memória física (Janela Móvel - 12 arquivos)..."
+        f"[{datetime.now().strftime('%H:%M:%S')}] "
+        f"Rotação de memória (12 slots)..."
     )
-
-    # Percorre de trás para frente (do mais antigo para o mais recente)
     for i in range(len(ARQUIVOS_ROM) - 1, 0, -1):
         origem = ARQUIVOS_ROM[i - 1]
         destino = ARQUIVOS_ROM[i]
         if os.path.exists(origem):
-            shutil.copy2(origem, destino)
-            print(f"  └─ Rotação: {os.path.basename(origem)} ──> {os.path.basename(destino)}")
-        else:
-            print(f"  └─ Aviso: {os.path.basename(origem)} não encontrado, pulando.")
-
+            try:
+                os.replace(origem, destino)
+            except OSError:
+                shutil.copy2(origem, destino)
     return ARQUIVOS_ROM[0]
 
 
-def gerar_arquivo_unificado(coletas):
-    """Gera o arquivo DadosAtivosUnificados.json com as chaves tratadas dos ativos."""
-    ativos_map = {}
-
+def gerar_arquivo_unificado(coletas: List[dict]) -> None:
+    ativos_map: Dict[str, Any] = {}
     for item in coletas:
         ativo_raw = item.get("ativo")
-        dados_reais = item.get("dados_reais") or {}
-
-        nome_limpo = MAPEAMENTO_TICKERS.get(ativo_raw, ativo_raw)
-
-        preco = dados_reais.get("close", 0.0) or 0.0
-        var = dados_reais.get("change_percent", 0.0) or 0.0
-
-        ativos_map[nome_limpo] = {
-            "preco": float(preco),
-            "variacao_pct": float(var),
+        dados = item.get("dados_reais") or {}
+        nome = MAPEAMENTO_TICKERS.get(ativo_raw, ativo_raw)
+        ativos_map[nome] = {
+            "preco": float(dados.get("close") or 0.0),
+            "variacao_pct": float(dados.get("change_percent") or 0.0),
             "ticker_original": ativo_raw,
             "status": item.get("status", "OK"),
         }
 
-    estrutura_unificada = {
+    estrutura = {
         "metadata": {
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "total_ativos": len(ativos_map),
         },
         "ativos": ativos_map,
     }
-
     with open(FILE_UNIFICADO, "w", encoding="utf-8") as f:
-        json.dump(estrutura_unificada, f, indent=4, ensure_ascii=False)
-
-    print(f"✅ Arquivo unificado salvo em: {FILE_UNIFICADO}")
+        json.dump(estrutura, f, ensure_ascii=False, separators=(",", ":"))
+    print(f"✅ Unificado: {FILE_UNIFICADO}")
 
 
 # ------------------------------------------------------------
-# EXECUÇÃO PRINCIPAL
+# Montagem WIN_FUT / WIN_LAST_TICK a partir do MT5
 # ------------------------------------------------------------
-
-def executar_pipeline_coleta():
-    is_ram = "--ram" in sys.argv
-    arquivo_destino = executar_rotacao_memoria(is_ram)
-
-    print(
-        f"[{datetime.now().strftime('%H:%M:%S')}] Iniciando extração de dados brutos..."
-    )
-
-    coletas = []
-
-    # 1. Extração BACEN PTAX
-    ptax = coletar_bacen_ptax()
-    coletas.append(ptax)
-
-    # 2. Extração Ajustes
-    ajustes = coletar_ajuste_oficial()
-    coletas.extend(ajustes)
-
-    # 3. Extração TradingView Scanner (inclui ES e NQ reais)
-    tv_dados = coletar_tradingview()
-    coletas.extend(tv_dados)
-
-    # 4. Extração Finnhub (somente ADRs + EWZ)
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] Coletando via Finnhub (ADRs + EWZ)...")
-    finnhub_dados = coletar_finnhub()
-    coletas.extend(finnhub_dados)
-    print(f"   ✅ Finnhub: {len([d for d in finnhub_dados if d.get('status') == 'OK'])} ativos OK")
-
-    # 5. Novos ativos B3 via MetaTrader 5
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] Coletando ações B3 via MetaTrader 5...")
-    mt5_b3_dados = coletar_mt5_acoes_b3()
-    coletas.extend(mt5_b3_dados)
-    print(f"   ✅ MT5 Ações B3: {len([d for d in mt5_b3_dados if d.get('status') == 'OK'])} ativos OK")
-
-    # ------------------------------------------------------------
-    # 6. Se estiver na janela de ajuste, capturar LAST via MT5
-    #    Prioridade: Coletor_MT5_v2_2 → fallback Coletor_MT5 (v1)
-    # ------------------------------------------------------------
-    if esta_na_janela_ajuste():
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] Capturando LAST TICK via MT5...")
-
-        # 6.1 Tenta o coletor v2.2 (seleção dinâmica de contrato)
-        mt5_ok = False
+def _carregar_cache_coletas(*arquivos: str) -> list:
+    """Lê itens de coletas dos arquivos de cache (ordem de prioridade)."""
+    for arq in arquivos:
+        if not os.path.exists(arq):
+            continue
         try:
-            from Coletor_MT5_v2_2 import executar_coleta_mt5_v2
-            dados_mt5 = executar_coleta_mt5_v2()
-            status_mt5 = (dados_mt5 or {}).get("status")
-            if status_mt5 == "OK":
-                print("   ✅ MT5 v2.2 coletado com sucesso.")
-                mt5_ok = True
-            elif status_mt5 == "OFFLINE":
-                print("   ⚠️ MT5 offline — usando cache de LAST/FUT se disponível.")
-            else:
-                print(f"   ⚠️ Coleta MT5 v2.2 status={status_mt5!r}.")
-        except ImportError:
-            print("   ⚠️ Módulo Coletor_MT5_v2_2 não encontrado.")
-        except KeyboardInterrupt:
-            print("   ⚠️ Coleta MT5 interrompida pelo usuário.")
-            raise
+            with open(arq, "r", encoding="utf-8") as f:
+                cache = json.load(f)
+            itens = cache.get("coletas") or []
+            if itens:
+                return list(itens)
         except Exception as e:
-            print(f"   ⚠️ Erro ao executar Coletor_MT5_v2_2: {e}")
+            print(f"   ⚠️ Cache {os.path.basename(arq)}: {e}")
+    return []
 
-        # 6.2 Fallback para o coletor antigo (v1) se o v2.2 falhou
-        if not mt5_ok:
-            try:
-                from Coletor_MT5 import executar_coleta_mt5
-                dados_mt5 = executar_coleta_mt5()
-                if dados_mt5 and dados_mt5.get("status") == "OK":
-                    print("   ✅ MT5 v1 (fallback) coletado com sucesso.")
-                else:
-                    print("   ⚠️ Falha também no coletor MT5 v1. Tentando ler arquivo existente.")
-            except ImportError:
-                print("   ⚠️ Módulo Coletor_MT5 (v1) também não encontrado. Tentando ler arquivo existente.")
-            except Exception as e:
-                print(f"   ⚠️ Erro ao executar Coletor_MT5 (v1): {e}")
 
-        # 6.3 Extrai lasts + OHLC e monta WIN_FUT / WDO_FUT a partir do MT5
-        lasts = capturar_last_do_mt5()
-        mt5_json = {}
-        if os.path.exists(FILE_MT5_V2):
-            try:
-                with open(FILE_MT5_V2, "r", encoding="utf-8") as f:
-                    mt5_json = json.load(f)
-            except Exception:
-                mt5_json = {}
-        ativos_mt5 = (mt5_json.get("ativos") or {}) if isinstance(mt5_json, dict) else {}
+def _item_cache_por_ativo(itens: list, ativo: str) -> Optional[dict]:
+    for item in itens:
+        if item.get("ativo") == ativo:
+            return dict(item)
+    return None
 
-        timestamp_atual = datetime.now().isoformat()
 
-        # Mapa: chave MT5 → (ativo_last, ativo_futuro_bruto para MAPEAMENTO_TICKERS)
-        mapa_mt5 = {
-            "WIN": ("WIN_LAST_TICK", "BMFBOVESPA:WIN1!"),
-            "WDO": ("WDO_LAST_TICK", "BMFBOVESPA:WDO1!"),
-        }
+def _montar_win_wdo_mt5(coletas: List[dict]) -> bool:
+    """
+    WIN_FUT / WDO_FUT:
+        SEMPRE a partir do MT5 (candle/preço atual do contrato principal).
 
-        for prefixo, (ativo_last, ativo_fut) in mapa_mt5.items():
-            info = ativos_mt5.get(prefixo) or {}
-            last_val = None
-            if lasts and prefixo in lasts:
-                last_val = lasts[prefixo].get("last")
-                fonte_usada = lasts[prefixo].get("fonte", "MT5_v2.2")
-            else:
-                last_val = info.get("last")
-                fonte_usada = "MT5_v2.2"
+    WIN_LAST_TICK / WDO_LAST_TICK:
+        - FORA do pregão → MT5 ao vivo.
+        - NO pregão     → CONGELADO via cache (RAM/ROM), mas sempre presente
+                          em coletas / unificado / validados.
 
-            if last_val is None or float(last_val or 0) <= 0:
-                continue
+    Retorna True se montou pelo menos WIN_FUT fresco do MT5.
+    """
+    mt5_json: dict = {}
+    if os.path.exists(FILE_MT5_V2):
+        try:
+            with open(FILE_MT5_V2, "r", encoding="utf-8") as f:
+                mt5_json = json.load(f)
+        except Exception as e:
+            print(f"   ⚠️ Leitura MT5 v2.2: {e}")
 
+    lasts = capturar_last_do_mt5()
+    ativos_mt5 = (mt5_json.get("ativos") or {}) if isinstance(mt5_json, dict) else {}
+    ts = datetime.now().isoformat()
+    fora_pregao = esta_fora_do_pregao()
+    montou_win_fut = False
+
+    cache_itens: list = []
+    if not fora_pregao:
+        cache_itens = _carregar_cache_coletas(FILE_RAM, FILE_ROM0)
+
+    mapa = {
+        "WIN": ("WIN_LAST_TICK", "BMFBOVESPA:WIN1!"),
+        "WDO": ("WDO_LAST_TICK", "BMFBOVESPA:WDO1!"),
+    }
+
+    for prefixo, (ativo_last, ativo_fut) in mapa.items():
+        info = ativos_mt5.get(prefixo) or {}
+        last_val = (lasts.get(prefixo) or {}).get("last") or info.get("last")
+
+        # ---------- FUT: sempre MT5 ----------
+        if last_val is not None and float(last_val or 0) > 0:
             last_val = float(last_val)
             open_v = info.get("open")
             high_v = info.get("high")
             low_v = info.get("low")
-            # close do futuro: last (mais atual) ou close D1
-            close_v = last_val
-            vol_v = info.get("volume_d1") or info.get("volume")
-            var_pct = info.get("change_percent")
             prev_c = info.get("prev_close") or info.get("session_close")
+            var_pct = info.get("change_percent")
+            vol_v = info.get("volume_d1") or info.get("volume")
+            bid = info.get("bid")
+            ask = info.get("ask")
 
             if var_pct is None and prev_c and float(prev_c or 0) > 0:
                 var_pct = round(((last_val / float(prev_c)) - 1) * 100, 4)
 
-            # LAST TICK (overnight / referência)
-            coletas.append({
-                "ativo": ativo_last,
-                "fonte": fonte_usada,
-                "timestamp": timestamp_atual,
-                "status": "OK",
-                "dados_reais": {
-                    "close": last_val,
-                    "open": open_v,
-                    "high": high_v,
-                    "low": low_v,
-                    "change_percent": var_pct,
-                    "volume": vol_v,
-                    "fechamento_anterior": prev_c,
-                },
-            })
+            if (
+                isinstance(bid, (int, float))
+                and isinstance(ask, (int, float))
+                and bid > 0
+                and ask > 0
+                and (last_val < bid or last_val > ask)
+            ):
+                mid = round((float(bid) + float(ask)) / 2.0, 1)
+                print(
+                    f"   ⚠️ {prefixo} last={last_val} fora do spread "
+                    f"[{bid},{ask}] → mid={mid}"
+                )
+                last_val = mid
 
-            # WIN_FUT / WDO_FUT via MT5 (substitui TradingView WIN1!/WDO1!)
-            # Inclui OHLC D1 para pivots na CalculadoraEstimativaAbertura
+            ohlc = {
+                "close": last_val,
+                "open": float(open_v) if open_v is not None else None,
+                "high": float(high_v) if high_v is not None else None,
+                "low": float(low_v) if low_v is not None else None,
+                "change_percent": var_pct,
+                "volume": float(vol_v) if vol_v is not None else None,
+                "fechamento_anterior": float(prev_c) if prev_c else None,
+            }
+            contrato = (
+                info.get("contrato_principal")
+                or (lasts.get(prefixo) or {}).get("contrato")
+            )
+
             coletas.append({
                 "ativo": ativo_fut,
                 "fonte": "MT5_v2.2",
-                "timestamp": timestamp_atual,
+                "timestamp": ts,
                 "status": "OK",
-                "dados_reais": {
-                    "close": close_v,
-                    "open": float(open_v) if open_v is not None else None,
-                    "high": float(high_v) if high_v is not None else None,
-                    "low": float(low_v) if low_v is not None else None,
-                    "change_percent": var_pct,
-                    "volume": float(vol_v) if vol_v is not None else None,
-                    "fechamento_anterior": float(prev_c) if prev_c else None,
-                },
+                "dados_reais": dict(ohlc),
             })
             print(
-                f"   ✅ {prefixo}_FUT via MT5: last={last_val} "
-                f"OHLC=({open_v}/{high_v}/{low_v}) var={var_pct}"
+                f"   ✅ {prefixo}_FUT SEMPRE ({contrato}): last={last_val} "
+                f"OHLC=({ohlc['open']}/{ohlc['high']}/{ohlc['low']}) var={var_pct}"
             )
-    else:
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] Fora da janela de ajuste. LAST TICK / FUT MT5 NÃO coletado ao vivo.")
-        # Fora da janela: tenta reutilizar WIN_FUT/WDO_FUT e lasts do cache ROM/RAM
-        for arquivo_cache in [FILE_RAM, FILE_ROM0]:
-            if not os.path.exists(arquivo_cache):
-                continue
-            try:
-                with open(arquivo_cache, "r", encoding="utf-8") as f:
-                    cache = json.load(f)
-                for item in cache.get("coletas", []):
-                    if item.get("ativo") in (
-                        "WIN_LAST_TICK", "WDO_LAST_TICK",
-                        "BMFBOVESPA:WIN1!", "BMFBOVESPA:WDO1!",
-                    ):
-                        item = dict(item)
-                        item["fonte"] = f"CACHE_DISCO ({os.path.basename(arquivo_cache)})"
-                        item["timestamp"] = datetime.now().isoformat()
-                        coletas.append(item)
-                if any(c.get("ativo") == "WIN_LAST_TICK" for c in coletas):
-                    print(f"   ✅ WIN/WDO FUT+LAST reutilizados do cache ({os.path.basename(arquivo_cache)})")
-                    break
-            except Exception as e:
-                print(f"   ⚠️ Cache FUT/LAST ({arquivo_cache}): {e}")
+            if prefixo == "WIN":
+                montou_win_fut = True
 
-    # Monta estrutura da coleta bruta
-    conteudo_saida = {
+            # ---------- LAST_TICK ----------
+            if fora_pregao:
+                # Fora do pregão: MT5 ao vivo
+                coletas.append({
+                    "ativo": ativo_last,
+                    "fonte": "MT5_v2.2",
+                    "timestamp": ts,
+                    "status": "OK",
+                    "dados_reais": dict(ohlc),
+                })
+                print(f"   ✅ {ativo_last} MT5 ao vivo (fora do pregão)")
+            else:
+                # Pregão: congelado do cache (último valor pré-abertura)
+                cached = _item_cache_por_ativo(cache_itens, ativo_last)
+                if cached and (cached.get("dados_reais") or {}).get("close"):
+                    cached = dict(cached)
+                    cached["fonte"] = "CACHE_DISCO_CONGELADO (pregão)"
+                    cached["timestamp"] = ts
+                    cached["status"] = cached.get("status") or "OK"
+                    coletas.append(cached)
+                    preco = (cached.get("dados_reais") or {}).get("close")
+                    print(f"   🧊 {ativo_last} CONGELADO (cache) close={preco}")
+                else:
+                    print(
+                        f"   ⚠️ {ativo_last}: sem cache pré-pregão — "
+                        f"chave ausente neste ciclo"
+                    )
+        else:
+            print(f"   ⚠️ {prefixo}: sem last MT5 para FUT")
+            if not fora_pregao:
+                cached = _item_cache_por_ativo(cache_itens, ativo_last)
+                if cached:
+                    cached = dict(cached)
+                    cached["fonte"] = "CACHE_DISCO_CONGELADO (pregão; sem FUT MT5)"
+                    cached["timestamp"] = ts
+                    coletas.append(cached)
+                    print(f"   🧊 {ativo_last} CONGELADO (só cache)")
+
+    return montou_win_fut
+
+
+def _reutilizar_cache_last_fut(coletas: List[dict]) -> None:
+    """Fallback fora do pregão se MT5 falhar totalmente."""
+    itens = _carregar_cache_coletas(FILE_RAM, FILE_ROM0)
+    if not itens:
+        return
+    added = False
+    for ativo in (
+        "WIN_LAST_TICK",
+        "WDO_LAST_TICK",
+        "BMFBOVESPA:WIN1!",
+        "BMFBOVESPA:WDO1!",
+    ):
+        item = _item_cache_por_ativo(itens, ativo)
+        if item:
+            item["fonte"] = f"CACHE_DISCO ({item.get('fonte', 'N/A')})"
+            item["timestamp"] = datetime.now().isoformat()
+            coletas.append(item)
+            added = True
+    if added:
+        print("   ✅ Cache LAST/FUT reutilizado (MT5 offline)")
+
+
+# ------------------------------------------------------------
+# Pipeline principal
+# ------------------------------------------------------------
+def executar_pipeline_coleta() -> None:
+    t0 = datetime.now()
+    is_ram = "--ram" in sys.argv
+    arquivo_destino = executar_rotacao_memoria(is_ram)
+
+    print(f"[{t0.strftime('%H:%M:%S')}] Iniciando coleta paralela...")
+
+    coletas: List[dict] = []
+
+    # --- Fontes HTTP independentes em paralelo ---
+    with ThreadPoolExecutor(max_workers=4) as ex:
+        fut_ptax = ex.submit(coletar_bacen_ptax)
+        fut_ajuste = ex.submit(coletar_ajuste_oficial)
+        fut_tv = ex.submit(coletar_tradingview)
+        fut_fh = ex.submit(coletar_finnhub)
+
+        ptax = fut_ptax.result()
+        ajustes = fut_ajuste.result()
+        tv_dados = fut_tv.result()
+        finnhub_dados = fut_fh.result()
+
+    coletas.append(ptax)
+    coletas.extend(ajustes)
+    coletas.extend(tv_dados)
+    coletas.extend(finnhub_dados)
+
+    ok_fh = sum(1 for d in finnhub_dados if d.get("status") == "OK")
+    print(
+        f"   ✅ Finnhub: {ok_fh} OK | TV: {len(tv_dados)} | "
+        f"Ajustes: {len(ajustes)}"
+    )
+
+    # --- MT5: sempre coleta v2.2 (WIN_FUT precisa estar fresco) ---
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] Coletando MT5 (WIN_FUT sempre)...")
+    mt5_ok = False
+    try:
+        from Coletor_MT5_v2_2 import executar_coleta_mt5_v2
+
+        dados_mt5 = executar_coleta_mt5_v2()
+        if (dados_mt5 or {}).get("status") == "OK":
+            mt5_ok = True
+            print("   ✅ MT5 v2.2 OK")
+        else:
+            print(f"   ⚠️ MT5 v2.2 status={(dados_mt5 or {}).get('status')!r}")
+    except Exception as e:
+        print(f"   ⚠️ MT5 v2.2: {e}")
+
+    # Ações B3
+    mt5_b3 = coletar_mt5_acoes_b3()
+    coletas.extend(mt5_b3)
+    print(
+        f"   ✅ MT5 B3: "
+        f"{sum(1 for d in mt5_b3 if d.get('status') == 'OK')} OK"
+    )
+
+    # Monta WIN_FUT (sempre) + WIN_LAST_TICK (vivo fora / congelado no pregão)
+    montou = _montar_win_wdo_mt5(coletas)
+
+    if not montou and not mt5_ok and esta_fora_do_pregao():
+        print("   ⚠️ MT5 falhou fora do pregão — tentando cache LAST/FUT")
+        _reutilizar_cache_last_fut(coletas)
+
+    # Persistência (JSON compacto)
+    conteudo = {
         "metadata_coleta": {
             "timestamp_coleta": datetime.now().isoformat(),
             "modo_execucao": "RAM" if is_ram else "PADRAO_ROTATIVO",
             "total_ativos_solicitados": len(coletas),
             "arquivo_gerado": os.path.basename(arquivo_destino),
+            "latencia_ms": int((datetime.now() - t0).total_seconds() * 1000),
+            "fora_do_pregao": esta_fora_do_pregao(),
         },
         "coletas": coletas,
     }
 
-    # Grava Coleta de Rotação
     with open(arquivo_destino, "w", encoding="utf-8") as f:
-        json.dump(conteudo_saida, f, indent=2, ensure_ascii=False)
+        json.dump(conteudo, f, ensure_ascii=False, separators=(",", ":"))
 
-    # Grava RAM (cópia independente da mais recente)
     if not is_ram:
         with open(FILE_RAM, "w", encoding="utf-8") as f:
-            json.dump(conteudo_saida, f, indent=2, ensure_ascii=False)
-        print(f"✅ Cópia independente gerada em: {FILE_RAM}")
+            json.dump(conteudo, f, ensure_ascii=False, separators=(",", ":"))
+        print(f"✅ RAM: {FILE_RAM}")
 
-    # Gera unificado
     gerar_arquivo_unificado(coletas)
 
+    elapsed = (datetime.now() - t0).total_seconds()
     print(
-        f"[{datetime.now().strftime('%H:%M:%S')}] Coleta e Unificação concluídas com sucesso!"
-    )
-    print(
-        f"Total de itens processados: {len(coletas)} | Arquivo: {os.path.basename(arquivo_destino)}\n"
+        f"[{datetime.now().strftime('%H:%M:%S')}] Coleta OK | "
+        f"{len(coletas)} itens | {elapsed:.2f}s | "
+        f"{'FORA' if esta_fora_do_pregao() else 'DENTRO'} do pregão"
     )
 
 
 if __name__ == "__main__":
-    print("============================================================")
-    print(" FASE 1 & 2: MOTOR DE INGESTÃO E ROTAÇÃO DE DADOS")
-    print(" (TradingView + Finnhub ADRs/EWZ + MT5 Ações B3 + LAST TICK)")
-    print("============================================================")
+    print("=" * 60)
+    print(" COLETOR — WIN_FUT sempre | LAST_TICK vivo fora / congelado no pregão")
+    print("=" * 60)
     executar_pipeline_coleta()

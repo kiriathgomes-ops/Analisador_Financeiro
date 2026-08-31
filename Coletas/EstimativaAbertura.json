@@ -1,30 +1,23 @@
 {
   "metadata_calculo": {
-    "timestamp_calculo": "2026-08-31T08:03:41.244450",
-    "total_ativos_processados": 25
+    "timestamp_calculo": "2026-08-31T16:01:11.622145",
+    "janela_ativa": "REFERENCIA_1000_INTRADAY"
   },
   "estimativa_abertura": {
     "WIN_INDICE": {
-      "variacao_teorica_pct": 0.2877,
-      "pontos_ajuste_base": 178263.0,
-      "abertura_teorica_pontos": 178776.0
+      "variacao_teorica_pct": 0.644,
+      "preco_referencia_base": 180125.0,
+      "abertura_teorica_pontos": 181285.0,
+      "contexto_janela": "REFERENCIA_1000_INTRADAY"
     }
   },
   "pivot_points": {
     "WIN_FUT": {
-      "PP": 177761.67,
-      "R1": 179098.33,
-      "R2": 180556.67,
-      "S1": 176303.33,
-      "S2": 174966.67
+      "PP": 179160.0,
+      "R1": 179710.0,
+      "R2": 181780.0,
+      "S1": 177090.0,
+      "S2": 176540.0
     }
-  },
-  "resumo_macro": {
-    "vix": 15.2,
-    "di1_2027": 13.61,
-    "di1_2029": 14.17,
-    "iron_ore": 99.6,
-    "crude_oil": 86.22,
-    "gold": 4455.628
   }
 }
