@@ -1,14 +1,14 @@
 {
   "metadata_calculo": {
-    "timestamp_calculo": "2026-08-31T16:01:11.622145",
-    "janela_ativa": "REFERENCIA_1000_INTRADAY"
+    "timestamp_calculo": "2026-09-01T05:26:47.662887",
+    "janela_ativa": "REFERENCIA_0900_OVERNIGHT"
   },
   "estimativa_abertura": {
     "WIN_INDICE": {
-      "variacao_teorica_pct": 0.644,
-      "preco_referencia_base": 180125.0,
-      "abertura_teorica_pontos": 181285.0,
-      "contexto_janela": "REFERENCIA_1000_INTRADAY"
+      "variacao_teorica_pct": 0.8099,
+      "preco_referencia_base": 180055.0,
+      "abertura_teorica_pontos": 181513.0,
+      "contexto_janela": "REFERENCIA_0900_OVERNIGHT"
     }
   },
   "pivot_points": {

@@ -6,11 +6,11 @@
 #         Engine de Rotação Temporal de Memória e
 #         Geração do Arquivo Unificado dos Ativos Mapeados.
 #
-# ATUALIZAÇÃO 31/08/2026:
-#   - WIN_FUT (contrato MT5) SEMPRE ao vivo → candle atual
-#   - WIN_LAST_TICK: MT5 só FORA do pregão; no pregão CONGELADO (cache) e ainda sai no JSON
-#   - Idem WDO_FUT / WDO_LAST_TICK
-#   - Coletas HTTP paralelas + JSON compacto
+# ATUALIZAÇÃO 01/09/2026 (Fase 0):
+#   - WIN_FUT SEMPRE MT5 ao vivo
+#   - WIN_LAST_TICK: MT5 só FORA do pregão + grava LastTick_Congelado.json
+#   - No pregão: LAST lido do arquivo fixo (não depende da rotação ROM)
+#   - Idem WDO
 # ============================================================
 
 from __future__ import annotations
@@ -39,6 +39,7 @@ from config import (
     FILE_UNIFICADO,
     FILE_MT5,
     FILE_MT5_V2,
+    FILE_LAST_TICK_CONGELADO,
     FINNHUB_API_KEY,
     TICKER_FEF2,
     TICKERS_TRADINGVIEW,
@@ -63,6 +64,7 @@ FILE_RAM = str(FILE_RAM)
 FILE_UNIFICADO = str(FILE_UNIFICADO)
 FILE_MT5 = str(FILE_MT5)
 FILE_MT5_V2 = str(FILE_MT5_V2)
+FILE_LAST_TICK_CONGELADO = str(FILE_LAST_TICK_CONGELADO)
 
 for _cfg in ATIVOS_FINNHUB + ATIVOS_MT5_B3:
     if "id_interno" in _cfg and "id_limpo" not in _cfg:
@@ -584,6 +586,7 @@ def gerar_arquivo_unificado(coletas: List[dict]) -> None:
 
 # ------------------------------------------------------------
 # Montagem WIN_FUT / WIN_LAST_TICK a partir do MT5
+# + arquivo fixo LastTick_Congelado.json (Fase 0)
 # ------------------------------------------------------------
 def _carregar_cache_coletas(*arquivos: str) -> list:
     """Lê itens de coletas dos arquivos de cache (ordem de prioridade)."""
@@ -608,15 +611,53 @@ def _item_cache_por_ativo(itens: list, ativo: str) -> Optional[dict]:
     return None
 
 
+def _carregar_last_tick_congelado() -> dict:
+    """
+    Lê Coletas/LastTick_Congelado.json.
+    Retorno: {"WIN_LAST_TICK": {...item coleta...}, "WDO_LAST_TICK": {...}}
+    """
+    if not os.path.exists(FILE_LAST_TICK_CONGELADO):
+        return {}
+    try:
+        with open(FILE_LAST_TICK_CONGELADO, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data.get("ticks") or {}
+    except Exception as e:
+        print(f"   ⚠️ Leitura LastTick_Congelado: {e}")
+        return {}
+
+
+def _salvar_last_tick_congelado(ticks: Dict[str, dict]) -> None:
+    """
+    Persiste snapshot de LAST fora do pregão.
+    ticks: {"WIN_LAST_TICK": item, "WDO_LAST_TICK": item}
+    """
+    if not ticks:
+        return
+    # merge com existente para não apagar WDO se só veio WIN
+    atual = _carregar_last_tick_congelado()
+    atual.update(ticks)
+    payload = {
+        "timestamp_congelamento": datetime.now().isoformat(),
+        "fonte": "MT5_v2.2",
+        "ticks": atual,
+    }
+    try:
+        with open(FILE_LAST_TICK_CONGELADO, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+        print(f"   💾 LastTick_Congelado.json atualizado ({', '.join(ticks.keys())})")
+    except Exception as e:
+        print(f"   ⚠️ Falha ao gravar LastTick_Congelado: {e}")
+
+
 def _montar_win_wdo_mt5(coletas: List[dict]) -> bool:
     """
     WIN_FUT / WDO_FUT:
-        SEMPRE a partir do MT5 (candle/preço atual do contrato principal).
+        SEMPRE a partir do MT5 (candle/preço atual).
 
     WIN_LAST_TICK / WDO_LAST_TICK:
-        - FORA do pregão → MT5 ao vivo.
-        - NO pregão     → CONGELADO via cache (RAM/ROM), mas sempre presente
-                          em coletas / unificado / validados.
+        - FORA do pregão → MT5 ao vivo + grava LastTick_Congelado.json
+        - NO pregão     → lê arquivo fixo (fallback: RAM/ROM se arquivo ausente)
 
     Retorna True se montou pelo menos WIN_FUT fresco do MT5.
     """
@@ -633,9 +674,11 @@ def _montar_win_wdo_mt5(coletas: List[dict]) -> bool:
     ts = datetime.now().isoformat()
     fora_pregao = esta_fora_do_pregao()
     montou_win_fut = False
+    ticks_para_congelar: Dict[str, dict] = {}
 
+    freeze_map = _carregar_last_tick_congelado() if not fora_pregao else {}
     cache_itens: list = []
-    if not fora_pregao:
+    if not fora_pregao and not freeze_map:
         cache_itens = _carregar_cache_coletas(FILE_RAM, FILE_ROM0)
 
     mapa = {
@@ -706,51 +749,85 @@ def _montar_win_wdo_mt5(coletas: List[dict]) -> bool:
 
             # ---------- LAST_TICK ----------
             if fora_pregao:
-                # Fora do pregão: MT5 ao vivo
-                coletas.append({
+                item_last = {
                     "ativo": ativo_last,
                     "fonte": "MT5_v2.2",
                     "timestamp": ts,
                     "status": "OK",
                     "dados_reais": dict(ohlc),
-                })
+                }
+                coletas.append(item_last)
+                ticks_para_congelar[ativo_last] = item_last
                 print(f"   ✅ {ativo_last} MT5 ao vivo (fora do pregão)")
             else:
-                # Pregão: congelado do cache (último valor pré-abertura)
-                cached = _item_cache_por_ativo(cache_itens, ativo_last)
-                if cached and (cached.get("dados_reais") or {}).get("close"):
-                    cached = dict(cached)
-                    cached["fonte"] = "CACHE_DISCO_CONGELADO (pregão)"
-                    cached["timestamp"] = ts
-                    cached["status"] = cached.get("status") or "OK"
-                    coletas.append(cached)
-                    preco = (cached.get("dados_reais") or {}).get("close")
-                    print(f"   🧊 {ativo_last} CONGELADO (cache) close={preco}")
+                frozen = freeze_map.get(ativo_last)
+                if frozen and (frozen.get("dados_reais") or {}).get("close"):
+                    item = dict(frozen)
+                    item["fonte"] = "LAST_TICK_CONGELADO (arquivo fixo)"
+                    item["timestamp"] = ts
+                    item["status"] = item.get("status") or "OK"
+                    coletas.append(item)
+                    preco = (item.get("dados_reais") or {}).get("close")
+                    print(f"   🧊 {ativo_last} CONGELADO (arquivo) close={preco}")
                 else:
-                    print(
-                        f"   ⚠️ {ativo_last}: sem cache pré-pregão — "
-                        f"chave ausente neste ciclo"
-                    )
+                    cached = _item_cache_por_ativo(cache_itens, ativo_last)
+                    if cached and (cached.get("dados_reais") or {}).get("close"):
+                        cached = dict(cached)
+                        cached["fonte"] = "CACHE_DISCO_CONGELADO (pregão; fallback)"
+                        cached["timestamp"] = ts
+                        coletas.append(cached)
+                        preco = (cached.get("dados_reais") or {}).get("close")
+                        print(f"   🧊 {ativo_last} CONGELADO (cache fallback) close={preco}")
+                    else:
+                        print(
+                            f"   ⚠️ {ativo_last}: sem arquivo fixo nem cache — "
+                            f"chave ausente neste ciclo"
+                        )
         else:
             print(f"   ⚠️ {prefixo}: sem last MT5 para FUT")
             if not fora_pregao:
-                cached = _item_cache_por_ativo(cache_itens, ativo_last)
-                if cached:
-                    cached = dict(cached)
-                    cached["fonte"] = "CACHE_DISCO_CONGELADO (pregão; sem FUT MT5)"
-                    cached["timestamp"] = ts
-                    coletas.append(cached)
-                    print(f"   🧊 {ativo_last} CONGELADO (só cache)")
+                frozen = freeze_map.get(ativo_last)
+                if frozen:
+                    item = dict(frozen)
+                    item["fonte"] = "LAST_TICK_CONGELADO (arquivo; sem FUT MT5)"
+                    item["timestamp"] = ts
+                    coletas.append(item)
+                    print(f"   🧊 {ativo_last} CONGELADO (só arquivo)")
+                else:
+                    cached = _item_cache_por_ativo(cache_itens, ativo_last)
+                    if cached:
+                        cached = dict(cached)
+                        cached["fonte"] = "CACHE_DISCO_CONGELADO (pregão; sem FUT)"
+                        cached["timestamp"] = ts
+                        coletas.append(cached)
+                        print(f"   🧊 {ativo_last} CONGELADO (só cache)")
+
+    if fora_pregao and ticks_para_congelar:
+        _salvar_last_tick_congelado(ticks_para_congelar)
 
     return montou_win_fut
 
 
 def _reutilizar_cache_last_fut(coletas: List[dict]) -> None:
     """Fallback fora do pregão se MT5 falhar totalmente."""
+    # tenta arquivo fixo primeiro
+    freeze = _carregar_last_tick_congelado()
+    added = False
+    for ativo in ("WIN_LAST_TICK", "WDO_LAST_TICK"):
+        item = freeze.get(ativo)
+        if item:
+            item = dict(item)
+            item["fonte"] = f"LAST_TICK_CONGELADO (MT5 offline)"
+            item["timestamp"] = datetime.now().isoformat()
+            coletas.append(item)
+            added = True
+    if added:
+        print("   ✅ LAST do arquivo fixo (MT5 offline)")
+        return
+
     itens = _carregar_cache_coletas(FILE_RAM, FILE_ROM0)
     if not itens:
         return
-    added = False
     for ativo in (
         "WIN_LAST_TICK",
         "WDO_LAST_TICK",
@@ -865,6 +942,6 @@ def executar_pipeline_coleta() -> None:
 
 if __name__ == "__main__":
     print("=" * 60)
-    print(" COLETOR — WIN_FUT sempre | LAST_TICK vivo fora / congelado no pregão")
+    print(" COLETOR — WIN_FUT sempre | LAST arquivo fixo (Fase 0)")
     print("=" * 60)
     executar_pipeline_coleta()

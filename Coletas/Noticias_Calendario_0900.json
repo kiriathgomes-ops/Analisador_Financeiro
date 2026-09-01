@@ -1,12 +1,33 @@
 {
   "metadata": {
     "fonte": "TradingView API",
-    "timestamp": "2026-08-31T08:02:55.237178",
-    "data_referencia": "2026-08-31"
+    "timestamp": "2026-09-01T05:08:31.764176",
+    "data_referencia": "2026-09-01"
   },
   "alerta_noticia_0900": {
-    "tem_evento_3_estrelas": false,
-    "quantidade_eventos": 0,
-    "eventos": []
+    "tem_evento_3_estrelas": true,
+    "quantidade_eventos": 2,
+    "eventos": [
+      {
+        "hora": "09:00",
+        "pais": "Brazil",
+        "moeda": "BRL",
+        "evento": "GDP Growth Rate QoQ",
+        "importancia": 3,
+        "anterior": "1.1",
+        "previsao": "0.4",
+        "atual": ""
+      },
+      {
+        "hora": "09:00",
+        "pais": "Brazil",
+        "moeda": "BRL",
+        "evento": "GDP Growth Rate YoY",
+        "importancia": 3,
+        "anterior": "1.8",
+        "previsao": "1.8",
+        "atual": ""
+      }
+    ]
   }
 }

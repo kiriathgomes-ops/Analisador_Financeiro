@@ -1,7 +1,7 @@
 # ============================================================
 # config.py — Configuração central do Analisador Financeiro
 # Roadmap A2 | Fase 1 da migração V1 → V2
-# Data: 27/08/2026 | Atualizado 31/08/2026 — helpers pregão WIN
+# Data: 27/08/2026 | Atualizado 01/09/2026 — FILE_LAST_TICK_CONGELADO (Fase 0)
 #
 # Única fonte de:
 #   - Caminhos (BASE_DIR, Coletas, nomes de JSON)
@@ -99,6 +99,10 @@ FILE_TOKEN_USAGE = COLETAS_DIR / "token_usage.log"
 FILE_SMC_REGRAS = COLETAS_DIR / "AnaliseGraficaSMC_Regras.json"
 FILE_WIN_1MIN = COLETAS_DIR / "WIN_1min.png"
 FILE_WIN_5MIN = COLETAS_DIR / "WIN_5min.png"
+
+# LAST_TICK congelado (fora da rotação ROM) — Fase 0
+# Grava fora do pregão; lido no pregão para manter chave estável
+FILE_LAST_TICK_CONGELADO = COLETAS_DIR / "LastTick_Congelado.json"
 
 # ------------------------------------------------------------
 # 4. CHAVES DE API (via ambiente)

@@ -1,16 +1,20 @@
 {
   "metadata": {
-    "timestamp": "2026-08-27T21:21:44.803536",
+    "timestamp": "2026-09-01T05:25:48.068638",
     "status_pipeline": "OK",
     "ativo_foco": "WIN_INDICE"
   },
   "analise_operacional": {
     "WIN_INDICE": {
-      "score_numeric": 2.5,
-      "vies_final": "MODERADO_COMPRA",
+      "score_numeric": 0.4,
+      "vies_final": "NEUTRO",
       "fatores_relevantes": [
-        "Commodities e Mercado Externo favoráveis (+5.13%)",
-        "⚖️ Spread Last vs Ajuste na normalidade (-97 pts)"
+        "Teórico WIN positivo (+0.81%)",
+        "ADRs fortes no exterior (+14.81%)",
+        "Commodities e Mercado Externo pressionados (-1.98%)",
+        "🔻 Last abaixo do ajuste em 153 pts (viés vendedor)",
+        "🚨 TRAVA CRÍTICA: Notícia ⭐⭐⭐ no Brasil às 09:00! Alta Volatilidade na abertura.",
+        "⚠️ Risco Global de Notícias EXTREMO no dia. Recomendado operar com mão reduzida."
       ]
     }
   }

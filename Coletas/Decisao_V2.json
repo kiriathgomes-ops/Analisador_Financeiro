@@ -1,9 +1,9 @@
 {
     "metadata": {
-        "timestamp": "2026-08-31T15:01:44.124670",
+        "timestamp": "2026-09-01T05:08:33.248949",
         "versao": "V2.2",
         "fonte": "v2_orchestrator",
-        "latencia_ms": 1.27
+        "latencia_ms": 0.49
     },
     "contextos": {
         "market_ok": true,
@@ -13,57 +13,44 @@
         "session_ok": true
     },
     "decisao": {
-        "timestamp": "2026-08-31T15:01:44.124687",
+        "timestamp": "2026-09-01T05:08:33.248958",
         "ativo": "WIN",
-        "vies_final": "BAIXA",
-        "confianca": 85,
-        "entrada": 177485,
-        "stop_loss": 177810,
-        "alvo_1": 177185,
-        "alvo_2": 176999,
-        "invalidacao": "Fechamento M5 acima de 177810",
+        "vies_final": "ALTA",
+        "confianca": 95,
+        "entrada": 180210,
+        "stop_loss": 179885,
+        "alvo_1": 180510,
+        "alvo_2": 180695,
+        "invalidacao": "Fechamento M5 abaixo de 179885",
         "motivos": [
-            "Motor SMC indica estrutura de BAIXA (Confiança: 85%)"
+            "Motor SMC indica estrutura de ALTA (Confiança: 95%)",
+            "Preço trabalhando acima do Pivot Point (179160)"
         ],
-        "riscos": [
-            "Gap projetado baixo (-623 pts) — risco de repique/correção técnica"
-        ],
+        "riscos": [],
         "metadados": {
             "pivots": {
-                "pp": 177761.67,
-                "r1": 179098.33,
-                "r2": 180556.67,
-                "s1": 176303.33,
-                "s2": 174966.67
+                "pp": 179160.0,
+                "r1": 179710.0,
+                "r2": 181780.0,
+                "s1": 177090.0,
+                "s2": 176540.0
             },
             "smc": {
                 "order_blocks": [
                     {
-                        "tipo": "VENDA",
-                        "preco": 180027.5,
-                        "high": 180095.0,
-                        "low": 179960.0
-                    },
-                    {
-                        "tipo": "VENDA",
-                        "preco": 180300.0,
-                        "high": 180340.0,
-                        "low": 180260.0
+                        "tipo": "COMPRA",
+                        "preco": 180172.5,
+                        "high": 180285.0,
+                        "low": 180060.0
                     },
                     {
                         "tipo": "COMPRA",
-                        "preco": 179920.0,
-                        "high": 179995.0,
-                        "low": 179845.0
+                        "preco": 179995.0,
+                        "high": 180020.0,
+                        "low": 179970.0
                     }
                 ],
                 "fvgs": [
-                    {
-                        "tipo": "COMPRA",
-                        "superior": 177380.0,
-                        "inferior": 177340.0,
-                        "preenchido": false
-                    },
                     {
                         "tipo": "COMPRA",
                         "superior": 178610.0,
@@ -78,33 +65,33 @@
                     },
                     {
                         "tipo": "VENDA",
-                        "superior": 180480.0,
-                        "inferior": 180355.0,
+                        "superior": 180400.0,
+                        "inferior": 180285.0,
                         "preenchido": false
                     },
                     {
                         "tipo": "COMPRA",
-                        "superior": 179995.0,
-                        "inferior": 179970.0,
+                        "superior": 180100.0,
+                        "inferior": 180015.0,
                         "preenchido": false
                     }
                 ],
                 "suportes": [
-                    177490.0
+                    179905.0
                 ],
                 "resistencias": [
-                    177790.0
+                    180205.0
                 ],
-                "entrada_sugerida": 177485,
-                "stop_sugerido": 177810,
+                "entrada_sugerida": 180210,
+                "stop_sugerido": 179885,
                 "alvos": [
-                    177185,
-                    176999
+                    180510,
+                    180695
                 ]
             },
-            "gap_pts": -623.0,
-            "ajuste": 178263.0,
-            "last": 177640.0
+            "gap_pts": -153.0,
+            "ajuste": 180208.0,
+            "last": 180055.0
         }
     },
     "erros": []

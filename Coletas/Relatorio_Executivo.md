@@ -1,5 +1,5 @@
 📊 *QUANT TERMINAL B3 — MORNING REPORT V2* 📊
-⏱ _Pregão Analisado: 31/08/2026 às 15:01_
+⏱ _Pregão Analisado: 01/09/2026 às 05:08_
 --------------------------------------------------
 🎯 *ESTRUTURA DIRECIONAL CORE V2*
 • **Viés Institucional:** `BAIXA`
@@ -10,20 +10,20 @@
 
 --------------------------------------------------
 📈 *PREVISÃO DE ESTIMATIVA E GAP (WIN)*
-• **Preço Teórico de Abertura:** `180,198 pts`
-• **Variação Estimada:** `+1.09%`
-• **Ajuste Base Anterior:** `178,263 pts`
+• **Preço Teórico de Abertura:** `181,517 pts`
+• **Variação Estimada:** `+0.81%`
+• **Ajuste Base Anterior:** `— pts`
 
 📍 *Níveis Críticos de Pivô (Floor):*
-• Resistência 2 (R2): `180,557` | Resistência 1 (R1): `179,098`
-• **Ponto de Pivô (PP):** `177,762`
-• Suporte 1 (S1): `176,303` | Suporte 2 (S2): `174,967`
+• Resistência 2 (R2): `181,780` | Resistência 1 (R1): `179,710`
+• **Ponto de Pivô (PP):** `179,160`
+• Suporte 1 (S1): `177,090` | Suporte 2 (S2): `176,540`
 
 --------------------------------------------------
 🌐 *TERMÔMETRO CONTEXTUAL MACRO*
-• VIX Volatilidade : `15.08`
-• Minério de Ferro  : `US$ 99.15`
-• Petróleo WTI      : `US$ 85.62`
-• Curva de Juros    : DI27: `13.615%` | DI29: `14.185%`
+• VIX Volatilidade : `N/A`
+• Minério de Ferro  : `US$ N/A`
+• Petróleo WTI      : `US$ N/A`
+• Curva de Juros    : DI27: `N/A%` | DI29: `N/A%`
 --------------------------------------------------
 ⚠️ _Relatório quantitativo confidencial para apoio operacional à mesa._

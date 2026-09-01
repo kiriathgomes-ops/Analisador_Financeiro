@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "timestamp": "2026-08-31T15:55:48.810255",
+    "timestamp": "2026-09-01T05:30:31.121253",
     "origem": "Pipeline_Completo_V2",
     "versao": "2.0_V2",
     "integridade_fontes": {
@@ -12,19 +12,40 @@
     }
   },
   "alerta_calendario_0900": {
-    "tem_evento_3_estrelas": false,
-    "quantidade_eventos": 0,
-    "eventos": []
+    "tem_evento_3_estrelas": true,
+    "quantidade_eventos": 2,
+    "eventos": [
+      {
+        "hora": "09:00",
+        "pais": "Brazil",
+        "moeda": "BRL",
+        "evento": "GDP Growth Rate QoQ",
+        "importancia": 3,
+        "anterior": "1.1",
+        "previsao": "0.4",
+        "atual": ""
+      },
+      {
+        "hora": "09:00",
+        "pais": "Brazil",
+        "moeda": "BRL",
+        "evento": "GDP Growth Rate YoY",
+        "importancia": 3,
+        "anterior": "1.8",
+        "previsao": "1.8",
+        "atual": ""
+      }
+    ]
   },
   "indicadores_compostos": {
     "indicador_mercado_externo": {
-      "valor_pct": -2.6453,
-      "classificacao": "FORTE",
+      "valor_pct": -1.9831,
+      "classificacao": "MODERADA",
       "sinal_operacional": "VENDA",
-      "rotulo_completo": "FORTE_VENDA"
+      "rotulo_completo": "MODERADA_VENDA"
     },
     "indicador_adrs_brasileiras": {
-      "valor_pct": 6.66,
+      "valor_pct": 14.81,
       "classificacao": "FORTE",
       "sinal_operacional": "COMPRA",
       "rotulo_completo": "FORTE_COMPRA"
@@ -610,40 +631,35 @@
   },
   "estimativa_abertura": {
     "WIN_INDICE": {
-      "variacao_teorica_pct": 1.0856,
-      "pontos_ajuste_base": 178263.0,
-      "abertura_teorica_pontos": 180198.0
+      "variacao_teorica_pct": 0.8099,
+      "preco_referencia_base": 180055.0,
+      "abertura_teorica_pontos": 181513.0,
+      "contexto_janela": "REFERENCIA_0900_OVERNIGHT"
     }
   },
   "pivot_points": {
     "WIN_FUT": {
-      "PP": 177761.67,
-      "R1": 179098.33,
-      "R2": 180556.67,
-      "S1": 176303.33,
-      "S2": 174966.67
+      "PP": 179160.0,
+      "R1": 179710.0,
+      "R2": 181780.0,
+      "S1": 177090.0,
+      "S2": 176540.0
     }
   },
-  "resumo_macro": {
-    "vix": 15.08,
-    "di1_2027": 13.615,
-    "di1_2029": 14.185,
-    "iron_ore": 99.15,
-    "crude_oil": 85.62,
-    "gold": 4435.785
-  },
+  "resumo_macro": {},
   "decisao_core": {
     "win": {
-      "vies_final": "BAIXA",
-      "score_numeric": -8.5,
+      "vies_final": "ALTA",
+      "score_numeric": 9.5,
       "fatores_relevantes": [
-        "Motor SMC indica estrutura de BAIXA (Confiança: 85%)"
+        "Motor SMC indica estrutura de ALTA (Confiança: 95%)",
+        "Preço trabalhando acima do Pivot Point (179160)"
       ],
-      "confianca": 85,
-      "entrada": 177485,
-      "stop": 177810,
-      "alvo_1": 177185,
-      "alvo_2": 176999
+      "confianca": 95,
+      "entrada": 180210,
+      "stop": 179885,
+      "alvo_1": 180510,
+      "alvo_2": 180695
     }
   }
 }
