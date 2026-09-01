@@ -1,13 +1,13 @@
 {
   "metadata_calculo": {
-    "timestamp_calculo": "2026-09-01T07:59:01.960465",
+    "timestamp_calculo": "2026-09-01T08:04:01.476034",
     "janela_ativa": "REFERENCIA_0900_OVERNIGHT"
   },
   "estimativa_abertura": {
     "WIN_INDICE": {
-      "variacao_teorica_pct": 0.7307,
+      "variacao_teorica_pct": 0.7216,
       "preco_referencia_base": 180075.0,
-      "abertura_teorica_pontos": 181391.0,
+      "abertura_teorica_pontos": 181374.0,
       "contexto_janela": "REFERENCIA_0900_OVERNIGHT"
     }
   },
