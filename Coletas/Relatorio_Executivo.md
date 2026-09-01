@@ -1,17 +1,17 @@
 📊 *QUANT TERMINAL B3 — MORNING REPORT V2* 📊
-⏱ _Pregão Analisado: 01/09/2026 às 05:08_
+⏱ _Pregão Analisado: 01/09/2026 às 07:09_
 --------------------------------------------------
 🎯 *ESTRUTURA DIRECIONAL CORE V2*
-• **Viés Institucional:** `BAIXA`
-• **Força de Confluência:** `🔴 85%`
-• **Ordem Gatilho (Entry):** `177,485 pts`
-• **Stop Loss Técnico:** `177,810 pts`
-• **Alvo Fibonacci (T1):** `177,185 pts`
+• **Viés Institucional:** `ALTA`
+• **Força de Confluência:** `🟢 95%`
+• **Ordem Gatilho (Entry):** `180,230 pts`
+• **Stop Loss Técnico:** `179,905 pts`
+• **Alvo Fibonacci (T1):** `180,530 pts`
 
 --------------------------------------------------
 📈 *PREVISÃO DE ESTIMATIVA E GAP (WIN)*
-• **Preço Teórico de Abertura:** `181,517 pts`
-• **Variação Estimada:** `+0.81%`
+• **Preço Teórico de Abertura:** `181,370 pts`
+• **Variação Estimada:** `+0.72%`
 • **Ajuste Base Anterior:** `— pts`
 
 📍 *Níveis Críticos de Pivô (Floor):*

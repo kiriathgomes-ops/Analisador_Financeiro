@@ -1,9 +1,9 @@
 {
     "metadata": {
-        "timestamp": "2026-09-01T07:09:03.352531",
+        "timestamp": "2026-09-01T07:01:11.917193",
         "versao": "V2.2",
         "fonte": "v2_orchestrator",
-        "latencia_ms": 3.98
+        "latencia_ms": 5.91
     },
     "contextos": {
         "market_ok": true,
@@ -13,7 +13,7 @@
         "session_ok": true
     },
     "decisao": {
-        "timestamp": "2026-09-01T07:09:03.352541",
+        "timestamp": "2026-09-01T07:01:11.917204",
         "ativo": "WIN",
         "vies_final": "ALTA",
         "confianca": 95,

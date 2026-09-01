@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Módulo: pages/5.3_⚙️_Core_Engine.py
-Versão: 3.0 - Central de Auditoria V2
+Versão: 3.1 - Central de Auditoria V2 (com verificação de defasagem)
 Objetivo: Interface de controle, monitoramento e auditoria da tomada de decisão do Orquestrador V2.
 """
 
@@ -30,7 +30,36 @@ dados_v2 = carregar_json_defensivo(FILE_DECISAO_V2)
 dados_v1_legado = carregar_json_defensivo(FILE_DECISAO_CORE)
 
 st.markdown("<h2 style='color:#00d4ff;'>⚙️ Core Decision Engine — Central de Orquestração</h2>", unsafe_allow_html=True)
-st.caption(f"Status da Matriz de Decisão V2 | Snapshot: {dados_v2.get('metadata', {}).get('timestamp', 'N/A')}")
+st.caption(f"**Fonte oficial: Decisao_V2.json** | Snapshot: {dados_v2.get('metadata', {}).get('timestamp', 'N/A')}")
+
+# ============================================================
+# VERIFICAÇÃO DE DEFASAGEM DOS DADOS
+# ============================================================
+timestamp_str = dados_v2.get('metadata', {}).get('timestamp', '')
+if timestamp_str:
+    try:
+        if 'Z' in timestamp_str:
+            ts = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+        else:
+            ts = datetime.fromisoformat(timestamp_str)
+    except ValueError:
+        try:
+            ts = datetime.strptime(timestamp_str, "%Y-%m-%dT%H:%M:%S.%f")
+        except ValueError:
+            ts = None
+    
+    if ts:
+        agora = datetime.now(ts.tzinfo) if ts.tzinfo else datetime.now()
+        diff_minutos = (agora - ts).total_seconds() / 60
+        
+        if diff_minutos > 30:
+            st.error(f"⛔ **Dados críticos desatualizados!** Última atualização há **{diff_minutos:.0f} minutos**. Execute o pipeline imediatamente.")
+        elif diff_minutos > 5:
+            st.warning(f"⚠️ **Dados defasados!** Última atualização há **{diff_minutos:.0f} minutos**. Considere rodar o pipeline novamente.")
+        else:
+            st.success(f"✅ Dados atualizados há **{diff_minutos:.1f} minutos**.")
+else:
+    st.info("ℹ️ Timestamp da decisão não disponível para verificação de atualização.")
 
 if not dados_v2:
     st.error("⚠️ Erro Crítico: Arquivo Decisao_V2.json não encontrado. O pipeline operacional V2 precisa ser executado.")
@@ -42,9 +71,9 @@ st.caption("Verificação em tempo real de execução e resposta de cada braço 
 
 ctx = dados_v2.get("contextos", {})
 
-# Ícones dinâmicos de status
+# Ícones dinâmicos de status (sem menção a fallback/cache)
 def obter_badge_status(flag_ok):
-    return "🟢 Concluído / Integridade OK" if flag_ok else "🔴 Falhou / Offline (Usando Fallback/Cache)"
+    return "🟢 OK" if flag_ok else "🔴 Falhou"
 
 c1, c2, c3, c4, c5 = st.columns(5)
 c1.markdown(f"<div style='background-color:#161b24; padding:10px; border-radius:8px; text-align:center; border-top:3px solid #00ff88;'>📊 <b>Market Context</b><br><span style='font-size:0.85rem;'>{obter_badge_status(ctx.get('market_ok'))}</span></div>", unsafe_allow_html=True)
@@ -73,7 +102,6 @@ with col_vies:
         st.markdown(f"<div style='background-color:rgba(255, 255, 255, 0.05); padding:20px; border-radius:12px; border:1px solid #888; text-align:center;'><span style='font-size:1rem; color:#8b949e;'>VIÉS CORE V2</span><br><span style='font-size:2rem; font-weight:bold; color:#ccc;'>NEUTRO</span><br><span style='font-size:1.5rem; font-weight:bold;'>{confianca}%</span> de Força</div>", unsafe_allow_html=True)
 
 with col_parametros:
-    # Mostra os gatilhos matemáticos de ordens gerados na V2
     p_col1, p_col2, p_col3 = st.columns(3)
     p_col1.metric("Ordem Gatilho (Stop Entry)", f"{decisao_data.get('entrada', 0):,.0f} pts" if decisao_data.get('entrada') else "—")
     p_col2.metric("Stop Loss Proteção", f"{decisao_data.get('stop_loss', 0):,.0f} pts" if decisao_data.get('stop_loss') else "—")

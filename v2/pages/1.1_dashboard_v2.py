@@ -33,6 +33,42 @@ dados_v2 = carregar_json_defensivo(FILE_DECISAO_V2)
 st.markdown("<h2 style='color:#00d4ff;'>🚀 Quant Terminal — Dashboard de Decisão Master V2</h2>", unsafe_allow_html=True)
 st.caption(f"Pipeline Sincronizado | Horário do Snapshot: {dados_v2.get('metadata', {}).get('timestamp', 'N/A')}")
 
+#############
+# ============================================================
+# VERIFICAÇÃO DE DEFASAGEM DOS DADOS
+# ============================================================
+timestamp_str = dados_v2.get('metadata', {}).get('timestamp', '')
+if timestamp_str:
+    try:
+        # Tenta parsear timestamp ISO (com ou sem microssegundos)
+        if 'Z' in timestamp_str:
+            ts = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+        else:
+            ts = datetime.fromisoformat(timestamp_str)
+    except ValueError:
+        try:
+            ts = datetime.strptime(timestamp_str, "%Y-%m-%dT%H:%M:%S.%f")
+        except ValueError:
+            ts = None
+    
+    if ts:
+        agora = datetime.now(ts.tzinfo) if ts.tzinfo else datetime.now()
+        diff_minutos = (agora - ts).total_seconds() / 60
+        
+        if diff_minutos > 30:
+            st.error(f"⛔ **Dados críticos desatualizados!** Última atualização há **{diff_minutos:.0f} minutos**. Execute o pipeline imediatamente.")
+        elif diff_minutos > 5:
+            st.warning(f"⚠️ **Dados defasados!** Última atualização há **{diff_minutos:.0f} minutos**. Considere rodar o pipeline novamente.")
+        else:
+            st.success(f"✅ Dados atualizados há **{diff_minutos:.1f} minutos**.")
+else:
+    st.info("ℹ️ Timestamp da decisão não disponível para verificação de atualização.")
+
+#########
+
+
+
+
 if not dados_v2:
     st.error("⚠️ Erro Crítico: O arquivo 'Decisao_V2.json' não foi encontrado. Execute o main_pipeline.py para consolidar a tomada de decisão.")
     st.stop()
