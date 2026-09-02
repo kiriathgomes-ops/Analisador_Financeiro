@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "timestamp": "2026-09-01T22:49:02.417927",
+    "timestamp": "2026-09-01T22:54:02.627925",
     "origem": "Pipeline_Completo_V2",
     "versao": "2.0_V2",
     "integridade_fontes": {
@@ -39,7 +39,7 @@
   },
   "indicadores_compostos": {
     "indicador_mercado_externo": {
-      "valor_pct": -7.8169,
+      "valor_pct": -7.8451,
       "classificacao": "FORTE",
       "sinal_operacional": "VENDA",
       "rotulo_completo": "FORTE_VENDA"
@@ -631,9 +631,9 @@
   },
   "estimativa_abertura": {
     "WIN_INDICE": {
-      "variacao_teorica_pct": 0.9013,
+      "variacao_teorica_pct": 0.8994,
       "preco_referencia_base": 182315.0,
-      "abertura_teorica_pontos": 183958.0,
+      "abertura_teorica_pontos": 183955.0,
       "contexto_janela": "REFERENCIA_1000_INTRADAY"
     }
   },

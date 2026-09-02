@@ -1,11 +1,11 @@
 {
-  "timestamp_congelamento": "2026-09-01T22:49:01.588363",
+  "timestamp_congelamento": "2026-09-01T22:54:01.609534",
   "fonte": "MT5_v2.2",
   "ticks": {
     "WIN_LAST_TICK": {
       "ativo": "WIN_LAST_TICK",
       "fonte": "MT5_v2.2",
-      "timestamp": "2026-09-01T22:49:01.587789",
+      "timestamp": "2026-09-01T22:54:01.609184",
       "status": "OK",
       "dados_reais": {
         "close": 182315.0,
@@ -20,7 +20,7 @@
     "WDO_LAST_TICK": {
       "ativo": "WDO_LAST_TICK",
       "fonte": "MT5_v2.2",
-      "timestamp": "2026-09-01T22:49:01.587789",
+      "timestamp": "2026-09-01T22:54:01.609184",
       "status": "OK",
       "dados_reais": {
         "close": 5186.2,

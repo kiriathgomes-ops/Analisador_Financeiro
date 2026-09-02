@@ -1,13 +1,13 @@
 {
   "metadata_calculo": {
-    "timestamp_calculo": "2026-09-01T22:49:02.199796",
+    "timestamp_calculo": "2026-09-01T22:54:02.361486",
     "janela_ativa": "REFERENCIA_1000_INTRADAY"
   },
   "estimativa_abertura": {
     "WIN_INDICE": {
-      "variacao_teorica_pct": 0.9013,
+      "variacao_teorica_pct": 0.8994,
       "preco_referencia_base": 182315.0,
-      "abertura_teorica_pontos": 183958.0,
+      "abertura_teorica_pontos": 183955.0,
       "contexto_janela": "REFERENCIA_1000_INTRADAY"
     }
   },
