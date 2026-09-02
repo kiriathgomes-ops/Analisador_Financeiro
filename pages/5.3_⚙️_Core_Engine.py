@@ -1,17 +1,18 @@
 # -*- coding: utf-8 -*-
 """
 Módulo: pages/5.3_⚙️_Core_Engine.py
-Versão: 3.1 - Central de Auditoria V2 (com verificação de defasagem)
+Versão: 3.2 - Central de Auditoria V2 (com SMC, Volume Profile e Cost of Carry)
 Objetivo: Interface de controle, monitoramento e auditoria da tomada de decisão do Orquestrador V2.
 """
 
-import streamlit as st
 import json
 from datetime import datetime
 import pandas as pd
+import streamlit as st
 
 # Importação de caminhos centralizados do config.py da V2
 from config import FILE_DECISAO_V2, FILE_DECISAO_CORE
+
 
 def carregar_json_defensivo(caminho):
     if not caminho.exists():
@@ -19,8 +20,9 @@ def carregar_json_defensivo(caminho):
     try:
         with open(caminho, "r", encoding="utf-8") as f:
             return json.load(f)
-    except:
+    except Exception:
         return {}
+
 
 # Configuração da página Streamlit
 st.set_page_config(page_title="Quant Terminal - Core Engine V2", layout="wide")
@@ -71,7 +73,6 @@ st.caption("Verificação em tempo real de execução e resposta de cada braço 
 
 ctx = dados_v2.get("contextos", {})
 
-# Ícones dinâmicos de status (sem menção a fallback/cache)
 def obter_badge_status(flag_ok):
     return "🟢 OK" if flag_ok else "🔴 Falhou"
 
@@ -109,7 +110,46 @@ with col_parametros:
     
     st.markdown(f"🚨 **Nível de Invalidação do Setup:** `{decisao_data.get('invalidacao', 'Não Mapeado')}`")
 
-# --- SEÇÃO 3: AUDITORIA DE CRITÉRIOS (POR QUE TOMOU ESSA DECISÃO?) ---
+# --- SEÇÃO 3: NÍVEIS DE TESOURARIA & COST OF CARRY (NOVO PAINEL V2.6) ---
+st.markdown("---")
+st.markdown("### 🏦 Métricas Institucionais (Volume Profile & Cost of Carry)")
+
+meta_info = decisao_data.get("metadados", {})
+smc_info = meta_info.get("smc", {})
+teorica_info = meta_info.get("precificacao_teorica", {})
+pivots_info = meta_info.get("pivots", {})
+
+col_smc_poc, col_smc_vwap, col_teorico, col_carregado = st.columns(4)
+
+poc_val = smc_info.get("poc_ontem", 0.0)
+vwap_val = smc_info.get("vwap_ontem", 0.0)
+teorico_val = teorica_info.get("abertura_teorica", 0.0)
+carregado_val = teorica_info.get("preco_carregado_di", 0.0)
+ob_alinhado = smc_info.get("ob_alinhado_com_poc", False)
+
+col_smc_poc.metric(
+    "POC Ontem (Volume)", 
+    f"{poc_val:,.0f} pts" if poc_val > 0 else "—",
+    delta="OB Alinhado 🟢" if ob_alinhado else "Sem OB Direto",
+    delta_color="normal" if ob_alinhado else "off"
+)
+
+col_smc_vwap.metric(
+    "VWAP Ontem", 
+    f"{vwap_val:,.1f} pts" if vwap_val > 0 else "—"
+)
+
+col_teorico.metric(
+    "Abertura Teórica WIN", 
+    f"{teorico_val:,.0f} pts" if teorico_val > 0 else "—"
+)
+
+col_carregado.metric(
+    "Preço Carregado (DI/252)", 
+    f"{carregado_val:,.0f} pts" if carregado_val > 0 else "—"
+)
+
+# --- SEÇÃO 4: AUDITORIA DE CRITÉRIOS (MOTIVOS E RISCOS) ---
 st.markdown("---")
 st.markdown("### 📝 Fatores Determinantes e Modelagem de Riscos")
 
@@ -133,7 +173,17 @@ with col_riscos:
     else:
         st.success("🟢 Alinhamento quantitativo limpo. Sem travas de volatilidade abusiva ou erros de cache.")
 
-# --- SEÇÃO 4: HISTÓRICO / AUDITORIA DA V1 CONTRA A V2 ---
+# --- SEÇÃO 5: PIVÔS DE VAREJO (FLOOR PIVOTS) ---
+st.markdown("---")
+with st.expander("📍 Pivôs Clássicos de Varejo (Floor Pivots)"):
+    p1, p2, p3, p4, p5 = st.columns(5)
+    p1.metric("Resistência 2 (R2)", f"{pivots_info.get('r2', 0):,.0f}")
+    p2.metric("Resistência 1 (R1)", f"{pivots_info.get('r1', 0):,.0f}")
+    p3.metric("Ponto de Pivô (PP)", f"{pivots_info.get('pp', 0):,.0f}")
+    p4.metric("Suporte 1 (S1)", f"{pivots_info.get('s1', 0):,.0f}")
+    p5.metric("Suporte 2 (S2)", f"{pivots_info.get('s2', 0):,.0f}")
+
+# --- SEÇÃO 6: HISTÓRICO / AUDITORIA DA V1 CONTRA A V2 ---
 st.markdown("---")
 with st.expander("📚 Histórico e Auditoria de Retrocompatibilidade (Módulo V1 Legado)"):
     st.warning("⚠️ **ATENÇÃO:** O motor de viés institucional V1 está DESATIVADO do pipeline operacional conforme as regras de governança do projeto. Os dados abaixo servem exclusivamente para auditoria ou rollback emergencial.")

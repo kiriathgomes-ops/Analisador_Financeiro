@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
 Módulo: Gerar_Relatorio_Mensagem.py
-Versão: 2.3 (Mapeamento Total de Chaves V2)
-Objetivo: Consolida os arquivos de decisão e cotações unificadas em um relatório executivo em Markdown.
+Versão: 2.4 (Integração SMC / Volume Profile + Cost of Carry)
+Objetivo: Consolida os arquivos de decisão, estimativas e cotações unificadas em um relatório executivo em Markdown.
 """
 
 import json
@@ -34,7 +34,8 @@ def carregar_json(nome_arquivo):
 unificados = carregar_json("DadosAtivosUnificados.json")
 decisao_v2 = carregar_json("Decisao_V2.json")
 resultado_operacional = carregar_json("Resultado_Calculadora_Operacional_Abertura.json")
-estimativas = carregar_json("Resultado_Calculadora.json")
+estimativas = carregar_json("EstimativaAbertura.json") or carregar_json("Resultado_Calculadora.json")
+smc_dados = carregar_json("AnaliseGraficaSMC_Regras.json")
 
 ativos = unificados.get("ativos", {})
 obj_decisao = decisao_v2.get("decisao", {})
@@ -63,7 +64,7 @@ def get_num_fmt(dicionario, chave, padrao=0.0):
         return f"{val:,.0f}"
     return "—"
 
-# Extração de Decisão e Targets (com busca por múltiplos aliases)
+# Extração de Decisão e Targets
 vies_final = obj_decisao.get("vies_final") or "NEUTRO"
 confianca = obj_decisao.get("confianca", 0)
 icone_confianca = "🔴" if confianca >= 80 else ("🟡" if confianca >= 50 else "⚪")
@@ -72,20 +73,31 @@ gatilho = obj_decisao.get("gatilho") or obj_decisao.get("entrada") or obj_decisa
 stop = obj_decisao.get("stop") or obj_decisao.get("stop_loss") or meta_decisao.get("stop", 0.0)
 
 alvos = obj_decisao.get("alvos") or meta_decisao.get("alvos", [])
-alvo_1 = alvos[0] if isinstance(alvos, list) and len(alvos) > 0 else 0.0
+alvo_1 = alvos[0] if isinstance(alvos, list) and len(alvos) > 0 else (obj_decisao.get("alvo_1") or 0.0)
 
-# Extração de Estimativas de Abertura (WIN_INDICE ou WIN_FUT)
+# Extração de Estimativas de Abertura & Cost of Carry
 win_est = estimativas.get("estimativa_abertura", {}).get("WIN_INDICE") or estimativas.get("estimativa_abertura", {}).get("WIN_FUT") or {}
-teorico = resultado_operacional.get("previsao_abertura", {}).get("teorico_win") or win_est.get("abertura_teorica_pontos") or meta_decisao.get("teorico_win", 0.0)
-teorico_str = f"{teorico:,.0f} pts" if isinstance(teorico, (int, float)) and teorico > 0 else "N/A"
+teorico = win_est.get("abertura_teorica_pontos") or resultado_operacional.get("previsao_abertura", {}).get("teorico_win") or meta_decisao.get("teorico_win", 0.0)
+teorico_str = f"{teorico:,.0f} pts" if isinstance(teorico, (int, float)) and teorico > 0 else "—"
 
-var_est = resultado_operacional.get("previsao_abertura", {}).get("variacao_estimada") or win_est.get("variacao_teorica_pct", 0.0)
+coc_dados = win_est.get("cost_of_carry", {})
+preco_carregado = coc_dados.get("preco_teorico_carregado", 0.0)
+carregado_str = f"{preco_carregado:,.0f} pts" if isinstance(preco_carregado, (int, float)) and preco_carregado > 0 else "—"
+
+var_est = win_est.get("variacao_teorica_pct") or resultado_operacional.get("previsao_abertura", {}).get("variacao_estimada", 0.0)
 var_est_str = f"{var_est:+.2f}%"
 
 ajuste = meta_decisao.get("ajuste") or ativos.get("WIN_AJUSTE", {}).get("preco", 0.0)
 ajuste_str = f"{ajuste:,.0f} pts" if isinstance(ajuste, (int, float)) and ajuste > 0 else "— pts"
 
-pivots = meta_decisao.get("pivots") or estimativas.get("pivot_points", {}).get("WIN_FUT") or {}
+# Pivôs Clássicos e Nivéis Institucionais (SMC)
+pivots = estimativas.get("pivot_points", {}).get("WIN_FUT") or meta_decisao.get("pivots") or {}
+niveis_inst = smc_dados.get("niveis_institucionais", {}) or estimativas.get("pivots_institucionais", {})
+poc_ontem = niveis_inst.get("poc_ontem", 0.0)
+vwap_ontem = niveis_inst.get("vwap_ontem", 0.0)
+
+poc_str = f"{poc_ontem:,.0f} pts" if isinstance(poc_ontem, (int, float)) and poc_ontem > 0 else "—"
+vwap_str = f"{vwap_ontem:,.1f} pts" if isinstance(vwap_ontem, (int, float)) and vwap_ontem > 0 else "—"
 
 # Termômetro Macro
 vix_val = get_preco_str("VIX")
@@ -116,18 +128,23 @@ def executar():
 • **Força de Confluência:** `{icone_confianca} {confianca}%`
 • **Ordem Gatilho (Entry):** `{gatilho_str}`
 • **Stop Loss Técnico:** `{stop_str}`
-• **Alvo Fibonacci (T1):** `{alvo_1_str}`
+• **Alvo Principal (T1):** `{alvo_1_str}`
 
 --------------------------------------------------
 📈 *PREVISÃO DE ESTIMATIVA E GAP (WIN)*
 • **Preço Teórico de Abertura:** `{teorico_str}`
+• **Abertura Carregada (DI/252):** `{carregado_str}`
 • **Variação Estimada:** `{var_est_str}`
 • **Ajuste Base Anterior:** `{ajuste_str}`
 
+🏦 *Pivôs Institucionais (Volume Profile / Tesouraria):*
+• **POC (Ontem - Maior Volume):** `{poc_str}`
+• **VWAP (Ontem - Preço Ponderado):** `{vwap_str}`
+
 📍 *Níveis Críticos de Pivô (Floor):*
-• Resistência 2 (R2): `{get_num_fmt(pivots, 'r2', pivots.get('R2', 0))}` | Resistência 1 (R1): `{get_num_fmt(pivots, 'r1', pivots.get('R1', 0))}`
-• **Ponto de Pivô (PP):** `{get_num_fmt(pivots, 'pp', pivots.get('PP', 0))}`
-• Suporte 1 (S1): `{get_num_fmt(pivots, 's1', pivots.get('S1', 0))}` | Suporte 2 (S2): `{get_num_fmt(pivots, 's2', pivots.get('S2', 0))}`
+• Resistência 2 (R2): `{get_num_fmt(pivots, 'R2', pivots.get('r2', 0))}` | Resistência 1 (R1): `{get_num_fmt(pivots, 'R1', pivots.get('r1', 0))}`
+• **Ponto de Pivô (PP):** `{get_num_fmt(pivots, 'PP', pivots.get('pp', 0))}`
+• Suporte 1 (S1): `{get_num_fmt(pivots, 'S1', pivots.get('s1', 0))}` | Suporte 2 (S2): `{get_num_fmt(pivots, 'S2', pivots.get('s2', 0))}`
 
 --------------------------------------------------
 🌐 *TERMÔMETRO CONTEXTUAL MACRO*
@@ -136,7 +153,7 @@ def executar():
 • Petróleo WTI      : `US$ {oil_val}`
 • Curva de Juros    : DI27: `{di27_val}` | DI29: `{di29_val}`
 --------------------------------------------------
-⚠️ _Relatório quantitativo confidencial para apoio operacional à mesa._
+⚠️ _Relatório quantitativo confidencial para apoio operational à mesa._
 """
 
     caminho_saida = RAIZ_PROJETO / "Coletas" / "Relatorio_Executivo.md"

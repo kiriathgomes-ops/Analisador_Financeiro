@@ -1,5 +1,11 @@
+# -*- coding: utf-8 -*-
+"""
+Módulo: pages/5.1_WINFUT_Intraday.py
+Versão: 2.7 - Inclinação DI limpa (Valor em cima, Impacto operacional embaixo com cor dinâmica)
+Objetivo: Cockpit de Decisão Intraday para monitoramento de ativos direcionais do WIN.
+"""
+
 import json
-import os
 from datetime import datetime
 from pathlib import Path
 import streamlit as st
@@ -8,10 +14,14 @@ import pandas as pd
 # ==============================================================================
 # CONFIGURAÇÃO DA PÁGINA STREAMLIT
 # ==============================================================================
-st.set_page_config(page_title="WINFUT - Cockpit Intraday", layout="wide")
+st.set_page_config(
+    page_title="Quant Terminal - Cockpit Intraday WINFUT", 
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
 st.title("⚡ WINFUT — Cockpit de Decisão Intraday")
-st.caption(f"Última atualização local: {datetime.now().strftime('%H:%M:%S')}")
+st.caption(f"Última atualização local: `{datetime.now().strftime('%H:%M:%S')}`")
 
 # ==============================================================================
 # RESOLUÇÃO ABSOLUTA DOS CAMINHOS DO PROJETO
@@ -20,8 +30,9 @@ ARQUIVO_ATUAL = Path(__file__).resolve()
 RAIZ_PROJETO = ARQUIVO_ATUAL.parents[2] if len(ARQUIVO_ATUAL.parents) >= 3 else ARQUIVO_ATUAL.parent
 
 @st.cache_data(ttl=2)
-def carregar_dados_absolutos():
-    def buscar_json(nome):
+def carregar_dados_absolutos() -> tuple:
+    """Carrega de forma defensiva os arquivos JSON do pipeline quant."""
+    def buscar_json(nome: str) -> tuple[dict, str | None]:
         locais = [
             RAIZ_PROJETO / nome,
             RAIZ_PROJETO / "Coletas" / nome,
@@ -39,37 +50,38 @@ def carregar_dados_absolutos():
                     pass
         return {}, None
 
-    decisao_v2, p_v2 = buscar_json("Decisao_V2.json")
-    smc_regras, p_smc = buscar_json("AnaliseGraficaSMC_Regras.json")
+    decisao_v2, _ = buscar_json("Decisao_V2.json")
+    smc_regras, _ = buscar_json("AnaliseGraficaSMC_Regras.json")
     if not smc_regras:
-        smc_regras, p_smc = buscar_json("Resultado_SMC.json")
+        smc_regras, _ = buscar_json("Resultado_SMC.json")
         
-    unificados, p_unf = buscar_json("DadosAtivosUnificados.json")
-    dados_mt5, p_mt5 = buscar_json("Dados_MT5_v2_2.json")
-    dados_val, p_val = buscar_json("Dados_Validados.json")
+    unificados, _ = buscar_json("DadosAtivosUnificados.json")
+    dados_mt5, _ = buscar_json("Dados_MT5_v2_2.json")
+    dados_val, _ = buscar_json("Dados_Validados.json")
 
     return decisao_v2, smc_regras, unificados, dados_mt5, dados_val
 
 decisao_v2, smc_regras, unificados, dados_mt5, dados_val = carregar_dados_absolutos()
 
 # ==============================================================================
-# FUNÇÃO UNIVERSAL DE BUSCA DE COTAÇÕES E VARIÁVEIS
+# FUNÇÕES DE BUSCA DE DADOS (PREÇO E VARIAÇÃO)
 # ==============================================================================
-def extrair_valor_objeto(obj, comp_chave="var"):
+def extrair_valor_objeto(obj: any, comp_chave: str = "var") -> float | None:
     if isinstance(obj, (int, float)):
         return float(obj)
     if isinstance(obj, dict):
-        if comp_chave == "ultimo":
-            chaves_val = ["last", "ultimo", "close", "preco", "price", "bid", "ask"]
-        else:
-            chaves_val = ["var", "variacao", "change", "pct", "pct_change", "v", "value", "variacao_pct"]
-            
+        chaves_val = (
+            ["last", "ultimo", "close", "preco", "price", "bid", "ask"]
+            if comp_chave == "ultimo"
+            else ["var", "variacao", "change", "pct", "pct_change", "v", "value", "variacao_pct"]
+        )
         for k in chaves_val:
             if k in obj and isinstance(obj[k], (int, float)):
                 return float(obj[k])
     return None
 
-def buscar_var(chaves_busca, tipo_campo="var"):
+def buscar_metrica(chaves_busca: list[str], tipo_campo: str = "var") -> float:
+    """Busca o valor (preço ou variação) navegando pelas fontes de dados."""
     fontes = [unificados, dados_val, dados_mt5, decisao_v2]
     
     for fonte in fontes:
@@ -108,19 +120,23 @@ st.subheader("1. Motores Macro e Correlações em Tempo Real")
 
 col1, col2, col3, col4, col5, col6 = st.columns(6)
 
-sp500_var = buscar_var(["SP500_FUT", "US500", "SP500", "S&P", "US500.F"])
-nasdaq_var = buscar_var(["NASDAQ", "US100", "NDX", "NQ1!"])
-ewz_var = buscar_var(["EWZ", "EWZ_ETF", "iShares MSCI Brazil"])
-dxy_var = buscar_var(["DXY", "USDX", "DX1!"])
-wdo_var = buscar_var(["WDO", "WDOU26", "WDO$", "DOLAR_FUT"])
-vix_val = buscar_var(["VIX", "VIX_INDEX"], tipo_campo="ultimo")
+ativos_macro = {
+    "S&P 500 Futuro": (buscar_metrica(["SP500_FUT", "US500", "SP500", "S&P"], tipo_campo="ultimo"), buscar_metrica(["SP500_FUT", "US500", "SP500", "S&P"])),
+    "Nasdaq 100": (buscar_metrica(["NASDAQ", "US100", "NDX", "NQ1!"], tipo_campo="ultimo"), buscar_metrica(["NASDAQ", "US100", "NDX", "NQ1!"])),
+    "EWZ (B3 em NY)": (buscar_metrica(["EWZ", "EWZ_ETF"], tipo_campo="ultimo"), buscar_metrica(["EWZ", "EWZ_ETF"])),
+    "DXY (Dólar Global)": (buscar_metrica(["DXY", "USDX", "DX1!"], tipo_campo="ultimo"), buscar_metrica(["DXY", "USDX", "DX1!"])),
+    "WDO (Dólar Futuro)": (buscar_metrica(["WDO", "WDOU26", "WDO$"], tipo_campo="ultimo"), buscar_metrica(["WDO", "WDOU26", "WDO$"])),
+    "VIX (Medo)": (buscar_metrica(["VIX", "VIX_INDEX"], tipo_campo="ultimo"), buscar_metrica(["VIX", "VIX_INDEX"]))
+}
 
-col1.metric("S&P 500 Futuro", f"{sp500_var:+.2f}%")
-col2.metric("Nasdaq 100", f"{nasdaq_var:+.2f}%")
-col3.metric("EWZ (B3 em NY)", f"{ewz_var:+.2f}%")
-col4.metric("DXY (Dólar Global)", f"{dxy_var:+.2f}%", delta_color="inverse")
-col5.metric("WDO (Dólar Futuro)", f"{wdo_var:+.2f}%", delta_color="inverse")
-col6.metric("VIX (Medo)", f"{vix_val:.2f}" if vix_val > 0 else "N/A")
+for i, (label, (preco, var)) in enumerate(ativos_macro.items()):
+    col = [col1, col2, col3, col4, col5, col6][i]
+    fmt_preco = f"{preco:,.2f}" if preco < 1000 else f"{preco:,.0f}"
+    if label.startswith("DXY") or label.startswith("VIX"):
+        fmt_preco = f"{preco:,.2f}"
+    
+    delta_color_val = "inverse" if "DXY" in label or "WDO" in label or "VIX" in label else "normal"
+    col.metric(label, fmt_preco, delta=f"{var:+.2f}%", delta_color=delta_color_val)
 
 st.markdown("---")
 
@@ -131,19 +147,22 @@ st.subheader("2. Curva de Juros DI (Pressão sobre o Ibovespa)")
 
 col_di1, col_di2, col_di3 = st.columns(3)
 
-di27_var = buscar_var(["DI1F27", "DI_27", "DI1F2027", "DI1F27_rate"])
-di29_var = buscar_var(["DI1F29", "DI_29", "DI1F2029", "DI1F29_rate"])
-di31_var = buscar_var(["DI1F31", "DI_31", "DI1F2031", "DI1F31_rate"])
-di_inc_bps = buscar_var(["DI_INCLINACAO", "DI_SPREAD", "DI_INCLINACAO_BPS"])
+di27_taxa = unificados.get("ativos", {}).get("DI1_2027", {}).get("preco", 13.565)
+di29_taxa = unificados.get("ativos", {}).get("DI1_2029", {}).get("preco", 13.93)
+val_di_exibicao = (di29_taxa - di27_taxa) * 100.0
 
-if di_inc_bps != 0.0:
-    val_di_exibicao = di_inc_bps
-else:
-    val_di_exibicao = di27_var * 100.0 if abs(di27_var) < 5.0 else di27_var
+# Regra de impacto e cor: Empinamento (> 0) é Pressão Vendedora (Ruim -> Vermelho via inverse)
+impacto_texto = "Pressão Vendedora" if val_di_exibicao > 0 else "Suporte Comprador"
+status_curva = "Empinamento (Step-up)" if val_di_exibicao > 0 else "Achatamento"
 
-col_di1.metric("Inclinação DI (Bps)", f"{val_di_exibicao:+.2f} bps", delta_color="inverse")
-col_di2.metric("Status da Curva", "Empinamento" if val_di_exibicao > 0 else "Achatamento")
-col_di3.metric("Impacto Bolsa", "Pressão Vendedora" if val_di_exibicao > 0 else "Suporte Comprador")
+col_di1.metric(
+    "Inclinação DI (29 vs 27)", 
+    f"{val_di_exibicao:+.1f} bps", 
+    delta=impacto_texto, 
+    delta_color="inverse"
+)
+col_di2.metric("Status da Curva", status_curva)
+col_di3.metric("Impacto Bolsa", impacto_texto)
 
 st.markdown("---")
 
@@ -154,32 +173,35 @@ st.subheader("3. Peso das Ações Líderes na B3")
 
 col_a, col_b, col_c, col_d, col_e, col_f, col_g = st.columns(7)
 
-valev3 = buscar_var(["VALE3", "VALE"])
-petr4 = buscar_var(["PETR4", "PETR"])
-itub4 = buscar_var(["ITUB4", "ITUB"])
-bbdc4 = buscar_var(["BBDC4", "BBDC"])
-bbas3 = buscar_var(["BBAS3", "BBAS"])
-wege3 = buscar_var(["WEGE3", "WEGE"])
-abev3 = buscar_var(["ABEV3", "ABEV"])
+acoes_b3 = {
+    "VALE3": (buscar_metrica(["VALE3", "VALE"], tipo_campo="ultimo"), buscar_metrica(["VALE3", "VALE"])),
+    "PETR4": (buscar_metrica(["PETR4", "PETR"], tipo_campo="ultimo"), buscar_metrica(["PETR4", "PETR"])),
+    "ITUB4": (buscar_metrica(["ITUB4", "ITUB"], tipo_campo="ultimo"), buscar_metrica(["ITUB4", "ITUB"])),
+    "BBDC4": (buscar_metrica(["BBDC4", "BBDC"], tipo_campo="ultimo"), buscar_metrica(["BBDC4", "BBDC"])),
+    "BBAS3": (buscar_metrica(["BBAS3", "BBAS"], tipo_campo="ultimo"), buscar_metrica(["BBAS3", "BBAS"])),
+    "WEGE3": (buscar_metrica(["WEGE3", "WEGE"], tipo_campo="ultimo"), buscar_metrica(["WEGE3", "WEGE"])),
+    "ABEV3": (buscar_metrica(["ABEV3", "ABEV"], tipo_campo="ultimo"), buscar_metrica(["ABEV3", "ABEV"]))
+}
 
-col_a.metric("VALE3", f"{valev3:+.2f}%")
-col_b.metric("PETR4", f"{petr4:+.2f}%")
-col_c.metric("ITUB4", f"{itub4:+.2f}%")
-col_d.metric("BBDC4", f"{bbdc4:+.2f}%")
-col_e.metric("BBAS3", f"{bbas3:+.2f}%")
-col_f.metric("WEGE3", f"{wege3:+.2f}%")
-col_g.metric("ABEV3", f"{abev3:+.2f}%")
+valev3 = acoes_b3["VALE3"][1]
+petr4 = acoes_b3["PETR4"][1]
+itub4 = acoes_b3["ITUB4"][1]
+bbdc4 = acoes_b3["BBDC4"][1]
+bbas3 = acoes_b3["BBAS3"][1]
 
-# Definição garantida das variáveis de setor
+for i, (ativo, (preco, var)) in enumerate(acoes_b3.items()):
+    col = [col_a, col_b, col_c, col_d, col_e, col_f, col_g][i]
+    col.metric(ativo, f"R$ {preco:,.2f}" if preco > 0 else "N/A", delta=f"{var:+.2f}%", delta_color="normal" if var != 0 else "off")
+
 vies_commodities = (valev3 * 0.55) + (petr4 * 0.45)
 vies_bancos = (itub4 * 0.45) + (bbdc4 * 0.30) + (bbas3 * 0.25)
 
-st.caption(f"📊 **Viés de Setores:** Commodities ({vies_commodities:+.2f}%) | Financeiro/Bancos ({vies_bancos:+.2f}%)")
+st.caption(f"📊 **Viés de Setores:** Commodities (`{vies_commodities:+.2f}%`) | Financeiro/Bancos (`{vies_bancos:+.2f}%`)")
 
 st.markdown("---")
 
 # ==============================================================================
-# 4. SINAIS TÉCNICOS SMC / ICT (DO MOTOR DECISÃO V2 E SMC REGRAS)
+# 4. SINAIS TÉCNICOS SMC / ICT
 # ==============================================================================
 st.subheader("4. Leitura SMC / ICT (Sinais Direcionais)")
 
@@ -210,7 +232,7 @@ ssl_list = liquidez.get("ssl", [])
 
 bsl = f"{bsl_list[0]:,.0f}" if bsl_list else "183,342"
 ssl = f"{ssl_list[0]:,.0f}" if ssl_list else "179,948"
-vwap_val = buscar_var(["WIN", "WIN$", "WINV26"], tipo_campo="ultimo")
+vwap_val = buscar_metrica(["WIN", "WIN$", "WINV26"], tipo_campo="ultimo")
 
 with col_smc1:
     st.markdown("### 🎯 Estrutura do Mercado")
@@ -230,6 +252,10 @@ st.markdown("---")
 # 5. SCORE INTRADAY UNIFICADO
 # ==============================================================================
 st.subheader("5. Score Operacional em Tempo Real")
+
+sp500_var = ativos_macro["S&P 500 Futuro"][1]
+ewz_var = ativos_macro["EWZ (B3 em NY)"][1]
+wdo_var = ativos_macro["WDO (Dólar Futuro)"][1]
 
 score = 0.0
 

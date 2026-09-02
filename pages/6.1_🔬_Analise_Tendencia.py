@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
 Módulo: pages/6.1_🔬_Analise_Tendencia.py
-Versão: 2.0 - Otimizado para Produção V2
-Objetivo: Renderizar a análise de tendência sequencial (10m ➔ 5m ➔ 0m) dos ativos do ecossistema.
+Versão: 2.10 - Limpeza Definitiva (Sem colunas auxiliares, lógica baseada na própria UI)
+Objetivo: Renderizar a análise de tendência sequencial (10m ➔ 5m ➔ 0m) categorizada e estilizada.
 """
 
 import streamlit as st
@@ -36,8 +36,7 @@ if not dados_tendencias:
 st.markdown("### 🎯 Direcionadores Críticos do WIN")
 st.caption("Acompanhamento imediato dos ativos com maior peso de correlação com o Mini Índice")
 
-# Lista ordenada de prioridade para o trade de índice
-drivers_win = ["WIN_LAST_TICK", "CME_MINI:ES1!", "AMEX:EWZ", "VALE3", "PETR4", "BMFBOVESPA:DI1F2029"]
+drivers_win = ["WIN_FUT", "CME_MINI:ES1!", "AMEX:EWZ", "VALE3", "PETR4", "BMFBOVESPA:DI1F2029"]
 
 cols = st.columns(len(drivers_win))
 
@@ -48,10 +47,8 @@ for idx, ativo in enumerate(drivers_win):
             padrao = info.get("padrao_comportamento", "Estavel_E_Estavel")
             var_atual = info.get("intervalo_5_para_0", {}).get("variacao_pct", 0.0)
             
-            # Formatação visual amigável do nome para exibição na UI
             nome_exibicao = ativo.replace("CME_MINI:", "").replace("AMEX:", "").replace("BMFBOVESPA:", "")
             
-            # Lógica de cor baseada no padrão de comportamento recente
             if "Alta_E_Alta" in padrao:
                 cor_box = "rgba(0, 255, 136, 0.15)"
                 border_color = "#00ff88"
@@ -86,33 +83,112 @@ for idx, ativo in enumerate(drivers_win):
 
 st.markdown("---")
 
-# --- SEÇÃO 2: MATRIZ COMPLETA DE DADOS EM TABELA (PANDAS) ---
-st.markdown("### 📋 Grade Geral de Rotação de Memória Temporal")
-st.caption("Histórico milimétrico de variação de preços coletados pelo pipeline")
+# --- SEÇÃO 2: GRADE GERAL SEPARADA POR TIPO DE ATIVO ---
+st.markdown("### 📋 Grade Geral de Rotação de Memória Temporal (Por Categoria)")
+st.caption("Histórico milimétrico categorizado com cores calibradas pelo impacto direto ou inverso no WINFUT")
 
-linhas_tabela = []
+TICKERS_EXCLUIDOS = ["WDO_LAST_TICK", "WIN_LAST_TICK"]
+
+def categorizar_ativo(nome_ativo):
+    n = nome_ativo.upper()
+    if any(k in n for k in ["WIN", "WDO", "DI1", "PTAX"]):
+        return "1. Futuros & Taxas B3"
+    elif any(k in n for k in ["SP500", "NASDAQ", "VIX", "DXY", "ES1", "NQ1"]):
+        return "2. Índices Globais & Câmbio"
+    elif any(k in n for k in ["IRON", "CRUDE", "GOLD", "FEF", "CL1"]):
+        return "3. Commodities & Metais"
+    else:
+        return "4. Ações & ADRs Brasileiras"
+
+# Ativos de correlação inversa com o WIN
+ATIVOS_INVERSOS = ["DXY", "VIX", "WDO", "USDBRL"]
+
+categorias_dict = {}
 
 for ativo, info in dados_tendencias.items():
+    if ativo in TICKERS_EXCLUIDOS:
+        continue
+        
+    cat = categorizar_ativo(ativo)
+    if cat not in categorias_dict:
+        categorias_dict[cat] = []
+        
     precos = info.get("precos", {})
     int_10_5 = info.get("intervalo_10_para_5", {})
     int_5_0 = info.get("intervalo_5_para_0", {})
     
-    # Limpeza de nomes longos para a tabela ficar scannable
     nome_limpo = ativo.split(":")[-1] if ":" in ativo else ativo
+    padrao = info.get("padrao_comportamento", "Estavel_E_Estavel")
     
-    linhas_tabela.append({
+    if "Alta_E_Alta" in padrao:
+        padrao_formatado = "🚀 Alta Contínua"
+    elif "Baixa_E_Baixa" in padrao:
+        padrao_formatado = "📉 Queda Contínua"
+    elif "Baixa" in padrao.split("_E_")[0] and "Alta" in padrao.split("_E_")[1]:
+        padrao_formatado = "🔄 Reversão p/ Alta"
+    elif "Alta" in padrao.split("_E_")[0] and "Baixa" in padrao.split("_E_")[1]:
+        padrao_formatado = "⚠️ Perda de Momento"
+    else:
+        padrao_formatado = f"⚖️ {padrao.replace('_E_', ' ➔ ')}"
+    
+    # Adicionamos direto o DataFrame limpo sem colunas ocultas
+    categorias_dict[cat].append({
         "Ativo": nome_limpo,
-        "Preço 10m atrás": f"{precos.get('10m', 0.0):,.3f}" if precos.get('10m') else "—",
-        "Preço 5m atrás": f"{precos.get('5m', 0.0):,.3f}" if precos.get('5m') else "—",
-        "Preço Atual (0m)": f"{precos.get('0m', 0.0):,.3f}" if precos.get('0m') else "—",
-        "Var. 10m ➔ 5m": f"{int_10_5.get('variacao_pct', 0.0):+.3f}%",
-        "Var. 5m ➔ Atual": f"{int_5_0.get('variacao_pct', 0.0):+.3f}%",
-        "Padrão Dinâmico": info.get("padrao_comportamento", "Estavel_E_Estavel").replace("_E_", " ➔ ")
+        "Preço 10m": precos.get('10m', 0.0) if precos.get('10m') else 0.0,
+        "Preço 5m": precos.get('5m', 0.0) if precos.get('5m') else 0.0,
+        "Preço Atual (0m)": precos.get('0m', 0.0) if precos.get('0m') else 0.0,
+        "Var. 10m ➔ 5m (%)": int_10_5.get('variacao_pct', 0.0),
+        "Var. 5m ➔ Atual (%)": int_5_0.get('variacao_pct', 0.0),
+        "Padrão Dinâmico": padrao_formatado
     })
 
-if linhas_tabela:
-    df_tendencias = pd.DataFrame(linhas_tabela)
-    # Exibe como dataframe Streamlit nativo ocupando a largura total
-    st.dataframe(df_tendencias.set_index("Ativo"), use_container_width=True)
-else:
-    st.caption("Aguardando novas coletas do orquestrador para preencher a grade geral.")
+# Renderização organizada de todas as tabelas na página
+for categoria in sorted(categorias_dict.keys()):
+    st.markdown(f"#### **{categoria}**")
+    linhas = categorias_dict[categoria]
+    df_cat = pd.DataFrame(linhas)
+    
+    def colorir_impacto_win(row):
+        estilos = [''] * len(row)
+        nome_ativo = row["Ativo"].upper()
+        padrao_txt = row["Padrão Dinâmico"]
+        is_inverso = any(inv in nome_ativo for inv in ATIVOS_INVERSOS)
+        
+        for idx, col_name in enumerate(row.index):
+            # Colunas de Variação
+            if "Var." in col_name:
+                val = row[col_name]
+                if isinstance(val, (int, float)):
+                    if val > 0:
+                        cor = '#ff6b6b' if is_inverso else '#00ff88'
+                        estilos[idx] = f'color: {cor}; font-weight: bold;'
+                    elif val < 0:
+                        cor = '#00ff88' if is_inverso else '#ff6b6b'
+                        estilos[idx] = f'color: {cor}; font-weight: bold;'
+            
+            # Coluna de Padrão Dinâmico (pintada com base no texto exibido)
+            elif col_name == "Padrão Dinâmico":
+                if "Alta Contínua" in padrao_txt or "Reversão p/ Alta" in padrao_txt:
+                    cor = '#ff6b6b' if is_inverso else '#00ff88'
+                    estilos[idx] = f'color: {cor}; font-weight: bold;'
+                elif "Queda Contínua" in padrao_txt:
+                    cor = '#00ff88' if is_inverso else '#ff6b6b'
+                    estilos[idx] = f'color: {cor}; font-weight: bold;'
+                    
+        return estilos
+
+    # Aplica o estilo diretamente sobre o dataframe final limpo
+    df_estilizado = df_cat.style.apply(colorir_impacto_win, axis=1).format({
+        "Preço 10m": "{:,.3f}",
+        "Preço 5m": "{:,.3f}",
+        "Preço Atual (0m)": "{:,.3f}",
+        "Var. 10m ➔ 5m (%)": "{:+.3f}%",
+        "Var. 5m ➔ Atual (%)": "{:+.3f}%"
+    })
+    
+    st.dataframe(
+        df_estilizado, 
+        use_container_width=True, 
+        hide_index=True
+    )
+    st.markdown("")

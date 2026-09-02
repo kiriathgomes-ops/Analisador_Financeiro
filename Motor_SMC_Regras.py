@@ -3,14 +3,14 @@
 """
 Motor_SMC_Regras.py
 ===================
-Motor de regras SMC/ICT SEM IA com Filtro de Volume e Deslocamento (Expansion Candle).
+Motor de regras SMC/ICT SEM IA com Filtro de Volume Real, Expansão e Níveis Institucionais (POC/VWAP do dia anterior).
 
 Detecta:
 - Swing High / Swing Low
 - BOS (Break of Structure) e CHoCH (Change of Character)
-- Fair Value Gaps (FVG) com filtro de expansão e volume
-- Order Blocks (OB) validados por volume/impulso
-- Liquidez (equal highs / equal lows aproximados)
+- Fair Value Gaps (FVG) com filtro de expansão e volume real
+- Order Blocks (OB) validados por volume/impulso e confluência com POC
+- Liquidez (equal highs / equal lows + POC institucional de ontem)
 
 Entrada: lista/DataFrame de candles OHLCV
 Saída: JSON estruturado compatível com o pipeline
@@ -27,6 +27,9 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+
+import numpy as np
+import pandas as pd
 
 # ============================================================
 # FIX: FORÇA UTF-8 NO TERMINAL WINDOWS
@@ -63,10 +66,10 @@ class ConfigSMC:
     max_obs: int = 6
     lookback: int = 120
     
-    # NOVAS CONFIGURAÇÕES PARA FILTRO DE VOLUME E EXPANSÃO
-    vol_ma_period: int = 20           # Período da Média Móvel de Volume
-    vol_factor_min: float = 1.2       # Multiplicador do volume médio (ex: 1.2x)
-    expansion_factor_min: float = 1.3 # Multiplicador do corpo médio para Vela de Expansão (ex: 1.3x)
+    # CONFIGURAÇÕES PARA FILTRO DE VOLUME E EXPANSÃO
+    vol_ma_period: int = 20
+    vol_factor_min: float = 1.2
+    expansion_factor_min: float = 1.3
 
 
 CONFIG = ConfigSMC()
@@ -147,7 +150,7 @@ def normalizar_candles(dados: Any) -> List[Candle]:
             l = row.get("low", row.get("Low", row.get("l")))
             c = row.get("close", row.get("Close", row.get("c")))
             t = row.get("time", row.get("Time", row.get("datetime", row.get("date", ""))))
-            vol = row.get("volume", row.get("Volume", row.get("tick_volume", row.get("real_volume", 0))))
+            vol = row.get("real_volume", row.get("volume", row.get("Volume", row.get("tick_volume", 0))))
         elif isinstance(row, (list, tuple)) and len(row) >= 5:
             if isinstance(row[0], (int, float)) and len(row) >= 5 and not isinstance(row[1], str):
                 t, o, h, l, c = "", row[0], row[1], row[2], row[3]
@@ -190,7 +193,6 @@ def aplicar_lookback(candles: List[Candle], lookback: int) -> List[Candle]:
 
 
 def calcular_metricas_medias(candles: List[Candle], idx_atual: int, periodo: int = CONFIG.vol_ma_period) -> Tuple[float, float]:
-    """Calcula a Média Móvel de Volume e a Média Móvel do Tamanho do Corpo do Candle."""
     inicio = max(0, idx_atual - periodo)
     janela = candles[inicio:idx_atual]
     
@@ -204,22 +206,89 @@ def calcular_metricas_medias(candles: List[Candle], idx_atual: int, periodo: int
 
 
 def e_candle_expansao(candle: Candle, media_vol: float, media_corpo: float, config: ConfigSMC = CONFIG) -> bool:
-    """
-    Valida se o candle possui desbalanço institucional real via:
-    1. Volume acima da média (Volume > 1.2x Média) OU
-    2. Corpo de expansão significativo (Corpo > 1.3x Média)
-    """
     corpo = abs(candle.close - candle.open)
-    
     vol_ok = (candle.volume >= media_vol * config.vol_factor_min) if media_vol > 0 else False
     corpo_ok = (corpo >= media_corpo * config.expansion_factor_min) if media_corpo > 0 else False
 
-    # Se não houver volume suficiente disponível (ex: simulação sem volume), valida pelo corpo
     if media_vol == 0:
         return corpo_ok
 
     return vol_ok or corpo_ok
 
+#############
+def calcular_poc_vwap(candles: List[Candle], ativo: str) -> Dict[str, float]:
+    """
+    Calcula a VWAP e a POC (Point of Control) real do dia anterior,
+    distribuindo o volume de cada candle entre sua Mínima e Máxima (Volume Profile correto).
+    """
+    if len(candles) < 20:
+        return {"poc": 0.0, "vwap": 0.0}
+        
+    df = pd.DataFrame([c.__dict__ for c in candles])
+    df['time_dt'] = pd.to_datetime(df['time'])
+    df['date'] = df['time_dt'].dt.date
+    
+    datas_unicas = sorted(df['date'].unique())
+    hoje = datetime.now().date()
+    
+    # Filtra apenas dias estritamente anteriores a hoje (funciona no pré-pregão e pregão aberto)
+    datas_passadas = [d for d in datas_unicas if d < hoje]
+    
+    if datas_passadas:
+        data_alvo = datas_passadas[-1]
+    elif datas_unicas:
+        data_alvo = datas_unicas[-1]
+    else:
+        return {"poc": 0.0, "vwap": 0.0}
+        
+    df_ontem = df[df['date'] == data_alvo].copy()
+    
+    if df_ontem.empty:
+        df_ontem = df
+
+    # 1. Cálculo da VWAP padrão institucional
+    df_ontem['preco_tipico'] = (df_ontem['high'] + df_ontem['low'] + df_ontem['close']) / 3
+    df_ontem['vol_financeiro'] = df_ontem['preco_tipico'] * df_ontem['volume']
+    
+    vol_total = df_ontem['volume'].sum()
+    vwap = df_ontem['vol_financeiro'].sum() / vol_total if vol_total > 0 else 0.0
+    
+    # 2. Cálculo da POC usando Perfil de Volume Distribuído (High-Low)
+    tick_size = 5 if "WIN" in ativo else 0.5
+    profile_dict = {}
+    
+    for _, row in df_ontem.iterrows():
+        h = row['high']
+        l = row['low']
+        v = row['volume']
+        
+        if h <= 0 or l <= 0 or v <= 0:
+            continue
+            
+        if h < l:
+            h, l = l, h
+            
+        # Distribui o volume uniformemente entre o Low e o High da vela
+        bins_candle = np.arange(
+            np.floor(l / tick_size) * tick_size, 
+            np.ceil(h / tick_size) * tick_size + tick_size, 
+            tick_size
+        )
+        
+        if len(bins_candle) > 0:
+            vol_por_bin = v / len(bins_candle)
+            for b in bins_candle:
+                b_rounded = round(float(b), 1)
+                profile_dict[b_rounded] = profile_dict.get(b_rounded, 0.0) + vol_por_bin
+
+    # A verdadeira POC é o preço com o maior acúmulo volumétrico distribuído
+    if profile_dict:
+        poc = max(profile_dict, key=profile_dict.get)
+    else:
+        poc = 0.0
+
+    return {"poc": float(poc), "vwap": round(float(vwap), 1)}
+###
 
 def detectar_swings(candles: List[Candle], left: int = CONFIG.swing_left, right: int = CONFIG.swing_right) -> List[Swing]:
     swings: List[Swing] = []
@@ -298,11 +367,7 @@ def detectar_fvg(candles: List[Candle], config: ConfigSMC = CONFIG) -> List[FVG]
 
     for i in range(2, n):
         c0, c1, c2 = candles[i - 2], candles[i - 1], candles[i]
-
-        # Média de volume e amplitude calculadas até o candle c1 (intermediário)
         media_vol, media_corpo = calcular_metricas_medias(candles, i - 1, config.vol_ma_period)
-        
-        # Filtro de Volume/Expansão aplicado ao candle impulsor (c1)
         impulso_valido = e_candle_expansao(c1, media_vol, media_corpo, config)
 
         if not impulso_valido:
@@ -339,14 +404,9 @@ def detectar_order_blocks(candles: List[Candle], swings: List[Swing], config: Co
 
         cand = candles[i]
         prev = candles[i - 1]
-
-        # Seleciona candle de cor oposta à direção do pivô
         ob_cand = prev if (prev.close < prev.open if s.tipo == "LOW" else prev.close > prev.open) else cand
 
-        # Valida se o movimento de saída do OB teve deslocamento com Volume/Expansão
         media_vol, media_corpo = calcular_metricas_medias(candles, i, config.vol_ma_period)
-        
-        # Verifica se o candle seguinte teve força de expansão
         candle_saida = candles[i + 1] if (i + 1) < n else cand
         tem_expansao = e_candle_expansao(candle_saida, media_vol, media_corpo, config)
 
@@ -396,6 +456,12 @@ def detectar_liquidez(swings: List[Swing], tol: float = CONFIG.eq_tol_pontos) ->
 
 def analisar_smc(dados_candles: Any, ativo: str = "WIN", timeframe: str = "5m", config: ConfigSMC = CONFIG) -> Dict[str, Any]:
     candles = normalizar_candles(dados_candles)
+    
+    # Coleta de Métricas Institucionais (POC e VWAP de ONTEM) antes do lookback estrutural
+    inst_niveis = calcular_poc_vwap(candles, ativo)
+    poc = inst_niveis["poc"]
+    vwap = inst_niveis["vwap"]
+
     candles = aplicar_lookback(candles, config.lookback)
 
     if len(candles) < 10:
@@ -415,7 +481,6 @@ def analisar_smc(dados_candles: Any, ativo: str = "WIN", timeframe: str = "5m", 
     swings = detectar_swings(candles, config.swing_left, config.swing_right)
     eventos, bias = detectar_bos_choch(candles, swings)
     
-    # Chama funções de detecção atualizadas com filtros de volume e expansão
     fvgs = detectar_fvg(candles, config)
     obs = detectar_order_blocks(candles, swings, config)
     liq = detectar_liquidez(swings, config.eq_tol_pontos)
@@ -428,6 +493,14 @@ def analisar_smc(dados_candles: Any, ativo: str = "WIN", timeframe: str = "5m", 
 
     preco_atual = candles[-1].close
 
+    # Confluência Institucional de Order Block com POC do dia anterior
+    ob_confluente = False
+    if obs:
+        ob_recente = obs[-1]
+        distancia_poc = abs(ob_recente.preco_ref - poc)
+        if ("WIN" in ativo and distancia_poc <= 100) or ("WDO" in ativo and distancia_poc <= 10):
+            ob_confluente = True
+
     estruturas: List[str] = []
     for s in swings[-config.max_niveis :]:
         label = "Swing High" if s.tipo == "HIGH" else "Swing Low"
@@ -439,7 +512,7 @@ def analisar_smc(dados_candles: Any, ativo: str = "WIN", timeframe: str = "5m", 
     for fvg in fvgs_abertos:
         estruturas.append(f"{(fvg.superior + fvg.inferior) / 2:.0f}: FVG {fvg.tipo} ({fvg.inferior:.0f}-{fvg.superior:.0f})")
 
-    liquidez_txt: List[str] = []
+    liquidez_txt: List[str] = [f"POC Institucional (Ontem): {poc:.0f}", f"VWAP (Ontem): {vwap:.0f}"]
     for p in liq["bsl"]:
         liquidez_txt.append(f"BSL: {p:.0f} (equal highs / liquidez de compra acima)")
     for p in liq["ssl"]:
@@ -451,15 +524,13 @@ def analisar_smc(dados_candles: Any, ativo: str = "WIN", timeframe: str = "5m", 
         fvg_v = next((f for f in reversed(fvgs_abertos) if f.tipo == "VENDA"), None)
         zona = res.preco_ref if res else (fvg_v.superior if fvg_v else preco_atual)
         alvo = liq["ssl"][0] if liq["ssl"] else preco_atual * 0.99
-        cenarios.append(f"Cenário Vendedor: rejeição na região {zona:.0f} (OB/FVG de venda validado por volume) visando {alvo:.0f}.")
-        cenarios.append("Cenário alternativo: varredura de liquidez acima antes da continuação de baixa.")
+        cenarios.append(f"Cenário Vendedor: rejeição na região {zona:.0f} (OB/FVG validado por volume) visando {alvo:.0f}.")
     elif bias == "ALTA":
         dem = next((o for o in reversed(obs) if o.tipo == "COMPRA"), None)
         fvg_c = next((f for f in reversed(fvgs_abertos) if f.tipo == "COMPRA"), None)
         zona = dem.preco_ref if dem else (fvg_c.inferior if fvg_c else preco_atual)
         alvo = liq["bsl"][0] if liq["bsl"] else preco_atual * 1.01
-        cenarios.append(f"Cenário Comprador: defesa na região {zona:.0f} (OB/FVG de compra validado por volume) visando {alvo:.0f}.")
-        cenarios.append("Cenário alternativo: varredura de liquidez abaixo antes da continuação de alta.")
+        cenarios.append(f"Cenário Comprador: defesa na região {zona:.0f} (OB/FVG validado por volume) visando {alvo:.0f}.")
     else:
         cenarios.append("Cenário Lateral: aguardar BOS com fechamento fora da faixa recente.")
 
@@ -474,6 +545,8 @@ def analisar_smc(dados_candles: Any, ativo: str = "WIN", timeframe: str = "5m", 
         conf += 10
     if obs:
         conf += 10
+    if ob_confluente:
+        conf += 15  # Bônus institucional por alinhar OB com a POC de ontem
     conf = min(95, conf)
 
     entrada, stop = None, None
@@ -506,6 +579,11 @@ def analisar_smc(dados_candles: Any, ativo: str = "WIN", timeframe: str = "5m", 
         "bos": bos,
         "choch": choch,
         "confianca_visual": conf,
+        "niveis_institucionais": {
+            "poc_ontem": poc,
+            "vwap_ontem": vwap,
+            "ob_alinhado_com_poc": ob_confluente
+        },
         "order_blocks": [{"tipo": o.tipo, "preco": o.preco_ref, "high": o.high, "low": o.low} for o in obs],
         "fair_value_gaps": [{"tipo": f.tipo, "superior": f.superior, "inferior": f.inferior, "preenchido": f.preenchido} for f in fvgs_abertos],
         "liquidez": liq,
@@ -522,7 +600,7 @@ def analisar_smc(dados_candles: Any, ativo: str = "WIN", timeframe: str = "5m", 
             "n_swings": len(swings),
             "n_fvgs_abertos": len(fvgs_abertos),
             "n_obs": len(obs),
-            "filtro_volume_aplicado": True,
+            "filtro_volume_real_aplicado": True,
             "config": asdict(config),
         },
     }
@@ -570,7 +648,7 @@ def _candidatos_simbolo(symbol: str) -> List[str]:
     return candidatos
 
 
-def carregar_mt5(symbol: str = "WIN$", timeframe_min: int = 5, qtd: int = 120) -> Tuple[List[Dict[str, Any]], str]:
+def carregar_mt5(symbol: str = "WIN$", timeframe_min: int = 5, qtd: int = 300) -> Tuple[List[Dict[str, Any]], str]:
     try:
         import MetaTrader5 as mt5
     except ImportError as e:
@@ -602,17 +680,30 @@ def carregar_mt5(symbol: str = "WIN$", timeframe_min: int = 5, qtd: int = 120) -
         mt5.shutdown()
         raise RuntimeError(f"Sem dados no MT5 para o símbolo informado: {symbol}")
 
-    out = [
-        {
+    out = []
+    for r in rates:
+        v_real = 0.0
+        try:
+            if "real_volume" in r.dtype.names:
+                v_real = float(r["real_volume"])
+        except Exception:
+            pass
+            
+        if v_real <= 0:
+            try:
+                if "tick_volume" in r.dtype.names:
+                    v_real = float(r["tick_volume"])
+            except Exception:
+                pass
+
+        out.append({
             "time": datetime.fromtimestamp(r["time"]).isoformat(),
             "open": float(r["open"]),
             "high": float(r["high"]),
             "low": float(r["low"]),
             "close": float(r["close"]),
-            "volume": float(r["tick_volume"]),
-        }
-        for r in rates
-    ]
+            "volume": v_real,
+        })
 
     mt5.shutdown()
     return out, simbolo_ok

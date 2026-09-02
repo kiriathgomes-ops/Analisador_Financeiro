@@ -40,6 +40,7 @@ Analisador_Financeiro/
 │   │       │   │   ├── AppV2.0.3
 │   │       │   │   ├── Migrar_V2
 │   │       │   │   ├── MotorSMC
+│   │       │   │   ├── V3_CalculadoraEstimativa
 │   │       │   │   ├── coleta-fechamento-dia
 │   │       │   │   ├── continuacao_v2
 │   │       │   │   ├── exemplo-fluxo
@@ -57,6 +58,7 @@ Analisador_Financeiro/
 │   │               │   ├── AppV2.0.3
 │   │               │   ├── Migrar_V2
 │   │               │   ├── MotorSMC
+│   │               │   ├── V3_CalculadoraEstimativa
 │   │               │   ├── coleta-fechamento-dia
 │   │               │   ├── continuacao_v2
 │   │               │   ├── exemplo-fluxo
@@ -72,9 +74,12 @@ Analisador_Financeiro/
 │   │   ├── 25
 │   │   │   └── 6bf1cc7c60a4ea2c5ed1522a5571d9b40df1ce
 │   │   ├── 26
-│   │   │   └── 1df3be4ee9dd034024235770529ba61796c43d
+│   │   │   ├── 1df3be4ee9dd034024235770529ba61796c43d
+│   │   │   └── 366aad003c4d7404e858c29fc96fdefe8d9630
 │   │   ├── 37
 │   │   │   └── 4faf6c3049c440e94c753c14881c5f5f044444
+│   │   ├── 6f
+│   │   │   └── 2e78c964c015dbe7428bab5d7b0665aafa6d5b
 │   │   ├── 70
 │   │   │   └── 9bfb2ebc47710adab06b546d1bd8edb0ca7930
 │   │   ├── 76
@@ -88,10 +93,16 @@ Analisador_Financeiro/
 │   │   │   └── d74be247c2542593dcb1c03c26ee2245ce2c6b
 │   │   ├── b4
 │   │   │   └── 470dd0c0ad5977289c85e87171a6269997bb6b
+│   │   ├── c1
+│   │   │   └── 9f7163b98db019a38874d5818f46f43d2f0cfa
 │   │   ├── c3
 │   │   │   └── ac08ed5e107b25bb6d7b296cd39bd68b91d582
 │   │   ├── c9
 │   │   │   └── 90453504c2445368c8bdc9a5d31e4638a9364a
+│   │   ├── dd
+│   │   │   └── 176935757bade3b0aac159834a071f8a66a75f
+│   │   ├── e2
+│   │   │   └── 256962df957d69eef6944a65b7a774072101b4
 │   │   ├── e5
 │   │   │   └── 1e02e82ae85b57e5a3666663928b151461fb7b
 │   │   ├── f3
@@ -119,14 +130,19 @@ Analisador_Financeiro/
 │   └── refs
 │       ├── agents
 │       ├── heads
-│       │   └── feature
-│       │       └── continuacao_v2
+│       │   ├── feature
+│       │   │   ├── V3_CalculadoraEstimativa
+│       │   │   └── continuacao_v2
+│       │   └── main
 │       ├── remotes
 │       │   └── origin
 │       │       ├── HEAD
-│       │       └── feature
-│       │           └── continuacao_v2
+│       │       ├── feature
+│       │       │   ├── V3_CalculadoraEstimativa
+│       │       │   └── continuacao_v2
+│       │       └── main
 │       └── tags
+│           └── V.2.5.0
 ├── .gitignore
 ├── Agendador.py
 ├── Analise_Noticias.py
@@ -175,11 +191,55 @@ Analisador_Financeiro/
 │   │   ├── 2026-08-28.json
 │   │   ├── 2026-08-30.json
 │   │   ├── 2026-08-31.json
-│   │   └── 2026-09-01.json
+│   │   ├── 2026-09-01.json
+│   │   └── 2026-09-02.json
 │   ├── Historico_Decisoes_V2
-│   │   └── 20260830_205904.json
+│   │   ├── 20260830_085700.json
+│   │   ├── 20260830_085705.json
+│   │   ├── 20260830_090410.json
+│   │   ├── 20260830_090902.json
+│   │   ├── 20260830_091402.json
+│   │   ├── 20260830_091902.json
+│   │   ├── 20260830_092408.json
+│   │   ├── 20260830_092902.json
+│   │   ├── 20260830_092924.json
+│   │   ├── 20260830_093044.json
+│   │   ├── 20260830_093403.json
+│   │   ├── 20260830_093903.json
+│   │   ├── 20260830_094402.json
+│   │   ├── 20260830_094751.json
+│   │   ├── 20260830_094902.json
+│   │   ├── 20260830_095320.json
+│   │   ├── 20260830_095402.json
+│   │   ├── 20260830_095906.json
+│   │   ├── 20260830_205904.json
+│   │   ├── 20260902_100136.json
+│   │   ├── 20260902_100402.json
+│   │   └── 20260902_100903.json
 │   ├── Historico_MT5
-│   │   └── MT5_v2_2_20260901_205903_139725.json
+│   │   ├── MT5_v2_2_20260901_205903_139725.json
+│   │   ├── MT5_v2_2_20260902_085700_277794.json
+│   │   ├── MT5_v2_2_20260902_085704_751082.json
+│   │   ├── MT5_v2_2_20260902_090410_102786.json
+│   │   ├── MT5_v2_2_20260902_090901_590123.json
+│   │   ├── MT5_v2_2_20260902_091401_687911.json
+│   │   ├── MT5_v2_2_20260902_091901_851701.json
+│   │   ├── MT5_v2_2_20260902_092404_134082.json
+│   │   ├── MT5_v2_2_20260902_092812_940681.json
+│   │   ├── MT5_v2_2_20260902_092901_763624.json
+│   │   ├── MT5_v2_2_20260902_092923_392019.json
+│   │   ├── MT5_v2_2_20260902_093043_783225.json
+│   │   ├── MT5_v2_2_20260902_093402_249070.json
+│   │   ├── MT5_v2_2_20260902_093902_024436.json
+│   │   ├── MT5_v2_2_20260902_094402_018451.json
+│   │   ├── MT5_v2_2_20260902_094750_466042.json
+│   │   ├── MT5_v2_2_20260902_094902_078190.json
+│   │   ├── MT5_v2_2_20260902_095319_685523.json
+│   │   ├── MT5_v2_2_20260902_095401_662188.json
+│   │   ├── MT5_v2_2_20260902_095905_584970.json
+│   │   ├── MT5_v2_2_20260902_100135_100159.json
+│   │   ├── MT5_v2_2_20260902_100401_665208.json
+│   │   └── MT5_v2_2_20260902_100902_304470.json
 │   ├── LastTick_Congelado.json
 │   ├── Mapa_Fluxo.json
 │   ├── Mapa_Projeto.json
@@ -1031,14 +1091,18 @@ ARQUIVO: CalculadoraEstimativaAbertura.py
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Módulo: CalculadoraEstimativaAbertura.py (Versão Otimizada V2)
+Módulo: CalculadoraEstimativaAbertura.py (Versão Otimizada V2 + Cost of Carry + SMC)
 Objetivo: Processar estimativas e pivôs para o WIN eliminando ruído de leilão.
 Regra: 09:00 usa o Last Tick congelado da noite. 10:00 usa o último close de M1/M5.
+Preserva: Cálculos originais de Pivô Clássico (Floor Pockets) para consumo em páginas externas.
 """
 
 import json
 import os
+import sys
 from datetime import datetime, time
+from pathlib import Path
+
 from config import (
     COLETAS_DIR,
     FILE_VALIDADOS as FILE_INPUT,
@@ -1046,16 +1110,35 @@ from config import (
     PESOS_ESTIMATIVA_ABERTURA,
 )
 
+# Força codificação UTF-8 no terminal Windows
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except AttributeError:
+        pass
 
-
+FILE_SMC_DADOS = Path(COLETAS_DIR) / "AnaliseGraficaSMC_Regras.json"
 
 
 def extrair_variacao(ativos_dict: dict, ativo_id: str) -> float:
     dados = ativos_dict.get(ativo_id, {}).get("change_percent")
     return float(dados) if isinstance(dados, (int, float)) else 0.0
 
+
+def carregar_niveis_institucionais_smc() -> dict:
+    """Lê a POC e a VWAP do dia anterior geradas pelo motor SMC."""
+    if not os.path.exists(FILE_SMC_DADOS):
+        return {"poc_ontem": 0.0, "vwap_ontem": 0.0}
+    try:
+        with open(FILE_SMC_DADOS, "r", encoding="utf-8") as f:
+            dados = json.load(f)
+            return dados.get("niveis_institucionais", {})
+    except Exception:
+        return {"poc_ontem": 0.0, "vwap_ontem": 0.0}
+
+
 def calcular_abertura_win(ativos_dict: dict, preco_referencia_base: float) -> dict:
-    """Aplica o modelo ponderado com base no preço base definido pela janela temporal."""
+    """Calcula a estimativa de abertura combinando o Delta Overnight com o Cost of Carry."""
     ewz = extrair_variacao(ativos_dict, "EWZ")
     sp500 = extrair_variacao(ativos_dict, "SP500_FUT")
     vale = extrair_variacao(ativos_dict, "VALE_ADR")
@@ -1063,21 +1146,37 @@ def calcular_abertura_win(ativos_dict: dict, preco_referencia_base: float) -> di
     
     pesos = PESOS_ESTIMATIVA_ABERTURA
     cesta_adrs = (vale * pesos.get("adr_vale", 0.30)) + (petr * pesos.get("adr_petr", 0.25))
-    
     var_pct = (ewz * pesos.get("ewz", 0.30)) + (cesta_adrs * pesos.get("cesta_adrs", 0.35)) + (sp500 * pesos.get("sp500_fut", 0.20))
     
     abertura_estimada = 0.0
     if preco_referencia_base > 0:
         abertura_estimada = preco_referencia_base * (1 + (var_pct / 100))
-        
+
+    # --- CUSTO DE CARREGAMENTO (COST OF CARRY INSTITUCIONAL) ---
+    taxa_di1 = ativos_dict.get("DI1_2027", {}).get("close", 13.5) / 100.0
+    dias_uteis_ano = 252.0
+    fator_carregamento_diario = (1 + taxa_di1) ** (1.0 / dias_uteis_ano) - 1
+    preco_cost_of_carry = preco_referencia_base * (1 + fator_carregamento_diario) if preco_referencia_base > 0 else 0.0
+
     return {
         "variacao_teorica_pct": round(var_pct, 4),
         "preco_referencia_base": preco_referencia_base,
-        "abertura_teorica_pontos": round(abertura_estimada, 0)
+        "abertura_teorica_pontos": round(abertura_estimada, 0),
+        "cost_of_carry": {
+            "taxa_di_anual_pct": round(taxa_di1 * 100, 2),
+            "fator_diario_pct": round(fator_carregamento_diario * 100, 6),
+            "preco_teorico_carregado": round(preco_cost_of_carry, 0)
+        }
     }
 
+
 def processar_calculos_operacionais():
+    print("=" * 60)
+    print(" 🧮 CALCULADORA DE ESTIMATIVA DE ABERTURA & COST OF CARRY")
+    print("=" * 60)
+
     if not os.path.exists(FILE_INPUT):
+        print(f"❌ Arquivo de entrada não encontrado: {FILE_INPUT}")
         return
 
     with open(FILE_INPUT, "r", encoding="utf-8") as f:
@@ -1086,20 +1185,22 @@ def processar_calculos_operacionais():
     ativos_dict = {item["ativo_id"]: item for item in dados_json.get("ativos_validados", [])}
     agora_time = datetime.now().time()
 
-    # --- DEFINIÇÃO DINÂMICA DO PREÇO DE REFERÊNCIA (Fim do Bug de Leilão) ---
+    # --- DEFINIÇÃO DINÂMICA DO PREÇO DE REFERÊNCIA ---
     if agora_time < time(9, 45, 0):
-        # 1. Preparação para a Abertura do Futuro (09:00): Usa o Last Tick congelado do Overnight (coletado até 08:50)
         preco_base = ativos_dict.get("WIN_LAST_TICK", {}).get("close", 0.0)
         contexto_janela = "REFERENCIA_0900_OVERNIGHT"
     else:
-        # 2. Preparação para a Abertura do À Vista (10:00): Usa o último close disponível antes das 10:00 (Fim da vela de 09:55-09:59)
         preco_base = ativos_dict.get("WIN_FUT", {}).get("close", 0.0)
         contexto_janela = "REFERENCIA_1000_INTRADAY"
+
+    print(f"🕒 Horário da Consulta    : {datetime.now().strftime('%H:%M:%S')}")
+    print(f"📌 Janela Temporal        : {contexto_janela}")
+    print(f"💰 Preço Base Referência  : {preco_base}")
 
     win_metrics = calcular_abertura_win(ativos_dict, preco_base)
     win_metrics["contexto_janela"] = contexto_janela
 
-    # Pontos de Pivô clássicos calculados estritamente sobre a estrutura do Diário (D1) anterior
+    # --- PONTOS DE PIVÔ CLÁSSICOS (MANTIDOS INTEGRALMENTE PARA SUAS PAGES) ---
     win_fut = ativos_dict.get("WIN_FUT", {})
     high_d1 = win_fut.get("high", 0.0)
     low_d1 = win_fut.get("low", 0.0)
@@ -1116,17 +1217,51 @@ def processar_calculos_operacionais():
             "S2": round(pp - (high_d1 - low_d1), 2)
         }
 
+    # --- PONTOS DE PIVÔ INSTITUCIONAIS (SMC / VOLUME PROFILE) ---
+    niveis_smc = carregar_niveis_institucionais_smc()
+
     payload = {
         "metadata_calculo": {
             "timestamp_calculo": datetime.now().isoformat(),
             "janela_ativa": contexto_janela
         },
         "estimativa_abertura": {"WIN_INDICE": win_metrics},
-        "pivot_points": {"WIN_FUT": pivots}
+        "pivot_points": {"WIN_FUT": pivots},
+        "pivots_institucionais": {
+            "poc_ontem": niveis_smc.get("poc_ontem", 0.0),
+            "vwap_ontem": niveis_smc.get("vwap_ontem", 0.0)
+        }
     }
 
     with open(FILE_OUTPUT, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=2, ensure_ascii=False)
+
+    # --- SAÍDA FORMATADA NO TERMINAL ---
+    print("\n" + "-" * 60)
+    print(" 🎯 ESTIMATIVAS DE ABERTURA & CARREGAMENTO")
+    print("-" * 60)
+    print(f" Variação Teórica (Delta) : {win_metrics['variacao_teorica_pct']}%")
+    print(f" Abertura Teórica WIN     : {win_metrics['abertura_teorica_pontos']} pts")
+    
+    coc = win_metrics["cost_of_carry"]
+    print(f" Taxa DI Referência       : {coc['taxa_di_anual_pct']}% a.a.")
+    print(f" Preço Carregado (DI/252) : {coc['preco_teorico_carregado']} pts")
+
+    print("\n" + "-" * 60)
+    print(" 📍 PONTOS DE PIVÔ CLÁSSICOS (PÁGINAS EXTERNAS)")
+    print("-" * 60)
+    print(f" R2: {pivots.get('R2')} | R1: {pivots.get('R1')} | PP: {pivots.get('PP')} | S1: {pivots.get('S1')} | S2: {pivots.get('S2')}")
+
+    print("\n" + "-" * 60)
+    print(" 🏦 PIVÔS INSTITUCIONAIS (SMC / VOLUME PROFILE)")
+    print("-" * 60)
+    print(f" POC (Ontem)  : {niveis_smc.get('poc_ontem')} pts")
+    print(f" VWAP (Ontem) : {niveis_smc.get('vwap_ontem')} pts")
+
+    print("\n" + "=" * 60)
+    print(f" ✅ Resultados gravados com sucesso em: {FILE_OUTPUT}")
+    print("=" * 60)
+
 
 if __name__ == "__main__":
     processar_calculos_operacionais()
@@ -5178,8 +5313,8 @@ ARQUIVO: Gerar_Relatorio_Mensagem.py
 # -*- coding: utf-8 -*-
 """
 Módulo: Gerar_Relatorio_Mensagem.py
-Versão: 2.3 (Mapeamento Total de Chaves V2)
-Objetivo: Consolida os arquivos de decisão e cotações unificadas em um relatório executivo em Markdown.
+Versão: 2.4 (Integração SMC / Volume Profile + Cost of Carry)
+Objetivo: Consolida os arquivos de decisão, estimativas e cotações unificadas em um relatório executivo em Markdown.
 """
 
 import json
@@ -5211,7 +5346,8 @@ def carregar_json(nome_arquivo):
 unificados = carregar_json("DadosAtivosUnificados.json")
 decisao_v2 = carregar_json("Decisao_V2.json")
 resultado_operacional = carregar_json("Resultado_Calculadora_Operacional_Abertura.json")
-estimativas = carregar_json("Resultado_Calculadora.json")
+estimativas = carregar_json("EstimativaAbertura.json") or carregar_json("Resultado_Calculadora.json")
+smc_dados = carregar_json("AnaliseGraficaSMC_Regras.json")
 
 ativos = unificados.get("ativos", {})
 obj_decisao = decisao_v2.get("decisao", {})
@@ -5240,7 +5376,7 @@ def get_num_fmt(dicionario, chave, padrao=0.0):
         return f"{val:,.0f}"
     return "—"
 
-# Extração de Decisão e Targets (com busca por múltiplos aliases)
+# Extração de Decisão e Targets
 vies_final = obj_decisao.get("vies_final") or "NEUTRO"
 confianca = obj_decisao.get("confianca", 0)
 icone_confianca = "🔴" if confianca >= 80 else ("🟡" if confianca >= 50 else "⚪")
@@ -5249,20 +5385,31 @@ gatilho = obj_decisao.get("gatilho") or obj_decisao.get("entrada") or obj_decisa
 stop = obj_decisao.get("stop") or obj_decisao.get("stop_loss") or meta_decisao.get("stop", 0.0)
 
 alvos = obj_decisao.get("alvos") or meta_decisao.get("alvos", [])
-alvo_1 = alvos[0] if isinstance(alvos, list) and len(alvos) > 0 else 0.0
+alvo_1 = alvos[0] if isinstance(alvos, list) and len(alvos) > 0 else (obj_decisao.get("alvo_1") or 0.0)
 
-# Extração de Estimativas de Abertura (WIN_INDICE ou WIN_FUT)
+# Extração de Estimativas de Abertura & Cost of Carry
 win_est = estimativas.get("estimativa_abertura", {}).get("WIN_INDICE") or estimativas.get("estimativa_abertura", {}).get("WIN_FUT") or {}
-teorico = resultado_operacional.get("previsao_abertura", {}).get("teorico_win") or win_est.get("abertura_teorica_pontos") or meta_decisao.get("teorico_win", 0.0)
-teorico_str = f"{teorico:,.0f} pts" if isinstance(teorico, (int, float)) and teorico > 0 else "N/A"
+teorico = win_est.get("abertura_teorica_pontos") or resultado_operacional.get("previsao_abertura", {}).get("teorico_win") or meta_decisao.get("teorico_win", 0.0)
+teorico_str = f"{teorico:,.0f} pts" if isinstance(teorico, (int, float)) and teorico > 0 else "—"
 
-var_est = resultado_operacional.get("previsao_abertura", {}).get("variacao_estimada") or win_est.get("variacao_teorica_pct", 0.0)
+coc_dados = win_est.get("cost_of_carry", {})
+preco_carregado = coc_dados.get("preco_teorico_carregado", 0.0)
+carregado_str = f"{preco_carregado:,.0f} pts" if isinstance(preco_carregado, (int, float)) and preco_carregado > 0 else "—"
+
+var_est = win_est.get("variacao_teorica_pct") or resultado_operacional.get("previsao_abertura", {}).get("variacao_estimada", 0.0)
 var_est_str = f"{var_est:+.2f}%"
 
 ajuste = meta_decisao.get("ajuste") or ativos.get("WIN_AJUSTE", {}).get("preco", 0.0)
 ajuste_str = f"{ajuste:,.0f} pts" if isinstance(ajuste, (int, float)) and ajuste > 0 else "— pts"
 
-pivots = meta_decisao.get("pivots") or estimativas.get("pivot_points", {}).get("WIN_FUT") or {}
+# Pivôs Clássicos e Nivéis Institucionais (SMC)
+pivots = estimativas.get("pivot_points", {}).get("WIN_FUT") or meta_decisao.get("pivots") or {}
+niveis_inst = smc_dados.get("niveis_institucionais", {}) or estimativas.get("pivots_institucionais", {})
+poc_ontem = niveis_inst.get("poc_ontem", 0.0)
+vwap_ontem = niveis_inst.get("vwap_ontem", 0.0)
+
+poc_str = f"{poc_ontem:,.0f} pts" if isinstance(poc_ontem, (int, float)) and poc_ontem > 0 else "—"
+vwap_str = f"{vwap_ontem:,.1f} pts" if isinstance(vwap_ontem, (int, float)) and vwap_ontem > 0 else "—"
 
 # Termômetro Macro
 vix_val = get_preco_str("VIX")
@@ -5293,18 +5440,23 @@ def executar():
 • **Força de Confluência:** `{icone_confianca} {confianca}%`
 • **Ordem Gatilho (Entry):** `{gatilho_str}`
 • **Stop Loss Técnico:** `{stop_str}`
-• **Alvo Fibonacci (T1):** `{alvo_1_str}`
+• **Alvo Principal (T1):** `{alvo_1_str}`
 
 --------------------------------------------------
 📈 *PREVISÃO DE ESTIMATIVA E GAP (WIN)*
 • **Preço Teórico de Abertura:** `{teorico_str}`
+• **Abertura Carregada (DI/252):** `{carregado_str}`
 • **Variação Estimada:** `{var_est_str}`
 • **Ajuste Base Anterior:** `{ajuste_str}`
 
+🏦 *Pivôs Institucionais (Volume Profile / Tesouraria):*
+• **POC (Ontem - Maior Volume):** `{poc_str}`
+• **VWAP (Ontem - Preço Ponderado):** `{vwap_str}`
+
 📍 *Níveis Críticos de Pivô (Floor):*
-• Resistência 2 (R2): `{get_num_fmt(pivots, 'r2', pivots.get('R2', 0))}` | Resistência 1 (R1): `{get_num_fmt(pivots, 'r1', pivots.get('R1', 0))}`
-• **Ponto de Pivô (PP):** `{get_num_fmt(pivots, 'pp', pivots.get('PP', 0))}`
-• Suporte 1 (S1): `{get_num_fmt(pivots, 's1', pivots.get('S1', 0))}` | Suporte 2 (S2): `{get_num_fmt(pivots, 's2', pivots.get('S2', 0))}`
+• Resistência 2 (R2): `{get_num_fmt(pivots, 'R2', pivots.get('r2', 0))}` | Resistência 1 (R1): `{get_num_fmt(pivots, 'R1', pivots.get('r1', 0))}`
+• **Ponto de Pivô (PP):** `{get_num_fmt(pivots, 'PP', pivots.get('pp', 0))}`
+• Suporte 1 (S1): `{get_num_fmt(pivots, 'S1', pivots.get('s1', 0))}` | Suporte 2 (S2): `{get_num_fmt(pivots, 'S2', pivots.get('s2', 0))}`
 
 --------------------------------------------------
 🌐 *TERMÔMETRO CONTEXTUAL MACRO*
@@ -5313,7 +5465,7 @@ def executar():
 • Petróleo WTI      : `US$ {oil_val}`
 • Curva de Juros    : DI27: `{di27_val}` | DI29: `{di29_val}`
 --------------------------------------------------
-⚠️ _Relatório quantitativo confidencial para apoio operacional à mesa._
+⚠️ _Relatório quantitativo confidencial para apoio operational à mesa._
 """
 
     caminho_saida = RAIZ_PROJETO / "Coletas" / "Relatorio_Executivo.md"
@@ -5782,14 +5934,14 @@ ARQUIVO: Motor_SMC_Regras.py
 """
 Motor_SMC_Regras.py
 ===================
-Motor de regras SMC/ICT SEM IA com Filtro de Volume e Deslocamento (Expansion Candle).
+Motor de regras SMC/ICT SEM IA com Filtro de Volume Real, Expansão e Níveis Institucionais (POC/VWAP do dia anterior).
 
 Detecta:
 - Swing High / Swing Low
 - BOS (Break of Structure) e CHoCH (Change of Character)
-- Fair Value Gaps (FVG) com filtro de expansão e volume
-- Order Blocks (OB) validados por volume/impulso
-- Liquidez (equal highs / equal lows aproximados)
+- Fair Value Gaps (FVG) com filtro de expansão e volume real
+- Order Blocks (OB) validados por volume/impulso e confluência com POC
+- Liquidez (equal highs / equal lows + POC institucional de ontem)
 
 Entrada: lista/DataFrame de candles OHLCV
 Saída: JSON estruturado compatível com o pipeline
@@ -5806,6 +5958,9 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+
+import numpy as np
+import pandas as pd
 
 # ============================================================
 # FIX: FORÇA UTF-8 NO TERMINAL WINDOWS
@@ -5842,10 +5997,10 @@ class ConfigSMC:
     max_obs: int = 6
     lookback: int = 120
     
-    # NOVAS CONFIGURAÇÕES PARA FILTRO DE VOLUME E EXPANSÃO
-    vol_ma_period: int = 20           # Período da Média Móvel de Volume
-    vol_factor_min: float = 1.2       # Multiplicador do volume médio (ex: 1.2x)
-    expansion_factor_min: float = 1.3 # Multiplicador do corpo médio para Vela de Expansão (ex: 1.3x)
+    # CONFIGURAÇÕES PARA FILTRO DE VOLUME E EXPANSÃO
+    vol_ma_period: int = 20
+    vol_factor_min: float = 1.2
+    expansion_factor_min: float = 1.3
 
 
 CONFIG = ConfigSMC()
@@ -5926,7 +6081,7 @@ def normalizar_candles(dados: Any) -> List[Candle]:
             l = row.get("low", row.get("Low", row.get("l")))
             c = row.get("close", row.get("Close", row.get("c")))
             t = row.get("time", row.get("Time", row.get("datetime", row.get("date", ""))))
-            vol = row.get("volume", row.get("Volume", row.get("tick_volume", row.get("real_volume", 0))))
+            vol = row.get("real_volume", row.get("volume", row.get("Volume", row.get("tick_volume", 0))))
         elif isinstance(row, (list, tuple)) and len(row) >= 5:
             if isinstance(row[0], (int, float)) and len(row) >= 5 and not isinstance(row[1], str):
                 t, o, h, l, c = "", row[0], row[1], row[2], row[3]
@@ -5969,7 +6124,6 @@ def aplicar_lookback(candles: List[Candle], lookback: int) -> List[Candle]:
 
 
 def calcular_metricas_medias(candles: List[Candle], idx_atual: int, periodo: int = CONFIG.vol_ma_period) -> Tuple[float, float]:
-    """Calcula a Média Móvel de Volume e a Média Móvel do Tamanho do Corpo do Candle."""
     inicio = max(0, idx_atual - periodo)
     janela = candles[inicio:idx_atual]
     
@@ -5983,22 +6137,89 @@ def calcular_metricas_medias(candles: List[Candle], idx_atual: int, periodo: int
 
 
 def e_candle_expansao(candle: Candle, media_vol: float, media_corpo: float, config: ConfigSMC = CONFIG) -> bool:
-    """
-    Valida se o candle possui desbalanço institucional real via:
-    1. Volume acima da média (Volume > 1.2x Média) OU
-    2. Corpo de expansão significativo (Corpo > 1.3x Média)
-    """
     corpo = abs(candle.close - candle.open)
-    
     vol_ok = (candle.volume >= media_vol * config.vol_factor_min) if media_vol > 0 else False
     corpo_ok = (corpo >= media_corpo * config.expansion_factor_min) if media_corpo > 0 else False
 
-    # Se não houver volume suficiente disponível (ex: simulação sem volume), valida pelo corpo
     if media_vol == 0:
         return corpo_ok
 
     return vol_ok or corpo_ok
 
+#############
+def calcular_poc_vwap(candles: List[Candle], ativo: str) -> Dict[str, float]:
+    """
+    Calcula a VWAP e a POC (Point of Control) real do dia anterior,
+    distribuindo o volume de cada candle entre sua Mínima e Máxima (Volume Profile correto).
+    """
+    if len(candles) < 20:
+        return {"poc": 0.0, "vwap": 0.0}
+        
+    df = pd.DataFrame([c.__dict__ for c in candles])
+    df['time_dt'] = pd.to_datetime(df['time'])
+    df['date'] = df['time_dt'].dt.date
+    
+    datas_unicas = sorted(df['date'].unique())
+    hoje = datetime.now().date()
+    
+    # Filtra apenas dias estritamente anteriores a hoje (funciona no pré-pregão e pregão aberto)
+    datas_passadas = [d for d in datas_unicas if d < hoje]
+    
+    if datas_passadas:
+        data_alvo = datas_passadas[-1]
+    elif datas_unicas:
+        data_alvo = datas_unicas[-1]
+    else:
+        return {"poc": 0.0, "vwap": 0.0}
+        
+    df_ontem = df[df['date'] == data_alvo].copy()
+    
+    if df_ontem.empty:
+        df_ontem = df
+
+    # 1. Cálculo da VWAP padrão institucional
+    df_ontem['preco_tipico'] = (df_ontem['high'] + df_ontem['low'] + df_ontem['close']) / 3
+    df_ontem['vol_financeiro'] = df_ontem['preco_tipico'] * df_ontem['volume']
+    
+    vol_total = df_ontem['volume'].sum()
+    vwap = df_ontem['vol_financeiro'].sum() / vol_total if vol_total > 0 else 0.0
+    
+    # 2. Cálculo da POC usando Perfil de Volume Distribuído (High-Low)
+    tick_size = 5 if "WIN" in ativo else 0.5
+    profile_dict = {}
+    
+    for _, row in df_ontem.iterrows():
+        h = row['high']
+        l = row['low']
+        v = row['volume']
+        
+        if h <= 0 or l <= 0 or v <= 0:
+            continue
+            
+        if h < l:
+            h, l = l, h
+            
+        # Distribui o volume uniformemente entre o Low e o High da vela
+        bins_candle = np.arange(
+            np.floor(l / tick_size) * tick_size, 
+            np.ceil(h / tick_size) * tick_size + tick_size, 
+            tick_size
+        )
+        
+        if len(bins_candle) > 0:
+            vol_por_bin = v / len(bins_candle)
+            for b in bins_candle:
+                b_rounded = round(float(b), 1)
+                profile_dict[b_rounded] = profile_dict.get(b_rounded, 0.0) + vol_por_bin
+
+    # A verdadeira POC é o preço com o maior acúmulo volumétrico distribuído
+    if profile_dict:
+        poc = max(profile_dict, key=profile_dict.get)
+    else:
+        poc = 0.0
+
+    return {"poc": float(poc), "vwap": round(float(vwap), 1)}
+###
 
 def detectar_swings(candles: List[Candle], left: int = CONFIG.swing_left, right: int = CONFIG.swing_right) -> List[Swing]:
     swings: List[Swing] = []
@@ -6077,11 +6298,7 @@ def detectar_fvg(candles: List[Candle], config: ConfigSMC = CONFIG) -> List[FVG]
 
     for i in range(2, n):
         c0, c1, c2 = candles[i - 2], candles[i - 1], candles[i]
-
-        # Média de volume e amplitude calculadas até o candle c1 (intermediário)
         media_vol, media_corpo = calcular_metricas_medias(candles, i - 1, config.vol_ma_period)
-        
-        # Filtro de Volume/Expansão aplicado ao candle impulsor (c1)
         impulso_valido = e_candle_expansao(c1, media_vol, media_corpo, config)
 
         if not impulso_valido:
@@ -6118,14 +6335,9 @@ def detectar_order_blocks(candles: List[Candle], swings: List[Swing], config: Co
 
         cand = candles[i]
         prev = candles[i - 1]
-
-        # Seleciona candle de cor oposta à direção do pivô
         ob_cand = prev if (prev.close < prev.open if s.tipo == "LOW" else prev.close > prev.open) else cand
 
-        # Valida se o movimento de saída do OB teve deslocamento com Volume/Expansão
         media_vol, media_corpo = calcular_metricas_medias(candles, i, config.vol_ma_period)
-        
-        # Verifica se o candle seguinte teve força de expansão
         candle_saida = candles[i + 1] if (i + 1) < n else cand
         tem_expansao = e_candle_expansao(candle_saida, media_vol, media_corpo, config)
 
@@ -6175,6 +6387,12 @@ def detectar_liquidez(swings: List[Swing], tol: float = CONFIG.eq_tol_pontos) ->
 
 def analisar_smc(dados_candles: Any, ativo: str = "WIN", timeframe: str = "5m", config: ConfigSMC = CONFIG) -> Dict[str, Any]:
     candles = normalizar_candles(dados_candles)
+    
+    # Coleta de Métricas Institucionais (POC e VWAP de ONTEM) antes do lookback estrutural
+    inst_niveis = calcular_poc_vwap(candles, ativo)
+    poc = inst_niveis["poc"]
+    vwap = inst_niveis["vwap"]
+
     candles = aplicar_lookback(candles, config.lookback)
 
     if len(candles) < 10:
@@ -6194,7 +6412,6 @@ def analisar_smc(dados_candles: Any, ativo: str = "WIN", timeframe: str = "5m", 
     swings = detectar_swings(candles, config.swing_left, config.swing_right)
     eventos, bias = detectar_bos_choch(candles, swings)
     
-    # Chama funções de detecção atualizadas com filtros de volume e expansão
     fvgs = detectar_fvg(candles, config)
     obs = detectar_order_blocks(candles, swings, config)
     liq = detectar_liquidez(swings, config.eq_tol_pontos)
@@ -6207,6 +6424,14 @@ def analisar_smc(dados_candles: Any, ativo: str = "WIN", timeframe: str = "5m", 
 
     preco_atual = candles[-1].close
 
+    # Confluência Institucional de Order Block com POC do dia anterior
+    ob_confluente = False
+    if obs:
+        ob_recente = obs[-1]
+        distancia_poc = abs(ob_recente.preco_ref - poc)
+        if ("WIN" in ativo and distancia_poc <= 100) or ("WDO" in ativo and distancia_poc <= 10):
+            ob_confluente = True
+
     estruturas: List[str] = []
     for s in swings[-config.max_niveis :]:
         label = "Swing High" if s.tipo == "HIGH" else "Swing Low"
@@ -6218,7 +6443,7 @@ def analisar_smc(dados_candles: Any, ativo: str = "WIN", timeframe: str = "5m", 
     for fvg in fvgs_abertos:
         estruturas.append(f"{(fvg.superior + fvg.inferior) / 2:.0f}: FVG {fvg.tipo} ({fvg.inferior:.0f}-{fvg.superior:.0f})")
 
-    liquidez_txt: List[str] = []
+    liquidez_txt: List[str] = [f"POC Institucional (Ontem): {poc:.0f}", f"VWAP (Ontem): {vwap:.0f}"]
     for p in liq["bsl"]:
         liquidez_txt.append(f"BSL: {p:.0f} (equal highs / liquidez de compra acima)")
     for p in liq["ssl"]:
@@ -6230,15 +6455,13 @@ def analisar_smc(dados_candles: Any, ativo: str = "WIN", timeframe: str = "5m", 
         fvg_v = next((f for f in reversed(fvgs_abertos) if f.tipo == "VENDA"), None)
         zona = res.preco_ref if res else (fvg_v.superior if fvg_v else preco_atual)
         alvo = liq["ssl"][0] if liq["ssl"] else preco_atual * 0.99
-        cenarios.append(f"Cenário Vendedor: rejeição na região {zona:.0f} (OB/FVG de venda validado por volume) visando {alvo:.0f}.")
-        cenarios.append("Cenário alternativo: varredura de liquidez acima antes da continuação de baixa.")
+        cenarios.append(f"Cenário Vendedor: rejeição na região {zona:.0f} (OB/FVG validado por volume) visando {alvo:.0f}.")
     elif bias == "ALTA":
         dem = next((o for o in reversed(obs) if o.tipo == "COMPRA"), None)
         fvg_c = next((f for f in reversed(fvgs_abertos) if f.tipo == "COMPRA"), None)
         zona = dem.preco_ref if dem else (fvg_c.inferior if fvg_c else preco_atual)
         alvo = liq["bsl"][0] if liq["bsl"] else preco_atual * 1.01
-        cenarios.append(f"Cenário Comprador: defesa na região {zona:.0f} (OB/FVG de compra validado por volume) visando {alvo:.0f}.")
-        cenarios.append("Cenário alternativo: varredura de liquidez abaixo antes da continuação de alta.")
+        cenarios.append(f"Cenário Comprador: defesa na região {zona:.0f} (OB/FVG validado por volume) visando {alvo:.0f}.")
     else:
         cenarios.append("Cenário Lateral: aguardar BOS com fechamento fora da faixa recente.")
 
@@ -6253,6 +6476,8 @@ def analisar_smc(dados_candles: Any, ativo: str = "WIN", timeframe: str = "5m", 
         conf += 10
     if obs:
         conf += 10
+    if ob_confluente:
+        conf += 15  # Bônus institucional por alinhar OB com a POC de ontem
     conf = min(95, conf)
 
     entrada, stop = None, None
@@ -6285,6 +6510,11 @@ def analisar_smc(dados_candles: Any, ativo: str = "WIN", timeframe: str = "5m", 
         "bos": bos,
         "choch": choch,
         "confianca_visual": conf,
+        "niveis_institucionais": {
+            "poc_ontem": poc,
+            "vwap_ontem": vwap,
+            "ob_alinhado_com_poc": ob_confluente
+        },
         "order_blocks": [{"tipo": o.tipo, "preco": o.preco_ref, "high": o.high, "low": o.low} for o in obs],
         "fair_value_gaps": [{"tipo": f.tipo, "superior": f.superior, "inferior": f.inferior, "preenchido": f.preenchido} for f in fvgs_abertos],
         "liquidez": liq,
@@ -6301,7 +6531,7 @@ def analisar_smc(dados_candles: Any, ativo: str = "WIN", timeframe: str = "5m", 
             "n_swings": len(swings),
             "n_fvgs_abertos": len(fvgs_abertos),
             "n_obs": len(obs),
-            "filtro_volume_aplicado": True,
+            "filtro_volume_real_aplicado": True,
             "config": asdict(config),
         },
     }
@@ -6349,7 +6579,7 @@ def _candidatos_simbolo(symbol: str) -> List[str]:
     return candidatos
 
 
-def carregar_mt5(symbol: str = "WIN$", timeframe_min: int = 5, qtd: int = 120) -> Tuple[List[Dict[str, Any]], str]:
+def carregar_mt5(symbol: str = "WIN$", timeframe_min: int = 5, qtd: int = 300) -> Tuple[List[Dict[str, Any]], str]:
     try:
         import MetaTrader5 as mt5
     except ImportError as e:
@@ -6381,17 +6611,30 @@ def carregar_mt5(symbol: str = "WIN$", timeframe_min: int = 5, qtd: int = 120) -
         mt5.shutdown()
         raise RuntimeError(f"Sem dados no MT5 para o símbolo informado: {symbol}")
 
-    out = [
-        {
+    out = []
+    for r in rates:
+        v_real = 0.0
+        try:
+            if "real_volume" in r.dtype.names:
+                v_real = float(r["real_volume"])
+        except Exception:
+            pass
+            
+        if v_real <= 0:
+            try:
+                if "tick_volume" in r.dtype.names:
+                    v_real = float(r["tick_volume"])
+            except Exception:
+                pass
+
+        out.append({
             "time": datetime.fromtimestamp(r["time"]).isoformat(),
             "open": float(r["open"]),
             "high": float(r["high"]),
             "low": float(r["low"]),
             "close": float(r["close"]),
-            "volume": float(r["tick_volume"]),
-        }
-        for r in rates
-    ]
+            "volume": v_real,
+        })
 
     mt5.shutdown()
     return out, simbolo_ok
@@ -6566,7 +6809,7 @@ def executar():
 
     ATIVO = "WIN$"
     TIMEFRAME_MIN = 5
-    QTD_CANDLES = 120
+    QTD_CANDLES = 300
 
     try:
         # 1. Carrega dados do MetaTrader 5
@@ -7749,6 +7992,13 @@ FILE_DECISAO_CORE_STR = str(FILE_DECISAO_CORE)
 ARQUIVO: main_pipeline.py
 ==================================================
 
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Módulo: main_pipeline.py (Versão V2 Reordenada e Corrigida)
+Objetivo: Orquestrar e disparar as tarefas garantindo rigor na cadeia de dependência dos arquivos JSON.
+"""
+
 import asyncio
 import importlib
 import logging
@@ -7770,10 +8020,10 @@ import Coletor
 import Coleta_Noticias_Calendario
 import Analise_Noticias
 import Validador
+import Rodar_SMC_Regras
 import Calculadora
 import CalculadoraEstimativaAbertura
 import Gerar_Resultado_Operacional_Abertura
-import Rodar_SMC_Regras
 import Gerar_Relatorio_Mensagem
 import v2_gravar_sessao_win
 import v2_rodar_decisao_completa
@@ -7795,7 +8045,6 @@ def run_sync_module(module_object, name: str):
         elif hasattr(module_object, "run") and callable(module_object.run):
             module_object.run()
         else:
-            # Caso o script dependa do bloco if __name__ == '__main__' (como Coletor.py)
             script_path = getattr(module_object, "__file__", None)
             if script_path:
                 subprocess.run([sys.executable, script_path], check=True)
@@ -7815,7 +8064,6 @@ async def main_pipeline_async():
 
     loop = asyncio.get_running_loop()
     
-    # Pool de threads para executar scripts síncronos sem bloquear o Event Loop
     with ThreadPoolExecutor(max_workers=6) as pool:
 
         # -------------------------------------------------------------
@@ -7824,38 +8072,38 @@ async def main_pipeline_async():
         await loop.run_in_executor(pool, run_sync_module, Limpar_Imagens_TradingView, "Limpeza de Imagens")
 
         # -------------------------------------------------------------
-        # FASE 2: Coletas de Dados Em Paralelo (APIs + Web Scraping)
+        # FASE 2: Coletas de Dados Em Paralelo (APIs + MT5)
         # -------------------------------------------------------------
         logging.info("📡 Disparando coletas paralelas (APIs/MT5 + Notícias/Calendário)...")
         
         task_coletor = loop.run_in_executor(pool, run_sync_module, Coletor, "Coletor Cotações/APIs")
         task_noticias = loop.run_in_executor(pool, run_sync_module, Coleta_Noticias_Calendario, "Coleta Notícias/Calendário")
 
-        # Aguarda a finalização das duas coletas
         await asyncio.gather(task_coletor, task_noticias)
 
         # -------------------------------------------------------------
-        # FASE 3: Processamento e Sanitização dos Dados
+        # FASE 3: Processamento, Sanitização e Motor SMC (Estrutura Básica)
         # -------------------------------------------------------------
         await loop.run_in_executor(pool, run_sync_module, Analise_Noticias, "Análise Quantitativa de Notícias")
         await loop.run_in_executor(pool, run_sync_module, Validador, "Validador de Dados (32 Ativos)")
+        
+        # 💡 AJUSTE CRÍTICO: Roda o SMC AQUI para gerar a POC/VWAP antes das calculadoras
+        await loop.run_in_executor(pool, run_sync_module, Rodar_SMC_Regras, "Motor SMC & ICT Regras (POC / VWAP)")
 
         # -------------------------------------------------------------
-        # FASE 4: Motores de Cálculo Em Paralelo
+        # FASE 4: Motores de Cálculo Em Paralelo (Consumindo Dados Validados + SMC)
         # -------------------------------------------------------------
         logging.info("🧮 Processando calculadoras em paralelo...")
 
         task_calc_macro = loop.run_in_executor(pool, run_sync_module, Calculadora, "Calculadora (Spreads/DI/Macro)")
-        task_calc_abertura = loop.run_in_executor(pool, run_sync_module, CalculadoraEstimativaAbertura, "Estimativa de Abertura & Pivôs")
+        task_calc_abertura = loop.run_in_executor(pool, run_sync_module, CalculadoraEstimativaAbertura, "Estimativa de Abertura & Cost of Carry")
 
-        # Aguarda o término de ambos os cálculos
         await asyncio.gather(task_calc_macro, task_calc_abertura)
 
         # -------------------------------------------------------------
-        # FASE 5: Consolidação Operacional e Regras SMC
+        # FASE 5: Consolidação Operacional de Payload
         # -------------------------------------------------------------
-        await loop.run_in_executor(pool, run_sync_module, Gerar_Resultado_Operacional_Abertura, "Consolidação de Payload")
-        await loop.run_in_executor(pool, run_sync_module, Rodar_SMC_Regras, "Motor SMC & ICT Regras")
+        await loop.run_in_executor(pool, run_sync_module, Gerar_Resultado_Operacional_Abertura, "Consolidação de Payload Operacional")
 
         # -------------------------------------------------------------
         # FASE 6: Relatórios, Gravação de Histórico e Decisão Final V2
@@ -8615,29 +8863,34 @@ ARQUIVO: Coletas\AnaliseGraficaSMC_Regras.json
 ==================================================
 
 {
-  "timestamp": "2026-09-01T20:59:04.188290",
+  "timestamp": "2026-09-02T10:09:02.938800",
   "ativo": "WIN$",
   "timeframe": "5m",
   "fonte": "regras_smc",
-  "preco_atual": 182390.0,
+  "preco_atual": 183530.0,
   "timeframes_identificados": "5m",
   "bias_direcional": "ALTA",
   "direcao_estrutura": "ALTA",
   "bos": true,
-  "choch": true,
+  "choch": false,
   "confianca_visual": 95,
+  "niveis_institucionais": {
+    "poc_ontem": 183065.0,
+    "vwap_ontem": 182045.8,
+    "ob_alinhado_com_poc": true
+  },
   "order_blocks": [
     {
-      "tipo": "VENDA",
-      "preco": 183255.0,
-      "high": 183335.0,
-      "low": 183175.0
+      "tipo": "COMPRA",
+      "preco": 182795.0,
+      "high": 182970.0,
+      "low": 182620.0
     },
     {
       "tipo": "VENDA",
-      "preco": 182327.5,
-      "high": 182380.0,
-      "low": 182275.0
+      "preco": 183130.0,
+      "high": 183410.0,
+      "low": 182850.0
     }
   ],
   "fair_value_gaps": [
@@ -8655,20 +8908,14 @@ ARQUIVO: Coletas\AnaliseGraficaSMC_Regras.json
     },
     {
       "tipo": "COMPRA",
-      "superior": 182145.0,
-      "inferior": 181970.0,
+      "superior": 182670.0,
+      "inferior": 182390.0,
       "preenchido": false
     },
     {
-      "tipo": "VENDA",
-      "superior": 182855.0,
-      "inferior": 182765.0,
-      "preenchido": false
-    },
-    {
-      "tipo": "VENDA",
-      "superior": 182430.0,
-      "inferior": 182320.0,
+      "tipo": "COMPRA",
+      "superior": 183265.0,
+      "inferior": 183170.0,
       "preenchido": false
     }
   ],
@@ -8684,72 +8931,42 @@ ARQUIVO: Coletas\AnaliseGraficaSMC_Regras.json
   "eventos_estrutura": [
     {
       "tipo": "CHOCH",
-      "direcao": "BAIXA",
-      "preco": 182965.0,
-      "time": "2026-09-01T12:35:00"
-    },
-    {
-      "tipo": "CHOCH",
       "direcao": "ALTA",
-      "preco": 183390.0,
-      "time": "2026-09-01T11:35:00"
-    },
-    {
-      "tipo": "CHOCH",
-      "direcao": "BAIXA",
-      "preco": 183050.0,
-      "time": "2026-09-01T12:25:00"
+      "preco": 183145.0,
+      "time": "2026-09-02T06:30:00"
     },
     {
       "tipo": "BOS",
-      "direcao": "BAIXA",
-      "preco": 183170.0,
-      "time": "2026-09-01T12:20:00"
-    },
-    {
-      "tipo": "BOS",
-      "direcao": "BAIXA",
-      "preco": 183155.0,
-      "time": "2026-09-01T13:35:00"
-    },
-    {
-      "tipo": "CHOCH",
       "direcao": "ALTA",
       "preco": 182455.0,
       "time": "2026-09-01T14:25:00"
+    },
+    {
+      "tipo": "BOS",
+      "direcao": "ALTA",
+      "preco": 182615.0,
+      "time": "2026-09-02T06:00:00"
+    },
+    {
+      "tipo": "BOS",
+      "direcao": "ALTA",
+      "preco": 182370.0,
+      "time": "2026-09-02T06:05:00"
+    },
+    {
+      "tipo": "BOS",
+      "direcao": "ALTA",
+      "preco": 183285.0,
+      "time": "2026-09-02T07:00:00"
+    },
+    {
+      "tipo": "BOS",
+      "direcao": "ALTA",
+      "preco": 183410.0,
+      "time": "2026-09-02T07:05:00"
     }
   ],
   "swings_recentes": [
-    {
-      "tipo": "HIGH",
-      "preco": 183350.0,
-      "time": "2026-09-01T12:00:00"
-    },
-    {
-      "tipo": "LOW",
-      "preco": 183155.0,
-      "time": "2026-09-01T12:05:00"
-    },
-    {
-      "tipo": "HIGH",
-      "preco": 183335.0,
-      "time": "2026-09-01T12:15:00"
-    },
-    {
-      "tipo": "HIGH",
-      "preco": 183145.0,
-      "time": "2026-09-01T13:05:00"
-    },
-    {
-      "tipo": "LOW",
-      "preco": 182110.0,
-      "time": "2026-09-01T13:35:00"
-    },
-    {
-      "tipo": "HIGH",
-      "preco": 182455.0,
-      "time": "2026-09-01T13:55:00"
-    },
     {
       "tipo": "LOW",
       "preco": 182125.0,
@@ -8769,40 +8986,73 @@ ARQUIVO: Coletas\AnaliseGraficaSMC_Regras.json
       "tipo": "HIGH",
       "preco": 182370.0,
       "time": "2026-09-01T15:00:00"
+    },
+    {
+      "tipo": "LOW",
+      "preco": 181970.0,
+      "time": "2026-09-02T06:00:00"
+    },
+    {
+      "tipo": "HIGH",
+      "preco": 183285.0,
+      "time": "2026-09-02T06:05:00"
+    },
+    {
+      "tipo": "LOW",
+      "preco": 182535.0,
+      "time": "2026-09-02T06:15:00"
+    },
+    {
+      "tipo": "HIGH",
+      "preco": 183410.0,
+      "time": "2026-09-02T06:30:00"
+    },
+    {
+      "tipo": "HIGH",
+      "preco": 183310.0,
+      "time": "2026-09-02T06:45:00"
+    },
+    {
+      "tipo": "LOW",
+      "preco": 182750.0,
+      "time": "2026-09-02T06:45:00"
     }
   ],
   "estruturas_coletadas": [
-    "182455: Swing High",
-    "182125: Swing Low",
-    "182615: Swing High",
-    "182130: Swing Low",
-    "182370: Swing High",
-    "183255: OB VENDA (183175-183335)",
-    "182328: OB VENDA (182275-182380)",
+    "181970: Swing Low",
+    "183285: Swing High",
+    "182535: Swing Low",
+    "183410: Swing High",
+    "183310: Swing High",
+    "182750: Swing Low",
+    "182795: OB COMPRA (182620-182970)",
+    "183130: OB VENDA (182850-183410)",
     "180748: FVG COMPRA (180340-181155)",
     "181635: FVG COMPRA (181490-181780)",
-    "182058: FVG COMPRA (181970-182145)",
-    "182810: FVG VENDA (182765-182855)",
-    "182375: FVG VENDA (182320-182430)"
+    "182530: FVG COMPRA (182390-182670)",
+    "183218: FVG COMPRA (183170-183265)"
   ],
   "liquidez_relevante": [
+    "POC Institucional (Ontem): 183065",
+    "VWAP (Ontem): 182046",
     "BSL: 183342 (equal highs / liquidez de compra acima)",
     "SSL: 182118 (equal lows / liquidez de venda abaixo)",
     "SSL: 183162 (equal lows / liquidez de venda abaixo)"
   ],
   "zonas_de_interesse_e_cenarios": [
-    "Cenário Comprador: defesa na região 181970 (OB/FVG de compra validado por volume) visando 183342.",
-    "Cenário alternativo: varredura de liquidez abaixo antes da continuação de alta."
+    "Cenário Comprador: defesa na região 182795 (OB/FVG validado por volume) visando 183342."
   ],
-  "entrada_sugerida": null,
-  "stop_sugerido": null,
-  "alvos": [],
+  "entrada_sugerida": 182970.0,
+  "stop_sugerido": 182570.0,
+  "alvos": [
+    183342.0
+  ],
   "metadados": {
     "n_candles": 120,
-    "n_swings": 30,
-    "n_fvgs_abertos": 5,
+    "n_swings": 33,
+    "n_fvgs_abertos": 4,
     "n_obs": 2,
-    "filtro_volume_aplicado": true,
+    "filtro_volume_real_aplicado": true,
     "config": {
       "swing_left": 2,
       "swing_right": 2,
@@ -9756,14 +10006,14 @@ if __name__ == "__main__":
 ARQUIVO: Coletas\Coleta_ram.json
 ==================================================
 
-{"metadata_coleta":{"timestamp_coleta":"2026-09-01T22:54:01.610197","modo_execucao":"PADRAO_ROTATIVO","total_ativos_solicitados":26,"arquivo_gerado":"Coleta_rom-0.json","latencia_ms":493,"fora_do_pregao":true},"coletas":[{"ativo":"USD_PTAX","fonte":"BACEN_SGS_10813","timestamp":"2026-09-01T22:54:01.127451","status":"OK","dados_reais":{"close":5.1564,"open":null,"high":null,"low":null,"change_percent":null,"volume":null}},{"ativo":"B3_AJUSTE_WIN","fonte":"TRADINGVIEW_DIRECT_SYMBOL","timestamp":"2026-09-01T22:54:01.128153","status":"OK","dados_reais":{"close":182233.0,"open":null,"high":null,"low":null,"change_percent":1.1237015004883246,"volume":null}},{"ativo":"B3_AJUSTE_WDO","fonte":"TRADINGVIEW_DIRECT_SYMBOL","timestamp":"2026-09-01T22:54:01.128153","status":"OK","dados_reais":{"close":5183.841,"open":null,"high":null,"low":null,"change_percent":-0.6811520036908445,"volume":null}},{"ativo":"BMFBOVESPA:DI1F2027","fonte":"TRADINGVIEW_SCANNER","timestamp":"2026-09-01T22:54:01.128589","status":"OK","dados_reais":{"close":13.585,"open":13.615,"high":13.62,"low":13.58,"change_percent":-0.22034520749173234,"volume":445809.0}},{"ativo":"BMFBOVESPA:DI1F2029","fonte":"TRADINGVIEW_SCANNER","timestamp":"2026-09-01T22:54:01.128589","status":"OK","dados_reais":{"close":14.11,"open":14.25,"high":14.25,"low":14.08,"change_percent":-0.45855379188713424,"volume":601132.0}},{"ativo":"TVC:VIX","fonte":"TRADINGVIEW_SCANNER","timestamp":"2026-09-01T22:54:01.128589","status":"OK","dados_reais":{"close":16.33,"open":14.95,"high":16.8,"low":14.95,"change_percent":9.377093101138637,"volume":null}},{"ativo":"SGX:FEF1!","fonte":"TRADINGVIEW_SCANNER","timestamp":"2026-09-01T22:54:01.128589","status":"OK","dados_reais":{"close":99.0,"open":99.45,"high":99.55,"low":98.9,"change_percent":-0.35228988424760377,"volume":7776.0}},{"ativo":"SGX:FEF2!","fonte":"TRADINGVIEW_SCANNER","timestamp":"2026-09-01T22:54:01.128589","status":"OK","dados_reais":{"close":99.0,"open":99.45,"high":99.55,"low":98.9,"change_percent":-0.35228988424760377,"volume":7776.0}},{"ativo":"NYMEX:CL1!","fonte":"TRADINGVIEW_SCANNER","timestamp":"2026-09-01T22:54:01.128589","status":"OK","dados_reais":{"close":91.92,"open":90.65,"high":92.29,"low":90.57,"change_percent":1.8842828641099565,"volume":22012.0}},{"ativo":"CME_MINI:ES1!","fonte":"TRADINGVIEW_SCANNER","timestamp":"2026-09-01T22:54:01.128589","status":"OK","dados_reais":{"close":7637.25,"open":7645.0,"high":7651.5,"low":7636.5,"change_percent":-0.07196362565830362,"volume":29253.0}},{"ativo":"CME_MINI:NQ1!","fonte":"TRADINGVIEW_SCANNER","timestamp":"2026-09-01T22:54:01.128589","status":"OK","dados_reais":{"close":29081.0,"open":29136.5,"high":29170.0,"low":29072.0,"change_percent":-0.15278707661671043,"volume":22413.0}},{"ativo":"TVC:DXY","fonte":"TRADINGVIEW_SCANNER","timestamp":"2026-09-01T22:54:01.128589","status":"OK","dados_reais":{"close":99.784,"open":99.665,"high":99.787,"low":99.659,"change_percent":0.13145615285039106,"volume":null}},{"ativo":"FX_IDC:USDMXN","fonte":"TRADINGVIEW_SCANNER","timestamp":"2026-09-01T22:54:01.128589","status":"OK","dados_reais":{"close":17.0077,"open":16.9684,"high":17.009,"low":16.9684,"change_percent":0.23160698710544764,"volume":0.0}},{"ativo":"TVC:GOLD","fonte":"TRADINGVIEW_SCANNER","timestamp":"2026-09-01T22:54:01.128589","status":"OK","dados_reais":{"close":4295.706,"open":4330.348,"high":4335.82,"low":4290.93,"change_percent":-0.7614125833253401,"volume":0.0}},{"ativo":"FX_IDC:USDBRL","fonte":"TRADINGVIEW_SCANNER","timestamp":"2026-09-01T22:54:01.128589","status":"OK","dados_reais":{"close":5.1527,"open":5.1518,"high":5.1539,"low":5.1518,"change_percent":0.017469622267956193,"volume":0.0}},{"ativo":"AMEX:EWZ","fonte":"FINNHUB","timestamp":"2026-09-01T22:54:01.129978","status":"OK","dados_reais":{"close":36.57,"open":null,"high":null,"low":null,"change_percent":1.5,"volume":null,"var_abs":0.54,"fechamento_anterior":36.03}},{"ativo":"NYSE:VALE","fonte":"FINNHUB","timestamp":"2026-09-01T22:54:01.129978","status":"OK","dados_reais":{"close":15.12,"open":null,"high":null,"low":null,"change_percent":0.2,"volume":null,"var_abs":0.03,"fechamento_anterior":15.09}},{"ativo":"NYSE:PBR","fonte":"FINNHUB","timestamp":"2026-09-01T22:54:01.129978","status":"OK","dados_reais":{"close":20.33,"open":null,"high":null,"low":null,"change_percent":5.06,"volume":null,"var_abs":0.98,"fechamento_anterior":19.35}},{"ativo":"NYSE:ITUB","fonte":"FINNHUB","timestamp":"2026-09-01T22:54:01.129978","status":"OK","dados_reais":{"close":7.68,"open":null,"high":null,"low":null,"change_percent":0.92,"volume":null,"var_abs":0.07,"fechamento_anterior":7.61}},{"ativo":"OTC:BDORY","fonte":"FINNHUB","timestamp":"2026-09-01T22:54:01.129978","status":"OK","dados_reais":{"close":4.11,"open":null,"high":null,"low":null,"change_percent":3.01,"volume":null,"var_abs":0.12,"fechamento_anterior":3.99}},{"ativo":"NYSE:BBD","fonte":"FINNHUB","timestamp":"2026-09-01T22:54:01.129978","status":"OK","dados_reais":{"close":3.32,"open":null,"high":null,"low":null,"change_percent":1.22,"volume":null,"var_abs":0.04,"fechamento_anterior":3.28}},{"ativo":"OTC:BOLSY","fonte":"FINNHUB","timestamp":"2026-09-01T22:54:01.129978","status":"OK","dados_reais":{"close":9.6,"open":null,"high":null,"low":null,"change_percent":4.58,"volume":null,"var_abs":0.42,"fechamento_anterior":9.18}},{"ativo":"BMFBOVESPA:WIN1!","fonte":"MT5_v2.2","timestamp":"2026-09-01T22:54:01.609184","status":"OK","dados_reais":{"close":182315.0,"open":179390.0,"high":183670.0,"low":179000.0,"change_percent":1.2856,"volume":2650564.0,"fechamento_anterior":180075.0}},{"ativo":"WIN_LAST_TICK","fonte":"MT5_v2.2","timestamp":"2026-09-01T22:54:01.609184","status":"OK","dados_reais":{"close":182315.0,"open":179390.0,"high":183670.0,"low":179000.0,"change_percent":1.2856,"volume":2650564.0,"fechamento_anterior":180075.0}},{"ativo":"BMFBOVESPA:WDO1!","fonte":"MT5_v2.2","timestamp":"2026-09-01T22:54:01.609184","status":"OK","dados_reais":{"close":5186.2,"open":5224.0,"high":5235.5,"low":5171.0,"change_percent":-0.6036,"volume":206225.0,"fechamento_anterior":5218.5}},{"ativo":"WDO_LAST_TICK","fonte":"MT5_v2.2","timestamp":"2026-09-01T22:54:01.609184","status":"OK","dados_reais":{"close":5186.2,"open":5224.0,"high":5235.5,"low":5171.0,"change_percent":-0.6036,"volume":206225.0,"fechamento_anterior":5218.5}}]}
+{"metadata_coleta":{"timestamp_coleta":"2026-09-02T10:09:02.324297","modo_execucao":"PADRAO_ROTATIVO","total_ativos_solicitados":32,"arquivo_gerado":"Coleta_rom-0.json","latencia_ms":745,"fora_do_pregao":false},"coletas":[{"ativo":"USD_PTAX","fonte":"BACEN_SGS_10813","timestamp":"2026-09-02T10:09:01.588161","status":"OK","dados_reais":{"close":5.1564,"open":null,"high":null,"low":null,"change_percent":null,"volume":null}},{"ativo":"B3_AJUSTE_WIN","fonte":"CACHE_DISCO (Fora da janela)","timestamp":"2026-09-02T10:09:01.588719","status":"OK","dados_reais":{"close":182233.0,"open":null,"high":null,"low":null,"change_percent":1.1237015004883246,"volume":null}},{"ativo":"B3_AJUSTE_WDO","fonte":"CACHE_DISCO (Fora da janela)","timestamp":"2026-09-02T10:09:01.588719","status":"OK","dados_reais":{"close":5183.841,"open":null,"high":null,"low":null,"change_percent":-0.6811520036908445,"volume":null}},{"ativo":"BMFBOVESPA:DI1F2027","fonte":"TRADINGVIEW_SCANNER","timestamp":"2026-09-02T10:09:01.589103","status":"OK","dados_reais":{"close":13.58,"open":13.58,"high":13.58,"low":13.57,"change_percent":-0.03680529996320045,"volume":91941.0}},{"ativo":"BMFBOVESPA:DI1F2029","fonte":"TRADINGVIEW_SCANNER","timestamp":"2026-09-02T10:09:01.589103","status":"OK","dados_reais":{"close":13.995,"open":14.065,"high":14.07,"low":13.975,"change_percent":-0.8150248051027655,"volume":161429.0}},{"ativo":"TVC:VIX","fonte":"TRADINGVIEW_SCANNER","timestamp":"2026-09-02T10:09:01.589103","status":"OK","dados_reais":{"close":16.18,"open":16.39,"high":16.82,"low":15.94,"change_percent":-0.9185548071034819,"volume":null}},{"ativo":"SGX:FEF1!","fonte":"TRADINGVIEW_SCANNER","timestamp":"2026-09-02T10:09:01.589103","status":"OK","dados_reais":{"close":98.1,"open":98.05,"high":98.1,"low":98.0,"change_percent":0.20429009193052974,"volume":1945.0}},{"ativo":"SGX:FEF2!","fonte":"TRADINGVIEW_SCANNER","timestamp":"2026-09-02T10:09:01.589103","status":"OK","dados_reais":{"close":98.1,"open":98.05,"high":98.1,"low":98.0,"change_percent":0.20429009193052974,"volume":1945.0}},{"ativo":"NYMEX:CL1!","fonte":"TRADINGVIEW_SCANNER","timestamp":"2026-09-02T10:09:01.589103","status":"OK","dados_reais":{"close":89.81,"open":90.65,"high":92.29,"low":89.04,"change_percent":-0.4544446907559262,"volume":108451.0}},{"ativo":"CME_MINI:ES1!","fonte":"TRADINGVIEW_SCANNER","timestamp":"2026-09-02T10:09:01.589103","status":"OK","dados_reais":{"close":7640.5,"open":7645.0,"high":7658.75,"low":7618.5,"change_percent":-0.029439665042033297,"volume":199462.0}},{"ativo":"CME_MINI:NQ1!","fonte":"TRADINGVIEW_SCANNER","timestamp":"2026-09-02T10:09:01.589103","status":"OK","dados_reais":{"close":29039.75,"open":29136.5,"high":29170.0,"low":28927.25,"change_percent":-0.2944155465142229,"volume":108219.0}},{"ativo":"TVC:DXY","fonte":"TRADINGVIEW_SCANNER","timestamp":"2026-09-02T10:09:01.589103","status":"OK","dados_reais":{"close":99.753,"open":99.665,"high":99.863,"low":99.659,"change_percent":0.10034820828273541,"volume":null}},{"ativo":"FX_IDC:USDMXN","fonte":"TRADINGVIEW_SCANNER","timestamp":"2026-09-02T10:09:01.589103","status":"OK","dados_reais":{"close":17.00333,"open":16.9684,"high":17.0272,"low":16.9684,"change_percent":0.20585323306852293,"volume":0.0}},{"ativo":"TVC:GOLD","fonte":"TRADINGVIEW_SCANNER","timestamp":"2026-09-02T10:09:01.589103","status":"OK","dados_reais":{"close":4342.385,"open":4330.348,"high":4344.45,"low":4282.72,"change_percent":0.32078087097147323,"volume":0.0}},{"ativo":"FX_IDC:USDBRL","fonte":"TRADINGVIEW_SCANNER","timestamp":"2026-09-02T10:09:01.589103","status":"OK","dados_reais":{"close":5.162,"open":5.1518,"high":5.1622,"low":5.1482,"change_percent":0.19798905237004952,"volume":0.0}},{"ativo":"AMEX:EWZ","fonte":"FINNHUB","timestamp":"2026-09-02T10:09:01.590529","status":"OK","dados_reais":{"close":36.57,"open":null,"high":null,"low":null,"change_percent":1.5,"volume":null,"var_abs":0.54,"fechamento_anterior":36.03}},{"ativo":"NYSE:VALE","fonte":"FINNHUB","timestamp":"2026-09-02T10:09:01.590529","status":"OK","dados_reais":{"close":15.12,"open":null,"high":null,"low":null,"change_percent":0.2,"volume":null,"var_abs":0.03,"fechamento_anterior":15.09}},{"ativo":"NYSE:PBR","fonte":"FINNHUB","timestamp":"2026-09-02T10:09:01.590529","status":"OK","dados_reais":{"close":20.33,"open":null,"high":null,"low":null,"change_percent":5.06,"volume":null,"var_abs":0.98,"fechamento_anterior":19.35}},{"ativo":"NYSE:ITUB","fonte":"FINNHUB","timestamp":"2026-09-02T10:09:01.590529","status":"OK","dados_reais":{"close":7.68,"open":null,"high":null,"low":null,"change_percent":0.92,"volume":null,"var_abs":0.07,"fechamento_anterior":7.61}},{"ativo":"OTC:BDORY","fonte":"FINNHUB","timestamp":"2026-09-02T10:09:01.590529","status":"OK","dados_reais":{"close":4.201,"open":null,"high":null,"low":null,"change_percent":2.21,"volume":null,"var_abs":0.09,"fechamento_anterior":4.11}},{"ativo":"NYSE:BBD","fonte":"FINNHUB","timestamp":"2026-09-02T10:09:01.590529","status":"OK","dados_reais":{"close":3.32,"open":null,"high":null,"low":null,"change_percent":1.22,"volume":null,"var_abs":0.04,"fechamento_anterior":3.28}},{"ativo":"OTC:BOLSY","fonte":"FINNHUB","timestamp":"2026-09-02T10:09:01.590529","status":"OK","dados_reais":{"close":9.675,"open":null,"high":null,"low":null,"change_percent":0.78,"volume":null,"var_abs":0.07,"fechamento_anterior":9.6}},{"ativo":"VALE3","fonte":"MetaTrader5","timestamp":"2026-09-02T10:09:02.309415","status":"OK","dados_reais":{"close":78.66,"open":null,"high":null,"low":null,"change_percent":0.46,"volume":null,"var_abs":0.36,"fechamento_anterior":78.3}},{"ativo":"PETR4","fonte":"MetaTrader5","timestamp":"2026-09-02T10:09:02.309415","status":"OK","dados_reais":{"close":46.72,"open":null,"high":null,"low":null,"change_percent":-0.32,"volume":null,"var_abs":-0.15,"fechamento_anterior":46.87}},{"ativo":"ITUB4","fonte":"MetaTrader5","timestamp":"2026-09-02T10:09:02.309415","status":"OK","dados_reais":{"close":40.16,"open":null,"high":null,"low":null,"change_percent":0.7,"volume":null,"var_abs":0.28,"fechamento_anterior":39.88}},{"ativo":"BBAS3","fonte":"MetaTrader5","timestamp":"2026-09-02T10:09:02.309415","status":"OK","dados_reais":{"close":21.34,"open":null,"high":null,"low":null,"change_percent":1.14,"volume":null,"var_abs":0.24,"fechamento_anterior":21.1}},{"ativo":"BBDC4","fonte":"MetaTrader5","timestamp":"2026-09-02T10:09:02.309415","status":"OK","dados_reais":{"close":17.6,"open":null,"high":null,"low":null,"change_percent":1.27,"volume":null,"var_abs":0.22,"fechamento_anterior":17.38}},{"ativo":"B3SA3","fonte":"MetaTrader5","timestamp":"2026-09-02T10:09:02.309415","status":"OK","dados_reais":{"close":16.84,"open":null,"high":null,"low":null,"change_percent":1.32,"volume":null,"var_abs":0.22,"fechamento_anterior":16.62}},{"ativo":"BMFBOVESPA:WIN1!","fonte":"MT5_v2.2","timestamp":"2026-09-02T10:09:02.323764","status":"OK","dados_reais":{"close":183495.0,"open":182050.0,"high":183630.0,"low":181970.0,"change_percent":0.6058,"volume":613674.0,"fechamento_anterior":182390.0}},{"ativo":"WIN_LAST_TICK","fonte":"LAST_TICK_CONGELADO (arquivo fixo)","timestamp":"2026-09-02T10:09:02.323764","status":"OK","dados_reais":{"close":182315.0,"open":179390.0,"high":183670.0,"low":179000.0,"change_percent":1.2856,"volume":5781016.0,"fechamento_anterior":180075.0}},{"ativo":"BMFBOVESPA:WDO1!","fonte":"MT5_v2.2","timestamp":"2026-09-02T10:09:02.323764","status":"OK","dados_reais":{"close":5194.0,"open":5189.0,"high":5194.5,"low":5179.5,"change_percent":0.135,"volume":43551.0,"fechamento_anterior":5187.0}},{"ativo":"WDO_LAST_TICK","fonte":"LAST_TICK_CONGELADO (arquivo fixo)","timestamp":"2026-09-02T10:09:02.323764","status":"OK","dados_reais":{"close":5186.2,"open":5224.0,"high":5235.5,"low":5171.0,"change_percent":-0.6036,"volume":489101.0,"fechamento_anterior":5218.5}}]}
 
 
 ==================================================
 ARQUIVO: Coletas\DadosAtivosUnificados.json
 ==================================================
 
-{"metadata":{"timestamp":"2026-09-01 22:54:01","total_ativos":26},"ativos":{"USD_PTAX":{"preco":5.1564,"variacao_pct":0.0,"ticker_original":"USD_PTAX","status":"OK"},"WIN_AJUSTE":{"preco":182233.0,"variacao_pct":1.1237015004883246,"ticker_original":"B3_AJUSTE_WIN","status":"OK"},"WDO_AJUSTE":{"preco":5183.841,"variacao_pct":-0.6811520036908445,"ticker_original":"B3_AJUSTE_WDO","status":"OK"},"DI1_2027":{"preco":13.585,"variacao_pct":-0.22034520749173234,"ticker_original":"BMFBOVESPA:DI1F2027","status":"OK"},"DI1_2029":{"preco":14.11,"variacao_pct":-0.45855379188713424,"ticker_original":"BMFBOVESPA:DI1F2029","status":"OK"},"VIX":{"preco":16.33,"variacao_pct":9.377093101138637,"ticker_original":"TVC:VIX","status":"OK"},"IRON_ORE":{"preco":99.0,"variacao_pct":-0.35228988424760377,"ticker_original":"SGX:FEF1!","status":"OK"},"IRON_ORE_2M":{"preco":99.0,"variacao_pct":-0.35228988424760377,"ticker_original":"SGX:FEF2!","status":"OK"},"CRUDE_OIL":{"preco":91.92,"variacao_pct":1.8842828641099565,"ticker_original":"NYMEX:CL1!","status":"OK"},"SP500_FUT":{"preco":7637.25,"variacao_pct":-0.07196362565830362,"ticker_original":"CME_MINI:ES1!","status":"OK"},"NASDAQ_FUT":{"preco":29081.0,"variacao_pct":-0.15278707661671043,"ticker_original":"CME_MINI:NQ1!","status":"OK"},"DXY":{"preco":99.784,"variacao_pct":0.13145615285039106,"ticker_original":"TVC:DXY","status":"OK"},"USD_MXN":{"preco":17.0077,"variacao_pct":0.23160698710544764,"ticker_original":"FX_IDC:USDMXN","status":"OK"},"GOLD":{"preco":4295.706,"variacao_pct":-0.7614125833253401,"ticker_original":"TVC:GOLD","status":"OK"},"USD_BRL":{"preco":5.1527,"variacao_pct":0.017469622267956193,"ticker_original":"FX_IDC:USDBRL","status":"OK"},"EWZ":{"preco":36.57,"variacao_pct":1.5,"ticker_original":"AMEX:EWZ","status":"OK"},"VALE_ADR":{"preco":15.12,"variacao_pct":0.2,"ticker_original":"NYSE:VALE","status":"OK"},"PETR_ADR":{"preco":20.33,"variacao_pct":5.06,"ticker_original":"NYSE:PBR","status":"OK"},"ITUB_ADR":{"preco":7.68,"variacao_pct":0.92,"ticker_original":"NYSE:ITUB","status":"OK"},"BBAS_ADR":{"preco":4.11,"variacao_pct":3.01,"ticker_original":"OTC:BDORY","status":"OK"},"BBD_ADR":{"preco":3.32,"variacao_pct":1.22,"ticker_original":"NYSE:BBD","status":"OK"},"B3_ADR":{"preco":9.6,"variacao_pct":4.58,"ticker_original":"OTC:BOLSY","status":"OK"},"WIN_FUT":{"preco":182315.0,"variacao_pct":1.2856,"ticker_original":"BMFBOVESPA:WIN1!","status":"OK"},"WIN_LAST_TICK":{"preco":182315.0,"variacao_pct":1.2856,"ticker_original":"WIN_LAST_TICK","status":"OK"},"WDO_FUT":{"preco":5186.2,"variacao_pct":-0.6036,"ticker_original":"BMFBOVESPA:WDO1!","status":"OK"},"WDO_LAST_TICK":{"preco":5186.2,"variacao_pct":-0.6036,"ticker_original":"WDO_LAST_TICK","status":"OK"}}}
+{"metadata":{"timestamp":"2026-09-02 10:09:02","total_ativos":32},"ativos":{"USD_PTAX":{"preco":5.1564,"variacao_pct":0.0,"ticker_original":"USD_PTAX","status":"OK"},"WIN_AJUSTE":{"preco":182233.0,"variacao_pct":1.1237015004883246,"ticker_original":"B3_AJUSTE_WIN","status":"OK"},"WDO_AJUSTE":{"preco":5183.841,"variacao_pct":-0.6811520036908445,"ticker_original":"B3_AJUSTE_WDO","status":"OK"},"DI1_2027":{"preco":13.58,"variacao_pct":-0.03680529996320045,"ticker_original":"BMFBOVESPA:DI1F2027","status":"OK"},"DI1_2029":{"preco":13.995,"variacao_pct":-0.8150248051027655,"ticker_original":"BMFBOVESPA:DI1F2029","status":"OK"},"VIX":{"preco":16.18,"variacao_pct":-0.9185548071034819,"ticker_original":"TVC:VIX","status":"OK"},"IRON_ORE":{"preco":98.1,"variacao_pct":0.20429009193052974,"ticker_original":"SGX:FEF1!","status":"OK"},"IRON_ORE_2M":{"preco":98.1,"variacao_pct":0.20429009193052974,"ticker_original":"SGX:FEF2!","status":"OK"},"CRUDE_OIL":{"preco":89.81,"variacao_pct":-0.4544446907559262,"ticker_original":"NYMEX:CL1!","status":"OK"},"SP500_FUT":{"preco":7640.5,"variacao_pct":-0.029439665042033297,"ticker_original":"CME_MINI:ES1!","status":"OK"},"NASDAQ_FUT":{"preco":29039.75,"variacao_pct":-0.2944155465142229,"ticker_original":"CME_MINI:NQ1!","status":"OK"},"DXY":{"preco":99.753,"variacao_pct":0.10034820828273541,"ticker_original":"TVC:DXY","status":"OK"},"USD_MXN":{"preco":17.00333,"variacao_pct":0.20585323306852293,"ticker_original":"FX_IDC:USDMXN","status":"OK"},"GOLD":{"preco":4342.385,"variacao_pct":0.32078087097147323,"ticker_original":"TVC:GOLD","status":"OK"},"USD_BRL":{"preco":5.162,"variacao_pct":0.19798905237004952,"ticker_original":"FX_IDC:USDBRL","status":"OK"},"EWZ":{"preco":36.57,"variacao_pct":1.5,"ticker_original":"AMEX:EWZ","status":"OK"},"VALE_ADR":{"preco":15.12,"variacao_pct":0.2,"ticker_original":"NYSE:VALE","status":"OK"},"PETR_ADR":{"preco":20.33,"variacao_pct":5.06,"ticker_original":"NYSE:PBR","status":"OK"},"ITUB_ADR":{"preco":7.68,"variacao_pct":0.92,"ticker_original":"NYSE:ITUB","status":"OK"},"BBAS_ADR":{"preco":4.201,"variacao_pct":2.21,"ticker_original":"OTC:BDORY","status":"OK"},"BBD_ADR":{"preco":3.32,"variacao_pct":1.22,"ticker_original":"NYSE:BBD","status":"OK"},"B3_ADR":{"preco":9.675,"variacao_pct":0.78,"ticker_original":"OTC:BOLSY","status":"OK"},"VALE3":{"preco":78.66,"variacao_pct":0.46,"ticker_original":"VALE3","status":"OK"},"PETR4":{"preco":46.72,"variacao_pct":-0.32,"ticker_original":"PETR4","status":"OK"},"ITUB4":{"preco":40.16,"variacao_pct":0.7,"ticker_original":"ITUB4","status":"OK"},"BBAS3":{"preco":21.34,"variacao_pct":1.14,"ticker_original":"BBAS3","status":"OK"},"BBDC4":{"preco":17.6,"variacao_pct":1.27,"ticker_original":"BBDC4","status":"OK"},"B3SA3":{"preco":16.84,"variacao_pct":1.32,"ticker_original":"B3SA3","status":"OK"},"WIN_FUT":{"preco":183495.0,"variacao_pct":0.6058,"ticker_original":"BMFBOVESPA:WIN1!","status":"OK"},"WIN_LAST_TICK":{"preco":182315.0,"variacao_pct":1.2856,"ticker_original":"WIN_LAST_TICK","status":"OK"},"WDO_FUT":{"preco":5194.0,"variacao_pct":0.135,"ticker_original":"BMFBOVESPA:WDO1!","status":"OK"},"WDO_LAST_TICK":{"preco":5186.2,"variacao_pct":-0.6036,"ticker_original":"WDO_LAST_TICK","status":"OK"}}}
 
 
 ==================================================
@@ -9772,7 +10022,7 @@ ARQUIVO: Coletas\Dados_MT5_v2_2.json
 
 {
     "versao_coletor": "2.2",
-    "timestamp": "2026-09-01T20:59:03.079",
+    "timestamp": "2026-09-02T10:09:01.991",
     "mt5": {
         "conectado": true,
         "versao": [
@@ -9786,20 +10036,20 @@ ARQUIVO: Coletas\Dados_MT5_v2_2.json
             "ativo": "WIN",
             "descricao": "Mini Índice B3",
             "contrato_principal": "WINV26",
-            "timestamp": "2026-09-01T20:59:03.089",
-            "bid": 182300.0,
-            "ask": 182330.0,
-            "last": 182390.0,
-            "volume": 9.0,
-            "spread": 30.0,
-            "open": 179390.0,
-            "high": 183670.0,
-            "low": 179000.0,
-            "close": 182390.0,
-            "volume_d1": 2650564.0,
-            "prev_close": 180075.0,
-            "change_percent": 1.2856,
-            "session_close": 180075.0,
+            "timestamp": "2026-09-02T10:09:01.996",
+            "bid": 183495.0,
+            "ask": 183500.0,
+            "last": 183495.0,
+            "volume": 1.0,
+            "spread": 5.0,
+            "open": 182050.0,
+            "high": 183630.0,
+            "low": 181970.0,
+            "close": 183495.0,
+            "volume_d1": 613674.0,
+            "prev_close": 182390.0,
+            "change_percent": 0.6058,
+            "session_close": 182390.0,
             "preco_teorico": null,
             "vencimento": "2026-10-13T21:00:00",
             "market_book": {
@@ -9812,18 +10062,18 @@ ARQUIVO: Coletas\Dados_MT5_v2_2.json
                 {
                     "contrato": "WINV26",
                     "expiracao": "2026-10-13T21:00:00",
-                    "volume": 9.0,
-                    "bid": 182300.0,
-                    "ask": 182330.0,
-                    "last": 182390.0
+                    "volume": 1.0,
+                    "bid": 183495.0,
+                    "ask": 183500.0,
+                    "last": 183495.0
                 },
                 {
                     "contrato": "WINZ26",
                     "expiracao": "2026-12-15T21:00:00",
                     "volume": 1.0,
-                    "bid": 185935.0,
-                    "ask": 186025.0,
-                    "last": 186020.0
+                    "bid": 187135.0,
+                    "ask": 187165.0,
+                    "last": 187180.0
                 }
             ],
             "status": "OK"
@@ -9832,20 +10082,20 @@ ARQUIVO: Coletas\Dados_MT5_v2_2.json
             "ativo": "WDO",
             "descricao": "Mini Dólar B3",
             "contrato_principal": "WDOV26",
-            "timestamp": "2026-09-01T20:59:03.110",
-            "bid": 5186.0,
-            "ask": 5186.5,
-            "last": 5187.0,
-            "volume": 43.0,
+            "timestamp": "2026-09-02T10:09:02.003",
+            "bid": 5194.0,
+            "ask": 5194.5,
+            "last": 5194.0,
+            "volume": 5.0,
             "spread": 0.5,
-            "open": 5224.0,
-            "high": 5235.5,
-            "low": 5171.0,
-            "close": 5187.0,
-            "volume_d1": 206225.0,
-            "prev_close": 5218.5,
-            "change_percent": -0.6036,
-            "session_close": 5218.5,
+            "open": 5189.0,
+            "high": 5194.5,
+            "low": 5179.5,
+            "close": 5194.0,
+            "volume_d1": 43551.0,
+            "prev_close": 5187.0,
+            "change_percent": 0.135,
+            "session_close": 5187.0,
             "preco_teorico": null,
             "vencimento": "2026-09-30T21:00:00",
             "market_book": {
@@ -9858,26 +10108,26 @@ ARQUIVO: Coletas\Dados_MT5_v2_2.json
                 {
                     "contrato": "WDOV26",
                     "expiracao": "2026-09-30T21:00:00",
-                    "volume": 43.0,
-                    "bid": 5186.0,
-                    "ask": 5186.5,
-                    "last": 5187.0
+                    "volume": 5.0,
+                    "bid": 5194.0,
+                    "ask": 5194.5,
+                    "last": 5194.0
+                },
+                {
+                    "contrato": "WDOZ26",
+                    "expiracao": "2026-12-01T20:59:00",
+                    "volume": 2.0,
+                    "bid": 5250.5,
+                    "ask": 5257.5,
+                    "last": 5240.0
                 },
                 {
                     "contrato": "WDOX26",
                     "expiracao": "2026-11-03T20:59:00",
                     "volume": 1.0,
-                    "bid": 5216.5,
-                    "ask": 5218.0,
-                    "last": 5218.0
-                },
-                {
-                    "contrato": "WDOZ26",
-                    "expiracao": "2026-12-01T20:59:00",
-                    "volume": 1.0,
-                    "bid": 5242.0,
-                    "ask": 5251.5,
-                    "last": 5240.0
+                    "bid": 5224.5,
+                    "ask": 5225.5,
+                    "last": 5225.0
                 }
             ],
             "status": "OK"
@@ -9885,23 +10135,23 @@ ARQUIVO: Coletas\Dados_MT5_v2_2.json
         "DI1": {
             "ativo": "DI1",
             "descricao": "DI Futuro B3",
-            "contrato_principal": "DI1V26",
-            "timestamp": "2026-09-01T20:59:03.125",
-            "bid": 13.786,
-            "ask": 13.788,
-            "last": 13.787,
-            "volume": 3214.0,
-            "spread": 0.002000000000000668,
-            "open": 13.793,
-            "high": 13.793,
-            "low": 13.784,
-            "close": 13.787,
-            "volume_d1": 3521.0,
-            "prev_close": 13.792,
-            "change_percent": -0.0363,
-            "session_close": 13.792,
+            "contrato_principal": "DI1F35",
+            "timestamp": "2026-09-02T10:09:02.300",
+            "bid": 14.37,
+            "ask": 14.38,
+            "last": 14.37,
+            "volume": 19.0,
+            "spread": 0.010000000000001563,
+            "open": 14.46,
+            "high": 14.48,
+            "low": 14.37,
+            "close": 14.37,
+            "volume_d1": 1073.0,
+            "prev_close": 14.49,
+            "change_percent": -0.8282,
+            "session_close": 14.49,
             "preco_teorico": null,
-            "vencimento": "2026-09-30T21:00:00",
+            "vencimento": "2035-01-01T21:00:00",
             "market_book": {
                 "disponivel": false,
                 "quantidade_niveis": 0,
@@ -9910,163 +10160,163 @@ ARQUIVO: Coletas\Dados_MT5_v2_2.json
             },
             "contratos_vigentes": [
                 {
-                    "contrato": "DI1V26",
-                    "expiracao": "2026-09-30T21:00:00",
-                    "volume": 3214.0,
-                    "bid": 13.786,
-                    "ask": 13.788,
-                    "last": 13.787
-                },
-                {
-                    "contrato": "DI1F27",
-                    "expiracao": "2027-01-03T21:00:00",
-                    "volume": 1500.0,
-                    "bid": 13.585,
-                    "ask": 13.59,
-                    "last": 13.585
-                },
-                {
-                    "contrato": "DI1F29",
-                    "expiracao": "2029-01-01T21:00:00",
-                    "volume": 193.0,
-                    "bid": 14.11,
-                    "ask": 14.11,
-                    "last": 14.11
-                },
-                {
-                    "contrato": "DI1F28",
-                    "expiracao": "2027-12-30T21:00:00",
-                    "volume": 30.0,
-                    "bid": 13.755,
-                    "ask": 13.765,
-                    "last": 13.76
-                },
-                {
-                    "contrato": "DI1J29",
-                    "expiracao": "2029-04-01T21:00:00",
-                    "volume": 26.0,
-                    "bid": 0.0,
-                    "ask": 0.0,
-                    "last": 14.185
-                },
-                {
-                    "contrato": "DI1F31",
-                    "expiracao": "2031-01-01T21:00:00",
-                    "volume": 18.0,
-                    "bid": 14.39,
-                    "ask": 14.39,
-                    "last": 14.39
-                },
-                {
                     "contrato": "DI1F35",
                     "expiracao": "2035-01-01T21:00:00",
-                    "volume": 14.0,
-                    "bid": 14.49,
-                    "ask": 14.51,
-                    "last": 14.49
-                },
-                {
-                    "contrato": "DI1N29",
-                    "expiracao": "2029-07-01T21:00:00",
-                    "volume": 11.0,
-                    "bid": 14.24,
-                    "ask": 14.25,
-                    "last": 14.24
-                },
-                {
-                    "contrato": "DI1J30",
-                    "expiracao": "2030-03-31T21:00:00",
-                    "volume": 6.0,
-                    "bid": 14.31,
-                    "ask": 14.33,
-                    "last": 14.31
+                    "volume": 19.0,
+                    "bid": 14.37,
+                    "ask": 14.38,
+                    "last": 14.37
                 },
                 {
                     "contrato": "DI1F36",
                     "expiracao": "2036-01-01T21:00:00",
-                    "volume": 6.0,
-                    "bid": 14.46,
-                    "ask": 14.48,
-                    "last": 14.48
+                    "volume": 19.0,
+                    "bid": 14.35,
+                    "ask": 14.36,
+                    "last": 14.37
                 },
                 {
-                    "contrato": "DI1V29",
-                    "expiracao": "2029-09-30T21:00:00",
-                    "volume": 4.0,
-                    "bid": 0.0,
-                    "ask": 14.285,
-                    "last": 14.27
-                },
-                {
-                    "contrato": "DI1F33",
-                    "expiracao": "2033-01-02T21:00:00",
-                    "volume": 4.0,
-                    "bid": 14.49,
-                    "ask": 14.5,
-                    "last": 14.5
-                },
-                {
-                    "contrato": "DI1F30",
-                    "expiracao": "2030-01-01T21:00:00",
-                    "volume": 2.0,
-                    "bid": 14.3,
-                    "ask": 14.31,
-                    "last": 14.3
-                },
-                {
-                    "contrato": "DI1F34",
-                    "expiracao": "2034-01-01T21:00:00",
-                    "volume": 2.0,
-                    "bid": 14.48,
-                    "ask": 14.5,
-                    "last": 14.5
+                    "contrato": "DI1J30",
+                    "expiracao": "2030-03-31T21:00:00",
+                    "volume": 13.0,
+                    "bid": 14.18,
+                    "ask": 14.19,
+                    "last": 14.195
                 },
                 {
                     "contrato": "DI1N30",
                     "expiracao": "2030-06-30T21:00:00",
-                    "volume": 1.0,
-                    "bid": 14.34,
-                    "ask": 14.36,
-                    "last": 14.34
+                    "volume": 12.0,
+                    "bid": 14.21,
+                    "ask": 14.23,
+                    "last": 14.23
+                },
+                {
+                    "contrato": "DI1J29",
+                    "expiracao": "2029-04-01T21:00:00",
+                    "volume": 10.0,
+                    "bid": 14.055,
+                    "ask": 14.065,
+                    "last": 14.06
                 },
                 {
                     "contrato": "DI1F32",
                     "expiracao": "2032-01-01T21:00:00",
-                    "volume": 1.0,
-                    "bid": 14.46,
-                    "ask": 14.47,
-                    "last": 14.47
+                    "volume": 10.0,
+                    "bid": 14.33,
+                    "ask": 14.34,
+                    "last": 14.33
+                },
+                {
+                    "contrato": "DI1F33",
+                    "expiracao": "2033-01-02T21:00:00",
+                    "volume": 9.0,
+                    "bid": 14.37,
+                    "ask": 14.37,
+                    "last": 14.37
+                },
+                {
+                    "contrato": "DI1F30",
+                    "expiracao": "2030-01-01T21:00:00",
+                    "volume": 7.0,
+                    "bid": 14.17,
+                    "ask": 14.175,
+                    "last": 14.175
+                },
+                {
+                    "contrato": "DI1N29",
+                    "expiracao": "2029-07-01T21:00:00",
+                    "volume": 5.0,
+                    "bid": 14.12,
+                    "ask": 14.13,
+                    "last": 14.12
                 },
                 {
                     "contrato": "DI1F37",
                     "expiracao": "2037-01-01T21:00:00",
+                    "volume": 5.0,
+                    "bid": 14.36,
+                    "ask": 14.38,
+                    "last": 14.38
+                },
+                {
+                    "contrato": "DI1F27",
+                    "expiracao": "2027-01-03T21:00:00",
+                    "volume": 4.0,
+                    "bid": 13.575,
+                    "ask": 13.58,
+                    "last": 13.58
+                },
+                {
+                    "contrato": "DI1V29",
+                    "expiracao": "2029-09-30T21:00:00",
+                    "volume": 2.0,
+                    "bid": 14.14,
+                    "ask": 14.15,
+                    "last": 14.145
+                },
+                {
+                    "contrato": "DI1F31",
+                    "expiracao": "2031-01-01T21:00:00",
+                    "volume": 2.0,
+                    "bid": 14.25,
+                    "ask": 14.25,
+                    "last": 14.25
+                },
+                {
+                    "contrato": "DI1V26",
+                    "expiracao": "2026-09-30T21:00:00",
                     "volume": 1.0,
-                    "bid": 14.48,
-                    "ask": 14.49,
-                    "last": 14.49
+                    "bid": 13.78,
+                    "ask": 13.783,
+                    "last": 13.783
+                },
+                {
+                    "contrato": "DI1F28",
+                    "expiracao": "2027-12-30T21:00:00",
+                    "volume": 1.0,
+                    "bid": 13.685,
+                    "ask": 13.69,
+                    "last": 13.685
+                },
+                {
+                    "contrato": "DI1F29",
+                    "expiracao": "2029-01-01T21:00:00",
+                    "volume": 1.0,
+                    "bid": 13.99,
+                    "ask": 14.0,
+                    "last": 13.99
+                },
+                {
+                    "contrato": "DI1F34",
+                    "expiracao": "2034-01-01T21:00:00",
+                    "volume": 1.0,
+                    "bid": 14.36,
+                    "ask": 14.38,
+                    "last": 14.38
                 },
                 {
                     "contrato": "DI1F38",
                     "expiracao": "2038-01-03T21:00:00",
                     "volume": 1.0,
-                    "bid": 14.44,
-                    "ask": 0.0,
-                    "last": 14.47
+                    "bid": 14.34,
+                    "ask": 14.37,
+                    "last": 14.38
                 },
                 {
                     "contrato": "DI1F39",
                     "expiracao": "2039-01-02T21:00:00",
                     "volume": 1.0,
-                    "bid": 14.43,
-                    "ask": 0.0,
+                    "bid": 14.33,
+                    "ask": 14.36,
                     "last": 14.45
                 },
                 {
                     "contrato": "DI1F40",
                     "expiracao": "2040-01-01T21:00:00",
                     "volume": 1.0,
-                    "bid": 14.4,
-                    "ask": 0.0,
+                    "bid": 14.31,
+                    "ask": 14.36,
                     "last": 14.51
                 }
             ],
@@ -10083,10 +10333,10 @@ ARQUIVO: Coletas\Dados_Validados.json
 
 {
   "metadata_validacao": {
-    "timestamp_validacao": "2026-09-01T22:54:02.123218",
+    "timestamp_validacao": "2026-09-02T10:09:02.852772",
     "arquivo_origem": "Coleta_rom-0.json",
-    "total_recebidos": 26,
-    "total_aprovados": 26,
+    "total_recebidos": 32,
+    "total_aprovados": 32,
     "total_rejeitados": 0
   },
   "ativos_validados": [
@@ -10094,7 +10344,7 @@ ARQUIVO: Coletas\Dados_Validados.json
       "ativo_id": "USD_PTAX",
       "ticker_original": "USD_PTAX",
       "fonte": "BACEN_SGS_10813",
-      "timestamp_coleta": "2026-09-01T22:54:01.127451",
+      "timestamp_coleta": "2026-09-02T10:09:01.588161",
       "close": 5.1564,
       "previous_close": null,
       "open": null,
@@ -10106,8 +10356,8 @@ ARQUIVO: Coletas\Dados_Validados.json
     {
       "ativo_id": "WIN_AJUSTE",
       "ticker_original": "B3_AJUSTE_WIN",
-      "fonte": "TRADINGVIEW_DIRECT_SYMBOL",
-      "timestamp_coleta": "2026-09-01T22:54:01.128153",
+      "fonte": "CACHE_DISCO (Fora da janela)",
+      "timestamp_coleta": "2026-09-02T10:09:01.588719",
       "close": 182233.0,
       "previous_close": null,
       "open": null,
@@ -10119,8 +10369,8 @@ ARQUIVO: Coletas\Dados_Validados.json
     {
       "ativo_id": "WDO_AJUSTE",
       "ticker_original": "B3_AJUSTE_WDO",
-      "fonte": "TRADINGVIEW_DIRECT_SYMBOL",
-      "timestamp_coleta": "2026-09-01T22:54:01.128153",
+      "fonte": "CACHE_DISCO (Fora da janela)",
+      "timestamp_coleta": "2026-09-02T10:09:01.588719",
       "close": 5183.841,
       "previous_close": null,
       "open": null,
@@ -10133,163 +10383,163 @@ ARQUIVO: Coletas\Dados_Validados.json
       "ativo_id": "DI1_2027",
       "ticker_original": "BMFBOVESPA:DI1F2027",
       "fonte": "TRADINGVIEW_SCANNER",
-      "timestamp_coleta": "2026-09-01T22:54:01.128589",
-      "close": 13.585,
+      "timestamp_coleta": "2026-09-02T10:09:01.589103",
+      "close": 13.58,
       "previous_close": null,
-      "open": 13.615,
-      "high": 13.62,
-      "low": 13.58,
-      "change_percent": -0.22034520749173234,
-      "volume": 445809.0
+      "open": 13.58,
+      "high": 13.58,
+      "low": 13.57,
+      "change_percent": -0.03680529996320045,
+      "volume": 91941.0
     },
     {
       "ativo_id": "DI1_2029",
       "ticker_original": "BMFBOVESPA:DI1F2029",
       "fonte": "TRADINGVIEW_SCANNER",
-      "timestamp_coleta": "2026-09-01T22:54:01.128589",
-      "close": 14.11,
+      "timestamp_coleta": "2026-09-02T10:09:01.589103",
+      "close": 13.995,
       "previous_close": null,
-      "open": 14.25,
-      "high": 14.25,
-      "low": 14.08,
-      "change_percent": -0.45855379188713424,
-      "volume": 601132.0
+      "open": 14.065,
+      "high": 14.07,
+      "low": 13.975,
+      "change_percent": -0.8150248051027655,
+      "volume": 161429.0
     },
     {
       "ativo_id": "VIX",
       "ticker_original": "TVC:VIX",
       "fonte": "TRADINGVIEW_SCANNER",
-      "timestamp_coleta": "2026-09-01T22:54:01.128589",
-      "close": 16.33,
+      "timestamp_coleta": "2026-09-02T10:09:01.589103",
+      "close": 16.18,
       "previous_close": null,
-      "open": 14.95,
-      "high": 16.8,
-      "low": 14.95,
-      "change_percent": 9.377093101138637,
+      "open": 16.39,
+      "high": 16.82,
+      "low": 15.94,
+      "change_percent": -0.9185548071034819,
       "volume": null
     },
     {
       "ativo_id": "IRON_ORE",
       "ticker_original": "SGX:FEF1!",
       "fonte": "TRADINGVIEW_SCANNER",
-      "timestamp_coleta": "2026-09-01T22:54:01.128589",
-      "close": 99.0,
+      "timestamp_coleta": "2026-09-02T10:09:01.589103",
+      "close": 98.1,
       "previous_close": null,
-      "open": 99.45,
-      "high": 99.55,
-      "low": 98.9,
-      "change_percent": -0.35228988424760377,
-      "volume": 7776.0
+      "open": 98.05,
+      "high": 98.1,
+      "low": 98.0,
+      "change_percent": 0.20429009193052974,
+      "volume": 1945.0
     },
     {
       "ativo_id": "IRON_ORE_2M",
       "ticker_original": "SGX:FEF2!",
       "fonte": "TRADINGVIEW_SCANNER",
-      "timestamp_coleta": "2026-09-01T22:54:01.128589",
-      "close": 99.0,
+      "timestamp_coleta": "2026-09-02T10:09:01.589103",
+      "close": 98.1,
       "previous_close": null,
-      "open": 99.45,
-      "high": 99.55,
-      "low": 98.9,
-      "change_percent": -0.35228988424760377,
-      "volume": 7776.0
+      "open": 98.05,
+      "high": 98.1,
+      "low": 98.0,
+      "change_percent": 0.20429009193052974,
+      "volume": 1945.0
     },
     {
       "ativo_id": "CRUDE_OIL",
       "ticker_original": "NYMEX:CL1!",
       "fonte": "TRADINGVIEW_SCANNER",
-      "timestamp_coleta": "2026-09-01T22:54:01.128589",
-      "close": 91.92,
+      "timestamp_coleta": "2026-09-02T10:09:01.589103",
+      "close": 89.81,
       "previous_close": null,
       "open": 90.65,
       "high": 92.29,
-      "low": 90.57,
-      "change_percent": 1.8842828641099565,
-      "volume": 22012.0
+      "low": 89.04,
+      "change_percent": -0.4544446907559262,
+      "volume": 108451.0
     },
     {
       "ativo_id": "SP500_FUT",
       "ticker_original": "CME_MINI:ES1!",
       "fonte": "TRADINGVIEW_SCANNER",
-      "timestamp_coleta": "2026-09-01T22:54:01.128589",
-      "close": 7637.25,
+      "timestamp_coleta": "2026-09-02T10:09:01.589103",
+      "close": 7640.5,
       "previous_close": null,
       "open": 7645.0,
-      "high": 7651.5,
-      "low": 7636.5,
-      "change_percent": -0.07196362565830362,
-      "volume": 29253.0
+      "high": 7658.75,
+      "low": 7618.5,
+      "change_percent": -0.029439665042033297,
+      "volume": 199462.0
     },
     {
       "ativo_id": "NASDAQ_FUT",
       "ticker_original": "CME_MINI:NQ1!",
       "fonte": "TRADINGVIEW_SCANNER",
-      "timestamp_coleta": "2026-09-01T22:54:01.128589",
-      "close": 29081.0,
+      "timestamp_coleta": "2026-09-02T10:09:01.589103",
+      "close": 29039.75,
       "previous_close": null,
       "open": 29136.5,
       "high": 29170.0,
-      "low": 29072.0,
-      "change_percent": -0.15278707661671043,
-      "volume": 22413.0
+      "low": 28927.25,
+      "change_percent": -0.2944155465142229,
+      "volume": 108219.0
     },
     {
       "ativo_id": "DXY",
       "ticker_original": "TVC:DXY",
       "fonte": "TRADINGVIEW_SCANNER",
-      "timestamp_coleta": "2026-09-01T22:54:01.128589",
-      "close": 99.784,
+      "timestamp_coleta": "2026-09-02T10:09:01.589103",
+      "close": 99.753,
       "previous_close": null,
       "open": 99.665,
-      "high": 99.787,
+      "high": 99.863,
       "low": 99.659,
-      "change_percent": 0.13145615285039106,
+      "change_percent": 0.10034820828273541,
       "volume": null
     },
     {
       "ativo_id": "USD_MXN",
       "ticker_original": "FX_IDC:USDMXN",
       "fonte": "TRADINGVIEW_SCANNER",
-      "timestamp_coleta": "2026-09-01T22:54:01.128589",
-      "close": 17.0077,
+      "timestamp_coleta": "2026-09-02T10:09:01.589103",
+      "close": 17.00333,
       "previous_close": null,
       "open": 16.9684,
-      "high": 17.009,
+      "high": 17.0272,
       "low": 16.9684,
-      "change_percent": 0.23160698710544764,
+      "change_percent": 0.20585323306852293,
       "volume": 0.0
     },
     {
       "ativo_id": "GOLD",
       "ticker_original": "TVC:GOLD",
       "fonte": "TRADINGVIEW_SCANNER",
-      "timestamp_coleta": "2026-09-01T22:54:01.128589",
-      "close": 4295.706,
+      "timestamp_coleta": "2026-09-02T10:09:01.589103",
+      "close": 4342.385,
       "previous_close": null,
       "open": 4330.348,
-      "high": 4335.82,
-      "low": 4290.93,
-      "change_percent": -0.7614125833253401,
+      "high": 4344.45,
+      "low": 4282.72,
+      "change_percent": 0.32078087097147323,
       "volume": 0.0
     },
     {
       "ativo_id": "USD_BRL",
       "ticker_original": "FX_IDC:USDBRL",
       "fonte": "TRADINGVIEW_SCANNER",
-      "timestamp_coleta": "2026-09-01T22:54:01.128589",
-      "close": 5.1527,
+      "timestamp_coleta": "2026-09-02T10:09:01.589103",
+      "close": 5.162,
       "previous_close": null,
       "open": 5.1518,
-      "high": 5.1539,
-      "low": 5.1518,
-      "change_percent": 0.017469622267956193,
+      "high": 5.1622,
+      "low": 5.1482,
+      "change_percent": 0.19798905237004952,
       "volume": 0.0
     },
     {
       "ativo_id": "EWZ",
       "ticker_original": "AMEX:EWZ",
       "fonte": "FINNHUB",
-      "timestamp_coleta": "2026-09-01T22:54:01.129978",
+      "timestamp_coleta": "2026-09-02T10:09:01.590529",
       "close": 36.57,
       "previous_close": 36.03,
       "open": null,
@@ -10302,7 +10552,7 @@ ARQUIVO: Coletas\Dados_Validados.json
       "ativo_id": "VALE_ADR",
       "ticker_original": "NYSE:VALE",
       "fonte": "FINNHUB",
-      "timestamp_coleta": "2026-09-01T22:54:01.129978",
+      "timestamp_coleta": "2026-09-02T10:09:01.590529",
       "close": 15.12,
       "previous_close": 15.09,
       "open": null,
@@ -10315,7 +10565,7 @@ ARQUIVO: Coletas\Dados_Validados.json
       "ativo_id": "PETR_ADR",
       "ticker_original": "NYSE:PBR",
       "fonte": "FINNHUB",
-      "timestamp_coleta": "2026-09-01T22:54:01.129978",
+      "timestamp_coleta": "2026-09-02T10:09:01.590529",
       "close": 20.33,
       "previous_close": 19.35,
       "open": null,
@@ -10328,7 +10578,7 @@ ARQUIVO: Coletas\Dados_Validados.json
       "ativo_id": "ITUB_ADR",
       "ticker_original": "NYSE:ITUB",
       "fonte": "FINNHUB",
-      "timestamp_coleta": "2026-09-01T22:54:01.129978",
+      "timestamp_coleta": "2026-09-02T10:09:01.590529",
       "close": 7.68,
       "previous_close": 7.61,
       "open": null,
@@ -10341,20 +10591,20 @@ ARQUIVO: Coletas\Dados_Validados.json
       "ativo_id": "BBAS_ADR",
       "ticker_original": "OTC:BDORY",
       "fonte": "FINNHUB",
-      "timestamp_coleta": "2026-09-01T22:54:01.129978",
-      "close": 4.11,
-      "previous_close": 3.99,
+      "timestamp_coleta": "2026-09-02T10:09:01.590529",
+      "close": 4.201,
+      "previous_close": 4.11,
       "open": null,
       "high": null,
       "low": null,
-      "change_percent": 3.01,
+      "change_percent": 2.21,
       "volume": null
     },
     {
       "ativo_id": "BBD_ADR",
       "ticker_original": "NYSE:BBD",
       "fonte": "FINNHUB",
-      "timestamp_coleta": "2026-09-01T22:54:01.129978",
+      "timestamp_coleta": "2026-09-02T10:09:01.590529",
       "close": 3.32,
       "previous_close": 3.28,
       "open": null,
@@ -10367,66 +10617,144 @@ ARQUIVO: Coletas\Dados_Validados.json
       "ativo_id": "B3_ADR",
       "ticker_original": "OTC:BOLSY",
       "fonte": "FINNHUB",
-      "timestamp_coleta": "2026-09-01T22:54:01.129978",
-      "close": 9.6,
-      "previous_close": 9.18,
+      "timestamp_coleta": "2026-09-02T10:09:01.590529",
+      "close": 9.675,
+      "previous_close": 9.6,
       "open": null,
       "high": null,
       "low": null,
-      "change_percent": 4.58,
+      "change_percent": 0.78,
+      "volume": null
+    },
+    {
+      "ativo_id": "VALE3",
+      "ticker_original": "VALE3",
+      "fonte": "MetaTrader5",
+      "timestamp_coleta": "2026-09-02T10:09:02.309415",
+      "close": 78.66,
+      "previous_close": 78.3,
+      "open": null,
+      "high": null,
+      "low": null,
+      "change_percent": 0.46,
+      "volume": null
+    },
+    {
+      "ativo_id": "PETR4",
+      "ticker_original": "PETR4",
+      "fonte": "MetaTrader5",
+      "timestamp_coleta": "2026-09-02T10:09:02.309415",
+      "close": 46.72,
+      "previous_close": 46.87,
+      "open": null,
+      "high": null,
+      "low": null,
+      "change_percent": -0.32,
+      "volume": null
+    },
+    {
+      "ativo_id": "ITUB4",
+      "ticker_original": "ITUB4",
+      "fonte": "MetaTrader5",
+      "timestamp_coleta": "2026-09-02T10:09:02.309415",
+      "close": 40.16,
+      "previous_close": 39.88,
+      "open": null,
+      "high": null,
+      "low": null,
+      "change_percent": 0.7,
+      "volume": null
+    },
+    {
+      "ativo_id": "BBAS3",
+      "ticker_original": "BBAS3",
+      "fonte": "MetaTrader5",
+      "timestamp_coleta": "2026-09-02T10:09:02.309415",
+      "close": 21.34,
+      "previous_close": 21.1,
+      "open": null,
+      "high": null,
+      "low": null,
+      "change_percent": 1.14,
+      "volume": null
+    },
+    {
+      "ativo_id": "BBDC4",
+      "ticker_original": "BBDC4",
+      "fonte": "MetaTrader5",
+      "timestamp_coleta": "2026-09-02T10:09:02.309415",
+      "close": 17.6,
+      "previous_close": 17.38,
+      "open": null,
+      "high": null,
+      "low": null,
+      "change_percent": 1.27,
+      "volume": null
+    },
+    {
+      "ativo_id": "B3SA3",
+      "ticker_original": "B3SA3",
+      "fonte": "MetaTrader5",
+      "timestamp_coleta": "2026-09-02T10:09:02.309415",
+      "close": 16.84,
+      "previous_close": 16.62,
+      "open": null,
+      "high": null,
+      "low": null,
+      "change_percent": 1.32,
       "volume": null
     },
     {
       "ativo_id": "WIN_FUT",
       "ticker_original": "BMFBOVESPA:WIN1!",
       "fonte": "MT5_v2.2",
-      "timestamp_coleta": "2026-09-01T22:54:01.609184",
-      "close": 182315.0,
-      "previous_close": 180075.0,
-      "open": 179390.0,
-      "high": 183670.0,
-      "low": 179000.0,
-      "change_percent": 1.2856,
-      "volume": 2650564.0
+      "timestamp_coleta": "2026-09-02T10:09:02.323764",
+      "close": 183495.0,
+      "previous_close": 182390.0,
+      "open": 182050.0,
+      "high": 183630.0,
+      "low": 181970.0,
+      "change_percent": 0.6058,
+      "volume": 613674.0
     },
     {
       "ativo_id": "WIN_LAST_TICK",
       "ticker_original": "WIN_LAST_TICK",
-      "fonte": "MT5_v2.2",
-      "timestamp_coleta": "2026-09-01T22:54:01.609184",
+      "fonte": "LAST_TICK_CONGELADO (arquivo fixo)",
+      "timestamp_coleta": "2026-09-02T10:09:02.323764",
       "close": 182315.0,
       "previous_close": 180075.0,
       "open": 179390.0,
       "high": 183670.0,
       "low": 179000.0,
       "change_percent": 1.2856,
-      "volume": 2650564.0
+      "volume": 5781016.0
     },
     {
       "ativo_id": "WDO_FUT",
       "ticker_original": "BMFBOVESPA:WDO1!",
       "fonte": "MT5_v2.2",
-      "timestamp_coleta": "2026-09-01T22:54:01.609184",
-      "close": 5186.2,
-      "previous_close": 5218.5,
-      "open": 5224.0,
-      "high": 5235.5,
-      "low": 5171.0,
-      "change_percent": -0.6036,
-      "volume": 206225.0
+      "timestamp_coleta": "2026-09-02T10:09:02.323764",
+      "close": 5194.0,
+      "previous_close": 5187.0,
+      "open": 5189.0,
+      "high": 5194.5,
+      "low": 5179.5,
+      "change_percent": 0.135,
+      "volume": 43551.0
     },
     {
       "ativo_id": "WDO_LAST_TICK",
       "ticker_original": "WDO_LAST_TICK",
-      "fonte": "MT5_v2.2",
-      "timestamp_coleta": "2026-09-01T22:54:01.609184",
+      "fonte": "LAST_TICK_CONGELADO (arquivo fixo)",
+      "timestamp_coleta": "2026-09-02T10:09:02.323764",
       "close": 5186.2,
       "previous_close": 5218.5,
       "open": 5224.0,
       "high": 5235.5,
       "low": 5171.0,
       "change_percent": -0.6036,
-      "volume": 206225.0
+      "volume": 489101.0
     }
   ],
   "relatorio_rejeicoes": []
@@ -10466,10 +10794,10 @@ ARQUIVO: Coletas\Decisao_V2.json
 
 {
     "metadata": {
-        "timestamp": "2026-09-01T20:59:04.272041",
-        "versao": "V2.2",
+        "timestamp": "2026-09-02T10:09:03.560751",
+        "versao": "V2.6",
         "fonte": "v2_orchestrator",
-        "latencia_ms": 0.88
+        "latencia_ms": 1.23
     },
     "contextos": {
         "market_ok": true,
@@ -10479,41 +10807,45 @@ ARQUIVO: Coletas\Decisao_V2.json
         "session_ok": true
     },
     "decisao": {
-        "timestamp": "2026-09-01T20:59:04.272060",
+        "timestamp": "2026-09-02T10:09:03.560828",
         "ativo": "WIN",
         "vies_final": "ALTA",
         "confianca": 95,
-        "entrada": 182470,
-        "stop_loss": 182145,
-        "alvo_1": 182770,
-        "alvo_2": 182955,
-        "invalidacao": "Fechamento M5 abaixo de 182145",
+        "entrada": 182970,
+        "stop_loss": 182570,
+        "alvo_1": 183342,
+        "alvo_2": 183455,
+        "invalidacao": "Fechamento M5 abaixo de 182570",
         "motivos": [
             "Motor SMC indica estrutura de ALTA (Confiança: 95%)",
-            "Preço trabalhando acima do Pivot Point (180915)"
+            "Referência Volume Profile: POC de Ontem em 183,065 pts",
+            "Preço trabalhando em relação ao Pivot Point (182663)"
         ],
         "riscos": [],
         "metadados": {
             "pivots": {
-                "pp": 180915.0,
-                "r1": 182830.0,
-                "r2": 185585.0,
-                "s1": 178160.0,
-                "s2": 176245.0
+                "pp": 182663.33,
+                "r1": 183356.67,
+                "r2": 184323.33,
+                "s1": 181696.67,
+                "s2": 181003.33
             },
             "smc": {
+                "poc_ontem": 183065.0,
+                "vwap_ontem": 182045.8,
+                "ob_alinhado_com_poc": true,
                 "order_blocks": [
                     {
-                        "tipo": "VENDA",
-                        "preco": 183255.0,
-                        "high": 183335.0,
-                        "low": 183175.0
+                        "tipo": "COMPRA",
+                        "preco": 182795.0,
+                        "high": 182970.0,
+                        "low": 182620.0
                     },
                     {
                         "tipo": "VENDA",
-                        "preco": 182327.5,
-                        "high": 182380.0,
-                        "low": 182275.0
+                        "preco": 183130.0,
+                        "high": 183410.0,
+                        "low": 182850.0
                     }
                 ],
                 "fvgs": [
@@ -10531,20 +10863,14 @@ ARQUIVO: Coletas\Decisao_V2.json
                     },
                     {
                         "tipo": "COMPRA",
-                        "superior": 182145.0,
-                        "inferior": 181970.0,
+                        "superior": 182670.0,
+                        "inferior": 182390.0,
                         "preenchido": false
                     },
                     {
-                        "tipo": "VENDA",
-                        "superior": 182855.0,
-                        "inferior": 182765.0,
-                        "preenchido": false
-                    },
-                    {
-                        "tipo": "VENDA",
-                        "superior": 182430.0,
-                        "inferior": 182320.0,
+                        "tipo": "COMPRA",
+                        "superior": 183265.0,
+                        "inferior": 183170.0,
                         "preenchido": false
                     }
                 ],
@@ -10554,12 +10880,16 @@ ARQUIVO: Coletas\Decisao_V2.json
                 "resistencias": [
                     182465.0
                 ],
-                "entrada_sugerida": 182470,
-                "stop_sugerido": 182145,
+                "entrada_sugerida": 182970,
+                "stop_sugerido": 182570,
                 "alvos": [
-                    182770,
-                    182955
+                    183342,
+                    183455
                 ]
+            },
+            "precificacao_teorica": {
+                "abertura_teorica": 185161.0,
+                "preco_carregado_di": 183588.0
             },
             "gap_pts": 82.0,
             "ajuste": 182233.0,
@@ -10576,25 +10906,34 @@ ARQUIVO: Coletas\EstimativaAbertura.json
 
 {
   "metadata_calculo": {
-    "timestamp_calculo": "2026-09-01T22:54:02.361486",
+    "timestamp_calculo": "2026-09-02T10:09:03.227725",
     "janela_ativa": "REFERENCIA_1000_INTRADAY"
   },
   "estimativa_abertura": {
     "WIN_INDICE": {
-      "variacao_teorica_pct": 0.8994,
-      "preco_referencia_base": 182315.0,
-      "abertura_teorica_pontos": 183955.0,
+      "variacao_teorica_pct": 0.9079,
+      "preco_referencia_base": 183495.0,
+      "abertura_teorica_pontos": 185161.0,
+      "cost_of_carry": {
+        "taxa_di_anual_pct": 13.58,
+        "fator_diario_pct": 0.050543,
+        "preco_teorico_carregado": 183588.0
+      },
       "contexto_janela": "REFERENCIA_1000_INTRADAY"
     }
   },
   "pivot_points": {
     "WIN_FUT": {
-      "PP": 180915.0,
-      "R1": 182830.0,
-      "R2": 185585.0,
-      "S1": 178160.0,
-      "S2": 176245.0
+      "PP": 182663.33,
+      "R1": 183356.67,
+      "R2": 184323.33,
+      "S1": 181696.67,
+      "S2": 181003.33
     }
+  },
+  "pivots_institucionais": {
+    "poc_ontem": 183065.0,
+    "vwap_ontem": 182045.8
   }
 }
 
@@ -10604,13 +10943,13 @@ ARQUIVO: Coletas\LastTick_Congelado.json
 ==================================================
 
 {
-  "timestamp_congelamento": "2026-09-01T22:54:01.609534",
+  "timestamp_congelamento": "2026-09-02T08:59:20.272032",
   "fonte": "MT5_v2.2",
   "ticks": {
     "WIN_LAST_TICK": {
       "ativo": "WIN_LAST_TICK",
       "fonte": "MT5_v2.2",
-      "timestamp": "2026-09-01T22:54:01.609184",
+      "timestamp": "2026-09-02T08:59:20.266777",
       "status": "OK",
       "dados_reais": {
         "close": 182315.0,
@@ -10618,14 +10957,14 @@ ARQUIVO: Coletas\LastTick_Congelado.json
         "high": 183670.0,
         "low": 179000.0,
         "change_percent": 1.2856,
-        "volume": 2650564.0,
+        "volume": 5781016.0,
         "fechamento_anterior": 180075.0
       }
     },
     "WDO_LAST_TICK": {
       "ativo": "WDO_LAST_TICK",
       "fonte": "MT5_v2.2",
-      "timestamp": "2026-09-01T22:54:01.609184",
+      "timestamp": "2026-09-02T08:59:20.266777",
       "status": "OK",
       "dados_reais": {
         "close": 5186.2,
@@ -10633,7 +10972,7 @@ ARQUIVO: Coletas\LastTick_Congelado.json
         "high": 5235.5,
         "low": 5171.0,
         "change_percent": -0.6036,
-        "volume": 206225.0,
+        "volume": 489101.0,
         "fechamento_anterior": 5218.5
       }
     }
@@ -12720,35 +13059,35 @@ ARQUIVO: Coletas\Metricas_Calculadas.json
 
 {
   "metadata_calculo": {
-    "timestamp": "2026-09-01T22:54:02.274921",
-    "total_ativos_processados": 26
+    "timestamp": "2026-09-02T10:09:03.154138",
+    "total_ativos_processados": 32
   },
   "cambio_e_arbitragem": {
     "usd_ptax": 5.1564,
-    "wdo_fut": 5186.2,
-    "spread_wdo_ptax_pontos": 29.8,
-    "spread_wdo_ptax_percentual": 0.5779
+    "wdo_fut": 5194.0,
+    "spread_wdo_ptax_pontos": 37.6,
+    "spread_wdo_ptax_percentual": 0.7292
   },
   "curva_juros_b3": {
-    "di1_2027_taxa": 13.585,
-    "di1_2029_taxa": 14.11,
-    "inclinacao_29_27_bps": 52.5
+    "di1_2027_taxa": 13.58,
+    "di1_2029_taxa": 13.995,
+    "inclinacao_29_27_bps": 41.5
   },
   "indicadores_macro": {
-    "vix": 16.33,
-    "vix_change_pct": 9.377093101138637,
-    "dxy": 99.784,
-    "crude_oil": 91.92,
-    "crude_oil_change_pct": 1.8842828641099565,
+    "vix": 16.18,
+    "vix_change_pct": -0.9185548071034819,
+    "dxy": 99.753,
+    "crude_oil": 89.81,
+    "crude_oil_change_pct": -0.4544446907559262,
     "iron_ore_fef2": {
-      "close": 99.0,
-      "change_percent": -0.35228988424760377
+      "close": 98.1,
+      "change_percent": 0.20429009193052974
     }
   },
   "performance_relativa": {
     "ewz_change_pct": 1.5,
-    "sp500_fut_change_pct": -0.07196362565830362,
-    "nasdaq_fut_change_pct": -0.15278707661671043,
+    "sp500_fut_change_pct": -0.029439665042033297,
+    "nasdaq_fut_change_pct": -0.2944155465142229,
     "adrs_brasileiras": {
       "BBD_ADR": {
         "close": 3.32,
@@ -12767,18 +13106,18 @@ ARQUIVO: Coletas\Metricas_Calculadas.json
         "change_percent": 0.2
       },
       "BBAS_ADR": {
-        "close": 4.11,
-        "change_percent": 3.01
+        "close": 4.201,
+        "change_percent": 2.21
       },
       "B3_ADR": {
-        "close": 9.6,
-        "change_percent": 4.58
+        "close": 9.675,
+        "change_percent": 0.78
       }
     }
   },
   "indicadores_compostos": {
-    "indicador_mercado_externo": -7.8451,
-    "indicador_adrs_brasileiras": 14.99
+    "indicador_mercado_externo": 0.6684,
+    "indicador_adrs_brasileiras": 10.39
   }
 }
 
@@ -12809,102 +13148,82 @@ ARQUIVO: Coletas\Noticias_Calendario.json
 {
   "metadata": {
     "fonte": "TradingView API",
-    "timestamp": "2026-09-01T22:54:01.319648",
-    "data_referencia": "2026-09-01",
+    "timestamp": "2026-09-02T10:09:01.836266",
+    "data_referencia": "2026-09-02",
     "filtros": "Brasil e EUA (2 e 3 Estrelas)"
   },
   "calendario_eventos": {
-    "quantidade_eventos": 9,
+    "quantidade_eventos": 7,
     "eventos": [
       {
-        "hora": "09:00",
-        "pais": "Brazil",
-        "moeda": "BRL",
-        "evento": "GDP Growth Rate QoQ",
-        "importancia": 3,
-        "anterior": "1.1",
-        "previsao": "0.4",
-        "atual": "0.5"
-      },
-      {
-        "hora": "09:00",
-        "pais": "Brazil",
-        "moeda": "BRL",
-        "evento": "GDP Growth Rate YoY",
-        "importancia": 3,
-        "anterior": "1.8",
-        "previsao": "1.8",
-        "atual": "2"
-      },
-      {
-        "hora": "10:00",
-        "pais": "Brazil",
-        "moeda": "BRL",
-        "evento": "S&P Global Manufacturing PMI",
-        "importancia": 2,
-        "anterior": "47.5",
-        "previsao": "",
-        "atual": "46.3"
-      },
-      {
-        "hora": "10:05",
+        "hora": "08:00",
         "pais": "United States",
         "moeda": "USD",
-        "evento": "Fed Barr Speech",
+        "evento": "MBA 30-Year Mortgage Rate",
         "importancia": 2,
-        "anterior": "",
+        "anterior": "6.78",
         "previsao": "",
+        "atual": "6.79"
+      },
+      {
+        "hora": "09:00",
+        "pais": "Brazil",
+        "moeda": "BRL",
+        "evento": "Industrial Production MoM",
+        "importancia": 2,
+        "anterior": "-1.6",
+        "previsao": "",
+        "atual": "0.2"
+      },
+      {
+        "hora": "09:00",
+        "pais": "Brazil",
+        "moeda": "BRL",
+        "evento": "Industrial Production YoY",
+        "importancia": 2,
+        "anterior": "1.7",
+        "previsao": "",
+        "atual": "-0.5"
+      },
+      {
+        "hora": "09:15",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "ADP Employment Change",
+        "importancia": 2,
+        "anterior": "46",
+        "previsao": "47",
+        "atual": "38"
+      },
+      {
+        "hora": "11:00",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "Factory Orders MoM",
+        "importancia": 2,
+        "anterior": "-0.3",
+        "previsao": "0.6",
         "atual": ""
       },
       {
-        "hora": "10:45",
+        "hora": "11:30",
         "pais": "United States",
         "moeda": "USD",
-        "evento": "S&P Global Manufacturing PMI Final",
+        "evento": "EIA Gasoline Stocks Change",
         "importancia": 2,
-        "anterior": "53.9",
-        "previsao": "53.2",
-        "atual": "53.9"
+        "anterior": "-2.536",
+        "previsao": "-1.9",
+        "atual": ""
       },
       {
-        "hora": "11:00",
+        "hora": "11:30",
         "pais": "United States",
         "moeda": "USD",
-        "evento": "ISM Manufacturing Employment",
+        "evento": "EIA Crude Oil Stocks Change",
         "importancia": 2,
-        "anterior": "52.8",
-        "previsao": "",
-        "atual": "51.2"
-      },
-      {
-        "hora": "11:00",
-        "pais": "United States",
-        "moeda": "USD",
-        "evento": "JOLTs Job Openings",
-        "importancia": 3,
-        "anterior": "7.182",
-        "previsao": "7.3",
-        "atual": "7.271"
-      },
-      {
-        "hora": "11:00",
-        "pais": "United States",
-        "moeda": "USD",
-        "evento": "ISM Manufacturing PMI",
-        "importancia": 3,
-        "anterior": "55.6",
-        "previsao": "55.2",
-        "atual": "54.6"
-      },
-      {
-        "hora": "17:50",
-        "pais": "United States",
-        "moeda": "USD",
-        "evento": "API Crude Oil Stock Change",
-        "importancia": 2,
-        "anterior": "4.2",
-        "previsao": "-0.8",
-        "atual": "-2.6"
+        "anterior": "0.095",
+        "previsao": "-1.1",
+        "atual": ""
       }
     ]
   }
@@ -12918,34 +13237,13 @@ ARQUIVO: Coletas\Noticias_Calendario_0900.json
 {
   "metadata": {
     "fonte": "TradingView API",
-    "timestamp": "2026-09-01T22:54:01.319648",
-    "data_referencia": "2026-09-01"
+    "timestamp": "2026-09-02T10:09:01.836266",
+    "data_referencia": "2026-09-02"
   },
   "alerta_noticia_0900": {
-    "tem_evento_3_estrelas": true,
-    "quantidade_eventos": 2,
-    "eventos": [
-      {
-        "hora": "09:00",
-        "pais": "Brazil",
-        "moeda": "BRL",
-        "evento": "GDP Growth Rate QoQ",
-        "importancia": 3,
-        "anterior": "1.1",
-        "previsao": "0.4",
-        "atual": "0.5"
-      },
-      {
-        "hora": "09:00",
-        "pais": "Brazil",
-        "moeda": "BRL",
-        "evento": "GDP Growth Rate YoY",
-        "importancia": 3,
-        "anterior": "1.8",
-        "previsao": "1.8",
-        "atual": "2"
-      }
-    ]
+    "tem_evento_3_estrelas": false,
+    "quantidade_eventos": 0,
+    "eventos": []
   }
 }
 
@@ -12956,83 +13254,40 @@ ARQUIVO: Coletas\Noticias_Impacto_Dia.json
 
 {
     "metadata": {
-        "timestamp": "2026-09-01T22:54:01.959320",
+        "timestamp": "2026-09-02T10:09:02.691640",
         "fonte": "Analise Noticias TV API V2"
     },
     "resumo": {
-        "impacto_total": 39,
+        "impacto_total": 21,
         "classificacao": "EXTREMO"
     },
     "alertas": {
-        "tem_3_estrelas_brasil_0900": true,
-        "tem_3_estrelas_outros_horarios": true,
-        "noticias_3_estrelas_outros_horarios": [
+        "tem_3_estrelas_brasil_0900": false,
+        "tem_3_estrelas_outros_horarios": false,
+        "noticias_3_estrelas_outros_horarios": [],
+        "tem_multiplas_2_estrelas_mesmo_horario": true,
+        "horarios_multiplas_2_estrelas": [
             {
-                "hora": "11:00",
-                "pais": "United States",
-                "moeda": "USD",
-                "evento": "JOLTs Job Openings"
+                "hora": "09:00",
+                "quantidade_2_estrelas": 2
             },
             {
-                "hora": "11:00",
-                "pais": "United States",
-                "moeda": "USD",
-                "evento": "ISM Manufacturing PMI"
+                "hora": "11:30",
+                "quantidade_2_estrelas": 2
             }
         ],
-        "tem_multiplas_2_estrelas_mesmo_horario": false,
-        "horarios_multiplas_2_estrelas": [],
         "risco_abertura_WIN": true
     },
     "horarios": [
         {
-            "hora": "09:00",
-            "pontuacao": 12,
-            "classificacao": "ALTO",
-            "quantidade_eventos": 2,
-            "duas_estrelas_equivalente_alta": false,
-            "eventos": [
-                {
-                    "nome": "GDP Growth Rate QoQ",
-                    "pais": "Brazil",
-                    "moeda": "BRL",
-                    "estrelas": 3,
-                    "peso": 6
-                },
-                {
-                    "nome": "GDP Growth Rate YoY",
-                    "pais": "Brazil",
-                    "moeda": "BRL",
-                    "estrelas": 3,
-                    "peso": 6
-                }
-            ]
-        },
-        {
-            "hora": "10:00",
+            "hora": "08:00",
             "pontuacao": 3,
             "classificacao": "BAIXO",
             "quantidade_eventos": 1,
             "duas_estrelas_equivalente_alta": false,
             "eventos": [
                 {
-                    "nome": "S&P Global Manufacturing PMI",
-                    "pais": "Brazil",
-                    "moeda": "BRL",
-                    "estrelas": 2,
-                    "peso": 3
-                }
-            ]
-        },
-        {
-            "hora": "10:05",
-            "pontuacao": 3,
-            "classificacao": "BAIXO",
-            "quantidade_eventos": 1,
-            "duas_estrelas_equivalente_alta": false,
-            "eventos": [
-                {
-                    "nome": "Fed Barr Speech",
+                    "nome": "MBA 30-Year Mortgage Rate",
                     "pais": "United States",
                     "moeda": "USD",
                     "estrelas": 2,
@@ -13041,14 +13296,37 @@ ARQUIVO: Coletas\Noticias_Impacto_Dia.json
             ]
         },
         {
-            "hora": "10:45",
+            "hora": "09:00",
+            "pontuacao": 6,
+            "classificacao": "ATENÇÃO",
+            "quantidade_eventos": 2,
+            "duas_estrelas_equivalente_alta": true,
+            "eventos": [
+                {
+                    "nome": "Industrial Production MoM",
+                    "pais": "Brazil",
+                    "moeda": "BRL",
+                    "estrelas": 2,
+                    "peso": 3
+                },
+                {
+                    "nome": "Industrial Production YoY",
+                    "pais": "Brazil",
+                    "moeda": "BRL",
+                    "estrelas": 2,
+                    "peso": 3
+                }
+            ]
+        },
+        {
+            "hora": "09:15",
             "pontuacao": 3,
             "classificacao": "BAIXO",
             "quantidade_eventos": 1,
             "duas_estrelas_equivalente_alta": false,
             "eventos": [
                 {
-                    "nome": "S&P Global Manufacturing PMI Final",
+                    "nome": "ADP Employment Change",
                     "pais": "United States",
                     "moeda": "USD",
                     "estrelas": 2,
@@ -13058,43 +13336,36 @@ ARQUIVO: Coletas\Noticias_Impacto_Dia.json
         },
         {
             "hora": "11:00",
-            "pontuacao": 15,
-            "classificacao": "EXTREMO",
-            "quantidade_eventos": 3,
-            "duas_estrelas_equivalente_alta": false,
-            "eventos": [
-                {
-                    "nome": "ISM Manufacturing Employment",
-                    "pais": "United States",
-                    "moeda": "USD",
-                    "estrelas": 2,
-                    "peso": 3
-                },
-                {
-                    "nome": "JOLTs Job Openings",
-                    "pais": "United States",
-                    "moeda": "USD",
-                    "estrelas": 3,
-                    "peso": 6
-                },
-                {
-                    "nome": "ISM Manufacturing PMI",
-                    "pais": "United States",
-                    "moeda": "USD",
-                    "estrelas": 3,
-                    "peso": 6
-                }
-            ]
-        },
-        {
-            "hora": "17:50",
             "pontuacao": 3,
             "classificacao": "BAIXO",
             "quantidade_eventos": 1,
             "duas_estrelas_equivalente_alta": false,
             "eventos": [
                 {
-                    "nome": "API Crude Oil Stock Change",
+                    "nome": "Factory Orders MoM",
+                    "pais": "United States",
+                    "moeda": "USD",
+                    "estrelas": 2,
+                    "peso": 3
+                }
+            ]
+        },
+        {
+            "hora": "11:30",
+            "pontuacao": 6,
+            "classificacao": "ATENÇÃO",
+            "quantidade_eventos": 2,
+            "duas_estrelas_equivalente_alta": true,
+            "eventos": [
+                {
+                    "nome": "EIA Gasoline Stocks Change",
+                    "pais": "United States",
+                    "moeda": "USD",
+                    "estrelas": 2,
+                    "peso": 3
+                },
+                {
+                    "nome": "EIA Crude Oil Stocks Change",
                     "pais": "United States",
                     "moeda": "USD",
                     "estrelas": 2,
@@ -13208,7 +13479,7 @@ ARQUIVO: Coletas\Resultado_Calculadora_Operacional_Abertura.json
 
 {
   "metadata": {
-    "timestamp": "2026-09-01T22:54:02.627925",
+    "timestamp": "2026-09-02T10:09:03.460872",
     "origem": "Pipeline_Completo_V2",
     "versao": "2.0_V2",
     "integridade_fontes": {
@@ -13220,40 +13491,19 @@ ARQUIVO: Coletas\Resultado_Calculadora_Operacional_Abertura.json
     }
   },
   "alerta_calendario_0900": {
-    "tem_evento_3_estrelas": true,
-    "quantidade_eventos": 2,
-    "eventos": [
-      {
-        "hora": "09:00",
-        "pais": "Brazil",
-        "moeda": "BRL",
-        "evento": "GDP Growth Rate QoQ",
-        "importancia": 3,
-        "anterior": "1.1",
-        "previsao": "0.4",
-        "atual": "0.5"
-      },
-      {
-        "hora": "09:00",
-        "pais": "Brazil",
-        "moeda": "BRL",
-        "evento": "GDP Growth Rate YoY",
-        "importancia": 3,
-        "anterior": "1.8",
-        "previsao": "1.8",
-        "atual": "2"
-      }
-    ]
+    "tem_evento_3_estrelas": false,
+    "quantidade_eventos": 0,
+    "eventos": []
   },
   "indicadores_compostos": {
     "indicador_mercado_externo": {
-      "valor_pct": -7.8451,
-      "classificacao": "FORTE",
-      "sinal_operacional": "VENDA",
-      "rotulo_completo": "FORTE_VENDA"
+      "valor_pct": 0.6684,
+      "classificacao": "MUITO_FRACA",
+      "sinal_operacional": "COMPRA",
+      "rotulo_completo": "MUITO_FRACA_COMPRA"
     },
     "indicador_adrs_brasileiras": {
-      "valor_pct": 14.99,
+      "valor_pct": 10.39,
       "classificacao": "FORTE",
       "sinal_operacional": "COMPRA",
       "rotulo_completo": "FORTE_COMPRA"
@@ -13839,19 +14089,24 @@ ARQUIVO: Coletas\Resultado_Calculadora_Operacional_Abertura.json
   },
   "estimativa_abertura": {
     "WIN_INDICE": {
-      "variacao_teorica_pct": 0.8994,
-      "preco_referencia_base": 182315.0,
-      "abertura_teorica_pontos": 183955.0,
+      "variacao_teorica_pct": 0.9079,
+      "preco_referencia_base": 183495.0,
+      "abertura_teorica_pontos": 185161.0,
+      "cost_of_carry": {
+        "taxa_di_anual_pct": 13.58,
+        "fator_diario_pct": 0.050543,
+        "preco_teorico_carregado": 183588.0
+      },
       "contexto_janela": "REFERENCIA_1000_INTRADAY"
     }
   },
   "pivot_points": {
     "WIN_FUT": {
-      "PP": 180915.0,
-      "R1": 182830.0,
-      "R2": 185585.0,
-      "S1": 178160.0,
-      "S2": 176245.0
+      "PP": 182663.33,
+      "R1": 183356.67,
+      "R2": 184323.33,
+      "S1": 181696.67,
+      "S2": 181003.33
     }
   },
   "resumo_macro": {},
@@ -13861,13 +14116,14 @@ ARQUIVO: Coletas\Resultado_Calculadora_Operacional_Abertura.json
       "score_numeric": 9.5,
       "fatores_relevantes": [
         "Motor SMC indica estrutura de ALTA (Confiança: 95%)",
-        "Preço trabalhando acima do Pivot Point (180915)"
+        "Referência Volume Profile: POC de Ontem em 183,065 pts",
+        "Preço trabalhando em relação ao Pivot Point (182663)"
       ],
       "confianca": 95,
-      "entrada": 182470,
-      "stop": 182145,
-      "alvo_1": 182770,
-      "alvo_2": 182955
+      "entrada": 182970,
+      "stop": 182570,
+      "alvo_1": 183342,
+      "alvo_2": 183455
     }
   }
 }
@@ -20976,17 +21232,18 @@ ARQUIVO: pages\5.3_⚙️_Core_Engine.py
 # -*- coding: utf-8 -*-
 """
 Módulo: pages/5.3_⚙️_Core_Engine.py
-Versão: 3.1 - Central de Auditoria V2 (com verificação de defasagem)
+Versão: 3.2 - Central de Auditoria V2 (com SMC, Volume Profile e Cost of Carry)
 Objetivo: Interface de controle, monitoramento e auditoria da tomada de decisão do Orquestrador V2.
 """
 
-import streamlit as st
 import json
 from datetime import datetime
 import pandas as pd
+import streamlit as st
 
 # Importação de caminhos centralizados do config.py da V2
 from config import FILE_DECISAO_V2, FILE_DECISAO_CORE
+
 
 def carregar_json_defensivo(caminho):
     if not caminho.exists():
@@ -20994,8 +21251,9 @@ def carregar_json_defensivo(caminho):
     try:
         with open(caminho, "r", encoding="utf-8") as f:
             return json.load(f)
-    except:
+    except Exception:
         return {}
+
 
 # Configuração da página Streamlit
 st.set_page_config(page_title="Quant Terminal - Core Engine V2", layout="wide")
@@ -21046,7 +21304,6 @@ st.caption("Verificação em tempo real de execução e resposta de cada braço 
 
 ctx = dados_v2.get("contextos", {})
 
-# Ícones dinâmicos de status (sem menção a fallback/cache)
 def obter_badge_status(flag_ok):
     return "🟢 OK" if flag_ok else "🔴 Falhou"
 
@@ -21084,7 +21341,46 @@ with col_parametros:
     
     st.markdown(f"🚨 **Nível de Invalidação do Setup:** `{decisao_data.get('invalidacao', 'Não Mapeado')}`")
 
-# --- SEÇÃO 3: AUDITORIA DE CRITÉRIOS (POR QUE TOMOU ESSA DECISÃO?) ---
+# --- SEÇÃO 3: NÍVEIS DE TESOURARIA & COST OF CARRY (NOVO PAINEL V2.6) ---
+st.markdown("---")
+st.markdown("### 🏦 Métricas Institucionais (Volume Profile & Cost of Carry)")
+
+meta_info = decisao_data.get("metadados", {})
+smc_info = meta_info.get("smc", {})
+teorica_info = meta_info.get("precificacao_teorica", {})
+pivots_info = meta_info.get("pivots", {})
+
+col_smc_poc, col_smc_vwap, col_teorico, col_carregado = st.columns(4)
+
+poc_val = smc_info.get("poc_ontem", 0.0)
+vwap_val = smc_info.get("vwap_ontem", 0.0)
+teorico_val = teorica_info.get("abertura_teorica", 0.0)
+carregado_val = teorica_info.get("preco_carregado_di", 0.0)
+ob_alinhado = smc_info.get("ob_alinhado_com_poc", False)
+
+col_smc_poc.metric(
+    "POC Ontem (Volume)", 
+    f"{poc_val:,.0f} pts" if poc_val > 0 else "—",
+    delta="OB Alinhado 🟢" if ob_alinhado else "Sem OB Direto",
+    delta_color="normal" if ob_alinhado else "off"
+)
+
+col_smc_vwap.metric(
+    "VWAP Ontem", 
+    f"{vwap_val:,.1f} pts" if vwap_val > 0 else "—"
+)
+
+col_teorico.metric(
+    "Abertura Teórica WIN", 
+    f"{teorico_val:,.0f} pts" if teorico_val > 0 else "—"
+)
+
+col_carregado.metric(
+    "Preço Carregado (DI/252)", 
+    f"{carregado_val:,.0f} pts" if carregado_val > 0 else "—"
+)
+
+# --- SEÇÃO 4: AUDITORIA DE CRITÉRIOS (MOTIVOS E RISCOS) ---
 st.markdown("---")
 st.markdown("### 📝 Fatores Determinantes e Modelagem de Riscos")
 
@@ -21108,7 +21404,17 @@ with col_riscos:
     else:
         st.success("🟢 Alinhamento quantitativo limpo. Sem travas de volatilidade abusiva ou erros de cache.")
 
-# --- SEÇÃO 4: HISTÓRICO / AUDITORIA DA V1 CONTRA A V2 ---
+# --- SEÇÃO 5: PIVÔS DE VAREJO (FLOOR PIVOTS) ---
+st.markdown("---")
+with st.expander("📍 Pivôs Clássicos de Varejo (Floor Pivots)"):
+    p1, p2, p3, p4, p5 = st.columns(5)
+    p1.metric("Resistência 2 (R2)", f"{pivots_info.get('r2', 0):,.0f}")
+    p2.metric("Resistência 1 (R1)", f"{pivots_info.get('r1', 0):,.0f}")
+    p3.metric("Ponto de Pivô (PP)", f"{pivots_info.get('pp', 0):,.0f}")
+    p4.metric("Suporte 1 (S1)", f"{pivots_info.get('s1', 0):,.0f}")
+    p5.metric("Suporte 2 (S2)", f"{pivots_info.get('s2', 0):,.0f}")
+
+# --- SEÇÃO 6: HISTÓRICO / AUDITORIA DA V1 CONTRA A V2 ---
 st.markdown("---")
 with st.expander("📚 Histórico e Auditoria de Retrocompatibilidade (Módulo V1 Legado)"):
     st.warning("⚠️ **ATENÇÃO:** O motor de viés institucional V1 está DESATIVADO do pipeline operacional conforme as regras de governança do projeto. Os dados abaixo servem exclusivamente para auditoria ou rollback emergencial.")
@@ -25384,8 +25690,8 @@ ARQUIVO: v2\core\engines\v2_orchestrator.py
 # -*- coding: utf-8 -*-
 """
 Módulo: v2/core/engines/v2_orchestrator.py
-Versão: 2.5 - Padrão de Produção Confluente (V2)
-Objetivo: Centralizar a carga de contextos, executar motores de cênario e gravar o Decisao_V2.json.
+Versão: 2.6 - Padrão de Produção Confluente Institucional (V2)
+Objetivo: Centralizar a carga de contextos, executar motores de cenário e gravar o Decisao_V2.json.
 """
 
 import os
@@ -25404,6 +25710,7 @@ from config import (
     FILE_NOTICIAS_IMPACTO,
     HISTORICO_DECISOES_V2_DIR
 )
+
 
 class V2Orchestrator:
     def __init__(self):
@@ -25441,7 +25748,7 @@ class V2Orchestrator:
         estimativas = self._carregar_json_defensivo(FILE_ESTIMATIVA_ABERTURA)
         noticias = self._carregar_json_defensivo(FILE_NOTICIAS_IMPACTO)
 
-        # 2. Auditoria e validação de contextos (Alimenta o seu Smoke Test do front-end)
+        # 2. Auditoria e validação de contextos
         if ativos_dados: self.contextos_status["market_ok"] = True
         if estimativas: self.contextos_status["prediction_ok"] = True
         if noticias: self.contextos_status["news_ok"] = True
@@ -25449,62 +25756,86 @@ class V2Orchestrator:
             self.contextos_status["vision_ok"] = True
             self.contextos_status["session_ok"] = True
 
-        # 3. Captura de variáveis em tempo real para cálculo de gatilhos
+        # 3. Captura de variáveis em tempo real
         ativos = ativos_dados.get("ativos", {})
-        win_last = ativos.get("WIN_LAST_TICK", {}).get("preco", 0.0)
+        win_last = ativos.get("WIN_LAST_TICK", {}).get("preco", 0.0) or ativos.get("WIN_FUT", {}).get("preco", 0.0)
         win_ajuste = ativos.get("WIN_AJUSTE", {}).get("preco", 0.0)
         
-        # Puxa o viés direcional e a confiança calculada pelo novo motor
+        # Puxa o viés direcional e a confiança calculada pelo motor SMC
         vies_sugerido = smc_dados.get("bias_direcional", "NEUTRO")
         confianca_sinal = smc_dados.get("confianca_visual", 50)
         
-        # 4. EXECUÇÃO DO MOTOR DE CÁLCULO DE GATILHOS (FIBONACCI INSTITUCIONAL)
-        # Níveis vindos do seu Motor_SMC_Regras.py ou Floor Pivots como fallback
+        # Extração de níveis SMC / Volume Profile e Estimativas de Abertura
+        niveis_inst = smc_dados.get("niveis_institucionais", {})
+        poc_ontem = niveis_inst.get("poc_ontem", 0.0)
+        vwap_ontem = niveis_inst.get("vwap_ontem", 0.0)
+        ob_alinhado = niveis_inst.get("ob_alinhado_com_poc", False)
+
+        win_est = estimativas.get("estimativa_abertura", {}).get("WIN_INDICE") or {}
+        abertura_teorica = win_est.get("abertura_teorica_pontos", 0.0)
+        preco_carregado = win_est.get("cost_of_carry", {}).get("preco_teorico_carregado", 0.0)
+
+        # 4. EXECUÇÃO DO MOTOR DE CÁLCULO DE GATILHOS (SMC + FIBONACCI INSTITUCIONAL)
         pivots = estimativas.get("pivot_points", {}).get("WIN_FUT", {})
         high_mae = ativos.get("WIN_FUT", {}).get("high", win_last + 150)
         low_mae = ativos.get("WIN_FUT", {}).get("low", win_last - 150)
-        amplitude = high_mae - low_mae
-        
+        amplitude = max(high_mae - low_mae, 300) # Amplitude mínima de segurança
+
+        # Prioriza gatilhos e stops do SMC se disponíveis; do contrário, usa o cálculo proporcional
+        smc_entrada = smc_dados.get("entrada_sugerida")
+        smc_stop = smc_dados.get("stop_sugerido")
+        smc_alvos = smc_dados.get("alvos", [])
+
         entrada, stop, alvo_1, alvo_2, invalidacao = 0, 0, 0, 0, "Não Mapeado"
         motivos = []
         riscos = []
 
-        # Heurística de Tomada de Decisão baseada em Smart Money
+        # Bônus Institucional: eleva a confiança se o Order Block estiver alinhado com a POC
+        if ob_alinhado and confianca_sinal < 95:
+            confianca_sinal = min(confianca_sinal + 10, 95)
+            motivos.append("Bônus Institucional: Order Block com confluência direta na POC de Ontem.")
+
         if vies_sugerido == "ALTA" and confianca_sinal >= 60:
-            entrada = int(high_mae + 5)
-            stop = int(low_mae - 20)
-            alvo_1 = int(entrada + amplitude)
-            alvo_2 = int(entrada + (amplitude * 1.618))
+            entrada = int(smc_entrada) if smc_entrada else int(high_mae + 5)
+            stop = int(smc_stop) if smc_stop else int(low_mae - 20)
+            
+            alvo_1 = int(smc_alvos[0]) if smc_alvos else int(entrada + amplitude)
+            alvo_2 = int(smc_alvos[1]) if len(smc_alvos) > 1 else int(entrada + (amplitude * 1.618))
             invalidacao = f"Fechamento M5 abaixo de {stop}"
             
             motivos.append(f"Motor SMC indica estrutura de ALTA (Confiança: {confianca_sinal}%)")
-            motivos.append(f"Preço trabalhando acima do Pivot Point ({pivots.get('PP', 0):.0f})")
+            if poc_ontem > 0:
+                motivos.append(f"Referência Volume Profile: POC de Ontem em {poc_ontem:,.0f} pts")
+            if pivots.get("PP"):
+                motivos.append(f"Preço trabalhando em relação ao Pivot Point ({pivots.get('PP', 0):.0f})")
             
-            # Alerta se houver gap excessivo (Risco de fechamento/Pullback)
-            if win_last - win_ajuste > 400:
+            if win_last > 0 and win_ajuste > 0 and (win_last - win_ajuste > 400):
                 riscos.append(f"Gap projetado alto (+{win_last - win_ajuste:.0f} pts) — risco de exaustão comprador")
                 
         elif vies_sugerido == "BAIXA" and confianca_sinal >= 60:
-            entrada = int(low_mae - 5)
-            stop = int(high_mae + 20)
-            alvo_1 = int(entrada - amplitude)
-            alvo_2 = int(entrada - (amplitude * 1.618))
+            entrada = int(smc_entrada) if smc_entrada else int(low_mae - 5)
+            stop = int(smc_stop) if smc_stop else int(high_mae + 20)
+            
+            alvo_1 = int(smc_alvos[0]) if smc_alvos else int(entrada - amplitude)
+            alvo_2 = int(smc_alvos[1]) if len(smc_alvos) > 1 else int(entrada - (amplitude * 1.618))
             invalidacao = f"Fechamento M5 acima de {stop}"
             
             motivos.append(f"Motor SMC indica estrutura de BAIXA (Confiança: {confianca_sinal}%)")
+            if poc_ontem > 0:
+                motivos.append(f"Referência Volume Profile: POC de Ontem em {poc_ontem:,.0f} pts")
             
-            if win_last - win_ajuste < -400:
+            if win_last > 0 and win_ajuste > 0 and (win_last - win_ajuste < -400):
                 riscos.append(f"Gap projetado baixo ({win_last - win_ajuste:.0f} pts) — risco de repique/correção técnica")
         else:
             vies_sugerido = "NEUTRO"
             confianca_sinal = 40
             motivos.append("Aguardando alinhamento de volume institucional ou quebra de estrutura (BOS).")
 
-        # 5. ESTRUTURAÇÃO DO PAYLOAD CENTRALIZADO V2 (OBRIGATÓRIO PARA AS TELAS)
+        # 5. ESTRUTURAÇÃO DO PAYLOAD CENTRALIZADO V2
         payload_decisao = {
             "metadata": {
                 "timestamp": datetime.now().isoformat(),
-                "versao": "V2.2",
+                "versao": "V2.6",
                 "fonte": "v2_orchestrator",
                 "latencia_ms": round((time.time() - self.timestamp_inicio) * 1000, 2)
             },
@@ -25530,6 +25861,9 @@ class V2Orchestrator:
                         "s2": pivots.get("S2", 0)
                     },
                     "smc": {
+                        "poc_ontem": poc_ontem,
+                        "vwap_ontem": vwap_ontem,
+                        "ob_alinhado_com_poc": ob_alinhado,
                         "order_blocks": smc_dados.get("order_blocks", []),
                         "fvgs": smc_dados.get("fair_value_gaps", []),
                         "suportes": [low_mae],
@@ -25538,7 +25872,11 @@ class V2Orchestrator:
                         "stop_sugerido": stop if stop > 0 else None,
                         "alvos": [alvo_1, alvo_2] if alvo_1 > 0 else []
                     },
-                    "gap_pts": float(win_last - win_ajuste),
+                    "precificacao_teorica": {
+                        "abertura_teorica": abertura_teorica,
+                        "preco_carregado_di": preco_carregado
+                    },
+                    "gap_pts": float(win_last - win_ajuste) if win_last and win_ajuste else 0.0,
                     "ajuste": float(win_ajuste),
                     "last": float(win_last)
                 }
@@ -25546,19 +25884,22 @@ class V2Orchestrator:
             "erros": self.erros_acumulados
         }
 
-        # 6. PERSISTÊNCIA FÍSICA NO DISCO (Módulo de Produção Ativo)
-        # Salva o arquivo de produção principal consumido pelas páginas Streamlit
+        # 6. PERSISTÊNCIA FÍSICA NO DISCO
         with open(FILE_DECISAO_V2, "w", encoding="utf-8") as f:
             json.dump(payload_decisao, f, indent=4, ensure_ascii=False)
             
-        # Grava uma cópia datada na pasta de histórico para auditorias retroativas
+        # Grava uma cópia datada dinamicamente na pasta de histórico
         HISTORICO_DECISOES_V2_DIR.mkdir(parents=True, exist_ok=True)
-        nome_hist = f"20260830_{datetime.now().strftime('%H%M%S')}.json" # Exemplo indexado ao dia real do log
+        data_hoje = datetime.now().strftime("%Y%m%d")
+        hora_agora = datetime.now().strftime("%H%M%S")
+        nome_hist = f"{data_hoje}_{hora_agora}.json"
+        
         with open(HISTORICO_DECISOES_V2_DIR / nome_hist, "w", encoding="utf-8") as f:
             json.dump(payload_decisao, f, indent=4, ensure_ascii=False)
 
         print(f"✅ [V2 ORCHESTRATOR] Tomada de decisão consolidada com sucesso: {vies_sugerido} ({confianca_sinal}%)")
         return payload_decisao
+
 
 def executar_v2(salvar_historico=True):
     """Ponto de entrada chamado externamente pelo script 'v2_rodar_decisao_completa.py'"""
@@ -25569,6 +25910,7 @@ def executar_v2(salvar_historico=True):
         print(f"❌ [ERRO CRÍTICO NO ORQUESTRADOR]: {e}")
         traceback.print_exc()
         return {"decisao": {"vies_final": "NEUTRO", "confianca": 0}, "erros": [str(e)]}
+
 
 if __name__ == "__main__":
     executar_v2()

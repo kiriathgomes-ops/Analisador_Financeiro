@@ -43,7 +43,7 @@ def executar():
 
     ATIVO = "WIN$"
     TIMEFRAME_MIN = 5
-    QTD_CANDLES = 120
+    QTD_CANDLES = 300
 
     try:
         # 1. Carrega dados do MetaTrader 5

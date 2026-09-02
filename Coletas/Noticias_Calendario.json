@@ -1,102 +1,82 @@
 {
   "metadata": {
     "fonte": "TradingView API",
-    "timestamp": "2026-09-01T22:54:01.319648",
-    "data_referencia": "2026-09-01",
+    "timestamp": "2026-09-02T14:49:01.728686",
+    "data_referencia": "2026-09-02",
     "filtros": "Brasil e EUA (2 e 3 Estrelas)"
   },
   "calendario_eventos": {
-    "quantidade_eventos": 9,
+    "quantidade_eventos": 7,
     "eventos": [
       {
+        "hora": "08:00",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "MBA 30-Year Mortgage Rate",
+        "importancia": 2,
+        "anterior": "6.78",
+        "previsao": "",
+        "atual": "6.79"
+      },
+      {
         "hora": "09:00",
         "pais": "Brazil",
         "moeda": "BRL",
-        "evento": "GDP Growth Rate QoQ",
-        "importancia": 3,
-        "anterior": "1.1",
-        "previsao": "0.4",
-        "atual": "0.5"
+        "evento": "Industrial Production MoM",
+        "importancia": 2,
+        "anterior": "-1.6",
+        "previsao": "",
+        "atual": "0.2"
       },
       {
         "hora": "09:00",
         "pais": "Brazil",
         "moeda": "BRL",
-        "evento": "GDP Growth Rate YoY",
-        "importancia": 3,
-        "anterior": "1.8",
-        "previsao": "1.8",
-        "atual": "2"
-      },
-      {
-        "hora": "10:00",
-        "pais": "Brazil",
-        "moeda": "BRL",
-        "evento": "S&P Global Manufacturing PMI",
+        "evento": "Industrial Production YoY",
         "importancia": 2,
-        "anterior": "47.5",
+        "anterior": "1.7",
         "previsao": "",
-        "atual": "46.3"
+        "atual": "-0.5"
       },
       {
-        "hora": "10:05",
+        "hora": "09:15",
         "pais": "United States",
         "moeda": "USD",
-        "evento": "Fed Barr Speech",
+        "evento": "ADP Employment Change",
         "importancia": 2,
-        "anterior": "",
-        "previsao": "",
-        "atual": ""
-      },
-      {
-        "hora": "10:45",
-        "pais": "United States",
-        "moeda": "USD",
-        "evento": "S&P Global Manufacturing PMI Final",
-        "importancia": 2,
-        "anterior": "53.9",
-        "previsao": "53.2",
-        "atual": "53.9"
+        "anterior": "46",
+        "previsao": "47",
+        "atual": "38"
       },
       {
         "hora": "11:00",
         "pais": "United States",
         "moeda": "USD",
-        "evento": "ISM Manufacturing Employment",
+        "evento": "Factory Orders MoM",
         "importancia": 2,
-        "anterior": "52.8",
-        "previsao": "",
-        "atual": "51.2"
+        "anterior": "-0.2",
+        "previsao": "0.6",
+        "atual": "0.9"
       },
       {
-        "hora": "11:00",
+        "hora": "11:30",
         "pais": "United States",
         "moeda": "USD",
-        "evento": "JOLTs Job Openings",
-        "importancia": 3,
-        "anterior": "7.182",
-        "previsao": "7.3",
-        "atual": "7.271"
-      },
-      {
-        "hora": "11:00",
-        "pais": "United States",
-        "moeda": "USD",
-        "evento": "ISM Manufacturing PMI",
-        "importancia": 3,
-        "anterior": "55.6",
-        "previsao": "55.2",
-        "atual": "54.6"
-      },
-      {
-        "hora": "17:50",
-        "pais": "United States",
-        "moeda": "USD",
-        "evento": "API Crude Oil Stock Change",
+        "evento": "EIA Gasoline Stocks Change",
         "importancia": 2,
-        "anterior": "4.2",
-        "previsao": "-0.8",
-        "atual": "-2.6"
+        "anterior": "-2.536",
+        "previsao": "-1.9",
+        "atual": "-1.173"
+      },
+      {
+        "hora": "11:30",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "EIA Crude Oil Stocks Change",
+        "importancia": 2,
+        "anterior": "0.095",
+        "previsao": "-1.1",
+        "atual": "-4.45"
       }
     ]
   }

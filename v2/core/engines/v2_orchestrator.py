@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
 Módulo: v2/core/engines/v2_orchestrator.py
-Versão: 2.5 - Padrão de Produção Confluente (V2)
-Objetivo: Centralizar a carga de contextos, executar motores de cênario e gravar o Decisao_V2.json.
+Versão: 2.6 - Padrão de Produção Confluente Institucional (V2)
+Objetivo: Centralizar a carga de contextos, executar motores de cenário e gravar o Decisao_V2.json.
 """
 
 import os
@@ -21,6 +21,7 @@ from config import (
     FILE_NOTICIAS_IMPACTO,
     HISTORICO_DECISOES_V2_DIR
 )
+
 
 class V2Orchestrator:
     def __init__(self):
@@ -58,7 +59,7 @@ class V2Orchestrator:
         estimativas = self._carregar_json_defensivo(FILE_ESTIMATIVA_ABERTURA)
         noticias = self._carregar_json_defensivo(FILE_NOTICIAS_IMPACTO)
 
-        # 2. Auditoria e validação de contextos (Alimenta o seu Smoke Test do front-end)
+        # 2. Auditoria e validação de contextos
         if ativos_dados: self.contextos_status["market_ok"] = True
         if estimativas: self.contextos_status["prediction_ok"] = True
         if noticias: self.contextos_status["news_ok"] = True
@@ -66,62 +67,86 @@ class V2Orchestrator:
             self.contextos_status["vision_ok"] = True
             self.contextos_status["session_ok"] = True
 
-        # 3. Captura de variáveis em tempo real para cálculo de gatilhos
+        # 3. Captura de variáveis em tempo real
         ativos = ativos_dados.get("ativos", {})
-        win_last = ativos.get("WIN_LAST_TICK", {}).get("preco", 0.0)
+        win_last = ativos.get("WIN_LAST_TICK", {}).get("preco", 0.0) or ativos.get("WIN_FUT", {}).get("preco", 0.0)
         win_ajuste = ativos.get("WIN_AJUSTE", {}).get("preco", 0.0)
         
-        # Puxa o viés direcional e a confiança calculada pelo novo motor
+        # Puxa o viés direcional e a confiança calculada pelo motor SMC
         vies_sugerido = smc_dados.get("bias_direcional", "NEUTRO")
         confianca_sinal = smc_dados.get("confianca_visual", 50)
         
-        # 4. EXECUÇÃO DO MOTOR DE CÁLCULO DE GATILHOS (FIBONACCI INSTITUCIONAL)
-        # Níveis vindos do seu Motor_SMC_Regras.py ou Floor Pivots como fallback
+        # Extração de níveis SMC / Volume Profile e Estimativas de Abertura
+        niveis_inst = smc_dados.get("niveis_institucionais", {})
+        poc_ontem = niveis_inst.get("poc_ontem", 0.0)
+        vwap_ontem = niveis_inst.get("vwap_ontem", 0.0)
+        ob_alinhado = niveis_inst.get("ob_alinhado_com_poc", False)
+
+        win_est = estimativas.get("estimativa_abertura", {}).get("WIN_INDICE") or {}
+        abertura_teorica = win_est.get("abertura_teorica_pontos", 0.0)
+        preco_carregado = win_est.get("cost_of_carry", {}).get("preco_teorico_carregado", 0.0)
+
+        # 4. EXECUÇÃO DO MOTOR DE CÁLCULO DE GATILHOS (SMC + FIBONACCI INSTITUCIONAL)
         pivots = estimativas.get("pivot_points", {}).get("WIN_FUT", {})
         high_mae = ativos.get("WIN_FUT", {}).get("high", win_last + 150)
         low_mae = ativos.get("WIN_FUT", {}).get("low", win_last - 150)
-        amplitude = high_mae - low_mae
-        
+        amplitude = max(high_mae - low_mae, 300) # Amplitude mínima de segurança
+
+        # Prioriza gatilhos e stops do SMC se disponíveis; do contrário, usa o cálculo proporcional
+        smc_entrada = smc_dados.get("entrada_sugerida")
+        smc_stop = smc_dados.get("stop_sugerido")
+        smc_alvos = smc_dados.get("alvos", [])
+
         entrada, stop, alvo_1, alvo_2, invalidacao = 0, 0, 0, 0, "Não Mapeado"
         motivos = []
         riscos = []
 
-        # Heurística de Tomada de Decisão baseada em Smart Money
+        # Bônus Institucional: eleva a confiança se o Order Block estiver alinhado com a POC
+        if ob_alinhado and confianca_sinal < 95:
+            confianca_sinal = min(confianca_sinal + 10, 95)
+            motivos.append("Bônus Institucional: Order Block com confluência direta na POC de Ontem.")
+
         if vies_sugerido == "ALTA" and confianca_sinal >= 60:
-            entrada = int(high_mae + 5)
-            stop = int(low_mae - 20)
-            alvo_1 = int(entrada + amplitude)
-            alvo_2 = int(entrada + (amplitude * 1.618))
+            entrada = int(smc_entrada) if smc_entrada else int(high_mae + 5)
+            stop = int(smc_stop) if smc_stop else int(low_mae - 20)
+            
+            alvo_1 = int(smc_alvos[0]) if smc_alvos else int(entrada + amplitude)
+            alvo_2 = int(smc_alvos[1]) if len(smc_alvos) > 1 else int(entrada + (amplitude * 1.618))
             invalidacao = f"Fechamento M5 abaixo de {stop}"
             
             motivos.append(f"Motor SMC indica estrutura de ALTA (Confiança: {confianca_sinal}%)")
-            motivos.append(f"Preço trabalhando acima do Pivot Point ({pivots.get('PP', 0):.0f})")
+            if poc_ontem > 0:
+                motivos.append(f"Referência Volume Profile: POC de Ontem em {poc_ontem:,.0f} pts")
+            if pivots.get("PP"):
+                motivos.append(f"Preço trabalhando em relação ao Pivot Point ({pivots.get('PP', 0):.0f})")
             
-            # Alerta se houver gap excessivo (Risco de fechamento/Pullback)
-            if win_last - win_ajuste > 400:
+            if win_last > 0 and win_ajuste > 0 and (win_last - win_ajuste > 400):
                 riscos.append(f"Gap projetado alto (+{win_last - win_ajuste:.0f} pts) — risco de exaustão comprador")
                 
         elif vies_sugerido == "BAIXA" and confianca_sinal >= 60:
-            entrada = int(low_mae - 5)
-            stop = int(high_mae + 20)
-            alvo_1 = int(entrada - amplitude)
-            alvo_2 = int(entrada - (amplitude * 1.618))
+            entrada = int(smc_entrada) if smc_entrada else int(low_mae - 5)
+            stop = int(smc_stop) if smc_stop else int(high_mae + 20)
+            
+            alvo_1 = int(smc_alvos[0]) if smc_alvos else int(entrada - amplitude)
+            alvo_2 = int(smc_alvos[1]) if len(smc_alvos) > 1 else int(entrada - (amplitude * 1.618))
             invalidacao = f"Fechamento M5 acima de {stop}"
             
             motivos.append(f"Motor SMC indica estrutura de BAIXA (Confiança: {confianca_sinal}%)")
+            if poc_ontem > 0:
+                motivos.append(f"Referência Volume Profile: POC de Ontem em {poc_ontem:,.0f} pts")
             
-            if win_last - win_ajuste < -400:
+            if win_last > 0 and win_ajuste > 0 and (win_last - win_ajuste < -400):
                 riscos.append(f"Gap projetado baixo ({win_last - win_ajuste:.0f} pts) — risco de repique/correção técnica")
         else:
             vies_sugerido = "NEUTRO"
             confianca_sinal = 40
             motivos.append("Aguardando alinhamento de volume institucional ou quebra de estrutura (BOS).")
 
-        # 5. ESTRUTURAÇÃO DO PAYLOAD CENTRALIZADO V2 (OBRIGATÓRIO PARA AS TELAS)
+        # 5. ESTRUTURAÇÃO DO PAYLOAD CENTRALIZADO V2
         payload_decisao = {
             "metadata": {
                 "timestamp": datetime.now().isoformat(),
-                "versao": "V2.2",
+                "versao": "V2.6",
                 "fonte": "v2_orchestrator",
                 "latencia_ms": round((time.time() - self.timestamp_inicio) * 1000, 2)
             },
@@ -147,6 +172,9 @@ class V2Orchestrator:
                         "s2": pivots.get("S2", 0)
                     },
                     "smc": {
+                        "poc_ontem": poc_ontem,
+                        "vwap_ontem": vwap_ontem,
+                        "ob_alinhado_com_poc": ob_alinhado,
                         "order_blocks": smc_dados.get("order_blocks", []),
                         "fvgs": smc_dados.get("fair_value_gaps", []),
                         "suportes": [low_mae],
@@ -155,7 +183,11 @@ class V2Orchestrator:
                         "stop_sugerido": stop if stop > 0 else None,
                         "alvos": [alvo_1, alvo_2] if alvo_1 > 0 else []
                     },
-                    "gap_pts": float(win_last - win_ajuste),
+                    "precificacao_teorica": {
+                        "abertura_teorica": abertura_teorica,
+                        "preco_carregado_di": preco_carregado
+                    },
+                    "gap_pts": float(win_last - win_ajuste) if win_last and win_ajuste else 0.0,
                     "ajuste": float(win_ajuste),
                     "last": float(win_last)
                 }
@@ -163,19 +195,22 @@ class V2Orchestrator:
             "erros": self.erros_acumulados
         }
 
-        # 6. PERSISTÊNCIA FÍSICA NO DISCO (Módulo de Produção Ativo)
-        # Salva o arquivo de produção principal consumido pelas páginas Streamlit
+        # 6. PERSISTÊNCIA FÍSICA NO DISCO
         with open(FILE_DECISAO_V2, "w", encoding="utf-8") as f:
             json.dump(payload_decisao, f, indent=4, ensure_ascii=False)
             
-        # Grava uma cópia datada na pasta de histórico para auditorias retroativas
+        # Grava uma cópia datada dinamicamente na pasta de histórico
         HISTORICO_DECISOES_V2_DIR.mkdir(parents=True, exist_ok=True)
-        nome_hist = f"20260830_{datetime.now().strftime('%H%M%S')}.json" # Exemplo indexado ao dia real do log
+        data_hoje = datetime.now().strftime("%Y%m%d")
+        hora_agora = datetime.now().strftime("%H%M%S")
+        nome_hist = f"{data_hoje}_{hora_agora}.json"
+        
         with open(HISTORICO_DECISOES_V2_DIR / nome_hist, "w", encoding="utf-8") as f:
             json.dump(payload_decisao, f, indent=4, ensure_ascii=False)
 
         print(f"✅ [V2 ORCHESTRATOR] Tomada de decisão consolidada com sucesso: {vies_sugerido} ({confianca_sinal}%)")
         return payload_decisao
+
 
 def executar_v2(salvar_historico=True):
     """Ponto de entrada chamado externamente pelo script 'v2_rodar_decisao_completa.py'"""
@@ -186,6 +221,7 @@ def executar_v2(salvar_historico=True):
         print(f"❌ [ERRO CRÍTICO NO ORQUESTRADOR]: {e}")
         traceback.print_exc()
         return {"decisao": {"vies_final": "NEUTRO", "confianca": 0}, "erros": [str(e)]}
+
 
 if __name__ == "__main__":
     executar_v2()

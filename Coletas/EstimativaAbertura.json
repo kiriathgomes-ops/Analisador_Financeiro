@@ -1,23 +1,32 @@
 {
   "metadata_calculo": {
-    "timestamp_calculo": "2026-09-01T22:54:02.361486",
+    "timestamp_calculo": "2026-09-02T14:49:02.734402",
     "janela_ativa": "REFERENCIA_1000_INTRADAY"
   },
   "estimativa_abertura": {
     "WIN_INDICE": {
-      "variacao_teorica_pct": 0.8994,
-      "preco_referencia_base": 182315.0,
-      "abertura_teorica_pontos": 183955.0,
+      "variacao_teorica_pct": 1.8711,
+      "preco_referencia_base": 187130.0,
+      "abertura_teorica_pontos": 190631.0,
+      "cost_of_carry": {
+        "taxa_di_anual_pct": 13.57,
+        "fator_diario_pct": 0.050508,
+        "preco_teorico_carregado": 187225.0
+      },
       "contexto_janela": "REFERENCIA_1000_INTRADAY"
     }
   },
   "pivot_points": {
     "WIN_FUT": {
-      "PP": 180915.0,
-      "R1": 182830.0,
-      "R2": 185585.0,
-      "S1": 178160.0,
-      "S2": 176245.0
+      "PP": 184430.0,
+      "R1": 186890.0,
+      "R2": 191390.0,
+      "S1": 179930.0,
+      "S2": 177470.0
     }
+  },
+  "pivots_institucionais": {
+    "poc_ontem": 183065.0,
+    "vwap_ontem": 182045.8
   }
 }

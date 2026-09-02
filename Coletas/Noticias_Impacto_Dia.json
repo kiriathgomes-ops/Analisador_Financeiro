@@ -1,82 +1,39 @@
 {
     "metadata": {
-        "timestamp": "2026-09-01T22:54:01.959320",
+        "timestamp": "2026-09-02T14:49:02.246388",
         "fonte": "Analise Noticias TV API V2"
     },
     "resumo": {
-        "impacto_total": 39,
+        "impacto_total": 21,
         "classificacao": "EXTREMO"
     },
     "alertas": {
-        "tem_3_estrelas_brasil_0900": true,
-        "tem_3_estrelas_outros_horarios": true,
-        "noticias_3_estrelas_outros_horarios": [
+        "tem_3_estrelas_brasil_0900": false,
+        "tem_3_estrelas_outros_horarios": false,
+        "noticias_3_estrelas_outros_horarios": [],
+        "tem_multiplas_2_estrelas_mesmo_horario": true,
+        "horarios_multiplas_2_estrelas": [
             {
-                "hora": "11:00",
-                "pais": "United States",
-                "moeda": "USD",
-                "evento": "JOLTs Job Openings"
+                "hora": "09:00",
+                "quantidade_2_estrelas": 2
             },
             {
-                "hora": "11:00",
-                "pais": "United States",
-                "moeda": "USD",
-                "evento": "ISM Manufacturing PMI"
+                "hora": "11:30",
+                "quantidade_2_estrelas": 2
             }
         ],
-        "tem_multiplas_2_estrelas_mesmo_horario": false,
-        "horarios_multiplas_2_estrelas": [],
         "risco_abertura_WIN": true
     },
     "horarios": [
         {
-            "hora": "09:00",
-            "pontuacao": 12,
-            "classificacao": "ALTO",
-            "quantidade_eventos": 2,
-            "duas_estrelas_equivalente_alta": false,
-            "eventos": [
-                {
-                    "nome": "GDP Growth Rate QoQ",
-                    "pais": "Brazil",
-                    "moeda": "BRL",
-                    "estrelas": 3,
-                    "peso": 6
-                },
-                {
-                    "nome": "GDP Growth Rate YoY",
-                    "pais": "Brazil",
-                    "moeda": "BRL",
-                    "estrelas": 3,
-                    "peso": 6
-                }
-            ]
-        },
-        {
-            "hora": "10:00",
+            "hora": "08:00",
             "pontuacao": 3,
             "classificacao": "BAIXO",
             "quantidade_eventos": 1,
             "duas_estrelas_equivalente_alta": false,
             "eventos": [
                 {
-                    "nome": "S&P Global Manufacturing PMI",
-                    "pais": "Brazil",
-                    "moeda": "BRL",
-                    "estrelas": 2,
-                    "peso": 3
-                }
-            ]
-        },
-        {
-            "hora": "10:05",
-            "pontuacao": 3,
-            "classificacao": "BAIXO",
-            "quantidade_eventos": 1,
-            "duas_estrelas_equivalente_alta": false,
-            "eventos": [
-                {
-                    "nome": "Fed Barr Speech",
+                    "nome": "MBA 30-Year Mortgage Rate",
                     "pais": "United States",
                     "moeda": "USD",
                     "estrelas": 2,
@@ -85,14 +42,37 @@
             ]
         },
         {
-            "hora": "10:45",
+            "hora": "09:00",
+            "pontuacao": 6,
+            "classificacao": "ATENÇÃO",
+            "quantidade_eventos": 2,
+            "duas_estrelas_equivalente_alta": true,
+            "eventos": [
+                {
+                    "nome": "Industrial Production MoM",
+                    "pais": "Brazil",
+                    "moeda": "BRL",
+                    "estrelas": 2,
+                    "peso": 3
+                },
+                {
+                    "nome": "Industrial Production YoY",
+                    "pais": "Brazil",
+                    "moeda": "BRL",
+                    "estrelas": 2,
+                    "peso": 3
+                }
+            ]
+        },
+        {
+            "hora": "09:15",
             "pontuacao": 3,
             "classificacao": "BAIXO",
             "quantidade_eventos": 1,
             "duas_estrelas_equivalente_alta": false,
             "eventos": [
                 {
-                    "nome": "S&P Global Manufacturing PMI Final",
+                    "nome": "ADP Employment Change",
                     "pais": "United States",
                     "moeda": "USD",
                     "estrelas": 2,
@@ -102,43 +82,36 @@
         },
         {
             "hora": "11:00",
-            "pontuacao": 15,
-            "classificacao": "EXTREMO",
-            "quantidade_eventos": 3,
-            "duas_estrelas_equivalente_alta": false,
-            "eventos": [
-                {
-                    "nome": "ISM Manufacturing Employment",
-                    "pais": "United States",
-                    "moeda": "USD",
-                    "estrelas": 2,
-                    "peso": 3
-                },
-                {
-                    "nome": "JOLTs Job Openings",
-                    "pais": "United States",
-                    "moeda": "USD",
-                    "estrelas": 3,
-                    "peso": 6
-                },
-                {
-                    "nome": "ISM Manufacturing PMI",
-                    "pais": "United States",
-                    "moeda": "USD",
-                    "estrelas": 3,
-                    "peso": 6
-                }
-            ]
-        },
-        {
-            "hora": "17:50",
             "pontuacao": 3,
             "classificacao": "BAIXO",
             "quantidade_eventos": 1,
             "duas_estrelas_equivalente_alta": false,
             "eventos": [
                 {
-                    "nome": "API Crude Oil Stock Change",
+                    "nome": "Factory Orders MoM",
+                    "pais": "United States",
+                    "moeda": "USD",
+                    "estrelas": 2,
+                    "peso": 3
+                }
+            ]
+        },
+        {
+            "hora": "11:30",
+            "pontuacao": 6,
+            "classificacao": "ATENÇÃO",
+            "quantidade_eventos": 2,
+            "duas_estrelas_equivalente_alta": true,
+            "eventos": [
+                {
+                    "nome": "EIA Gasoline Stocks Change",
+                    "pais": "United States",
+                    "moeda": "USD",
+                    "estrelas": 2,
+                    "peso": 3
+                },
+                {
+                    "nome": "EIA Crude Oil Stocks Change",
                     "pais": "United States",
                     "moeda": "USD",
                     "estrelas": 2,

@@ -1,0 +1,106 @@
+{
+    "metadata": {
+        "timestamp": "2026-09-02T10:14:04.052759",
+        "versao": "V2.6",
+        "fonte": "v2_orchestrator",
+        "latencia_ms": 0.91
+    },
+    "contextos": {
+        "market_ok": true,
+        "prediction_ok": true,
+        "news_ok": true,
+        "vision_ok": true,
+        "session_ok": true
+    },
+    "decisao": {
+        "timestamp": "2026-09-02T10:14:04.052778",
+        "ativo": "WIN",
+        "vies_final": "ALTA",
+        "confianca": 95,
+        "entrada": 182970,
+        "stop_loss": 182570,
+        "alvo_1": 183342,
+        "alvo_2": 183455,
+        "invalidacao": "Fechamento M5 abaixo de 182570",
+        "motivos": [
+            "Motor SMC indica estrutura de ALTA (Confiança: 95%)",
+            "Referência Volume Profile: POC de Ontem em 183,065 pts",
+            "Preço trabalhando em relação ao Pivot Point (186308)"
+        ],
+        "riscos": [],
+        "metadados": {
+            "pivots": {
+                "pp": 186308.33,
+                "r1": 186966.67,
+                "r2": 187913.33,
+                "s1": 185361.67,
+                "s2": 184703.33
+            },
+            "smc": {
+                "poc_ontem": 183065.0,
+                "vwap_ontem": 182045.8,
+                "ob_alinhado_com_poc": false,
+                "order_blocks": [
+                    {
+                        "tipo": "COMPRA",
+                        "preco": 182795.0,
+                        "high": 182970.0,
+                        "low": 182620.0
+                    },
+                    {
+                        "tipo": "VENDA",
+                        "preco": 183130.0,
+                        "high": 183410.0,
+                        "low": 182850.0
+                    },
+                    {
+                        "tipo": "VENDA",
+                        "preco": 183322.5,
+                        "high": 183630.0,
+                        "low": 183015.0
+                    }
+                ],
+                "fvgs": [
+                    {
+                        "tipo": "COMPRA",
+                        "superior": 181155.0,
+                        "inferior": 180340.0,
+                        "preenchido": false
+                    },
+                    {
+                        "tipo": "COMPRA",
+                        "superior": 181780.0,
+                        "inferior": 181490.0,
+                        "preenchido": false
+                    },
+                    {
+                        "tipo": "COMPRA",
+                        "superior": 182670.0,
+                        "inferior": 182390.0,
+                        "preenchido": false
+                    }
+                ],
+                "suportes": [
+                    182165.0
+                ],
+                "resistencias": [
+                    182465.0
+                ],
+                "entrada_sugerida": 182970,
+                "stop_sugerido": 182570,
+                "alvos": [
+                    183342,
+                    183455
+                ]
+            },
+            "precificacao_teorica": {
+                "abertura_teorica": 188348.0,
+                "preco_carregado_di": 186734.0
+            },
+            "gap_pts": 82.0,
+            "ajuste": 182233.0,
+            "last": 182315.0
+        }
+    },
+    "erros": []
+}
