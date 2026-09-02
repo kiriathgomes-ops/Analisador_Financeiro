@@ -1,23 +1,23 @@
 {
   "metadata_calculo": {
-    "timestamp_calculo": "2026-09-01T08:04:01.476034",
-    "janela_ativa": "REFERENCIA_0900_OVERNIGHT"
+    "timestamp_calculo": "2026-09-01T22:49:02.199796",
+    "janela_ativa": "REFERENCIA_1000_INTRADAY"
   },
   "estimativa_abertura": {
     "WIN_INDICE": {
-      "variacao_teorica_pct": 0.7216,
-      "preco_referencia_base": 180075.0,
-      "abertura_teorica_pontos": 181374.0,
-      "contexto_janela": "REFERENCIA_0900_OVERNIGHT"
+      "variacao_teorica_pct": 0.9013,
+      "preco_referencia_base": 182315.0,
+      "abertura_teorica_pontos": 183958.0,
+      "contexto_janela": "REFERENCIA_1000_INTRADAY"
     }
   },
   "pivot_points": {
     "WIN_FUT": {
-      "PP": 179160.0,
-      "R1": 179710.0,
-      "R2": 181780.0,
-      "S1": 177090.0,
-      "S2": 176540.0
+      "PP": 180915.0,
+      "R1": 182830.0,
+      "R2": 185585.0,
+      "S1": 178160.0,
+      "S2": 176245.0
     }
   }
 }

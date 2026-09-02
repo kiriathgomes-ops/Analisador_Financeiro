@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "timestamp": "2026-09-01T08:04:01.646058",
+    "timestamp": "2026-09-01T22:49:02.417927",
     "origem": "Pipeline_Completo_V2",
     "versao": "2.0_V2",
     "integridade_fontes": {
@@ -23,7 +23,7 @@
         "importancia": 3,
         "anterior": "1.1",
         "previsao": "0.4",
-        "atual": ""
+        "atual": "0.5"
       },
       {
         "hora": "09:00",
@@ -33,120 +33,48 @@
         "importancia": 3,
         "anterior": "1.8",
         "previsao": "1.8",
-        "atual": ""
+        "atual": "2"
       }
     ]
   },
   "indicadores_compostos": {
     "indicador_mercado_externo": {
-      "valor_pct": -3.9556,
+      "valor_pct": -7.8169,
       "classificacao": "FORTE",
       "sinal_operacional": "VENDA",
       "rotulo_completo": "FORTE_VENDA"
     },
     "indicador_adrs_brasileiras": {
-      "valor_pct": 14.81,
+      "valor_pct": 14.99,
       "classificacao": "FORTE",
       "sinal_operacional": "COMPRA",
       "rotulo_completo": "FORTE_COMPRA"
     }
   },
   "analise_tendencias": {
-    "OTC:BOLSY": {
+    "TVC:VIX": {
       "precos": {
-        "10m": 9.6,
-        "5m": 9.6,
-        "0m": 9.6
+        "10m": 16.05,
+        "5m": 16.19,
+        "0m": 16.43
       },
       "intervalo_10_para_5": {
-        "variacao_abs": 0.0,
-        "variacao_pct": 0.0,
-        "tendencia": "Estavel"
+        "variacao_abs": 0.14,
+        "variacao_pct": 0.8723,
+        "tendencia": "Alta"
       },
       "intervalo_5_para_0": {
-        "variacao_abs": 0.0,
-        "variacao_pct": 0.0,
-        "tendencia": "Estavel"
+        "variacao_abs": 0.24,
+        "variacao_pct": 1.4824,
+        "tendencia": "Alta"
       },
-      "padrao_comportamento": "Estavel_E_Estavel"
+      "padrao_comportamento": "Alta_E_Alta"
     },
-    "SGX:FEF1!": {
+    "WDO_LAST_TICK": {
       "precos": {
-        "10m": 99.4,
-        "5m": 99.4,
-        "0m": 99.4
-      },
-      "intervalo_10_para_5": {
-        "variacao_abs": 0.0,
-        "variacao_pct": 0.0,
-        "tendencia": "Estavel"
-      },
-      "intervalo_5_para_0": {
-        "variacao_abs": 0.0,
-        "variacao_pct": 0.0,
-        "tendencia": "Estavel"
-      },
-      "padrao_comportamento": "Estavel_E_Estavel"
-    },
-    "FX_IDC:USDBRL": {
-      "precos": {
-        "10m": 5.1856,
-        "5m": 5.1856,
-        "0m": 5.1856
-      },
-      "intervalo_10_para_5": {
-        "variacao_abs": 0.0,
-        "variacao_pct": 0.0,
-        "tendencia": "Estavel"
-      },
-      "intervalo_5_para_0": {
-        "variacao_abs": 0.0,
-        "variacao_pct": 0.0,
-        "tendencia": "Estavel"
-      },
-      "padrao_comportamento": "Estavel_E_Estavel"
-    },
-    "AMEX:EWZ": {
-      "precos": {
-        "10m": 36.03,
-        "5m": 36.03,
-        "0m": 36.03
-      },
-      "intervalo_10_para_5": {
-        "variacao_abs": 0.0,
-        "variacao_pct": 0.0,
-        "tendencia": "Estavel"
-      },
-      "intervalo_5_para_0": {
-        "variacao_abs": 0.0,
-        "variacao_pct": 0.0,
-        "tendencia": "Estavel"
-      },
-      "padrao_comportamento": "Estavel_E_Estavel"
-    },
-    "BMFBOVESPA:DI1F2029": {
-      "precos": {
-        "10m": 14.175,
-        "5m": 14.175,
-        "0m": 14.175
-      },
-      "intervalo_10_para_5": {
-        "variacao_abs": 0.0,
-        "variacao_pct": 0.0,
-        "tendencia": "Estavel"
-      },
-      "intervalo_5_para_0": {
-        "variacao_abs": 0.0,
-        "variacao_pct": 0.0,
-        "tendencia": "Estavel"
-      },
-      "padrao_comportamento": "Estavel_E_Estavel"
-    },
-    "BMFBOVESPA:DI1F2027": {
-      "precos": {
-        "10m": 13.615,
-        "5m": 13.615,
-        "0m": 13.615
+        "10m": 5182.0,
+        "5m": 5182.0,
+        "0m": 5182.0
       },
       "intervalo_10_para_5": {
         "variacao_abs": 0.0,
@@ -178,23 +106,77 @@
       },
       "padrao_comportamento": "Estavel_E_Estavel"
     },
-    "BMFBOVESPA:WIN1!": {
+    "NYSE:VALE": {
       "precos": {
-        "10m": 180075.0,
-        "5m": 180075.0,
-        "0m": 180075.0
+        "10m": 15.29,
+        "5m": 15.22,
+        "0m": 15.19
       },
       "intervalo_10_para_5": {
-        "variacao_abs": 0.0,
-        "variacao_pct": 0.0,
-        "tendencia": "Estavel"
+        "variacao_abs": -0.07,
+        "variacao_pct": -0.4578,
+        "tendencia": "Baixa"
       },
       "intervalo_5_para_0": {
-        "variacao_abs": 0.0,
-        "variacao_pct": 0.0,
-        "tendencia": "Estavel"
+        "variacao_abs": -0.03,
+        "variacao_pct": -0.1971,
+        "tendencia": "Baixa"
       },
-      "padrao_comportamento": "Estavel_E_Estavel"
+      "padrao_comportamento": "Baixa_E_Baixa"
+    },
+    "NYMEX:CL1!": {
+      "precos": {
+        "10m": 90.0,
+        "5m": 90.01,
+        "0m": 90.46
+      },
+      "intervalo_10_para_5": {
+        "variacao_abs": 0.01,
+        "variacao_pct": 0.0111,
+        "tendencia": "Alta"
+      },
+      "intervalo_5_para_0": {
+        "variacao_abs": 0.45,
+        "variacao_pct": 0.4999,
+        "tendencia": "Alta"
+      },
+      "padrao_comportamento": "Alta_E_Alta"
+    },
+    "BMFBOVESPA:WIN1!": {
+      "precos": {
+        "10m": 186870.0,
+        "5m": 183025.0,
+        "0m": 186570.0
+      },
+      "intervalo_10_para_5": {
+        "variacao_abs": -3845.0,
+        "variacao_pct": -2.0576,
+        "tendencia": "Baixa"
+      },
+      "intervalo_5_para_0": {
+        "variacao_abs": 3545.0,
+        "variacao_pct": 1.9369,
+        "tendencia": "Alta"
+      },
+      "padrao_comportamento": "Baixa_E_Alta"
+    },
+    "B3SA3": {
+      "precos": {
+        "10m": 16.76,
+        "5m": 16.71,
+        "0m": 16.73
+      },
+      "intervalo_10_para_5": {
+        "variacao_abs": -0.05,
+        "variacao_pct": -0.2983,
+        "tendencia": "Baixa"
+      },
+      "intervalo_5_para_0": {
+        "variacao_abs": 0.02,
+        "variacao_pct": 0.1197,
+        "tendencia": "Alta"
+      },
+      "padrao_comportamento": "Baixa_E_Alta"
     },
     "B3_AJUSTE_WIN": {
       "precos": {
@@ -214,11 +196,101 @@
       },
       "padrao_comportamento": "Estavel_E_Estavel"
     },
-    "NYMEX:CL1!": {
+    "CME_MINI:ES1!": {
       "precos": {
-        "10m": 87.98,
-        "5m": 87.98,
-        "0m": 87.98
+        "10m": 7645.0,
+        "5m": 7644.5,
+        "0m": 7626.5
+      },
+      "intervalo_10_para_5": {
+        "variacao_abs": -0.5,
+        "variacao_pct": -0.0065,
+        "tendencia": "Baixa"
+      },
+      "intervalo_5_para_0": {
+        "variacao_abs": -18.0,
+        "variacao_pct": -0.2355,
+        "tendencia": "Baixa"
+      },
+      "padrao_comportamento": "Baixa_E_Baixa"
+    },
+    "SGX:FEF2!": {
+      "precos": {
+        "10m": 99.5,
+        "5m": 99.5,
+        "0m": 99.5
+      },
+      "intervalo_10_para_5": {
+        "variacao_abs": 0.0,
+        "variacao_pct": 0.0,
+        "tendencia": "Estavel"
+      },
+      "intervalo_5_para_0": {
+        "variacao_abs": 0.0,
+        "variacao_pct": 0.0,
+        "tendencia": "Estavel"
+      },
+      "padrao_comportamento": "Estavel_E_Estavel"
+    },
+    "FX_IDC:USDBRL": {
+      "precos": {
+        "10m": 5.1411,
+        "5m": 5.1457,
+        "0m": 5.1473
+      },
+      "intervalo_10_para_5": {
+        "variacao_abs": 0.0046,
+        "variacao_pct": 0.0895,
+        "tendencia": "Alta"
+      },
+      "intervalo_5_para_0": {
+        "variacao_abs": 0.0016,
+        "variacao_pct": 0.0311,
+        "tendencia": "Alta"
+      },
+      "padrao_comportamento": "Alta_E_Alta"
+    },
+    "PETR4": {
+      "precos": {
+        "10m": 46.76,
+        "5m": 46.73,
+        "0m": 46.79
+      },
+      "intervalo_10_para_5": {
+        "variacao_abs": -0.03,
+        "variacao_pct": -0.0642,
+        "tendencia": "Baixa"
+      },
+      "intervalo_5_para_0": {
+        "variacao_abs": 0.06,
+        "variacao_pct": 0.1284,
+        "tendencia": "Alta"
+      },
+      "padrao_comportamento": "Baixa_E_Alta"
+    },
+    "CME_MINI:NQ1!": {
+      "precos": {
+        "10m": 29131.75,
+        "5m": 29111.75,
+        "0m": 29028.0
+      },
+      "intervalo_10_para_5": {
+        "variacao_abs": -20.0,
+        "variacao_pct": -0.0687,
+        "tendencia": "Baixa"
+      },
+      "intervalo_5_para_0": {
+        "variacao_abs": -83.75,
+        "variacao_pct": -0.2877,
+        "tendencia": "Baixa"
+      },
+      "padrao_comportamento": "Baixa_E_Baixa"
+    },
+    "USD_PTAX": {
+      "precos": {
+        "10m": 5.1564,
+        "5m": 5.1564,
+        "0m": 5.1564
       },
       "intervalo_10_para_5": {
         "variacao_abs": 0.0,
@@ -268,177 +340,15 @@
       },
       "padrao_comportamento": "Estavel_E_Estavel"
     },
-    "NYSE:BBD": {
+    "NYSE:ITUB": {
       "precos": {
-        "10m": 3.28,
-        "5m": 3.28,
-        "0m": 3.28
+        "10m": 7.76,
+        "5m": 7.74,
+        "0m": 7.74
       },
       "intervalo_10_para_5": {
-        "variacao_abs": 0.0,
-        "variacao_pct": 0.0,
-        "tendencia": "Estavel"
-      },
-      "intervalo_5_para_0": {
-        "variacao_abs": 0.0,
-        "variacao_pct": 0.0,
-        "tendencia": "Estavel"
-      },
-      "padrao_comportamento": "Estavel_E_Estavel"
-    },
-    "USD_PTAX": {
-      "precos": {
-        "10m": 5.181,
-        "5m": 5.181,
-        "0m": 5.181
-      },
-      "intervalo_10_para_5": {
-        "variacao_abs": 0.0,
-        "variacao_pct": 0.0,
-        "tendencia": "Estavel"
-      },
-      "intervalo_5_para_0": {
-        "variacao_abs": 0.0,
-        "variacao_pct": 0.0,
-        "tendencia": "Estavel"
-      },
-      "padrao_comportamento": "Estavel_E_Estavel"
-    },
-    "CME_MINI:ES1!": {
-      "precos": {
-        "10m": 7655.5,
-        "5m": 7655.5,
-        "0m": 7655.5
-      },
-      "intervalo_10_para_5": {
-        "variacao_abs": 0.0,
-        "variacao_pct": 0.0,
-        "tendencia": "Estavel"
-      },
-      "intervalo_5_para_0": {
-        "variacao_abs": 0.0,
-        "variacao_pct": 0.0,
-        "tendencia": "Estavel"
-      },
-      "padrao_comportamento": "Estavel_E_Estavel"
-    },
-    "CME_MINI:NQ1!": {
-      "precos": {
-        "10m": 29220.25,
-        "5m": 29220.25,
-        "0m": 29220.25
-      },
-      "intervalo_10_para_5": {
-        "variacao_abs": 0.0,
-        "variacao_pct": 0.0,
-        "tendencia": "Estavel"
-      },
-      "intervalo_5_para_0": {
-        "variacao_abs": 0.0,
-        "variacao_pct": 0.0,
-        "tendencia": "Estavel"
-      },
-      "padrao_comportamento": "Estavel_E_Estavel"
-    },
-    "NYSE:PBR": {
-      "precos": {
-        "10m": 19.35,
-        "5m": 19.35,
-        "0m": 19.35
-      },
-      "intervalo_10_para_5": {
-        "variacao_abs": 0.0,
-        "variacao_pct": 0.0,
-        "tendencia": "Estavel"
-      },
-      "intervalo_5_para_0": {
-        "variacao_abs": 0.0,
-        "variacao_pct": 0.0,
-        "tendencia": "Estavel"
-      },
-      "padrao_comportamento": "Estavel_E_Estavel"
-    },
-    "NYSE:VALE": {
-      "precos": {
-        "10m": 15.09,
-        "5m": 15.09,
-        "0m": 15.09
-      },
-      "intervalo_10_para_5": {
-        "variacao_abs": 0.0,
-        "variacao_pct": 0.0,
-        "tendencia": "Estavel"
-      },
-      "intervalo_5_para_0": {
-        "variacao_abs": 0.0,
-        "variacao_pct": 0.0,
-        "tendencia": "Estavel"
-      },
-      "padrao_comportamento": "Estavel_E_Estavel"
-    },
-    "TVC:DXY": {
-      "precos": {
-        "10m": 99.586,
-        "5m": 99.586,
-        "0m": 99.586
-      },
-      "intervalo_10_para_5": {
-        "variacao_abs": 0.0,
-        "variacao_pct": 0.0,
-        "tendencia": "Estavel"
-      },
-      "intervalo_5_para_0": {
-        "variacao_abs": 0.0,
-        "variacao_pct": 0.0,
-        "tendencia": "Estavel"
-      },
-      "padrao_comportamento": "Estavel_E_Estavel"
-    },
-    "TVC:GOLD": {
-      "precos": {
-        "10m": 4365.413,
-        "5m": 4366.903,
-        "0m": 4366.903
-      },
-      "intervalo_10_para_5": {
-        "variacao_abs": 1.49,
-        "variacao_pct": 0.0341,
-        "tendencia": "Alta"
-      },
-      "intervalo_5_para_0": {
-        "variacao_abs": 0.0,
-        "variacao_pct": 0.0,
-        "tendencia": "Estavel"
-      },
-      "padrao_comportamento": "Alta_E_Estavel"
-    },
-    "SGX:FEF2!": {
-      "precos": {
-        "10m": 99.4,
-        "5m": 99.4,
-        "0m": 99.4
-      },
-      "intervalo_10_para_5": {
-        "variacao_abs": 0.0,
-        "variacao_pct": 0.0,
-        "tendencia": "Estavel"
-      },
-      "intervalo_5_para_0": {
-        "variacao_abs": 0.0,
-        "variacao_pct": 0.0,
-        "tendencia": "Estavel"
-      },
-      "padrao_comportamento": "Estavel_E_Estavel"
-    },
-    "TVC:VIX": {
-      "precos": {
-        "10m": 15.86,
-        "5m": 15.85,
-        "0m": 15.85
-      },
-      "intervalo_10_para_5": {
-        "variacao_abs": -0.01,
-        "variacao_pct": -0.0631,
+        "variacao_abs": -0.02,
+        "variacao_pct": -0.2577,
         "tendencia": "Baixa"
       },
       "intervalo_5_para_0": {
@@ -450,9 +360,81 @@
     },
     "BMFBOVESPA:WDO1!": {
       "precos": {
-        "10m": 5182.0,
+        "10m": 5205.8,
         "5m": 5182.0,
-        "0m": 5182.0
+        "0m": 5212.0
+      },
+      "intervalo_10_para_5": {
+        "variacao_abs": -23.8,
+        "variacao_pct": -0.4572,
+        "tendencia": "Baixa"
+      },
+      "intervalo_5_para_0": {
+        "variacao_abs": 30.0,
+        "variacao_pct": 0.5789,
+        "tendencia": "Alta"
+      },
+      "padrao_comportamento": "Baixa_E_Alta"
+    },
+    "NYSE:PBR": {
+      "precos": {
+        "10m": 20.26,
+        "5m": 20.25,
+        "0m": 20.3
+      },
+      "intervalo_10_para_5": {
+        "variacao_abs": -0.01,
+        "variacao_pct": -0.0494,
+        "tendencia": "Baixa"
+      },
+      "intervalo_5_para_0": {
+        "variacao_abs": 0.05,
+        "variacao_pct": 0.2469,
+        "tendencia": "Alta"
+      },
+      "padrao_comportamento": "Baixa_E_Alta"
+    },
+    "NYSE:BBD": {
+      "precos": {
+        "10m": 3.37,
+        "5m": 3.37,
+        "0m": 3.36
+      },
+      "intervalo_10_para_5": {
+        "variacao_abs": 0.0,
+        "variacao_pct": 0.0,
+        "tendencia": "Estavel"
+      },
+      "intervalo_5_para_0": {
+        "variacao_abs": -0.01,
+        "variacao_pct": -0.2967,
+        "tendencia": "Baixa"
+      },
+      "padrao_comportamento": "Estavel_E_Baixa"
+    },
+    "TVC:GOLD": {
+      "precos": {
+        "10m": 4342.039,
+        "5m": 4336.16,
+        "0m": 4332.728
+      },
+      "intervalo_10_para_5": {
+        "variacao_abs": -5.879,
+        "variacao_pct": -0.1354,
+        "tendencia": "Baixa"
+      },
+      "intervalo_5_para_0": {
+        "variacao_abs": -3.432,
+        "variacao_pct": -0.0791,
+        "tendencia": "Baixa"
+      },
+      "padrao_comportamento": "Baixa_E_Baixa"
+    },
+    "OTC:BOLSY": {
+      "precos": {
+        "10m": 9.6,
+        "5m": 9.6,
+        "0m": 9.6
       },
       "intervalo_10_para_5": {
         "variacao_abs": 0.0,
@@ -465,12 +447,66 @@
         "tendencia": "Estavel"
       },
       "padrao_comportamento": "Estavel_E_Estavel"
+    },
+    "ITUB4": {
+      "precos": {
+        "10m": 39.94,
+        "5m": 39.91,
+        "0m": 39.9
+      },
+      "intervalo_10_para_5": {
+        "variacao_abs": -0.03,
+        "variacao_pct": -0.0751,
+        "tendencia": "Baixa"
+      },
+      "intervalo_5_para_0": {
+        "variacao_abs": -0.01,
+        "variacao_pct": -0.0251,
+        "tendencia": "Baixa"
+      },
+      "padrao_comportamento": "Baixa_E_Baixa"
+    },
+    "BBDC4": {
+      "precos": {
+        "10m": 17.39,
+        "5m": 17.43,
+        "0m": 17.42
+      },
+      "intervalo_10_para_5": {
+        "variacao_abs": 0.04,
+        "variacao_pct": 0.23,
+        "tendencia": "Alta"
+      },
+      "intervalo_5_para_0": {
+        "variacao_abs": -0.01,
+        "variacao_pct": -0.0574,
+        "tendencia": "Baixa"
+      },
+      "padrao_comportamento": "Alta_E_Baixa"
     },
     "FX_IDC:USDMXN": {
       "precos": {
-        "10m": 17.0066,
-        "5m": 17.0066,
-        "0m": 17.0066
+        "10m": 16.9942,
+        "5m": 16.99733,
+        "0m": 16.9979
+      },
+      "intervalo_10_para_5": {
+        "variacao_abs": 0.0031,
+        "variacao_pct": 0.0184,
+        "tendencia": "Alta"
+      },
+      "intervalo_5_para_0": {
+        "variacao_abs": 0.0006,
+        "variacao_pct": 0.0034,
+        "tendencia": "Alta"
+      },
+      "padrao_comportamento": "Alta_E_Alta"
+    },
+    "SGX:FEF1!": {
+      "precos": {
+        "10m": 99.5,
+        "5m": 99.5,
+        "0m": 99.5
       },
       "intervalo_10_para_5": {
         "variacao_abs": 0.0,
@@ -484,29 +520,101 @@
       },
       "padrao_comportamento": "Estavel_E_Estavel"
     },
-    "WDO_LAST_TICK": {
+    "VALE3": {
       "precos": {
-        "10m": 5182.0,
-        "5m": 5182.0,
-        "0m": 5182.0
+        "10m": 78.71,
+        "5m": 78.37,
+        "0m": 78.31
       },
       "intervalo_10_para_5": {
-        "variacao_abs": 0.0,
-        "variacao_pct": 0.0,
-        "tendencia": "Estavel"
+        "variacao_abs": -0.34,
+        "variacao_pct": -0.432,
+        "tendencia": "Baixa"
       },
       "intervalo_5_para_0": {
-        "variacao_abs": 0.0,
-        "variacao_pct": 0.0,
-        "tendencia": "Estavel"
+        "variacao_abs": -0.06,
+        "variacao_pct": -0.0766,
+        "tendencia": "Baixa"
       },
-      "padrao_comportamento": "Estavel_E_Estavel"
+      "padrao_comportamento": "Baixa_E_Baixa"
     },
-    "NYSE:ITUB": {
+    "TVC:DXY": {
       "precos": {
-        "10m": 7.61,
-        "5m": 7.61,
-        "0m": 7.61
+        "10m": 99.709,
+        "5m": 99.7,
+        "0m": 99.683
+      },
+      "intervalo_10_para_5": {
+        "variacao_abs": -0.009,
+        "variacao_pct": -0.009,
+        "tendencia": "Baixa"
+      },
+      "intervalo_5_para_0": {
+        "variacao_abs": -0.017,
+        "variacao_pct": -0.0171,
+        "tendencia": "Baixa"
+      },
+      "padrao_comportamento": "Baixa_E_Baixa"
+    },
+    "AMEX:EWZ": {
+      "precos": {
+        "10m": 36.84,
+        "5m": 36.76,
+        "0m": 36.71
+      },
+      "intervalo_10_para_5": {
+        "variacao_abs": -0.08,
+        "variacao_pct": -0.2172,
+        "tendencia": "Baixa"
+      },
+      "intervalo_5_para_0": {
+        "variacao_abs": -0.05,
+        "variacao_pct": -0.136,
+        "tendencia": "Baixa"
+      },
+      "padrao_comportamento": "Baixa_E_Baixa"
+    },
+    "BBAS3": {
+      "precos": {
+        "10m": 21.33,
+        "5m": 21.42,
+        "0m": 21.31
+      },
+      "intervalo_10_para_5": {
+        "variacao_abs": 0.09,
+        "variacao_pct": 0.4219,
+        "tendencia": "Alta"
+      },
+      "intervalo_5_para_0": {
+        "variacao_abs": -0.11,
+        "variacao_pct": -0.5135,
+        "tendencia": "Baixa"
+      },
+      "padrao_comportamento": "Alta_E_Baixa"
+    },
+    "BMFBOVESPA:DI1F2029": {
+      "precos": {
+        "10m": 14.105,
+        "5m": 14.11,
+        "0m": 14.12
+      },
+      "intervalo_10_para_5": {
+        "variacao_abs": 0.005,
+        "variacao_pct": 0.0354,
+        "tendencia": "Alta"
+      },
+      "intervalo_5_para_0": {
+        "variacao_abs": 0.01,
+        "variacao_pct": 0.0709,
+        "tendencia": "Alta"
+      },
+      "padrao_comportamento": "Alta_E_Alta"
+    },
+    "BMFBOVESPA:DI1F2027": {
+      "precos": {
+        "10m": 13.59,
+        "5m": 13.59,
+        "0m": 13.59
       },
       "intervalo_10_para_5": {
         "variacao_abs": 0.0,
@@ -523,19 +631,19 @@
   },
   "estimativa_abertura": {
     "WIN_INDICE": {
-      "variacao_teorica_pct": 0.7216,
-      "preco_referencia_base": 180075.0,
-      "abertura_teorica_pontos": 181374.0,
-      "contexto_janela": "REFERENCIA_0900_OVERNIGHT"
+      "variacao_teorica_pct": 0.9013,
+      "preco_referencia_base": 182315.0,
+      "abertura_teorica_pontos": 183958.0,
+      "contexto_janela": "REFERENCIA_1000_INTRADAY"
     }
   },
   "pivot_points": {
     "WIN_FUT": {
-      "PP": 179160.0,
-      "R1": 179710.0,
-      "R2": 181780.0,
-      "S1": 177090.0,
-      "S2": 176540.0
+      "PP": 180915.0,
+      "R1": 182830.0,
+      "R2": 185585.0,
+      "S1": 178160.0,
+      "S2": 176245.0
     }
   },
   "resumo_macro": {},
@@ -545,13 +653,13 @@
       "score_numeric": 9.5,
       "fatores_relevantes": [
         "Motor SMC indica estrutura de ALTA (Confiança: 95%)",
-        "Preço trabalhando acima do Pivot Point (179160)"
+        "Preço trabalhando acima do Pivot Point (180915)"
       ],
       "confianca": 95,
-      "entrada": 180230,
-      "stop": 179905,
-      "alvo_1": 180530,
-      "alvo_2": 180715
+      "entrada": 182470,
+      "stop": 182145,
+      "alvo_1": 182770,
+      "alvo_2": 182955
     }
   }
 }

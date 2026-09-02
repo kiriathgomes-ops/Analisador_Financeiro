@@ -1,7 +1,7 @@
 {
   "metadata": {
     "fonte": "TradingView API",
-    "timestamp": "2026-09-01T05:08:31.764176",
+    "timestamp": "2026-09-01T22:49:01.371177",
     "data_referencia": "2026-09-01",
     "filtros": "Brasil e EUA (2 e 3 Estrelas)"
   },
@@ -16,7 +16,7 @@
         "importancia": 3,
         "anterior": "1.1",
         "previsao": "0.4",
-        "atual": ""
+        "atual": "0.5"
       },
       {
         "hora": "09:00",
@@ -26,7 +26,7 @@
         "importancia": 3,
         "anterior": "1.8",
         "previsao": "1.8",
-        "atual": ""
+        "atual": "2"
       },
       {
         "hora": "10:00",
@@ -36,7 +36,7 @@
         "importancia": 2,
         "anterior": "47.5",
         "previsao": "",
-        "atual": ""
+        "atual": "46.3"
       },
       {
         "hora": "10:05",
@@ -56,17 +56,7 @@
         "importancia": 2,
         "anterior": "53.9",
         "previsao": "53.2",
-        "atual": ""
-      },
-      {
-        "hora": "11:00",
-        "pais": "United States",
-        "moeda": "USD",
-        "evento": "ISM Manufacturing PMI",
-        "importancia": 3,
-        "anterior": "55.6",
-        "previsao": "55.2",
-        "atual": ""
+        "atual": "53.9"
       },
       {
         "hora": "11:00",
@@ -76,7 +66,7 @@
         "importancia": 2,
         "anterior": "52.8",
         "previsao": "",
-        "atual": ""
+        "atual": "51.2"
       },
       {
         "hora": "11:00",
@@ -84,19 +74,29 @@
         "moeda": "USD",
         "evento": "JOLTs Job Openings",
         "importancia": 3,
-        "anterior": "7.359",
+        "anterior": "7.182",
         "previsao": "7.3",
-        "atual": ""
+        "atual": "7.271"
       },
       {
-        "hora": "17:30",
+        "hora": "11:00",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "ISM Manufacturing PMI",
+        "importancia": 3,
+        "anterior": "55.6",
+        "previsao": "55.2",
+        "atual": "54.6"
+      },
+      {
+        "hora": "17:50",
         "pais": "United States",
         "moeda": "USD",
         "evento": "API Crude Oil Stock Change",
         "importancia": 2,
         "anterior": "4.2",
-        "previsao": "",
-        "atual": ""
+        "previsao": "-0.8",
+        "atual": "-2.6"
       }
     ]
   }

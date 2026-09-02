@@ -1,50 +1,50 @@
 {
   "metadata_calculo": {
-    "timestamp": "2026-09-01T08:04:01.326032",
+    "timestamp": "2026-09-01T22:49:02.138964",
     "total_ativos_processados": 26
   },
   "cambio_e_arbitragem": {
-    "usd_ptax": 5.181,
-    "wdo_fut": 5182.0,
-    "spread_wdo_ptax_pontos": 1.0,
-    "spread_wdo_ptax_percentual": 0.0193
+    "usd_ptax": 5.1564,
+    "wdo_fut": 5186.2,
+    "spread_wdo_ptax_pontos": 29.8,
+    "spread_wdo_ptax_percentual": 0.5779
   },
   "curva_juros_b3": {
-    "di1_2027_taxa": 13.615,
-    "di1_2029_taxa": 14.175,
-    "inclinacao_29_27_bps": 56.0
+    "di1_2027_taxa": 13.585,
+    "di1_2029_taxa": 14.11,
+    "inclinacao_29_27_bps": 52.5
   },
   "indicadores_macro": {
-    "vix": 15.84,
-    "vix_change_pct": 6.095110515740122,
-    "dxy": 99.625,
-    "crude_oil": 87.81,
-    "crude_oil_change_pct": 2.390391791044773,
+    "vix": 16.33,
+    "vix_change_pct": 9.377093101138637,
+    "dxy": 99.782,
+    "crude_oil": 91.9,
+    "crude_oil_change_pct": 1.8621148304145498,
     "iron_ore_fef2": {
-      "close": 99.4,
-      "change_percent": -0.2508780732563974
+      "close": 99.05,
+      "change_percent": -0.30196275792651955
     }
   },
   "performance_relativa": {
-    "ewz_change_pct": 1.35,
-    "sp500_fut_change_pct": -0.5650084426548903,
-    "nasdaq_fut_change_pct": -1.0359841425812355,
+    "ewz_change_pct": 1.5,
+    "sp500_fut_change_pct": -0.06215040397762585,
+    "nasdaq_fut_change_pct": -0.10986935846594907,
     "adrs_brasileiras": {
       "BBD_ADR": {
-        "close": 3.28,
-        "change_percent": 0.92
+        "close": 3.32,
+        "change_percent": 1.22
       },
       "ITUB_ADR": {
-        "close": 7.61,
-        "change_percent": 1.47
+        "close": 7.68,
+        "change_percent": 0.92
       },
       "PETR_ADR": {
-        "close": 19.35,
-        "change_percent": 4.43
+        "close": 20.33,
+        "change_percent": 5.06
       },
       "VALE_ADR": {
-        "close": 15.09,
-        "change_percent": 0.4
+        "close": 15.12,
+        "change_percent": 0.2
       },
       "BBAS_ADR": {
         "close": 4.11,
@@ -57,7 +57,7 @@
     }
   },
   "indicadores_compostos": {
-    "indicador_mercado_externo": -3.9556,
-    "indicador_adrs_brasileiras": 14.81
+    "indicador_mercado_externo": -7.8169,
+    "indicador_adrs_brasileiras": 14.99
   }
 }

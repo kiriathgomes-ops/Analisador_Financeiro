@@ -1,128 +1,156 @@
 # -*- coding: utf-8 -*-
 """
 Módulo: Gerar_Relatorio_Mensagem.py
-Versão: 3.0 - Produção Unificada V2
-Objetivo: Compilar estimativas, pivots e decisões da V2 em um relatório executivo em Markdown.
+Versão: 2.3 (Mapeamento Total de Chaves V2)
+Objetivo: Consolida os arquivos de decisão e cotações unificadas em um relatório executivo em Markdown.
 """
 
 import json
-import os
-from datetime import datetime
 from pathlib import Path
+from datetime import datetime
 
-# Ingestão de caminhos centralizados do config.py da V2
-from config import FILE_ESTIMATIVA_ABERTURA, FILE_DECISAO_V2, FILE_PIPELINE_LOG, COLETAS_DIR
+# ==============================================================================
+# RESOLUÇÃO DE CAMINHOS E LEITURA DE JSON
+# ==============================================================================
+RAIZ_PROJETO = Path(__file__).resolve().parent
 
-def carregar_json_defensivo(caminho_path) -> dict:
-    if not caminho_path.exists():
-        return {}
-    try:
-        with open(caminho_path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except:
-        return {}
-
-def fmt_num(valor, casas=0, default="—") -> str:
-    """Formata números com separadores de milhar com segurança contra nulos."""
-    if valor is None:
-        return default
-    try:
-        v = float(valor)
-        if casas == 0:
-            return f"{v:,.0f}"
-        return f"{v:,.{casas}f}"
-    except:
-        return default
-
-def compilar_relatorio_executivo():
-    print("=" * 60)
-    print(" 🚀 INICIANDO GERADOR DE RELATÓRIO OPERACIONAL EXECUTIVO (V2)")
-    print("=" * 60)
-
-    # 1. Carrega os dados higienizados do ecossistema V2
-    est_data = carregar_json_defensivo(FILE_ESTIMATIVA_ABERTURA)
-    dec_data = carregar_json_defensivo(FILE_DECISAO_V2)
-    log_data = carregar_json_defensivo(FILE_PIPELINE_LOG)
-
-    if not est_data or not dec_data:
-        print("❌ [ERRO] Arquivos de dados essenciais (Estimativas/Decisão) ausentes no disco.")
-        return
-
-    # 2. Captura metadados e fuso horário do pregão
-    ts = est_data.get("metadata_calculo", {}).get("timestamp_calculo")
-    hora_str = datetime.fromisoformat(ts).strftime("%d/%m/%Y às %H:%M") if ts else datetime.now().strftime("%d/%m/%Y às %H:%M")
-
-    win_est = est_data.get("estimativa_abertura", {}).get("WIN_INDICE", {})
-    pivots_win = est_data.get("pivot_points", {}).get("WIN_FUT", {})
-    macro = est_data.get("resumo_macro", {})
-    
-    decisao_v2 = dec_data.get("decisao", {})
-    vies_final = decisao_v2.get("vies_final", "NEUTRO")
-    confianca = decisao_v2.get("confianca", 0)
-
-    # Ícone direcional dinâmico para o cabeçalho do relatório
-    icon_vies = "🟢" if "COMPRA" in vies_final.upper() or vies_final.upper() == "ALTA" else ("🔴" if "VENDA" in vies_final.upper() or vies_final.upper() == "BAIXA" else "⚖️")
-
-    # 3. CONSTRUÇÃO DO CORPO DA MENSAGEM (MARKDOWN OPERACIONAL)
-    linhas = [
-        "📊 *QUANT TERMINAL B3 — MORNING REPORT V2* 📊",
-        f"⏱ _Pregão Analisado: {hora_str}_",
-        "--------------------------------------------------",
-        "🎯 *ESTRUTURA DIRECIONAL CORE V2*",
-        f"• **Viés Institucional:** `{vies_final}`",
-        f"• **Força de Confluência:** `{icon_vies} {confianca}%`",
+def carregar_json(nome_arquivo):
+    locais = [
+        RAIZ_PROJETO / nome_arquivo,
+        RAIZ_PROJETO / "Coletas" / nome_arquivo,
+        RAIZ_PROJETO / "v2" / nome_arquivo,
+        Path.cwd() / nome_arquivo,
+        Path.cwd() / "Coletas" / nome_arquivo
     ]
+    for p in locais:
+        if p.is_file():
+            try:
+                with open(p, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except Exception:
+                pass
+    return {}
 
-    # Injeta os gatilhos operacionais do robô se o mercado não estiver neutro
-    if decisao_v2.get("entrada"):
-        linhas.extend([
-            f"• **Ordem Gatilho (Entry):** `{fmt_num(decisao_v2.get('entrada'))} pts`",
-            f"• **Stop Loss Técnico:** `{fmt_num(decisao_v2.get('stop_loss'))} pts`",
-            f"• **Alvo Fibonacci (T1):** `{fmt_num(decisao_v2.get('alvo_1'))} pts`",
-        ])
-    else:
-        linhas.append("• **Ação Recomendada:** `Aguardando Quebra de Estrutura (BOS)`")
+unificados = carregar_json("DadosAtivosUnificados.json")
+decisao_v2 = carregar_json("Decisao_V2.json")
+resultado_operacional = carregar_json("Resultado_Calculadora_Operacional_Abertura.json")
+estimativas = carregar_json("Resultado_Calculadora.json")
 
-    linhas.extend([
-        "",
-        "--------------------------------------------------",
-        "📈 *PREVISÃO DE ESTIMATIVA E GAP (WIN)*",
-        f"• **Preço Teórico de Abertura:** `{fmt_num(win_est.get('abertura_teorica_pontos'))} pts`",
-        f"• **Variação Estimada:** `{win_est.get('variacao_teorica_pct', 0.0):+.2f}%`",
-        f"• **Ajuste Base Anterior:** `{fmt_num(win_est.get('pontos_ajuste_base'))} pts`",
-        "",
-        "📍 *Níveis Críticos de Pivô (Floor):*",
-        f"• Resistência 2 (R2): `{fmt_num(pivots_win.get('R2'))}` | Resistência 1 (R1): `{fmt_num(pivots_win.get('R1'))}`",
-        f"• **Ponto de Pivô (PP):** `{fmt_num(pivots_win.get('PP'))}`",
-        f"• Suporte 1 (S1): `{fmt_num(pivots_win.get('S1'))}` | Suporte 2 (S2): `{fmt_num(pivots_win.get('S2'))}`",
-        "",
-        "--------------------------------------------------",
-        "🌐 *TERMÔMETRO CONTEXTUAL MACRO*",
-        f"• VIX Volatilidade : `{macro.get('vix', 'N/A')}`",
-        f"• Minério de Ferro  : `US$ {macro.get('iron_ore', 'N/A')}`",
-        f"• Petróleo WTI      : `US$ {macro.get('crude_oil', 'N/A')}`",
-        f"• Curva de Juros    : DI27: `{macro.get('di1_2027', 'N/A')}%` | DI29: `{macro.get('di1_2029', 'N/A')}%`",
-        "--------------------------------------------------",
-        "⚠️ _Relatório quantitativo confidencial para apoio operacional à mesa._"
-    ])
+ativos = unificados.get("ativos", {})
+obj_decisao = decisao_v2.get("decisao", {})
+meta_decisao = obj_decisao.get("metadados", {})
 
-    mensagem_final = "\n".join(linhas)
+# ==============================================================================
+# FUNÇÕES DE EXTRAÇÃO E FORMATAÇÃO DE DADOS
+# ==============================================================================
+def get_preco_str(chave, sufixo=""):
+    if chave in ativos:
+        val = ativos[chave].get("preco")
+        if val is not None and isinstance(val, (int, float)):
+            return f"{val:,.2f}{sufixo}"
+    return "N/A"
 
-    # 4. SALVAMENTO DO ARQUIVO OPERACIONAL EM DISCO
-    # Caminho central de saída para relatórios textuais do projeto
-    file_relatorio_txt = COLETAS_DIR / "Relatorio_Executivo.md"
+def get_var_str(chave):
+    if chave in ativos:
+        val = ativos[chave].get("variacao_pct")
+        if val is not None and isinstance(val, (int, float)):
+            return f"{val:+.2f}%"
+    return "N/A"
+
+def get_num_fmt(dicionario, chave, padrao=0.0):
+    val = dicionario.get(chave, padrao)
+    if isinstance(val, (int, float)) and val > 0:
+        return f"{val:,.0f}"
+    return "—"
+
+# Extração de Decisão e Targets (com busca por múltiplos aliases)
+vies_final = obj_decisao.get("vies_final") or "NEUTRO"
+confianca = obj_decisao.get("confianca", 0)
+icone_confianca = "🔴" if confianca >= 80 else ("🟡" if confianca >= 50 else "⚪")
+
+gatilho = obj_decisao.get("gatilho") or obj_decisao.get("entrada") or obj_decisao.get("entrada_sugerida") or meta_decisao.get("entrada", 0.0)
+stop = obj_decisao.get("stop") or obj_decisao.get("stop_loss") or meta_decisao.get("stop", 0.0)
+
+alvos = obj_decisao.get("alvos") or meta_decisao.get("alvos", [])
+alvo_1 = alvos[0] if isinstance(alvos, list) and len(alvos) > 0 else 0.0
+
+# Extração de Estimativas de Abertura (WIN_INDICE ou WIN_FUT)
+win_est = estimativas.get("estimativa_abertura", {}).get("WIN_INDICE") or estimativas.get("estimativa_abertura", {}).get("WIN_FUT") or {}
+teorico = resultado_operacional.get("previsao_abertura", {}).get("teorico_win") or win_est.get("abertura_teorica_pontos") or meta_decisao.get("teorico_win", 0.0)
+teorico_str = f"{teorico:,.0f} pts" if isinstance(teorico, (int, float)) and teorico > 0 else "N/A"
+
+var_est = resultado_operacional.get("previsao_abertura", {}).get("variacao_estimada") or win_est.get("variacao_teorica_pct", 0.0)
+var_est_str = f"{var_est:+.2f}%"
+
+ajuste = meta_decisao.get("ajuste") or ativos.get("WIN_AJUSTE", {}).get("preco", 0.0)
+ajuste_str = f"{ajuste:,.0f} pts" if isinstance(ajuste, (int, float)) and ajuste > 0 else "— pts"
+
+pivots = meta_decisao.get("pivots") or estimativas.get("pivot_points", {}).get("WIN_FUT") or {}
+
+# Termômetro Macro
+vix_val = get_preco_str("VIX")
+iron_val = get_preco_str("IRON_ORE")
+oil_val = get_preco_str("CRUDE_OIL")
+di27_val = get_var_str("DI1_2027")
+di29_val = get_var_str("DI1_2029")
+
+# ==============================================================================
+# MONTAGEM E GRAVAÇÃO DO RELATÓRIO
+# ==============================================================================
+def executar():
+    print("=" * 60)
+    print("🚀 INICIANDO GERADOR DE RELATÓRIO OPERACIONAL EXECUTIVO (V2)")
+    print("=" * 60)
     
-    try:
-        with open(file_relatorio_txt, "w", encoding="utf-8") as f:
-            f.write(mensagem_final)
-        print("✨ Mensagem compilada e formatada com sucesso!")
-        print(f"✅ Arquivo salvo para integração em: {file_relatorio_txt.name}\n")
+    agora_str = datetime.now().strftime("%d/%m/%Y às %H:%M")
+    
+    gatilho_str = f"{gatilho:,.0f} pts" if isinstance(gatilho, (int, float)) and gatilho > 0 else "—"
+    stop_str = f"{stop:,.0f} pts" if isinstance(stop, (int, float)) and stop > 0 else "—"
+    alvo_1_str = f"{alvo_1:,.0f} pts" if isinstance(alvo_1, (int, float)) and alvo_1 > 0 else "—"
+
+    relatorio_md = f"""📊 *QUANT TERMINAL B3 — MORNING REPORT V2* 📊
+⏱ _Pregão Analisado: {agora_str}_
+--------------------------------------------------
+🎯 *ESTRUTURA DIRECIONAL CORE V2*
+• **Viés Institucional:** `{vies_final}`
+• **Força de Confluência:** `{icone_confianca} {confianca}%`
+• **Ordem Gatilho (Entry):** `{gatilho_str}`
+• **Stop Loss Técnico:** `{stop_str}`
+• **Alvo Fibonacci (T1):** `{alvo_1_str}`
+
+--------------------------------------------------
+📈 *PREVISÃO DE ESTIMATIVA E GAP (WIN)*
+• **Preço Teórico de Abertura:** `{teorico_str}`
+• **Variação Estimada:** `{var_est_str}`
+• **Ajuste Base Anterior:** `{ajuste_str}`
+
+📍 *Níveis Críticos de Pivô (Floor):*
+• Resistência 2 (R2): `{get_num_fmt(pivots, 'r2', pivots.get('R2', 0))}` | Resistência 1 (R1): `{get_num_fmt(pivots, 'r1', pivots.get('R1', 0))}`
+• **Ponto de Pivô (PP):** `{get_num_fmt(pivots, 'pp', pivots.get('PP', 0))}`
+• Suporte 1 (S1): `{get_num_fmt(pivots, 's1', pivots.get('S1', 0))}` | Suporte 2 (S2): `{get_num_fmt(pivots, 's2', pivots.get('S2', 0))}`
+
+--------------------------------------------------
+🌐 *TERMÔMETRO CONTEXTUAL MACRO*
+• VIX Volatilidade : `{vix_val}`
+• Minério de Ferro  : `US$ {iron_val}`
+• Petróleo WTI      : `US$ {oil_val}`
+• Curva de Juros    : DI27: `{di27_val}` | DI29: `{di29_val}`
+--------------------------------------------------
+⚠️ _Relatório quantitativo confidencial para apoio operacional à mesa._
+"""
+
+    caminho_saida = RAIZ_PROJETO / "Coletas" / "Relatorio_Executivo.md"
+    if not caminho_saida.parent.exists():
+        caminho_saida = RAIZ_PROJETO / "Relatorio_Executivo.md"
         
-        # Opcional: Imprime no console para auditoria rápida do desenvolvedor
-        print(mensagem_final)
-        print("\n" + "=" * 60)
+    try:
+        with open(caminho_saida, "w", encoding="utf-8") as f:
+            f.write(relatorio_md)
+        print("✨ Mensagem compilada e formatada com sucesso!")
+        print(f"✅ Arquivo salvo para integração em: {caminho_saida.name}\n")
+        print(relatorio_md)
     except Exception as e:
-        print(f"❌ Erro ao salvar arquivo Markdown: {e}")
+        print(f"❌ Erro ao salvar o relatório: {e}")
 
 if __name__ == "__main__":
-    compilar_relatorio_executivo()
+    executar()

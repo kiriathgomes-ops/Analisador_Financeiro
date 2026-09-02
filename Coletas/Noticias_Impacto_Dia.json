@@ -1,6 +1,6 @@
 {
     "metadata": {
-        "timestamp": "2026-09-01T08:04:01.118682",
+        "timestamp": "2026-09-01T22:49:01.873966",
         "fonte": "Analise Noticias TV API V2"
     },
     "resumo": {
@@ -15,13 +15,13 @@
                 "hora": "11:00",
                 "pais": "United States",
                 "moeda": "USD",
-                "evento": "ISM Manufacturing PMI"
+                "evento": "JOLTs Job Openings"
             },
             {
                 "hora": "11:00",
                 "pais": "United States",
                 "moeda": "USD",
-                "evento": "JOLTs Job Openings"
+                "evento": "ISM Manufacturing PMI"
             }
         ],
         "tem_multiplas_2_estrelas_mesmo_horario": false,
@@ -108,13 +108,6 @@
             "duas_estrelas_equivalente_alta": false,
             "eventos": [
                 {
-                    "nome": "ISM Manufacturing PMI",
-                    "pais": "United States",
-                    "moeda": "USD",
-                    "estrelas": 3,
-                    "peso": 6
-                },
-                {
                     "nome": "ISM Manufacturing Employment",
                     "pais": "United States",
                     "moeda": "USD",
@@ -127,11 +120,18 @@
                     "moeda": "USD",
                     "estrelas": 3,
                     "peso": 6
+                },
+                {
+                    "nome": "ISM Manufacturing PMI",
+                    "pais": "United States",
+                    "moeda": "USD",
+                    "estrelas": 3,
+                    "peso": 6
                 }
             ]
         },
         {
-            "hora": "17:30",
+            "hora": "17:50",
             "pontuacao": 3,
             "classificacao": "BAIXO",
             "quantidade_eventos": 1,

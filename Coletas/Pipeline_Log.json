@@ -1,69 +1,90 @@
 {
-    "data_execucao": "2026-09-01 08:04:01",
-    "status_geral": "ERRO",
+    "data_execucao": "2026-09-01 14:58:57",
+    "status_geral": "SUCESSO",
     "etapas": [
         {
             "etapa": "0 - LIMPEZA DE IMAGENS TRADINGVIEW",
             "script": "Limpar_Imagens_TradingView.py",
-            "inicio": "2026-09-01 08:04:00",
-            "fim": "2026-09-01 08:04:00",
+            "inicio": "2026-09-01 14:58:53",
+            "fim": "2026-09-01 14:58:53",
             "status": "OK"
         },
         {
             "etapa": "1 - COLETA MERCADO GLOBAL",
             "script": "Coletor.py",
-            "inicio": "2026-09-01 08:04:00",
-            "fim": "2026-09-01 08:04:00",
+            "inicio": "2026-09-01 14:58:53",
+            "fim": "2026-09-01 14:58:55",
             "status": "OK"
         },
         {
             "etapa": "2 - COLETA NOTICIAS ECONOMICAS",
             "script": "Coleta_Noticias_Calendario.py",
-            "inicio": "2026-09-01 08:04:00",
-            "fim": "2026-09-01 08:04:00",
+            "inicio": "2026-09-01 14:58:55",
+            "fim": "2026-09-01 14:58:55",
             "status": "OK"
         },
         {
             "etapa": "3 - ANALISE IMPACTO NOTICIAS",
             "script": "Analise_Noticias.py",
-            "inicio": "2026-09-01 08:04:00",
-            "fim": "2026-09-01 08:04:01",
+            "inicio": "2026-09-01 14:58:55",
+            "fim": "2026-09-01 14:58:55",
             "status": "OK"
         },
         {
             "etapa": "4 - VALIDACAO DOS DADOS",
             "script": "Validador.py",
-            "inicio": "2026-09-01 08:04:01",
-            "fim": "2026-09-01 08:04:01",
+            "inicio": "2026-09-01 14:58:55",
+            "fim": "2026-09-01 14:58:55",
             "status": "OK"
         },
         {
             "etapa": "5 - CALCULOS MACRO E INDICADORES",
             "script": "Calculadora.py",
-            "inicio": "2026-09-01 08:04:01",
-            "fim": "2026-09-01 08:04:01",
+            "inicio": "2026-09-01 14:58:55",
+            "fim": "2026-09-01 14:58:56",
             "status": "OK"
         },
         {
             "etapa": "6 - ESTIMATIVA ABERTURA WIN/WDO",
             "script": "CalculadoraEstimativaAbertura.py",
-            "inicio": "2026-09-01 08:04:01",
-            "fim": "2026-09-01 08:04:01",
+            "inicio": "2026-09-01 14:58:56",
+            "fim": "2026-09-01 14:58:56",
             "status": "OK"
         },
         {
             "etapa": "7 - RESULTADO OPERACIONAL",
             "script": "Gerar_Resultado_Operacional_Abertura.py",
-            "inicio": "2026-09-01 08:04:01",
-            "fim": "2026-09-01 08:04:01",
+            "inicio": "2026-09-01 14:58:56",
+            "fim": "2026-09-01 14:58:56",
             "status": "OK"
         },
         {
             "etapa": "8.1 - MOTOR SMC POR REGRAS (MT5)",
             "script": "Rodar_SMC_Regras.py",
-            "inicio": "2026-09-01 08:04:01",
-            "fim": "2026-09-01 08:04:01",
-            "status": "ERRO"
+            "inicio": "2026-09-01 14:58:56",
+            "fim": "2026-09-01 14:58:57",
+            "status": "OK"
+        },
+        {
+            "etapa": "9 - GERADOR RELATORIO FINAL",
+            "script": "Gerar_Relatorio_Mensagem.py",
+            "inicio": "2026-09-01 14:58:57",
+            "fim": "2026-09-01 14:58:57",
+            "status": "OK"
+        },
+        {
+            "etapa": "10 - V2 SESSAO WINFUT",
+            "script": "v2_gravar_sessao_win.py",
+            "inicio": "2026-09-01 14:58:57",
+            "fim": "2026-09-01 14:58:57",
+            "status": "OK"
+        },
+        {
+            "etapa": "11 - V2 SESSAO + DECISAO",
+            "script": "v2_rodar_decisao_completa.py",
+            "inicio": "2026-09-01 14:58:57",
+            "fim": "2026-09-01 14:58:57",
+            "status": "OK"
         }
     ]
 }
