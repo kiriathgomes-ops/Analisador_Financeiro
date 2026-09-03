@@ -1,24 +1,35 @@
 {
     "metadata": {
-        "timestamp": "2026-09-02T14:49:02.246388",
+        "timestamp": "2026-09-03T05:14:07.169663",
         "fonte": "Analise Noticias TV API V2"
     },
     "resumo": {
-        "impacto_total": 21,
+        "impacto_total": 36,
         "classificacao": "EXTREMO"
     },
     "alertas": {
         "tem_3_estrelas_brasil_0900": false,
-        "tem_3_estrelas_outros_horarios": false,
-        "noticias_3_estrelas_outros_horarios": [],
+        "tem_3_estrelas_outros_horarios": true,
+        "noticias_3_estrelas_outros_horarios": [
+            {
+                "hora": "11:00",
+                "pais": "United States",
+                "moeda": "USD",
+                "evento": "ISM Services PMI"
+            }
+        ],
         "tem_multiplas_2_estrelas_mesmo_horario": true,
         "horarios_multiplas_2_estrelas": [
             {
-                "hora": "09:00",
+                "hora": "09:30",
+                "quantidade_2_estrelas": 5
+            },
+            {
+                "hora": "10:00",
                 "quantidade_2_estrelas": 2
             },
             {
-                "hora": "11:30",
+                "hora": "10:45",
                 "quantidade_2_estrelas": 2
             }
         ],
@@ -26,14 +37,42 @@
     },
     "horarios": [
         {
-            "hora": "08:00",
-            "pontuacao": 3,
-            "classificacao": "BAIXO",
-            "quantidade_eventos": 1,
-            "duas_estrelas_equivalente_alta": false,
+            "hora": "09:30",
+            "pontuacao": 15,
+            "classificacao": "EXTREMO",
+            "quantidade_eventos": 5,
+            "duas_estrelas_equivalente_alta": true,
             "eventos": [
                 {
-                    "nome": "MBA 30-Year Mortgage Rate",
+                    "nome": "Initial Jobless Claims",
+                    "pais": "United States",
+                    "moeda": "USD",
+                    "estrelas": 2,
+                    "peso": 3
+                },
+                {
+                    "nome": "Exports",
+                    "pais": "United States",
+                    "moeda": "USD",
+                    "estrelas": 2,
+                    "peso": 3
+                },
+                {
+                    "nome": "Fed Waller Speech",
+                    "pais": "United States",
+                    "moeda": "USD",
+                    "estrelas": 2,
+                    "peso": 3
+                },
+                {
+                    "nome": "Imports",
+                    "pais": "United States",
+                    "moeda": "USD",
+                    "estrelas": 2,
+                    "peso": 3
+                },
+                {
+                    "nome": "Balance of Trade",
                     "pais": "United States",
                     "moeda": "USD",
                     "estrelas": 2,
@@ -42,21 +81,21 @@
             ]
         },
         {
-            "hora": "09:00",
+            "hora": "10:00",
             "pontuacao": 6,
             "classificacao": "ATENÇÃO",
             "quantidade_eventos": 2,
             "duas_estrelas_equivalente_alta": true,
             "eventos": [
                 {
-                    "nome": "Industrial Production MoM",
+                    "nome": "S&P Global Composite PMI",
                     "pais": "Brazil",
                     "moeda": "BRL",
                     "estrelas": 2,
                     "peso": 3
                 },
                 {
-                    "nome": "Industrial Production YoY",
+                    "nome": "S&P Global Services PMI",
                     "pais": "Brazil",
                     "moeda": "BRL",
                     "estrelas": 2,
@@ -65,14 +104,21 @@
             ]
         },
         {
-            "hora": "09:15",
-            "pontuacao": 3,
-            "classificacao": "BAIXO",
-            "quantidade_eventos": 1,
-            "duas_estrelas_equivalente_alta": false,
+            "hora": "10:45",
+            "pontuacao": 6,
+            "classificacao": "ATENÇÃO",
+            "quantidade_eventos": 2,
+            "duas_estrelas_equivalente_alta": true,
             "eventos": [
                 {
-                    "nome": "ADP Employment Change",
+                    "nome": "S&P Global Composite PMI Final",
+                    "pais": "United States",
+                    "moeda": "USD",
+                    "estrelas": 2,
+                    "peso": 3
+                },
+                {
+                    "nome": "S&P Global Services PMI Final",
                     "pais": "United States",
                     "moeda": "USD",
                     "estrelas": 2,
@@ -82,36 +128,29 @@
         },
         {
             "hora": "11:00",
+            "pontuacao": 6,
+            "classificacao": "ATENÇÃO",
+            "quantidade_eventos": 1,
+            "duas_estrelas_equivalente_alta": false,
+            "eventos": [
+                {
+                    "nome": "ISM Services PMI",
+                    "pais": "United States",
+                    "moeda": "USD",
+                    "estrelas": 3,
+                    "peso": 6
+                }
+            ]
+        },
+        {
+            "hora": "16:00",
             "pontuacao": 3,
             "classificacao": "BAIXO",
             "quantidade_eventos": 1,
             "duas_estrelas_equivalente_alta": false,
             "eventos": [
                 {
-                    "nome": "Factory Orders MoM",
-                    "pais": "United States",
-                    "moeda": "USD",
-                    "estrelas": 2,
-                    "peso": 3
-                }
-            ]
-        },
-        {
-            "hora": "11:30",
-            "pontuacao": 6,
-            "classificacao": "ATENÇÃO",
-            "quantidade_eventos": 2,
-            "duas_estrelas_equivalente_alta": true,
-            "eventos": [
-                {
-                    "nome": "EIA Gasoline Stocks Change",
-                    "pais": "United States",
-                    "moeda": "USD",
-                    "estrelas": 2,
-                    "peso": 3
-                },
-                {
-                    "nome": "EIA Crude Oil Stocks Change",
+                    "nome": "Fed Hammack Speech",
                     "pais": "United States",
                     "moeda": "USD",
                     "estrelas": 2,

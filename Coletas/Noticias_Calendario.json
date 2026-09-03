@@ -1,82 +1,122 @@
 {
   "metadata": {
     "fonte": "TradingView API",
-    "timestamp": "2026-09-02T14:49:01.728686",
-    "data_referencia": "2026-09-02",
+    "timestamp": "2026-09-03T05:14:07.027501",
+    "data_referencia": "2026-09-03",
     "filtros": "Brasil e EUA (2 e 3 Estrelas)"
   },
   "calendario_eventos": {
-    "quantidade_eventos": 7,
+    "quantidade_eventos": 11,
     "eventos": [
       {
-        "hora": "08:00",
+        "hora": "09:30",
         "pais": "United States",
         "moeda": "USD",
-        "evento": "MBA 30-Year Mortgage Rate",
+        "evento": "Initial Jobless Claims",
         "importancia": 2,
-        "anterior": "6.78",
-        "previsao": "",
-        "atual": "6.79"
+        "anterior": "203",
+        "previsao": "205",
+        "atual": ""
       },
       {
-        "hora": "09:00",
-        "pais": "Brazil",
-        "moeda": "BRL",
-        "evento": "Industrial Production MoM",
-        "importancia": 2,
-        "anterior": "-1.6",
-        "previsao": "",
-        "atual": "0.2"
-      },
-      {
-        "hora": "09:00",
-        "pais": "Brazil",
-        "moeda": "BRL",
-        "evento": "Industrial Production YoY",
-        "importancia": 2,
-        "anterior": "1.7",
-        "previsao": "",
-        "atual": "-0.5"
-      },
-      {
-        "hora": "09:15",
+        "hora": "09:30",
         "pais": "United States",
         "moeda": "USD",
-        "evento": "ADP Employment Change",
+        "evento": "Exports",
         "importancia": 2,
-        "anterior": "46",
-        "previsao": "47",
-        "atual": "38"
+        "anterior": "314.7",
+        "previsao": "",
+        "atual": ""
+      },
+      {
+        "hora": "09:30",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "Fed Waller Speech",
+        "importancia": 2,
+        "anterior": "",
+        "previsao": "",
+        "atual": ""
+      },
+      {
+        "hora": "09:30",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "Imports",
+        "importancia": 2,
+        "anterior": "388",
+        "previsao": "",
+        "atual": ""
+      },
+      {
+        "hora": "09:30",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "Balance of Trade",
+        "importancia": 2,
+        "anterior": "-73.3",
+        "previsao": "-90",
+        "atual": ""
+      },
+      {
+        "hora": "10:00",
+        "pais": "Brazil",
+        "moeda": "BRL",
+        "evento": "S&P Global Composite PMI",
+        "importancia": 2,
+        "anterior": "48.8",
+        "previsao": "",
+        "atual": ""
+      },
+      {
+        "hora": "10:00",
+        "pais": "Brazil",
+        "moeda": "BRL",
+        "evento": "S&P Global Services PMI",
+        "importancia": 2,
+        "anterior": "49.7",
+        "previsao": "",
+        "atual": ""
+      },
+      {
+        "hora": "10:45",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "S&P Global Composite PMI Final",
+        "importancia": 2,
+        "anterior": "54.5",
+        "previsao": "56",
+        "atual": ""
+      },
+      {
+        "hora": "10:45",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "S&P Global Services PMI Final",
+        "importancia": 2,
+        "anterior": "54.6",
+        "previsao": "56.8",
+        "atual": ""
       },
       {
         "hora": "11:00",
         "pais": "United States",
         "moeda": "USD",
-        "evento": "Factory Orders MoM",
-        "importancia": 2,
-        "anterior": "-0.2",
-        "previsao": "0.6",
-        "atual": "0.9"
+        "evento": "ISM Services PMI",
+        "importancia": 3,
+        "anterior": "54.1",
+        "previsao": "54.3",
+        "atual": ""
       },
       {
-        "hora": "11:30",
+        "hora": "16:00",
         "pais": "United States",
         "moeda": "USD",
-        "evento": "EIA Gasoline Stocks Change",
+        "evento": "Fed Hammack Speech",
         "importancia": 2,
-        "anterior": "-2.536",
-        "previsao": "-1.9",
-        "atual": "-1.173"
-      },
-      {
-        "hora": "11:30",
-        "pais": "United States",
-        "moeda": "USD",
-        "evento": "EIA Crude Oil Stocks Change",
-        "importancia": 2,
-        "anterior": "0.095",
-        "previsao": "-1.1",
-        "atual": "-4.45"
+        "anterior": "",
+        "previsao": "",
+        "atual": ""
       }
     ]
   }

@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "timestamp": "2026-09-02T14:49:02.919117",
+    "timestamp": "2026-09-03T05:09:03.565078",
     "origem": "Pipeline_Completo_V2",
     "versao": "2.0_V2",
     "integridade_fontes": {
@@ -18,13 +18,13 @@
   },
   "indicadores_compostos": {
     "indicador_mercado_externo": {
-      "valor_pct": 8.0906,
-      "classificacao": "FORTE",
+      "valor_pct": 1.7098,
+      "classificacao": "MODERADA",
       "sinal_operacional": "COMPRA",
-      "rotulo_completo": "FORTE_COMPRA"
+      "rotulo_completo": "MODERADA_COMPRA"
     },
     "indicador_adrs_brasileiras": {
-      "valor_pct": 18.25,
+      "valor_pct": 25.61,
       "classificacao": "FORTE",
       "sinal_operacional": "COMPRA",
       "rotulo_completo": "FORTE_COMPRA"
@@ -610,15 +610,15 @@
   },
   "estimativa_abertura": {
     "WIN_INDICE": {
-      "variacao_teorica_pct": 1.8711,
-      "preco_referencia_base": 187130.0,
-      "abertura_teorica_pontos": 190631.0,
+      "variacao_teorica_pct": 1.9171,
+      "preco_referencia_base": 187940.0,
+      "abertura_teorica_pontos": 191543.0,
       "cost_of_carry": {
         "taxa_di_anual_pct": 13.57,
-        "fator_diario_pct": 0.050508,
-        "preco_teorico_carregado": 187225.0
+        "fator_diario_pct": 0.050526,
+        "preco_teorico_carregado": 188035.0
       },
-      "contexto_janela": "REFERENCIA_1000_INTRADAY"
+      "contexto_janela": "REFERENCIA_0900_OVERNIGHT"
     }
   },
   "pivot_points": {
@@ -633,17 +633,18 @@
   "resumo_macro": {},
   "decisao_core": {
     "win": {
-      "vies_final": "BAIXA",
-      "score_numeric": -9.5,
+      "vies_final": "ALTA",
+      "score_numeric": 9.5,
       "fatores_relevantes": [
-        "Motor SMC indica estrutura de BAIXA (Confiança: 95%)",
-        "Referência Volume Profile: POC de Ontem em 183,065 pts"
+        "Motor SMC indica estrutura de ALTA (Confiança: 95%)",
+        "Referência Volume Profile: POC de Ontem em 187,580 pts",
+        "Preço trabalhando em relação ao Pivot Point (184430)"
       ],
       "confianca": 95,
-      "entrada": 187350,
-      "stop": 187680,
-      "alvo_1": 182118,
-      "alvo_2": 183162
+      "entrada": 187810,
+      "stop": 187600,
+      "alvo_1": 188038,
+      "alvo_2": 187882
     }
   }
 }
