@@ -1,17 +1,17 @@
 {
   "metadata_calculo": {
-    "timestamp_calculo": "2026-09-03T05:27:52.307038",
+    "timestamp_calculo": "2026-09-03T08:49:01.921051",
     "janela_ativa": "REFERENCIA_0900_OVERNIGHT"
   },
   "estimativa_abertura": {
     "WIN_INDICE": {
-      "variacao_teorica_pct": 1.9314,
-      "preco_referencia_base": 187940.0,
-      "abertura_teorica_pontos": 191570.0,
+      "variacao_teorica_pct": 1.9093,
+      "preco_referencia_base": 187900.0,
+      "abertura_teorica_pontos": 191488.0,
       "cost_of_carry": {
         "taxa_di_anual_pct": 13.57,
         "fator_diario_pct": 0.050526,
-        "preco_teorico_carregado": 188035.0
+        "preco_teorico_carregado": 187995.0
       },
       "contexto_janela": "REFERENCIA_0900_OVERNIGHT"
     }
@@ -27,6 +27,6 @@
   },
   "pivots_institucionais": {
     "poc_ontem": 187580.0,
-    "vwap_ontem": 186020.4
+    "vwap_ontem": 186021.5
   }
 }

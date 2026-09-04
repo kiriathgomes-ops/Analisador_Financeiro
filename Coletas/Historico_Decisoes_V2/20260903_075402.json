@@ -1,0 +1,124 @@
+{
+    "metadata": {
+        "timestamp": "2026-09-03T07:54:02.361621",
+        "versao": "V2.6",
+        "fonte": "v2_orchestrator",
+        "latencia_ms": 0.81
+    },
+    "contextos": {
+        "market_ok": true,
+        "prediction_ok": true,
+        "news_ok": true,
+        "vision_ok": true,
+        "session_ok": true
+    },
+    "decisao": {
+        "timestamp": "2026-09-03T07:54:02.361633",
+        "ativo": "WIN",
+        "vies_final": "ALTA",
+        "confianca": 95,
+        "entrada": 187810,
+        "stop_loss": 187600,
+        "alvo_1": 188038,
+        "alvo_2": 187882,
+        "invalidacao": "Fechamento M5 abaixo de 187600",
+        "motivos": [
+            "Motor SMC indica estrutura de ALTA (Confiança: 95%)",
+            "Referência Volume Profile: POC de Ontem em 187,580 pts",
+            "Preço trabalhando em relação ao Pivot Point (184430)"
+        ],
+        "riscos": [],
+        "metadados": {
+            "pivots": {
+                "pp": 184430.0,
+                "r1": 186890.0,
+                "r2": 191390.0,
+                "s1": 179930.0,
+                "s2": 177470.0
+            },
+            "smc": {
+                "poc_ontem": 187580.0,
+                "vwap_ontem": 186021.5,
+                "ob_alinhado_com_poc": false,
+                "order_blocks": [
+                    {
+                        "tipo": "VENDA",
+                        "preco": 187832.5,
+                        "high": 187945.0,
+                        "low": 187720.0
+                    },
+                    {
+                        "tipo": "COMPRA",
+                        "preco": 187730.0,
+                        "high": 187810.0,
+                        "low": 187650.0
+                    }
+                ],
+                "fvgs": [
+                    {
+                        "tipo": "COMPRA",
+                        "superior": 182670.0,
+                        "inferior": 182390.0,
+                        "preenchido": false
+                    },
+                    {
+                        "tipo": "COMPRA",
+                        "superior": 183745.0,
+                        "inferior": 183325.0,
+                        "preenchido": false
+                    },
+                    {
+                        "tipo": "COMPRA",
+                        "superior": 184325.0,
+                        "inferior": 183770.0,
+                        "preenchido": false
+                    },
+                    {
+                        "tipo": "COMPRA",
+                        "superior": 184735.0,
+                        "inferior": 184710.0,
+                        "preenchido": false
+                    },
+                    {
+                        "tipo": "COMPRA",
+                        "superior": 185370.0,
+                        "inferior": 185275.0,
+                        "preenchido": false
+                    },
+                    {
+                        "tipo": "COMPRA",
+                        "superior": 186225.0,
+                        "inferior": 186110.0,
+                        "preenchido": false
+                    },
+                    {
+                        "tipo": "COMPRA",
+                        "superior": 187305.0,
+                        "inferior": 187250.0,
+                        "preenchido": false
+                    }
+                ],
+                "suportes": [
+                    187750.0
+                ],
+                "resistencias": [
+                    188050.0
+                ],
+                "entrada_sugerida": 187810,
+                "stop_sugerido": 187600,
+                "alvos": [
+                    188038,
+                    187882
+                ]
+            },
+            "precificacao_teorica": {
+                "abertura_teorica": 191448.0,
+                "preco_carregado_di": 187995.0
+            },
+            "gap_pts": -51.0,
+            "ajuste": 187951.0,
+            "last": 187900.0
+        }
+    },
+    "erros": []
+}
