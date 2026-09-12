@@ -1,9 +1,13 @@
-# Consolidados gerados
-consolidado_*.txt
+# Dados de coleta (gerados pelo pipeline)
 Coletas/*.json
-Coletas/ArquivosApp.py
-Coletas/App_Completo.*
+Coletas/*.md
+Coletas/*.png
+Coletas/*.jpg
+Coletas/*.csv
 Coletas/Historico*/
+
+
+
 
 # Backups
 * copy.py
