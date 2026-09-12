@@ -22,3 +22,4 @@ __pycache__/
 .venv/
 .env
 _legado/
+dump_v2.txt
