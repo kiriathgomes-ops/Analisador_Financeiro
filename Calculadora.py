@@ -164,11 +164,32 @@ def calcular_metricas() -> None:
     ind_adrs_brasileiras = round(soma_variacoes_adrs, 4) if qtd_adrs_validas > 0 else None
 
     # ------------------------------------------------------------
-    # 5. MONTAGEM DO RESULTADO FINAL
+    # 5. PRESERVA PENÚLTIMA COLETA (antes de sobrescrever)
     # ------------------------------------------------------------
+    anterior = None
+    if os.path.exists(FILE_OUTPUT):
+        try:
+            with open(FILE_OUTPUT, "r", encoding="utf-8") as f:
+                metricas_anteriores = json.load(f)
+            ind_ant = metricas_anteriores.get("indicadores_compostos", {})
+            ts_ant = metricas_anteriores.get("metadata_calculo", {}).get("timestamp")
+            # Só grava como "anterior" se houver valores válidos
+            if ind_ant.get("indicador_mercado_externo") is not None or ind_ant.get("indicador_adrs_brasileiras") is not None:
+                anterior = {
+                    "indicador_mercado_externo": ind_ant.get("indicador_mercado_externo"),
+                    "indicador_adrs_brasileiras": ind_ant.get("indicador_adrs_brasileiras"),
+                    "timestamp": ts_ant,
+                }
+        except Exception:
+            anterior = None
+
+    # ------------------------------------------------------------
+    # 6. MONTAGEM DO RESULTADO FINAL
+    # ------------------------------------------------------------
+    agora_iso = datetime.now().isoformat()
     metricas = {
         "metadata_calculo": {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": agora_iso,
             "total_ativos_processados": len(mapa),
         },
         "cambio_e_arbitragem": {
@@ -203,6 +224,8 @@ def calcular_metricas() -> None:
             "indicador_mercado_externo": ind_mercado_externo,
             "indicador_adrs_brasileiras": ind_adrs_brasileiras,
         },
+        "anterior": anterior,
+        "atualizado_em": agora_iso,
     }
 
     # Salva o arquivo de saída
@@ -210,7 +233,7 @@ def calcular_metricas() -> None:
         json.dump(metricas, f, indent=2, ensure_ascii=False)
 
     # ------------------------------------------------------------
-    # 6. EXIBIÇÃO DO PAINEL NO CONSOLE
+    # 7. EXIBIÇÃO DO PAINEL NO CONSOLE
     # ------------------------------------------------------------
     print("\n" + "=" * 60)
     print(" PAINEL DE MÉTRICAS CALCULADAS ")
@@ -222,6 +245,10 @@ def calcular_metricas() -> None:
     print("------------------------------------------------------------")
     print(f"IND. MERCADO EXTERNO    : {ind_mercado_externo}%")
     print(f"IND. ADRs BRASILEIRAS   : {ind_adrs_brasileiras}%")
+    if anterior:
+        print(f"PENÚLTIMA MERC. EXT.    : {anterior.get('indicador_mercado_externo')}%")
+        print(f"PENÚLTIMA ADRs          : {anterior.get('indicador_adrs_brasileiras')}%")
+        print(f"Timestamp penúltima     : {anterior.get('timestamp')}")
     print("=" * 60)
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Arquivo gerado: {os.path.basename(FILE_OUTPUT)}\n")
 

@@ -693,6 +693,12 @@ def _montar_win_wdo_mt5(coletas: List[dict]) -> bool:
         # ---------- FUT: sempre MT5 ----------
         if last_val is not None and float(last_val or 0) > 0:
             last_val = float(last_val)
+            # last/close REAL do MT5 (sem mid) — usado no LAST_TICK
+            last_real = last_val
+            close_d1 = info.get("close")
+            if close_d1 is not None and float(close_d1 or 0) > 0:
+                last_real = float(close_d1)
+
             open_v = info.get("open")
             high_v = info.get("high")
             low_v = info.get("low")
@@ -705,26 +711,41 @@ def _montar_win_wdo_mt5(coletas: List[dict]) -> bool:
             if var_pct is None and prev_c and float(prev_c or 0) > 0:
                 var_pct = round(((last_val / float(prev_c)) - 1) * 100, 4)
 
+            # Mid só para FUT (preço operacional). LAST_TICK NÃO usa mid.
+            last_fut = last_val
             if (
                 isinstance(bid, (int, float))
                 and isinstance(ask, (int, float))
                 and bid > 0
                 and ask > 0
-                and (last_val < bid or last_val > ask)
+                and (last_fut < bid or last_fut > ask)
             ):
                 mid = round((float(bid) + float(ask)) / 2.0, 1)
                 print(
-                    f"   ⚠️ {prefixo} last={last_val} fora do spread "
-                    f"[{bid},{ask}] → mid={mid}"
+                    f"   ⚠️ {prefixo} last={last_fut} fora do spread "
+                    f"[{bid},{ask}] → mid={mid} (apenas FUT)"
                 )
-                last_val = mid
+                last_fut = mid
 
-            ohlc = {
-                "close": last_val,
+            ohlc_fut = {
+                "close": last_fut,
                 "open": float(open_v) if open_v is not None else None,
                 "high": float(high_v) if high_v is not None else None,
                 "low": float(low_v) if low_v is not None else None,
                 "change_percent": var_pct,
+                "volume": float(vol_v) if vol_v is not None else None,
+                "fechamento_anterior": float(prev_c) if prev_c else None,
+            }
+            # LAST_TICK: close/last real do MT5 (D1 close prioritário), SEM mid
+            var_pct_real = var_pct
+            if prev_c and float(prev_c or 0) > 0 and last_real > 0:
+                var_pct_real = round(((last_real / float(prev_c)) - 1) * 100, 4)
+            ohlc_last = {
+                "close": last_real,
+                "open": float(open_v) if open_v is not None else None,
+                "high": float(high_v) if high_v is not None else None,
+                "low": float(low_v) if low_v is not None else None,
+                "change_percent": var_pct_real,
                 "volume": float(vol_v) if vol_v is not None else None,
                 "fechamento_anterior": float(prev_c) if prev_c else None,
             }
@@ -738,27 +759,30 @@ def _montar_win_wdo_mt5(coletas: List[dict]) -> bool:
                 "fonte": "MT5_v2.2",
                 "timestamp": ts,
                 "status": "OK",
-                "dados_reais": dict(ohlc),
+                "dados_reais": dict(ohlc_fut),
             })
             print(
-                f"   ✅ {prefixo}_FUT SEMPRE ({contrato}): last={last_val} "
-                f"OHLC=({ohlc['open']}/{ohlc['high']}/{ohlc['low']}) var={var_pct}"
+                f"   ✅ {prefixo}_FUT SEMPRE ({contrato}): last={last_fut} "
+                f"OHLC=({ohlc_fut['open']}/{ohlc_fut['high']}/{ohlc_fut['low']}) var={var_pct}"
             )
             if prefixo == "WIN":
                 montou_win_fut = True
 
-            # ---------- LAST_TICK ----------
+            # ---------- LAST_TICK (close/last real, sem mid) ----------
             if fora_pregao:
                 item_last = {
                     "ativo": ativo_last,
                     "fonte": "MT5_v2.2",
                     "timestamp": ts,
                     "status": "OK",
-                    "dados_reais": dict(ohlc),
+                    "dados_reais": dict(ohlc_last),
                 }
                 coletas.append(item_last)
                 ticks_para_congelar[ativo_last] = item_last
-                print(f"   ✅ {ativo_last} MT5 ao vivo (fora do pregão)")
+                print(
+                    f"   ✅ {ativo_last} MT5 real close={last_real} "
+                    f"(sem mid; fora do pregão)"
+                )
             else:
                 frozen = freeze_map.get(ativo_last)
                 if frozen and (frozen.get("dados_reais") or {}).get("close"):

@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Módulo: main_pipeline.py (Versão V2 Reordenada e Corrigida)
+Módulo: main_pipeline.py (Versão V2.1 - Ordem Corrigida)
 Objetivo: Orquestrar e disparar as tarefas garantindo rigor na cadeia de dependência dos arquivos JSON.
+
+Correção v2.1:
+- Orquestrador Final Decisao_V2 roda ANTES do Relatório e da Gravação Histórica
+- Relatório e Sessão passam a ler o Decisao_V2.json já atualizado no ciclo atual
 """
 
 import asyncio
@@ -56,7 +60,7 @@ def run_sync_module(module_object, name: str):
                 subprocess.run([sys.executable, script_path], check=True)
             else:
                 importlib.reload(module_object)
-            
+
         elapsed = time.perf_counter() - start
         logging.info(f"✅ Concluído: {name} em {elapsed:.2f}s")
     except Exception as e:
@@ -69,7 +73,7 @@ async def main_pipeline_async():
     logging.info("=== INICIANDO PIPELINE V2 (ASSÍNCRONO / PARALELO) ===")
 
     loop = asyncio.get_running_loop()
-    
+
     with ThreadPoolExecutor(max_workers=6) as pool:
 
         # -------------------------------------------------------------
@@ -81,7 +85,7 @@ async def main_pipeline_async():
         # FASE 2: Coletas de Dados Em Paralelo (APIs + MT5)
         # -------------------------------------------------------------
         logging.info("📡 Disparando coletas paralelas (APIs/MT5 + Notícias/Calendário)...")
-        
+
         task_coletor = loop.run_in_executor(pool, run_sync_module, Coletor, "Coletor Cotações/APIs")
         task_noticias = loop.run_in_executor(pool, run_sync_module, Coleta_Noticias_Calendario, "Coleta Notícias/Calendário")
 
@@ -92,7 +96,7 @@ async def main_pipeline_async():
         # -------------------------------------------------------------
         await loop.run_in_executor(pool, run_sync_module, Analise_Noticias, "Análise Quantitativa de Notícias")
         await loop.run_in_executor(pool, run_sync_module, Validador, "Validador de Dados (32 Ativos)")
-        
+
         # 💡 AJUSTE CRÍTICO: Roda o SMC AQUI para gerar a POC/VWAP antes das calculadoras
         await loop.run_in_executor(pool, run_sync_module, Rodar_SMC_Regras, "Motor SMC & ICT Regras (POC / VWAP)")
 
@@ -112,7 +116,14 @@ async def main_pipeline_async():
         await loop.run_in_executor(pool, run_sync_module, Gerar_Resultado_Operacional_Abertura, "Consolidação de Payload Operacional")
 
         # -------------------------------------------------------------
-        # FASE 6: Relatórios, Gravação de Histórico e Decisão Final V2
+        # FASE 6: Decisão Final V2 (gera Decisao_V2.json ANTES dos consumidores)
+        # -------------------------------------------------------------
+        logging.info("🧠 Consolidando decisão final V2...")
+        await loop.run_in_executor(pool, run_sync_module, v2_rodar_decisao_completa, "Orquestrador Final Decisao_V2")
+
+        # -------------------------------------------------------------
+        # FASE 7: Relatórios e Gravação de Histórico
+        # (em paralelo, lendo o Decisao_V2.json JÁ ATUALIZADO)
         # -------------------------------------------------------------
         logging.info("📝 Gerando relatórios e registrando sessão...")
 
@@ -120,9 +131,6 @@ async def main_pipeline_async():
         task_sessao = loop.run_in_executor(pool, run_sync_module, v2_gravar_sessao_win, "Gravação Histórica da Sessão")
 
         await asyncio.gather(task_relatorio, task_sessao)
-
-        # Decisão V2 Unificada (Consolida Decisao_V2.json)
-        await loop.run_in_executor(pool, run_sync_module, v2_rodar_decisao_completa, "Orquestrador Final Decisao_V2")
 
     total_time = time.perf_counter() - pipeline_start
     logging.info(f"🎉 PIPELINE V2 CONCLUÍDO COM SUCESSO EM {total_time:.2f} SEGUNDOS!")

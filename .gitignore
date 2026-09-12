@@ -1,3 +1,19 @@
-.env
-Coletas/__pycache__/
+# Consolidados gerados
+consolidado_*.txt
+Coletas/*.json
+Coletas/ArquivosApp.py
+Coletas/App_Completo.*
+Coletas/Historico*/
+
+# Backups
+* copy.py
+* copy *.py
+*_old*
+*_backup*
+
+# Logs e cache
+*.log
 __pycache__/
+*.pyc
+.venv/
+.env

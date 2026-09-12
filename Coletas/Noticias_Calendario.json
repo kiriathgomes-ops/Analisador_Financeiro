@@ -1,122 +1,112 @@
 {
   "metadata": {
     "fonte": "TradingView API",
-    "timestamp": "2026-09-03T08:49:01.303801",
-    "data_referencia": "2026-09-03",
+    "timestamp": "2026-09-11T18:49:01.585291",
+    "data_referencia": "2026-09-11",
     "filtros": "Brasil e EUA (2 e 3 Estrelas)"
   },
   "calendario_eventos": {
-    "quantidade_eventos": 11,
+    "quantidade_eventos": 10,
     "eventos": [
       {
-        "hora": "09:30",
-        "pais": "United States",
-        "moeda": "USD",
-        "evento": "Initial Jobless Claims",
-        "importancia": 2,
-        "anterior": "203",
-        "previsao": "205",
-        "atual": ""
-      },
-      {
-        "hora": "09:30",
-        "pais": "United States",
-        "moeda": "USD",
-        "evento": "Exports",
-        "importancia": 2,
-        "anterior": "314.7",
-        "previsao": "",
-        "atual": ""
-      },
-      {
-        "hora": "09:30",
-        "pais": "United States",
-        "moeda": "USD",
-        "evento": "Fed Waller Speech",
-        "importancia": 2,
-        "anterior": "",
-        "previsao": "",
-        "atual": ""
-      },
-      {
-        "hora": "09:30",
-        "pais": "United States",
-        "moeda": "USD",
-        "evento": "Imports",
-        "importancia": 2,
-        "anterior": "388",
-        "previsao": "",
-        "atual": ""
-      },
-      {
-        "hora": "09:30",
-        "pais": "United States",
-        "moeda": "USD",
-        "evento": "Balance of Trade",
-        "importancia": 2,
-        "anterior": "-73.3",
-        "previsao": "-90",
-        "atual": ""
-      },
-      {
-        "hora": "10:00",
+        "hora": "09:00",
         "pais": "Brazil",
         "moeda": "BRL",
-        "evento": "S&P Global Composite PMI",
-        "importancia": 2,
-        "anterior": "48.8",
-        "previsao": "",
-        "atual": ""
+        "evento": "Inflation Rate MoM",
+        "importancia": 3,
+        "anterior": "0.07",
+        "previsao": "-0.29",
+        "atual": "-0.32"
       },
       {
-        "hora": "10:00",
+        "hora": "09:00",
         "pais": "Brazil",
         "moeda": "BRL",
-        "evento": "S&P Global Services PMI",
-        "importancia": 2,
-        "anterior": "49.7",
+        "evento": "Inflation Rate YoY",
+        "importancia": 3,
+        "anterior": "4.44",
+        "previsao": "4.27",
+        "atual": "4.22"
+      },
+      {
+        "hora": "09:30",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "CPI",
+        "importancia": 3,
+        "anterior": "333.92",
+        "previsao": "334.85",
+        "atual": "334.98"
+      },
+      {
+        "hora": "09:30",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "CPI s.a",
+        "importancia": 3,
+        "anterior": "332.81",
         "previsao": "",
-        "atual": ""
+        "atual": "334.131"
       },
       {
-        "hora": "10:45",
+        "hora": "09:30",
         "pais": "United States",
         "moeda": "USD",
-        "evento": "S&P Global Composite PMI Final",
-        "importancia": 2,
-        "anterior": "54.5",
-        "previsao": "56",
-        "atual": ""
+        "evento": "Core Inflation Rate MoM",
+        "importancia": 3,
+        "anterior": "0.2",
+        "previsao": "0.2",
+        "atual": "0.3"
       },
       {
-        "hora": "10:45",
+        "hora": "09:30",
         "pais": "United States",
         "moeda": "USD",
-        "evento": "S&P Global Services PMI Final",
-        "importancia": 2,
-        "anterior": "54.6",
-        "previsao": "56.8",
-        "atual": ""
+        "evento": "Inflation Rate YoY",
+        "importancia": 3,
+        "anterior": "3.4",
+        "previsao": "3.4",
+        "atual": "3.4"
+      },
+      {
+        "hora": "09:30",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "Inflation Rate MoM",
+        "importancia": 3,
+        "anterior": "0.1",
+        "previsao": "0.4",
+        "atual": "0.4"
+      },
+      {
+        "hora": "09:30",
+        "pais": "United States",
+        "moeda": "USD",
+        "evento": "Core Inflation Rate YoY",
+        "importancia": 3,
+        "anterior": "2.5",
+        "previsao": "2.4",
+        "atual": "2.4"
       },
       {
         "hora": "11:00",
         "pais": "United States",
         "moeda": "USD",
-        "evento": "ISM Services PMI",
+        "evento": "Michigan Consumer Sentiment Prel",
         "importancia": 3,
-        "anterior": "54.1",
-        "previsao": "54.3",
-        "atual": ""
+        "anterior": "51.7",
+        "previsao": "51",
+        "atual": "47.8"
       },
       {
-        "hora": "16:00",
+        "hora": "15:00",
         "pais": "United States",
         "moeda": "USD",
-        "evento": "Fed Hammack Speech",
+        "evento": "Monthly Budget Statement",
         "importancia": 2,
-        "anterior": "",
-        "previsao": "",
-        "atual": ""
+        "anterior": "-432",
+        "previsao": "-404",
+        "atual": "-167"
       }
     ]
   }
