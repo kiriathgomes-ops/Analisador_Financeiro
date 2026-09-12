@@ -88,7 +88,7 @@ FILE_TENDENCIAS = COLETAS_DIR / "Analise_Tendencias.json"
 FILE_RESULTADO_OPERACIONAL = COLETAS_DIR / "Resultado_Calculadora_Operacional_Abertura.json"
 
 # Decisões
-FILE_DECISAO_CORE = COLETAS_DIR / "Decisao_Core.json"  # legado V1
+# Decisões — V2 é a única fonte oficial (Engine_Vies movido para _legado/)
 FILE_DECISAO_V2 = COLETAS_DIR / "Decisao_V2.json"  # oficial V2
 
 # Pipeline / logs
@@ -327,11 +327,9 @@ PESO_ESTRELAS: Dict[int, int] = {1: 1, 2: 3, 3: 6}
 # 12. FLAGS DE MIGRAÇÃO V1 → V2
 # ------------------------------------------------------------
 USAR_DECISAO_V2 = True  # Páginas e orquestrador preferem Decisao_V2.json
-ENGINE_VIES_COMO_FALLBACK = False  # PredictionService ainda pode usar Engine_Vies
-# Quando False: PredictionService não chama mais Engine_Vies (Fase 2)
 
 # Fonte oficial de previsão (documentação / logs)
-FONTE_OFICIAL_PREVISAO = "NOVO_MOTOR+OpeningScenario"  # ou "Engine_Vies" durante transição
+FONTE_OFICIAL_PREVISAO = "NOVO_MOTOR+OpeningScenario"
 
 # ------------------------------------------------------------
 # 13. HELPERS
@@ -383,4 +381,4 @@ FILE_RAM_STR = str(FILE_RAM)
 FILE_ROM0_STR = str(FILE_ROM0)
 FILE_MT5_V2_STR = str(FILE_MT5_V2)
 FILE_DECISAO_V2_STR = str(FILE_DECISAO_V2)
-FILE_DECISAO_CORE_STR = str(FILE_DECISAO_CORE)
+
