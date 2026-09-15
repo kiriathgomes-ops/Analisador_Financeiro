@@ -25,7 +25,7 @@ class LeilaoService:
     """Extrai o preço teórico do leilão a partir do CSV gerado pelo OCR."""
 
     # Corte do leilão: última leitura considerada (09:00:30)
-    HORA_CORTE_LEILAO = time(9, 0, 30)
+    HORA_CORTE_LEILAO = time(9, 5, 0)
 
     # Formatos de data aceitos (com e sem milissegundos)
     FORMATOS_DATA = (

@@ -23,3 +23,5 @@ __pycache__/
 .env
 _legado/
 dump_v2.txt
+_debug_leilao.py
+dump_v2.py
