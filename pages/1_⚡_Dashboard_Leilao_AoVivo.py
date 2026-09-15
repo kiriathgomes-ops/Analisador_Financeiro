@@ -260,31 +260,74 @@ def renderizar_dashboard_tempo_real():
         st.text(f"Score Macro: {score_macro:+.3f}")
 
     with c_right:
-        st.subheader("🎯 Veredito Operacional")
+        st.subheader("🎯 Veredito Operacional (Confluência)")
 
         # Usa o preço do LEILÃO como base (mais realista)
         preco_ref = abertura_leilao if abertura_leilao > 0 else abertura_calculada
         gap_ajuste = preco_ref - win_ajuste if win_ajuste > 0 and preco_ref > 0 else 0
 
-        if preco_ref > 0:
-            if "ALTA" in vies_macro and gap_ajuste > 0:
-                st.success(
-                    "### 🟢 COMPRA A MERCADO\n"
-                    "Confluência de alta entre macro e leilão."
-                )
-            elif "BAIXA" in vies_macro and gap_ajuste < 0:
-                st.error(
-                    "### 🔴 VENDA A MERCADO\n"
-                    "Pressão vendedora confirmada nos ativos globais e no book."
-                )
-            else:
-                st.warning(
-                    "### ⚠️ INDEFINIDO / FINTA\n"
-                    "Divergência entre macro e preço teórico. Fique de fora."
-                )
-        else:
+        # ---- Normaliza direções pra COMPRA / VENDA / NEUTRO ----
+        def normalizar(v: str) -> str:
+            if not v:
+                return "NEUTRO"
+            s = str(v).upper()
+            if "ALTA" in s or "COMPRA" in s or "BULL" in s:
+                return "COMPRA"
+            if "BAIXA" in s or "VENDA" in s or "BEAR" in s:
+                return "VENDA"
+            return "NEUTRO"
+
+        dir_macro = normalizar(vies_macro)
+        dir_smc = normalizar(vies_smc)
+        dir_gap = "COMPRA" if gap_ajuste > 100 else "VENDA" if gap_ajuste < -100 else "NEUTRO"
+
+        # ---- Conta votos ----
+        votos = {"COMPRA": 0, "VENDA": 0, "NEUTRO": 0}
+        votos[dir_macro] += 1
+        votos[dir_smc] += 1
+        votos[dir_gap] += 1
+
+        # ---- Renderiza os 3 contextos ----
+        st.markdown(
+            f"**Macro:** `{dir_macro}` &nbsp;&nbsp; "
+            f"**SMC:** `{dir_smc}` &nbsp;&nbsp; "
+            f"**Gap Leilão:** `{dir_gap}` ({gap_ajuste:+.0f} pts)"
+        )
+
+        # ---- Veredito por confluência ----
+        if preco_ref <= 0:
             st.warning("⏳ Aguardando captura válida do preço teórico...")
 
+        elif votos["COMPRA"] == 3:
+            st.success(
+                "### 🟢 COMPRA A MERCADO\n"
+                "**Confluência total:** Macro + SMC + Gap alinhados em ALTA."
+            )
+
+        elif votos["VENDA"] == 3:
+            st.error(
+                "### 🔴 VENDA A MERCADO\n"
+                "**Confluência total:** Macro + SMC + Gap alinhados em BAIXA."
+            )
+
+        elif votos["COMPRA"] == 2:
+            st.info(
+                "### 🟡 COMPRA MODERADA\n"
+                "2 de 3 contextos em ALTA. Reduza tamanho ou aguarde confirmação."
+            )
+
+        elif votos["VENDA"] == 2:
+            st.info(
+                "### 🟡 VENDA MODERADA\n"
+                "2 de 3 contextos em BAIXA. Reduza tamanho ou aguarde confirmação."
+            )
+
+        else:
+            st.warning(
+                "### ⚠️ NEUTRO / FINTA\n"
+                "Contextos divergentes. **Fique de fora** até alinhamento."
+            )
+                    
     # ------------------------------------------------------------
     # SEÇÃO 4 — Histórico recente do CSV
     # ------------------------------------------------------------
