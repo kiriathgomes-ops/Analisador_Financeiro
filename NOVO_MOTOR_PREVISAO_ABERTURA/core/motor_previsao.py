@@ -1,6 +1,6 @@
 # NOVO_MOTOR_PREVISAO_ABERTURA/core/motor_previsao.py
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Tuple
 
 from ..dados.coletor_dados import coletar_dados_entrada
 from ..dados.schemas import (
@@ -64,13 +64,16 @@ class PrevisaoAberturaOrquestrador:
             ajuste=ajuste_analise,
         )
 
-        # 5. Faixa provável (sempre ± MARGEM_FAIXA_PADRAO da abertura)
+        # 5. Faixa provável
         faixa_inf, faixa_sup = self._calcular_faixa(abertura_teorica)
 
-        # 6. Direção
+        # 6. Direção (baseada no gap + ajuste)
         direcao = self._determinar_direcao(gap, ajuste_analise)
 
-        # 7. Legado
+        # 7. Divergência entre direcao_prevista e score.direcao
+        div_flag, div_msg = self._calcular_divergencia(direcao, score.direcao)
+
+        # 8. Legado
         legado = None
         if self.entrada.core_win_vies:
             legado = {
@@ -92,18 +95,19 @@ class PrevisaoAberturaOrquestrador:
             score=score,
             metadados={
                 "fonte_dados": "Coletas/",
-                "versao_motor": "1.4.0",
+                "versao_motor": "1.5.0",
                 "ajuste_utilizado": ajuste,
                 "fechamento_anterior": fechamento_anterior,
                 "preco_atual_utilizado": preco_para_ajuste,
                 "max_pre_abertura": self.entrada.maxima_pre_abertura,
                 "min_pre_abertura": self.entrada.minima_pre_abertura,
                 "legado": legado,
-                # Novos campos de abertura
                 "abertura_leilao_real": self.entrada.abertura_leilao_real,
                 "abertura_leilao_timestamp": self.entrada.abertura_leilao_timestamp,
                 "abertura_teorica_calculada": self.entrada.abertura_teorica_calculada,
                 "fonte_abertura": self.entrada.fonte_abertura,
+                "divergencia_direcao": div_flag,
+                "divergencia_detalhes": div_msg,
             },
         )
         return self.resultado
@@ -130,6 +134,38 @@ class PrevisaoAberturaOrquestrador:
             return "VENDA"
         return "NEUTRO"
 
+    def _calcular_divergencia(
+        self, dir_prevista: str, dir_score: str
+    ) -> Tuple[bool, str]:
+        """
+        Compara direção do gap-based com direção do score.
+
+        Retorna (flag, mensagem):
+          - flag: True se há divergência
+          - mensagem: texto legível
+
+        Casos:
+          - Ambas iguais        → (False, "alinhadas")
+          - Ambas NEUTRO        → (False, "ambas neutras")
+          - Opostas             → (True, "divergência forte")
+          - Uma neutra, outra não → (True, "divergência parcial")
+        """
+        if dir_prevista == dir_score:
+            if dir_prevista == "NEUTRO":
+                return False, "Ambas as direções neutras"
+            return False, f"Ambas as direções alinhadas em {dir_prevista}"
+
+        if dir_prevista == "NEUTRO" or dir_score == "NEUTRO":
+            return True, (
+                f"Divergência parcial: direção do gap é {dir_prevista}, "
+                f"mas o score consolidado é {dir_score} (um dos dois é neutro)"
+            )
+
+        return True, (
+            f"⚠️ DIVERGÊNCIA FORTE: direção do gap é {dir_prevista}, "
+            f"mas o score consolidado aponta {dir_score} (opostas)"
+        )
+
     def obter_resultado_json(self) -> Dict[str, Any]:
         if not self.resultado:
             return {"erro": "Nenhum resultado disponível"}
@@ -154,11 +190,12 @@ class PrevisaoAberturaOrquestrador:
         }
         legado = metadados.pop("legado", None)
 
-        # Extrai novos campos
         abertura_leilao_real = metadados.pop("abertura_leilao_real", None)
         abertura_leilao_timestamp = metadados.pop("abertura_leilao_timestamp", None)
         abertura_teorica_calculada = metadados.pop("abertura_teorica_calculada", None)
         fonte_abertura = metadados.pop("fonte_abertura", "DESCONHECIDA")
+        divergencia_direcao = metadados.pop("divergencia_direcao", False)
+        divergencia_detalhes = metadados.pop("divergencia_detalhes", "")
 
         return {
             "timestamp": self.resultado.timestamp.isoformat(),
@@ -179,6 +216,8 @@ class PrevisaoAberturaOrquestrador:
                 "classificacao": self.resultado.gap.classificacao,
             },
             "direcao_prevista": self.resultado.direcao_prevista,
+            "divergencia_direcao": divergencia_direcao,
+            "divergencia_detalhes": divergencia_detalhes,
             "analise_ajuste": ajuste_dict,
             "cenario_principal": {
                 "nome": self.resultado.cenario_principal.nome,
