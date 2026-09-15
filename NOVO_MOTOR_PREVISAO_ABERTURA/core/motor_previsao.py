@@ -95,7 +95,7 @@ class PrevisaoAberturaOrquestrador:
             score=score,
             metadados={
                 "fonte_dados": "Coletas/",
-                "versao_motor": "1.5.0",
+                "versao_motor": "1.6.0",
                 "ajuste_utilizado": ajuste,
                 "fechamento_anterior": fechamento_anterior,
                 "preco_atual_utilizado": preco_para_ajuste,
@@ -225,10 +225,12 @@ class PrevisaoAberturaOrquestrador:
                 "gatilho": self.resultado.cenario_principal.gatilho_entrada,
                 "confirmacao": self.resultado.cenario_principal.confirmacao,
                 "invalidacao": self.resultado.cenario_principal.invalidacao,
+                "probabilidade_estimada": self.resultado.cenario_principal.probabilidade_estimada,
             },
             "cenario_alternativo": {
                 "nome": self.resultado.cenario_alternativo.nome,
                 "descricao": self.resultado.cenario_alternativo.descricao,
+                "probabilidade_estimada": self.resultado.cenario_alternativo.probabilidade_estimada,
             },
             "score": {
                 "valor": self.resultado.score.valor,
