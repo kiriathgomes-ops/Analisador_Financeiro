@@ -193,6 +193,8 @@ class PrevisaoAberturaOrquestrador:
             },
             "score": {
                 "valor": self.resultado.score.valor,
+                "direcao": self.resultado.score.direcao,
+                "forca": self.resultado.score.forca,
                 "classificacao": self.resultado.score.classificacao,
                 "detalhes": self.resultado.score.detalhes,
             },

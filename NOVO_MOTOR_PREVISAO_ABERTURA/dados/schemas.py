@@ -138,9 +138,19 @@ class Cenario:
 
 @dataclass
 class ScorePrevisao:
-    """Score de confiança normalizado (0-100)."""
+    """
+    Score direcional normalizado.
+
+    - `valor`     : magnitude da força (0-100)
+    - `direcao`   : "COMPRA" | "VENDA" | "NEUTRO"
+    - `forca`     : "FRACO" | "MODERADO" | "FORTE" | "MUITO FORTE"
+    - `classificacao`: legível, ex: "FORTE COMPRA"
+    - `detalhes`  : contribuição individual por fator
+    """
     valor: float = 0.0
-    classificacao: str = "FRACO"
+    direcao: str = "NEUTRO"
+    forca: str = "FRACO"
+    classificacao: str = "NEUTRO"
     detalhes: Dict[str, float] = field(default_factory=dict)
 
 
