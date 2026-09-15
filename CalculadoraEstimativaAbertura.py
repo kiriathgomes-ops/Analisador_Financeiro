@@ -93,15 +93,19 @@ def processar_calculos_operacionais():
         dados_json = json.load(f)
 
     ativos_dict = {item["ativo_id"]: item for item in dados_json.get("ativos_validados", [])}
-    agora_time = datetime.now().time()
 
-    # --- DEFINIÇÃO DINÂMICA DO PREÇO DE REFERÊNCIA ---
-    if agora_time < time(9, 45, 0):
+        # --- PREÇO BASE DE REFERÊNCIA (sempre o ajuste oficial) ---
+    # O ajuste oficial da B3 é estável durante o dia e é o padrão institucional
+    # para cálculo de gap de abertura. NÃO usar WIN_FUT.close (preço atual),
+    # que muda a cada tick e faz a "abertura teórica" variar.
+    preco_base = ativos_dict.get("WIN_AJUSTE", {}).get("close", 0.0)
+
+    if preco_base <= 0:
+        # Fallback: se o ajuste não estiver disponível, usa o fechamento congelado
         preco_base = ativos_dict.get("WIN_LAST_TICK", {}).get("close", 0.0)
-        contexto_janela = "REFERENCIA_0900_OVERNIGHT"
+        contexto_janela = "FALLBACK_LAST_TICK"
     else:
-        preco_base = ativos_dict.get("WIN_FUT", {}).get("close", 0.0)
-        contexto_janela = "REFERENCIA_1000_INTRADAY"
+        contexto_janela = "REFERENCIA_AJUSTE_OFICIAL"
 
     print(f"🕒 Horário da Consulta    : {datetime.now().strftime('%H:%M:%S')}")
     print(f"📌 Janela Temporal        : {contexto_janela}")
