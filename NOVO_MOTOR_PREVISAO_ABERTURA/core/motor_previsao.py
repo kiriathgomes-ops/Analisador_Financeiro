@@ -5,7 +5,7 @@ from typing import Optional, Dict, Any
 from ..dados.coletor_dados import coletar_dados_entrada
 from ..dados.schemas import (
     DadosEntrada, ResultadoPrevisao, ClassificacaoGAP,
-    AnaliseAjuste, Cenario, ScorePrevisao
+    AnaliseAjuste, Cenario, ScorePrevisao,
 )
 from .motor_gap import classificar_gap
 from .motor_ajuste import analisar_ajuste
@@ -15,6 +15,9 @@ from .motor_score import calcular_score
 
 # Sanidade: gap de WIN acima disso é dado inválido
 MAX_GAP_REALISTA = 1000.0
+
+# Margem (em pontos) em torno da abertura projetada para a faixa provável
+MARGEM_FAIXA_PADRAO = 100.0
 
 
 class PrevisaoAberturaOrquestrador:
@@ -38,7 +41,7 @@ class PrevisaoAberturaOrquestrador:
         )
         ajuste = float(self.entrada.ajuste_win or 0.0)
 
-        # ✅ CORREÇÃO Bug #2: fechamento_anterior com fallback explícito
+        # fechamento_anterior com fallback explícito
         fechamento_anterior = self.entrada.fechamento_anterior_win
         if fechamento_anterior is None or float(fechamento_anterior or 0.0) <= 0:
             fechamento_anterior = ajuste if ajuste > 0 else abertura_teorica
@@ -46,9 +49,6 @@ class PrevisaoAberturaOrquestrador:
         preco_atual = self.entrada.preco_atual_win
         if preco_atual is None or float(preco_atual or 0.0) <= 0:
             preco_atual = abertura_teorica
-
-        max_pre = self.entrada.maxima_pre_abertura
-        min_pre = self.entrada.minima_pre_abertura
 
         # ---- 1. GAP ----
         gap = classificar_gap(abertura_teorica, fechamento_anterior, ajuste)
@@ -70,11 +70,10 @@ class PrevisaoAberturaOrquestrador:
         )
 
         # ---- 5. Faixa provável ----
-        if max_pre is not None and min_pre is not None and float(max_pre or 0) > 0 and float(min_pre or 0) > 0:
-            faixa_inf = float(min_pre)
-            faixa_sup = float(max_pre)
-        else:
-            faixa_inf, faixa_sup = self._calcular_faixa(abertura_teorica)
+        # SEMPRE usa ±100 pts da abertura projetada.
+        # NÃO usa max_pre/min_pre do D1 — esses valores representam a
+        # amplitude do dia inteiro e geram faixas absurdas (3000+ pts).
+        faixa_inf, faixa_sup = self._calcular_faixa(abertura_teorica)
 
         # ---- 6. Direção ----
         direcao = self._determinar_direcao(gap, ajuste_analise)
@@ -101,25 +100,27 @@ class PrevisaoAberturaOrquestrador:
             score=score,
             metadados={
                 "fonte_dados": "Coletas/",
-                "versao_motor": "1.2.0",
+                "versao_motor": "1.3.0",
                 "ajuste_utilizado": ajuste,
                 "fechamento_anterior": fechamento_anterior,
                 "preco_atual_utilizado": preco_para_ajuste,
-                "max_pre_abertura": max_pre,
-                "min_pre_abertura": min_pre,
+                "max_pre_abertura": self.entrada.maxima_pre_abertura,
+                "min_pre_abertura": self.entrada.minima_pre_abertura,
                 "legado": legado,
             },
         )
         return self.resultado
 
     def _calcular_faixa(self, abertura: float):
-        # ±100 pontos da abertura projetada (fallback)
-        return abertura - 100, abertura + 100
+        """Faixa provável: ± MARGEM_FAIXA_PADRAO em torno da abertura projetada."""
+        return (
+            abertura - MARGEM_FAIXA_PADRAO,
+            abertura + MARGEM_FAIXA_PADRAO,
+        )
 
     def _determinar_direcao(self, gap: ClassificacaoGAP, ajuste: AnaliseAjuste) -> str:
-        # ✅ CORREÇÃO Bug #4: sanidade de gap extremo
+        # Sanidade de gap extremo
         if abs(gap.gap_pontos) > MAX_GAP_REALISTA:
-            # Gap absurdo = dado inválido
             return "NEUTRO"
 
         if gap.intensidade in ["EXTREMO", "FORTE"]:
