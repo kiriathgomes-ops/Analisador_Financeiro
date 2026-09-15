@@ -13,10 +13,7 @@ from .motor_cenarios import gerar_cenarios
 from .motor_score import calcular_score
 
 
-# Sanidade: gap de WIN acima disso é dado inválido
 MAX_GAP_REALISTA = 1000.0
-
-# Margem (em pontos) em torno da abertura projetada para a faixa provável
 MARGEM_FAIXA_PADRAO = 100.0
 
 
@@ -34,14 +31,12 @@ class PrevisaoAberturaOrquestrador:
             if not self.carregar_dados():
                 return None
 
-        # ---- Dados de entrada ----
         abertura_teorica = float(
             (self.entrada.abertura_teorica.abertura_teorica_pontos if self.entrada.abertura_teorica else 0.0)
             or 0.0
         )
         ajuste = float(self.entrada.ajuste_win or 0.0)
 
-        # fechamento_anterior com fallback explícito
         fechamento_anterior = self.entrada.fechamento_anterior_win
         if fechamento_anterior is None or float(fechamento_anterior or 0.0) <= 0:
             fechamento_anterior = ajuste if ajuste > 0 else abertura_teorica
@@ -50,17 +45,17 @@ class PrevisaoAberturaOrquestrador:
         if preco_atual is None or float(preco_atual or 0.0) <= 0:
             preco_atual = abertura_teorica
 
-        # ---- 1. GAP ----
+        # 1. GAP
         gap = classificar_gap(abertura_teorica, fechamento_anterior, ajuste)
 
-        # ---- 2. Análise de ajuste ----
+        # 2. Análise de ajuste
         preco_para_ajuste = preco_atual if preco_atual else abertura_teorica
         ajuste_analise = analisar_ajuste(preco_para_ajuste, ajuste)
 
-        # ---- 3. Cenários ----
+        # 3. Cenários
         cenario_principal, cenario_alternativo = gerar_cenarios(gap, ajuste_analise)
 
-        # ---- 4. Score ----
+        # 4. Score
         score = calcular_score(
             contexto=self.entrada.contexto,
             tendencia=self.entrada.tendencia_win,
@@ -69,16 +64,13 @@ class PrevisaoAberturaOrquestrador:
             ajuste=ajuste_analise,
         )
 
-        # ---- 5. Faixa provável ----
-        # SEMPRE usa ±100 pts da abertura projetada.
-        # NÃO usa max_pre/min_pre do D1 — esses valores representam a
-        # amplitude do dia inteiro e geram faixas absurdas (3000+ pts).
+        # 5. Faixa provável (sempre ± MARGEM_FAIXA_PADRAO da abertura)
         faixa_inf, faixa_sup = self._calcular_faixa(abertura_teorica)
 
-        # ---- 6. Direção ----
+        # 6. Direção
         direcao = self._determinar_direcao(gap, ajuste_analise)
 
-        # ---- 7. Legado (para comparação) ----
+        # 7. Legado
         legado = None
         if self.entrada.core_win_vies:
             legado = {
@@ -100,26 +92,29 @@ class PrevisaoAberturaOrquestrador:
             score=score,
             metadados={
                 "fonte_dados": "Coletas/",
-                "versao_motor": "1.3.0",
+                "versao_motor": "1.4.0",
                 "ajuste_utilizado": ajuste,
                 "fechamento_anterior": fechamento_anterior,
                 "preco_atual_utilizado": preco_para_ajuste,
                 "max_pre_abertura": self.entrada.maxima_pre_abertura,
                 "min_pre_abertura": self.entrada.minima_pre_abertura,
                 "legado": legado,
+                # Novos campos de abertura
+                "abertura_leilao_real": self.entrada.abertura_leilao_real,
+                "abertura_leilao_timestamp": self.entrada.abertura_leilao_timestamp,
+                "abertura_teorica_calculada": self.entrada.abertura_teorica_calculada,
+                "fonte_abertura": self.entrada.fonte_abertura,
             },
         )
         return self.resultado
 
     def _calcular_faixa(self, abertura: float):
-        """Faixa provável: ± MARGEM_FAIXA_PADRAO em torno da abertura projetada."""
         return (
             abertura - MARGEM_FAIXA_PADRAO,
             abertura + MARGEM_FAIXA_PADRAO,
         )
 
     def _determinar_direcao(self, gap: ClassificacaoGAP, ajuste: AnaliseAjuste) -> str:
-        # Sanidade de gap extremo
         if abs(gap.gap_pontos) > MAX_GAP_REALISTA:
             return "NEUTRO"
 
@@ -159,10 +154,20 @@ class PrevisaoAberturaOrquestrador:
         }
         legado = metadados.pop("legado", None)
 
+        # Extrai novos campos
+        abertura_leilao_real = metadados.pop("abertura_leilao_real", None)
+        abertura_leilao_timestamp = metadados.pop("abertura_leilao_timestamp", None)
+        abertura_teorica_calculada = metadados.pop("abertura_teorica_calculada", None)
+        fonte_abertura = metadados.pop("fonte_abertura", "DESCONHECIDA")
+
         return {
             "timestamp": self.resultado.timestamp.isoformat(),
             "ativo": self.resultado.ativo,
             "abertura_projetada": self.resultado.abertura_projetada,
+            "abertura_leilao_real": abertura_leilao_real,
+            "abertura_leilao_timestamp": abertura_leilao_timestamp,
+            "abertura_teorica_calculada": abertura_teorica_calculada,
+            "fonte_abertura": fonte_abertura,
             "faixa_provavel": [
                 self.resultado.faixa_provavel_inferior,
                 self.resultado.faixa_provavel_superior,
