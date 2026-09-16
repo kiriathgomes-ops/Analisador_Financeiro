@@ -25,3 +25,6 @@ _legado/
 dump_v2.txt
 _debug_leilao.py
 dump_v2.py
+
+# Historico de coletas (dados gerados pelo OCR)
+Coletas/coleta_preco_teorico_historico/
