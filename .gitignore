@@ -28,3 +28,8 @@ dump_v2.py
 
 # Historico de coletas (dados gerados pelo OCR)
 Coletas/coleta_preco_teorico_historico/
+
+# Scripts de debug/teste local
+_teste_*.py
+_debug_*.py
+ferramentas/_debug_*.py
