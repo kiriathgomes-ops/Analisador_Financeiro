@@ -14,7 +14,9 @@ from collections import deque
 
 # ==================== CONFIGURAÇÕES DE PASTAS ====================
 PASTA_COLETAS = "Coletas"
+PASTA_HISTORICO = os.path.join(PASTA_COLETAS, "coleta_preco_teorico_historico")
 os.makedirs(PASTA_COLETAS, exist_ok=True)
+os.makedirs(PASTA_HISTORICO, exist_ok=True)
 
 ARQUIVO_CSV = os.path.join(PASTA_COLETAS, "preco_teorico_win_fluxo.csv")
 ARQUIVO_CONFIG = os.path.join(PASTA_COLETAS, "config_regiao.json")
@@ -24,6 +26,7 @@ ARQUIVO_JSON_SMC = os.path.join(PASTA_COLETAS, "AnaliseGraficaSMC_Regras.json")
 # Configurações do Leitor
 INTERVALO = 0.25
 TAMANHO_JANELA_TENDENCIA = 40  # ~10 segundos de memória do leilão
+INTERVALO_FORCAR_GRAVACAO = 10.0  # segundos
 
 # TRATAMENTO DINÂMICO DO TESSERACT
 tesseract_bin = shutil.which("tesseract")
@@ -41,18 +44,109 @@ else:
             break
 # =================================================================
 
+
+# ============================================================
+# ROTAÇÃO DIÁRIA DO CSV
+# ============================================================
+def _parse_data(texto: str):
+    """Tenta parsear data com ou sem milissegundos. Retorna None se falhar."""
+    texto = texto.strip()
+    for fmt in ("%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%d %H:%M:%S"):
+        try:
+            return datetime.strptime(texto, fmt)
+        except ValueError:
+            continue
+    return None
+
+
+def _ultima_data_no_csv() -> datetime:
+    """Lê o CSV atual e retorna a data do último registro válido. None se vazio."""
+    if not os.path.exists(ARQUIVO_CSV):
+        return None
+
+    ultima = None
+    try:
+        with open(ARQUIVO_CSV, "r", encoding="utf-8-sig") as f:
+            for linha in f:
+                linha = linha.strip()
+                if not linha or not linha[0].isdigit():
+                    continue
+                partes = linha.split(",")
+                if not partes:
+                    continue
+                dt = _parse_data(partes[0])
+                if dt:
+                    ultima = dt
+    except Exception:
+        return None
+
+    return ultima
+
+
+def rotacionar_csv_se_necessario():
+    """
+    Se o CSV atual tem registros de data ANTERIOR a hoje, move o arquivo
+    pra pasta de histórico com nome baseado na data dos dados.
+
+    Comportamento:
+      - CSV atual com dados só de hoje → não faz nada
+      - CSV atual com dados de ontem  → move pra histórico
+      - CSV atual vazio/inexistente   → não faz nada
+    """
+    ultima_data = _ultima_data_no_csv()
+    if ultima_data is None:
+        return  # vazio, nada a fazer
+
+    hoje = datetime.now().date()
+    if ultima_data.date() == hoje:
+        return  # já tem dados de hoje, não rotaciona
+
+    # Precisa rotacionar
+    data_ref = ultima_data.date().isoformat()
+    nome_hist = f"preco_teorico_{data_ref}.csv"
+    destino = os.path.join(PASTA_HISTORICO, nome_hist)
+
+    if os.path.exists(destino):
+        # Já existe arquivo com essa data → concatena
+        try:
+            with open(destino, "r", encoding="utf-8-sig") as f:
+                linhas_hist = f.readlines()
+            with open(ARQUIVO_CSV, "r", encoding="utf-8-sig") as f:
+                linhas_novas = f.readlines()
+
+            # Remove header do novo se existir
+            if linhas_novas and linhas_novas[0].lower().startswith("datahora"):
+                linhas_novas = linhas_novas[1:]
+
+            with open(destino, "w", encoding="utf-8") as f:
+                f.writelines(linhas_hist)
+                f.writelines(linhas_novas)
+
+            os.remove(ARQUIVO_CSV)
+            print(f"📦 CSV rotacionado (concat): {nome_hist} (+{len(linhas_novas)} linhas)")
+        except Exception as e:
+            print(f"⚠️ Falha ao concatenar: {e}")
+    else:
+        # Move direto
+        try:
+            shutil.move(ARQUIVO_CSV, destino)
+            print(f"📦 CSV rotacionado: {nome_hist}")
+        except Exception as e:
+            print(f"⚠️ Falha ao mover: {e}")
+# ============================================================
+
+
 def carregar_contextos():
     """Lê os arquivos JSON da pasta Coletas para formar a visão Macro e Institucional."""
     contexto = {
-        "vies_macro": "NEUTRO", 
+        "vies_macro": "NEUTRO",
         "score_macro": 0,
         "win_ajuste": 0,
         "win_fechamento": 0,
         "vies_smc": "NEUTRO",
-        "poc_ontem": 0
+        "poc_ontem": 0,
     }
-    
-    # 1. Carregar Macro (32 Ativos)
+
     try:
         with open(ARQUIVO_JSON_MACRO, 'r', encoding='utf-8') as f:
             dados = json.load(f)
@@ -61,18 +155,19 @@ def carregar_contextos():
             sp500_var = ativos.get("SP500_FUT", {}).get("variacao_pct", 0)
             petr_var = ativos.get("PETR_ADR", {}).get("variacao_pct", 0)
             vale_var = ativos.get("VALE_ADR", {}).get("variacao_pct", 0)
-            
+
             contexto["win_ajuste"] = ativos.get("WIN_AJUSTE", {}).get("preco", 0)
             contexto["win_fechamento"] = ativos.get("WIN_LAST_TICK", {}).get("preco", 0)
-            
+
             score = ((ewz_var * 2) + sp500_var + petr_var + vale_var) / 5
             contexto["score_macro"] = score
-            if score > 0.4: contexto["vies_macro"] = "ALTA"
-            elif score < -0.4: contexto["vies_macro"] = "BAIXA"
+            if score > 0.4:
+                contexto["vies_macro"] = "ALTA"
+            elif score < -0.4:
+                contexto["vies_macro"] = "BAIXA"
     except Exception as e:
         print(f"[AVISO] Falha ao ler Macro: {e}")
 
-    # 2. Carregar SMC (Institucional)
     try:
         with open(ARQUIVO_JSON_SMC, 'r', encoding='utf-8') as f:
             smc = json.load(f)
@@ -83,20 +178,20 @@ def carregar_contextos():
 
     return contexto
 
+
 def calcular_confluencia(preco_teorico, contexto, tendencia_micro):
-    """Gera o painel de leitura do Gap e o Veredito de Entrada."""
     ajuste = contexto["win_ajuste"]
     fechamento = contexto["win_fechamento"]
     poc = contexto["poc_ontem"]
-    
+
     gap_ajuste_pts = preco_teorico - ajuste if ajuste > 0 else 0
     gap_fechamento_pts = preco_teorico - fechamento if fechamento > 0 else 0
     distancia_poc = preco_teorico - poc if poc > 0 else 0
-    
+
     posicao_ajuste = "ACIMA" if gap_ajuste_pts > 0 else "ABAIXO" if gap_ajuste_pts < 0 else "NO AJUSTE"
     posicao_fechamento = "ACIMA" if gap_fechamento_pts > 0 else "ABAIXO" if gap_fechamento_pts < 0 else "NO FECHAMENTO"
     posicao_poc = "ACIMA" if distancia_poc > 0 else "ABAIXO" if distancia_poc < 0 else "NA POC"
-    
+
     vies_geral = contexto["vies_macro"]
     if contexto["vies_macro"] == "ALTA" and contexto["vies_smc"] == "ALTA":
         vies_geral = "FORTE ALTA"
@@ -113,6 +208,7 @@ def calcular_confluencia(preco_teorico, contexto, tendencia_micro):
 
     return gap_ajuste_pts, posicao_ajuste, gap_fechamento_pts, posicao_fechamento, distancia_poc, posicao_poc, veredito, vies_geral
 
+
 def melhorar_para_ocr(img_pil):
     img = img_pil.convert('L')
     img = ImageEnhance.Contrast(img).enhance(3.0)
@@ -120,13 +216,13 @@ def melhorar_para_ocr(img_pil):
     w, h = img.size
     return img.resize((w * 4, h * 4), Image.LANCZOS)
 
+
 def extrair_numero(img_pil):
     try:
         img_proc = melhorar_para_ocr(img_pil)
         config = r'--oem 3 --psm 7 -c tessedit_char_whitelist=0123456789.'
         texto_bruto = pytesseract.image_to_string(img_proc, config=config).strip()
-        
-        # Âncora no ponto: busca o padrão exato de 3 dígitos, ponto, 3 dígitos (ex: 189.142)
+
         match = re.search(r'(\d{3})\.(\d{3})', texto_bruto)
         if match:
             valor_str = match.group(1) + match.group(2)
@@ -137,36 +233,54 @@ def extrair_numero(img_pil):
         pass
     return None, 0.0
 
+
 def capturar_regiao(regiao):
     with mss.MSS() as sct:
         img = sct.grab(regiao)
         return Image.frombytes("RGB", img.size, img.bgra, "raw", "BGRX")
 
+
 def analisar_fluxo(historico):
-    if len(historico) < 10: return "LATERAL", 0
+    if len(historico) < 10:
+        return "LATERAL", 0
     metade = len(historico) // 2
     media_antiga = sum(list(historico)[:metade]) / metade
     media_recente = sum(list(historico)[metade:]) / (len(historico) - metade)
     dif = media_recente - media_antiga
-    if dif > 2.5: return "ALTA", dif
-    if dif < -2.5: return "BAIXA", dif
+    if dif > 2.5:
+        return "ALTA", dif
+    if dif < -2.5:
+        return "BAIXA", dif
     return "LATERAL", dif
 
-def salvar_csv(preco, confianca):
+
+def salvar_csv(preco, confianca, motivo="MUDANCA"):
     existe = os.path.isfile(ARQUIVO_CSV)
     with open(ARQUIVO_CSV, mode='a', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
-        if not existe: writer.writerow(["DataHora", "PrecoTeorico", "Confianca"])
-        writer.writerow([datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3], preco, f"{confianca:.3f}"])
+        if not existe:
+            writer.writerow(["DataHora", "PrecoTeorico", "Confianca", "Motivo"])
+        writer.writerow([
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],
+            preco,
+            f"{confianca:.3f}",
+            motivo,
+        ])
+
 
 def main():
-    print("="*60)
+    print("=" * 60)
     print(" 🎯 SNIPER DE LEILÃO (ÂNCORA NO PONTO) ")
-    print("="*60)
+    print("=" * 60)
+    print(f" Modo: gravação por MUDANÇA + força a cada {INTERVALO_FORCAR_GRAVACAO:.0f}s")
+    print(f" Rotação: CSV por dia em '{PASTA_HISTORICO}/'")
+    print("=" * 60)
+
+    # ---- ROTAÇÃO DO CSV ----
+    rotacionar_csv_se_necessario()
 
     if not os.path.exists(ARQUIVO_CONFIG):
         print(f"[ERRO CRÍTICO] Arquivo de mapeamento '{ARQUIVO_CONFIG}' não encontrado!")
-        print("Execute o script 'mapear_regiao.py' primeiro.")
         return
 
     with open(ARQUIVO_CONFIG, 'r', encoding='utf-8') as f:
@@ -177,28 +291,51 @@ def main():
     print(f"[INFO] Macro Vies: {contexto['vies_macro']} | SMC Vies: {contexto['vies_smc']}")
     print(f"[INFO] Ajuste: {contexto['win_ajuste']} | Fechamento: {contexto['win_fechamento']} | POC: {contexto['poc_ontem']}")
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print(" 🚀 MONITORAMENTO DE LEILÃO ATIVO (Pressione CTRL+C p/ sair)")
-    print("="*60 + "\n")
+    print("=" * 60 + "\n")
 
     ultimo_preco = None
+    ultimo_salvamento_dt = None
     historico = deque(maxlen=TAMANHO_JANELA_TENDENCIA)
+
+    total_tentativas = 0
+    total_leituras_ok = 0
+    total_leituras_falhas = 0
+    total_mudanca = 0
+    total_forcado = 0
 
     try:
         while True:
             img = capturar_regiao(regiao)
             preco, conf = extrair_numero(img)
-            agora = datetime.now().strftime('%H:%M:%S')
+            agora_dt = datetime.now()
+            agora = agora_dt.strftime('%H:%M:%S')
+
+            total_tentativas += 1
 
             if preco:
+                total_leituras_ok += 1
                 historico.append(preco)
                 tendencia_micro, forca = analisar_fluxo(historico)
-                
-                if preco != ultimo_preco:
+
+                mudou = (preco != ultimo_preco)
+                precisa_forcar = (
+                    ultimo_salvamento_dt is not None
+                    and (agora_dt - ultimo_salvamento_dt).total_seconds() >= INTERVALO_FORCAR_GRAVACAO
+                )
+
+                if mudou or precisa_forcar:
+                    motivo = "MUDANCA" if mudou else "FORCADO_TEMPO"
+                    if mudou:
+                        total_mudanca += 1
+                    else:
+                        total_forcado += 1
+
                     gap_ajuste, pos_ajuste, gap_fechamento, pos_fechamento, dist_poc, pos_poc, veredito, vies_geral = calcular_confluencia(preco, contexto, tendencia_micro)
-                    
+
                     os.system('cls' if os.name == 'nt' else 'clear')
-                    print(f"=== 🕒 {agora} | PREVISÃO DE ABERTURA ===")
+                    print(f"=== 🕒 {agora} | PREVISÃO DE ABERTURA === [{motivo}]")
                     print(f"💰 PREÇO TEÓRICO : {preco} (Conf: {conf:.2f})")
                     print(f"📊 GAP DO AJUSTE : {gap_ajuste:+.0f} pts [{pos_ajuste}]")
                     print(f"📉 GAP DO FECHTO : {gap_fechamento:+.0f} pts [{pos_fechamento}]")
@@ -206,17 +343,38 @@ def main():
                     print(f"🌊 MICROFLUXO    : {tendencia_micro} (Força/Aceleração: {forca:+.1f})")
                     print("-" * 40)
                     print(f"🎯 VEREDITO      : {veredito}")
-                    print("="*40)
-                    
-                    salvar_csv(preco, conf)
+                    print("=" * 40)
+
+                    if motivo == "FORCADO_TEMPO":
+                        print(f"⏱️  Gravação forçada: preço estável há {INTERVALO_FORCAR_GRAVACAO:.0f}s")
+
+                    print(f"📊 Stats: {total_tentativas} tent | {total_leituras_ok} OK | "
+                          f"{total_leituras_falhas} falhas | {total_mudanca} por mudança | "
+                          f"{total_forcado} por tempo")
+
+                    salvar_csv(preco, conf, motivo)
                     ultimo_preco = preco
+                    ultimo_salvamento_dt = agora_dt
+
             else:
+                total_leituras_falhas += 1
                 print(f"[{agora}] Buscando âncora do ponto (.) na região...", end="\r")
 
             time.sleep(INTERVALO)
 
     except KeyboardInterrupt:
         print(f"\n\nFinalizado! Dados armazenados em {PASTA_COLETAS}/")
+        print("=" * 60)
+        print(" 📊 ESTATÍSTICAS FINAIS")
+        print("=" * 60)
+        print(f"  Tentativas totais    : {total_tentativas}")
+        print(f"  Leituras OK          : {total_leituras_ok}")
+        print(f"  Leituras com falha   : {total_leituras_falhas}")
+        print(f"  Gravações por mudança: {total_mudanca}")
+        print(f"  Gravações forçadas   : {total_forcado}")
+        print(f"  Total gravado no CSV : {total_mudanca + total_forcado}")
+        print("=" * 60)
+
 
 if __name__ == "__main__":
     main()
