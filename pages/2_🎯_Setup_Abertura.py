@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 """
 Módulo: pages/1.1_🎯_Setup_Abertura.py
-Versão: 7.8 (Termômetro Macro com Mini Velocímetros + VIX/DXY Invertidos)
+Versão: 8.0 (Auto-refresh 60s + Ponteiro Anterior + Delta)
 Objetivo: Painel unificado de monitoramento de aberturas do pregão (WIN/WDO)
-         Aba 3 contém a estratégia completa de rompimento da vela M5 das 10:00h
 """
 
 import json
@@ -29,8 +28,6 @@ st.set_page_config(page_title="WINFUT - Setup Abertura", layout="wide")
 CSS_CUSTOM = """
 <style>
 .stApp { background-color: #0e1117; }
-
-/* Cards de sinal */
 .card-bull {
     background-color: #0d381e;
     border-left: 5px solid #00c853;
@@ -52,7 +49,6 @@ CSS_CUSTOM = """
     border-radius: 8px;
     margin-bottom: 10px;
 }
-
 .info-box {
     background-color: #161b22;
     padding: 15px;
@@ -85,8 +81,37 @@ TICKER_MAP = {
     "NYSE:ITUB": "ITUB_ADR",
     "NYSE:BBD": "BBD_ADR",
     "OTC:BDORY": "BBAS_ADR",
-    "OTC:BOLSY": "B3_ADR"
+    "OTC:BOLSY": "B3_ADR",
 }
+
+# Mapa chave interna → ticker bruto no rom-5
+MAPA_TICKERS_ROM5 = {
+    "EWZ": "AMEX:EWZ",
+    "VIX": "TVC:VIX",
+    "DXY": "TVC:DXY",
+    "CRUDE_OIL": "NYMEX:CL1!",
+    "IRON_ORE_2M": "SGX:FEF2!",
+    "IRON_ORE": "SGX:FEF1!",
+    "SP500_FUT": "CME_MINI:ES1!",
+    "NASDAQ_FUT": "CME_MINI:NQ1!",
+    "VALE_ADR": "NYSE:VALE",
+    "PETR_ADR": "NYSE:PBR",
+    "ITUB_ADR": "NYSE:ITUB",
+    "BBAS_ADR": "OTC:BDORY",
+    "BBD_ADR": "NYSE:BBD",
+    "B3_ADR": "OTC:BOLSY",
+    "DI1_2027": "BMFBOVESPA:DI1F2027",
+    "DI1_2029": "BMFBOVESPA:DI1F2029",
+    "WIN_AJUSTE": "B3_AJUSTE_WIN",
+    "WDO_AJUSTE": "B3_AJUSTE_WDO",
+    "WIN_FUT": "BMFBOVESPA:WIN1!",
+    "WDO_FUT": "BMFBOVESPA:WDO1!",
+    "WIN_LAST_TICK": "WIN_LAST_TICK",
+    "WDO_LAST_TICK": "WDO_LAST_TICK",
+}
+
+ADRS_COMPOSTO = ["BBD_ADR", "ITUB_ADR", "PETR_ADR", "VALE_ADR", "BBAS_ADR", "B3_ADR"]
+
 
 def carregar_json_absoluto(nome_arquivo):
     locais_busca = [
@@ -95,7 +120,7 @@ def carregar_json_absoluto(nome_arquivo):
         RAIZ_PROJETO / "v2" / nome_arquivo,
         RAIZ_PROJETO / "json" / nome_arquivo,
         Path.cwd() / nome_arquivo,
-        Path.cwd() / "Coletas" / nome_arquivo
+        Path.cwd() / "Coletas" / nome_arquivo,
     ]
     for caminho in locais_busca:
         if caminho.is_file():
@@ -106,27 +131,69 @@ def carregar_json_absoluto(nome_arquivo):
                 pass
     return {}, None
 
-# Carregamento Unificado de Arquivos
-unificados, _ = carregar_json_absoluto("DadosAtivosUnificados.json")
-decisao_v2, _ = carregar_json_absoluto("Decisao_V2.json")
-smc_regras, _ = carregar_json_absoluto("AnaliseGraficaSMC_Regras.json")
-estimativas, _ = carregar_json_absoluto("EstimativaAbertura.json")
-if not estimativas:
-    estimativas, _ = carregar_json_absoluto("Resultado_Calculadora.json")
 
-noticias_impacto, _ = carregar_json_absoluto("Noticias_Impacto_Dia.json")
-noticias_0900, _ = carregar_json_absoluto("Noticias_Calendario_0900.json")
-metricas_calc, _ = carregar_json_absoluto("Metricas_Calculadas.json")
-resultado_op, _ = carregar_json_absoluto("Resultado_Calculadora_Operacional_Abertura.json")
-tendencias_dados, _ = carregar_json_absoluto("Analise_Tendencias.json")
+@st.cache_data(ttl=2)
+def carregar_rom5() -> dict:
+    """Carrega o Coleta_rom-5.json (5 min atrás)."""
+    for path in [RAIZ_PROJETO / "Coletas" / "Coleta_rom-5.json",
+                 RAIZ_PROJETO / "Coleta_rom-5.json",
+                 Path.cwd() / "Coletas" / "Coleta_rom-5.json"]:
+        if path.is_file():
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except Exception:
+                return {}
+    return {}
+
+
+def _get_var_rom5(rom5: dict, chave_interna: str) -> Optional[float]:
+    """Retorna change_percent do ativo no rom-5."""
+    if not rom5:
+        return None
+    ticker = MAPA_TICKERS_ROM5.get(chave_interna, chave_interna)
+    for item in rom5.get("coletas", []):
+        if item.get("ativo") == ticker:
+            val = (item.get("dados_reais") or {}).get("change_percent")
+            if isinstance(val, (int, float)):
+                return float(val)
+    return None
+
+
+def _get_preco_rom5(rom5: dict, chave_interna: str) -> Optional[float]:
+    """Retorna close do ativo no rom-5."""
+    if not rom5:
+        return None
+    ticker = MAPA_TICKERS_ROM5.get(chave_interna, chave_interna)
+    for item in rom5.get("coletas", []):
+        if item.get("ativo") == ticker:
+            val = (item.get("dados_reais") or {}).get("close")
+            if isinstance(val, (int, float)):
+                return float(val)
+    return None
+
+
+def calcular_ind_adrs_rom5(rom5: dict) -> Optional[float]:
+    vals = [_get_var_rom5(rom5, adr) for adr in ADRS_COMPOSTO]
+    vals = [v for v in vals if v is not None]
+    return round(sum(vals), 4) if vals else None
+
+
+def calcular_ind_externo_rom5(rom5: dict) -> Optional[float]:
+    vix = _get_var_rom5(rom5, "VIX")
+    crude = _get_var_rom5(rom5, "CRUDE_OIL")
+    iron = _get_var_rom5(rom5, "IRON_ORE_2M")
+    if vix is None or crude is None or iron is None:
+        return None
+    return round(-vix + crude + iron, 4)
+
 
 # ==============================================================================
 # FUNÇÃO MT5 — MÁXIMA E MÍNIMA DA VELA M5 DAS 10:00h
 # ==============================================================================
+@st.cache_data(ttl=60)
 def obter_max_min_vela_10h(win_last):
-    """Consulta o MT5 para extrair a máxima e mínima exata da 1ª vela de 5min das 10:00h.
-    Retorna (None, None) se não conseguir obter os dados.
-    """
+    """Consulta o MT5 para extrair a máxima e mínima exata da 1ª vela de 5min das 10:00h."""
     try:
         import MetaTrader5 as mt5
         if mt5.initialize():
@@ -151,40 +218,59 @@ def obter_max_min_vela_10h(win_last):
 
     return None, None
 
-# ==============================================================================
-# MINI VELOCÍMETRO — TERMÔMETRO MACRO (centro em zero)
-# ==============================================================================
-def mini_velocimetro(valor: Optional[float], label: str, preco_fmt: str = "", inverter: bool = False) -> None:
-    """
-    Mini velocímetro compacto com centro em zero.
 
-    - Valor positivo → ponteiro à direita, cor verde
-    - Valor negativo → ponteiro à esquerda, cor vermelha
-    - Valor zero    → ponteiro ao centro (topo), cor amarela
-    - Escala fixa: ±10% (satura além disso).
-
-    Parâmetro `inverter`:
-    - True  → usado para VIX e DXY: inverte a cor/lado (subir = ruim = vermelho)
-    - False → comportamento literal (positivo = verde)
-    """
+# ==============================================================================
+# MINI VELOCÍMETRO (com ponteiro anterior + delta)
+# ==============================================================================
+def mini_velocimetro(
+    valor: Optional[float],
+    label: str,
+    preco_fmt: str = "",
+    inverter: bool = False,
+    valor_anterior: Optional[float] = None,
+) -> None:
+    # ---- Valor atual ----
     if valor is None:
         real_exibicao = 0.0
         cor = "#8b949e"
         texto_valor = "—"
     else:
-        real_exibicao = max(-10.0, min(10.0, float(valor)))
-        # Para cálculo da cor, aplica inversão se solicitado
+        try:
+            real_exibicao = max(-10.0, min(10.0, float(valor)))
+        except (TypeError, ValueError):
+            real_exibicao = 0.0
         real_cor = -real_exibicao if inverter else real_exibicao
         if real_cor > 0.05:
-            cor = "#00cc44"   # verde
+            cor = "#00cc44"
         elif real_cor < -0.05:
-            cor = "#ff4b4b"   # vermelho
+            cor = "#ff4b4b"
         else:
-            cor = "#ffa500"   # amarelo (neutro)
+            cor = "#ffa500"
         texto_valor = f"{real_exibicao:+.2f}%"
 
-    # Ângulo do ponteiro segue o valor REAL (não invertido)
-    # -10% → -90° | 0% → 0° (topo) | +10% → +90°
+    # ---- Valor anterior ----
+    svg_anterior = ""
+    texto_delta = ""
+    if valor_anterior is not None:
+        try:
+            real_ant = max(-10.0, min(10.0, float(valor_anterior)))
+            angulo_ant = (real_ant / 10.0) * 90.0
+            svg_anterior = (
+                f'<svg class="mini-needle-ant" '
+                f'style="transform: rotate({angulo_ant}deg);" '
+                f'viewBox="0 0 14 58">'
+                f'<path d="M 7 0 L 9.5 46 L 4.5 46 Z" '
+                f'fill="rgba(220, 220, 255, 0.85)"/>'
+                f'</svg>'
+            )
+            delta = real_exibicao - real_ant
+            if abs(delta) < 0.005:
+                texto_delta = "Δ 0.00%"
+            else:
+                texto_delta = f"Δ {delta:+.2f}%"
+        except (TypeError, ValueError):
+            pass
+
     angulo = (real_exibicao / 10.0) * 90.0
 
     html = f"""
@@ -242,6 +328,17 @@ def mini_velocimetro(valor: Optional[float], label: str, preco_fmt: str = "", in
             transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
             z-index: 3;
         }}
+        .mini-needle-ant {{
+            position: absolute;
+            left: 50%;
+            bottom: 3px;
+            width: 14px;
+            height: 44px;
+            margin-left: -7px;
+            transform-origin: 50% 100%;
+            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 2;
+        }}
         .mini-pivot {{
             position: absolute;
             left: 50%;
@@ -258,15 +355,26 @@ def mini_velocimetro(valor: Optional[float], label: str, preco_fmt: str = "", in
             font-weight: 900;
             color: {cor};
             text-align: center;
-            margin-top: 1px;
+            margin-top: 4px;
             transition: color 0.5s ease;
             letter-spacing: 0.3px;
+            line-height: 1.1;
         }}
         .mini-sub {{
             font-size: 10px;
             color: #8b949e;
             text-align: center;
-            margin-top: -1px;
+            margin-top: 2px;
+            line-height: 1.1;
+        }}
+        .mini-delta {{
+            font-size: 10px;
+            color: #c9d1d9;
+            text-align: center;
+            margin-top: 3px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            line-height: 1.1;
         }}
     </style>
     </head>
@@ -275,6 +383,7 @@ def mini_velocimetro(valor: Optional[float], label: str, preco_fmt: str = "", in
             <div class="mini-label">{label}</div>
             <div class="mini-gauge">
                 <div class="mini-arc"></div>
+                {svg_anterior}
                 <svg class="mini-needle" style="transform: rotate({angulo}deg);" viewBox="0 0 8 48">
                     <path d="M 4 0 L 5.5 42 L 2.5 42 Z" fill="#ffffff"/>
                 </svg>
@@ -282,11 +391,12 @@ def mini_velocimetro(valor: Optional[float], label: str, preco_fmt: str = "", in
             </div>
             <div class="mini-value">{texto_valor}</div>
             <div class="mini-sub">{preco_fmt}</div>
+            {f'<div class="mini-delta">{texto_delta}</div>' if texto_delta else ''}
         </div>
     </body>
     </html>
     """
-    components.html(html, height=115, scrolling=False)
+    components.html(html, height=125, scrolling=False)
 
 
 # ==============================================================================
@@ -301,7 +411,9 @@ class ConfigSetup09:
     loss_pts: int = 250
     alvo_min_pts: int = 250
 
+
 CONFIG = ConfigSetup09()
+
 
 class SetupService:
     def __init__(self, dados: Dict[str, Dict[str, Any]], config: ConfigSetup09 = CONFIG):
@@ -376,22 +488,17 @@ class SetupService:
 
     def decisao_v2(self) -> Dict[str, Any]:
         return {
-            "vies": self.v2_vies,
-            "confianca": self.v2_confianca,
-            "entrada": self.v2_entrada,
-            "stop": self.v2_stop,
-            "alvo1": self.v2_alvo1,
-            "alvo2": self.v2_alvo2,
-            "invalidacao": self.v2_invalidacao,
-            "motivos": self.v2_motivos,
+            "vies": self.v2_vies, "confianca": self.v2_confianca,
+            "entrada": self.v2_entrada, "stop": self.v2_stop,
+            "alvo1": self.v2_alvo1, "alvo2": self.v2_alvo2,
+            "invalidacao": self.v2_invalidacao, "motivos": self.v2_motivos,
             "direcao_cenario": self.v2_direcao_cenario,
             "posicao_ajuste": self.v2_posicao_ajuste,
-            "poc_ontem": self.poc_ontem,
-            "vwap_ontem": self.vwap_ontem,
+            "poc_ontem": self.poc_ontem, "vwap_ontem": self.vwap_ontem,
             "ob_alinhado": self.ob_alinhado,
             "abertura_teorica": self.abertura_teorica,
             "preco_carregado": self.preco_carregado,
-            "var_teorica_pct": self.var_teorica_pct
+            "var_teorica_pct": self.var_teorica_pct,
         }
 
     def contexto_ajuste(self) -> Dict[str, Any]:
@@ -405,15 +512,10 @@ class SetupService:
         ajuste = preco("WIN_AJUSTE")
         last = preco("WIN_LAST_TICK") or preco("WIN_FUT")
 
-        if ajuste is not None and last is not None:
-            dist = round(last - ajuste, 0)
-        else:
-            dist = None
-
+        dist = round(last - ajuste, 0) if ajuste is not None and last is not None else None
+        posicao = None
         if dist is not None:
             posicao = "ACIMA" if dist > 20 else ("ABAIXO" if dist < -20 else "NO_AJUSTE")
-        else:
-            posicao = None
 
         return {"ajuste": ajuste, "last": last, "dist_pts": dist, "posicao": posicao}
 
@@ -426,8 +528,7 @@ class SetupService:
         lado = "VENDA" if pos == "ACIMA" else ("COMPRA" if pos == "ABAIXO" else "NEUTRO")
         entrada = ctx["ajuste"]
 
-        stop = None
-        alvo = None
+        stop = alvo = None
         if entrada is not None:
             if lado == "VENDA":
                 stop = entrada + loss_pts
@@ -456,7 +557,7 @@ class SetupService:
             "nome": "Retorno ao Ajuste", "lado": lado, "status": status,
             "bloqueios": bloqueios, "entrada": entrada, "stop": stop,
             "alvo": alvo, "alvo_pts": alvo_pts, "loss_pts": loss_pts, "dist_pts": dist,
-            "posicao": pos, "ajuste": ctx["ajuste"], "last": ctx["last"]
+            "posicao": pos, "ajuste": ctx["ajuste"], "last": ctx["last"],
         }
 
     def operacional_explosao(self) -> Dict[str, Any]:
@@ -467,12 +568,8 @@ class SetupService:
         ctx = self.contexto_ajuste()
         dist = ctx.get("dist_pts")
 
-        if self.tem_3estrelas:
-            driver = ind_adrs
-            driver_nome = "ADRs"
-        else:
-            driver = ind_ext if ind_ext is not None else ind_adrs
-            driver_nome = "Mercado Externo" if ind_ext is not None else "ADRs"
+        driver = ind_adrs if self.tem_3estrelas else (ind_ext if ind_ext is not None else ind_adrs)
+        driver_nome = "ADRs" if self.tem_3estrelas else ("Mercado Externo" if ind_ext is not None else "ADRs")
 
         score = None
         if ind_adrs is not None and ind_ext is not None:
@@ -497,11 +594,9 @@ class SetupService:
 
         if driver is not None:
             if driver > 4.5:
-                direcao = "COMPRA"
-                forca = "ALTA"
+                direcao, forca = "COMPRA", "ALTA"
             elif driver < -4.5:
-                direcao = "VENDA"
-                forca = "ALTA"
+                direcao, forca = "VENDA", "ALTA"
             elif abs(driver) > 1.5:
                 direcao = "COMPRA" if driver > 0 else "VENDA"
                 forca = "MODERADA"
@@ -509,36 +604,21 @@ class SetupService:
             alinhado = gap_dir is not None and direcao == gap_dir
             if gap_ok and alinhado and forca in ("ALTA", "MODERADA"):
                 status = "EXPLOSÃO"
-                motivo = (
-                    f"Gap {dist:+.0f} pts alinhado com {driver_nome} "
-                    f"({driver:+.2f}%) — seguir o gap, não fade"
-                )
+                motivo = f"Gap {dist:+.0f} pts alinhado com {driver_nome} ({driver:+.2f}%) — seguir o gap, não fade"
             elif gap_ok and not alinhado and forca == "ALTA":
                 status = "MONITORAR"
-                motivo = (
-                    f"Gap {dist:+.0f} pts CONTRA {driver_nome} "
-                    f"({driver:+.2f}%) — retorno ao ajuste ganha prioridade"
-                )
+                motivo = f"Gap {dist:+.0f} pts CONTRA {driver_nome} ({driver:+.2f}%) — retorno ao ajuste ganha prioridade"
             elif not gap_ok:
                 status = "MONITORAR"
-                motivo = (
-                    f"Gap fraco ({dist:+.0f} pts)" if dist is not None
-                    else "Gap indisponível"
-                ) + " — sem combustível de explosão"
+                motivo = (f"Gap fraco ({dist:+.0f} pts)" if dist is not None else "Gap indisponível") + " — sem combustível de explosão"
             else:
                 status = "MONITORAR"
                 motivo = f"Drivers {driver_nome} moderados/neutros"
 
         return {
-            "nome": "Explosão Pós-Abertura",
-            "direcao": direcao,
-            "forca": forca,
-            "status": status,
-            "motivo": motivo,
-            "score": score,
-            "ind_adrs": ind_adrs,
-            "ind_externo": ind_ext,
-            "gap_pts": dist,
+            "nome": "Explosão Pós-Abertura", "direcao": direcao, "forca": forca,
+            "status": status, "motivo": motivo, "score": score,
+            "ind_adrs": ind_adrs, "ind_externo": ind_ext, "gap_pts": dist,
             "driver_prioritario": driver_nome,
         }
 
@@ -548,11 +628,7 @@ class SetupService:
         dist = ctx.get("dist_pts")
         ind_adrs = exp.get("ind_adrs")
 
-        aviso_noticia = (
-            "Notícia ⭐⭐⭐ Brasil 09:00 — leilão pode ser sujo"
-            if self.tem_3estrelas
-            else "Sem restrições severas de notícias"
-        )
+        aviso_noticia = "Notícia ⭐⭐⭐ Brasil 09:00 — leilão pode ser sujo" if self.tem_3estrelas else "Sem restrições severas de notícias"
 
         bloqueios = []
         if dist is not None:
@@ -590,24 +666,19 @@ class SetupService:
             rec = "LEILÃO MONITORADO"
 
         return {
-            "nome": "Operacional de Leilão",
-            "teorico": ctx["last"],
-            "ajuste": ctx["ajuste"],
-            "dist_pts": dist,
-            "direcao_gap": direcao_gap,
-            "drivers_direcao": exp["direcao"],
-            "score_drivers": exp["score"],
-            "recomendacao": rec,
-            "alerta_noticia": aviso_noticia,
-            "bloqueios": bloqueios,
+            "nome": "Operacional de Leilão", "teorico": ctx["last"], "ajuste": ctx["ajuste"],
+            "dist_pts": dist, "direcao_gap": direcao_gap,
+            "drivers_direcao": exp["direcao"], "score_drivers": exp["score"],
+            "recomendacao": rec, "alerta_noticia": aviso_noticia, "bloqueios": bloqueios,
         }
 
     def janela_ok(self) -> bool:
         agora = datetime.now().time()
         return self.cfg.janela_inicio <= agora <= self.cfg.janela_fim
 
+
 # ==============================================================================
-# RENDERIZADORES DE TELA
+# HELPERS DE APRESENTAÇÃO
 # ==============================================================================
 def _fmt(valor, casas=0, sufixo=""):
     if valor is None:
@@ -619,6 +690,18 @@ def _fmt(valor, casas=0, sufixo=""):
     except (TypeError, ValueError):
         return "—"
 
+
+def padrao_bola(padrao_str):
+    mapa = {"Alta": "🟢", "Baixa": "🔴", "Estavel": "🟡"}
+    partes = str(padrao_str).split("_E_")
+    if len(partes) != 2:
+        return f"⚪ {padrao_str}"
+    return f"{mapa.get(partes[0], '⚪')} → {mapa.get(partes[1], '⚪')}"
+
+
+# ==============================================================================
+# RENDERIZADORES DE BLOCOS
+# ==============================================================================
 def render_bloco_decisao_v2(service: SetupService):
     st.markdown("---")
     st.subheader("🚀 Decisão V2 (motor prioritário)")
@@ -627,18 +710,14 @@ def render_bloco_decisao_v2(service: SetupService):
     d = service.decisao_v2()
     vies = str(d.get("vies") or "—").upper()
     conf = d.get("confianca")
-
     conf_str = f"{conf}%" if conf is not None else "—"
 
     if "COMPRA" in vies or vies == "ALTA":
-        card_class = "card-bull"
-        emoji = "🟢"
+        card_class, emoji = "card-bull", "🟢"
     elif "VENDA" in vies or vies == "BAIXA":
-        card_class = "card-bear"
-        emoji = "🔴"
+        card_class, emoji = "card-bear", "🔴"
     else:
-        card_class = "card-neutral"
-        emoji = "🟡"
+        card_class, emoji = "card-neutral", "🟡"
 
     st.markdown(
         f"""
@@ -683,10 +762,11 @@ def render_bloco_decisao_v2(service: SetupService):
         else:
             st.write("Sem motivos detalhados cadastrados.")
 
+
 def render_bloco_leilao(service: SetupService):
     st.markdown("---")
     st.subheader("🔔 Operacional de Leilão")
-    st.caption("Usa preço teórico/last vs ajuste + Σ ADRs/Macro para preparar o lado antes da abertura (não substitui o operacional pós-abertura).")
+    st.caption("Usa preço teórico/last vs ajuste + Σ ADRs/Macro para preparar o lado antes da abertura.")
 
     lei = service.operacional_leilao()
 
@@ -722,9 +802,10 @@ def render_bloco_leilao(service: SetupService):
         else:
             st.write("Nenhum bloqueio identificado.")
 
-    st.info("Fluxo sugerido: leilão define a *preparação* → após abrir, confirme com o bloco Operacionais (Ajuste ou Explosão).")
+    st.info("Fluxo sugerido: leilão define a *preparação* → após abrir, confirme com o bloco Operacionais.")
 
-def render_bloco_operacionais(service: SetupService):
+
+def render_bloco_operacionais(service: SetupService, rom5: dict):
     st.markdown("---")
     st.subheader("🎯 Operacionais de Abertura")
 
@@ -789,40 +870,46 @@ def render_bloco_operacionais(service: SetupService):
         st.markdown(f"**Status:** {status_ex}")
         st.markdown(f"**Direção:** `{ex.get('direcao') or '—'}` · **Força:** `{ex.get('forca') or '—'}`")
 
-        # ---------- Mini velocímetros: Score / Σ ADRs / Σ Macro ----------
         e1, e2, e3 = st.columns(3)
 
         score = ex.get("score")
         ind_adrs = ex.get("ind_adrs")
         ind_ext = ex.get("ind_externo")
 
+        # Valores anteriores do rom-5
+        score_ant = None
+        ind_adrs_ant = calcular_ind_adrs_rom5(rom5)
+        ind_ext_ant = calcular_ind_externo_rom5(rom5)
+        if ind_adrs_ant is not None and ind_ext_ant is not None:
+            score_ant = round((ind_adrs_ant * 0.6) + (ind_ext_ant * 0.4), 2)
+
         with e1:
             mini_velocimetro(
                 score, "⚡ Score",
                 f"{score:+.2f}" if score is not None else "",
                 inverter=False,
+                valor_anterior=score_ant,
             )
         with e2:
             mini_velocimetro(
                 ind_adrs, "🇧🇷 Σ ADRs",
                 f"{ind_adrs:+.2f}%" if ind_adrs is not None else "",
                 inverter=False,
+                valor_anterior=ind_adrs_ant,
             )
         with e3:
             mini_velocimetro(
                 ind_ext, "🌍 Σ Macro",
                 f"{ind_ext:+.2f}%" if ind_ext is not None else "",
                 inverter=False,
+                valor_anterior=ind_ext_ant,
             )
 
         st.caption(ex.get("motivo") or "—")
         st.info("Como usar: drivers a favor do gap → não fade; drivers neutros/contra → retorno ao ajuste ganha prioridade.")
 
 
-
-
-    
-def render_bloco_1_filtro_classificacao(service: SetupService):
+def render_bloco_1_filtro_classificacao(service: SetupService, rom5: dict):
     st.markdown("---")
     st.subheader("📌 Filtro de Notícias e Classificação")
 
@@ -833,6 +920,10 @@ def render_bloco_1_filtro_classificacao(service: SetupService):
 
     ind_mercado = service.ind_mercado_externo
     ind_adrs = service.ind_adrs
+
+    # Valores anteriores: preferir o "anterior" do JSON (já existe), com fallback pro rom-5
+    pen_m = service.ind_mercado_externo_penultima or calcular_ind_externo_rom5(rom5)
+    pen_a = service.ind_adrs_penultima or calcular_ind_adrs_rom5(rom5)
 
     def velocimetro(valor: Optional[float], penultima: Optional[float], titulo: str) -> go.Figure:
         if valor is None:
@@ -877,11 +968,7 @@ def render_bloco_1_filtro_classificacao(service: SetupService):
                         "bgcolor": "#161b22",
                         "bordercolor": "#30363d",
                         "steps": steps,
-                        "threshold": {
-                            "line": {"color": "#ffffff", "width": 5},
-                            "thickness": 0.85,
-                            "value": pen_val,
-                        },
+                        "threshold": {"line": {"color": "#ffffff", "width": 5}, "thickness": 0.85, "value": pen_val},
                     },
                     domain={"x": [0, 1], "y": [0, 1]},
                 )
@@ -901,11 +988,7 @@ def render_bloco_1_filtro_classificacao(service: SetupService):
                     "bgcolor": "rgba(0,0,0,0)" if penultima is not None else "#161b22",
                     "bordercolor": "#30363d",
                     "steps": steps if penultima is None else [],
-                    "threshold": {
-                        "line": {"color": cor, "width": 6},
-                        "thickness": 0.85,
-                        "value": real,
-                    },
+                    "threshold": {"line": {"color": cor, "width": 6}, "thickness": 0.85, "value": real},
                 },
                 domain={"x": [0, 1], "y": [0, 1]},
             )
@@ -934,15 +1017,12 @@ def render_bloco_1_filtro_classificacao(service: SetupService):
     st.markdown("##### ⏱️ Velocímetros de pressão")
 
     if service.tem_3estrelas:
-        prioridade_mercado = "Secundário"
-        prioridade_adrs = "Prioritário"
+        prioridade_mercado, prioridade_adrs = "Secundário", "Prioritário"
     else:
-        prioridade_mercado = "Prioritário"
-        prioridade_adrs = "Secundário"
+        prioridade_mercado, prioridade_adrs = "Prioritário", "Secundário"
 
     c1, c2 = st.columns(2)
     with c1:
-        pen_m = service.ind_mercado_externo_penultima
         st.plotly_chart(
             velocimetro(ind_mercado, pen_m, "🌍 Mercado Externo"),
             use_container_width=True,
@@ -957,7 +1037,6 @@ def render_bloco_1_filtro_classificacao(service: SetupService):
         else:
             st.caption("Dados de Mercado Externo indisponíveis")
     with c2:
-        pen_a = service.ind_adrs_penultima
         st.plotly_chart(
             velocimetro(ind_adrs, pen_a, "🇧🇷 BR ADRs Brasileiras"),
             use_container_width=True,
@@ -972,7 +1051,6 @@ def render_bloco_1_filtro_classificacao(service: SetupService):
         else:
             st.caption("Dados de ADRs indisponíveis")
 
-    
     if service.tem_3estrelas:
         st.warning("⚠️ **Filtro ativado:** Notícia 3★ → prioridade às ADRs.")
 
@@ -980,519 +1058,520 @@ def render_bloco_1_filtro_classificacao(service: SetupService):
         if (ind_mercado < 0 and ind_adrs > 0) or (ind_mercado > 0 and ind_adrs < 0):
             st.info("🔀 Divergência detectada entre Mercado Externo e ADRs — seguir ADRs como referência prioritária.")
 
-# --- Execução Principal das Abas ---
-ativos_unif = unificados.get("ativos", {})
-def get_p_num(chave):
-    if chave in ativos_unif:
-        v = ativos_unif[chave].get("preco")
-        if v is not None and isinstance(v, (int, float)):
-            return float(v)
-    return None
 
-def get_v_num(chave):
-    if chave in ativos_unif:
-        v = ativos_unif[chave].get("variacao_pct")
-        if v is not None and isinstance(v, (int, float)):
-            return float(v)
-    return None
+# ==============================================================================
+# CORPO DA PÁGINA (AUTO-REFRESH 60s)
+# ==============================================================================
+@st.fragment(run_every=60)
+def render_body():
+    # ---- Carregamento de dados ----
+    unificados, _ = carregar_json_absoluto("DadosAtivosUnificados.json")
+    decisao_v2, _ = carregar_json_absoluto("Decisao_V2.json")
+    smc_regras, _ = carregar_json_absoluto("AnaliseGraficaSMC_Regras.json")
+    estimativas, _ = carregar_json_absoluto("EstimativaAbertura.json")
+    if not estimativas:
+        estimativas, _ = carregar_json_absoluto("Resultado_Calculadora.json")
 
-def padrao_bola(padrao_str):
-    mapa = {"Alta": "🟢", "Baixa": "🔴", "Estavel": "🟡"}
-    partes = str(padrao_str).split("_E_")
-    if len(partes) != 2:
-        return f"⚪ {padrao_str}"
-    return f"{mapa.get(partes[0], '⚪')} → {mapa.get(partes[1], '⚪')}"
+    noticias_impacto, _ = carregar_json_absoluto("Noticias_Impacto_Dia.json")
+    noticias_0900, _ = carregar_json_absoluto("Noticias_Calendario_0900.json")
+    metricas_calc, _ = carregar_json_absoluto("Metricas_Calculadas.json")
+    resultado_op, _ = carregar_json_absoluto("Resultado_Calculadora_Operacional_Abertura.json")
+    tendencias_dados, _ = carregar_json_absoluto("Analise_Tendencias.json")
+    rom5 = carregar_rom5()
 
-win_last_v = get_p_num("WIN_LAST_TICK")
-win_ajuste_v = get_p_num("WIN_AJUSTE")
-win_fut_v = get_p_num("WIN_FUT")
+    ativos_unif = unificados.get("ativos", {})
 
-# --- Título do Painel ---
-st.markdown("<h2 style='color:#00d4ff;'>🎯 Painel Unificado de Abertura Pregão B3</h2>", unsafe_allow_html=True)
-ts_decisao = decisao_v2.get("metadata", {}).get("timestamp", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-st.caption(f"Orquestração Ativa: V2 ({ts_decisao})")
-st.info("🚀 **Fila de Execução V2:** Este painel consome a decisão oficial gerada pelo motor inteligente de confluência.")
+    def get_p_num(chave):
+        if chave in ativos_unif:
+            v = ativos_unif[chave].get("preco")
+            if v is not None and isinstance(v, (int, float)):
+                return float(v)
+        return None
 
-tab_overnight, tab_0900, tab_1000 = st.tabs([
-    "🗓️ 1. Janela Pré-Market (Ajuste)",
-    "⚡ 2. Abertura 09:00h (Leilão WIN)",
-    "📊 3. Abertura 10:00h (Pregão À Vista)"
-])
+    def get_v_num(chave):
+        if chave in ativos_unif:
+            v = ativos_unif[chave].get("variacao_pct")
+            if v is not None and isinstance(v, (int, float)):
+                return float(v)
+        return None
 
-# ============================================================
-# ABA 1: JANELA OVERNIGHT
-# ============================================================
-with tab_overnight:
-    st.markdown("#### 📍 Mini Índice WIN")
-    c_w1, c_w2, c_w3, c_w4 = st.columns(4)
-    var_win = get_v_num("WIN_FUT")
+    win_last_v = get_p_num("WIN_LAST_TICK")
+    win_ajuste_v = get_p_num("WIN_AJUSTE")
+    win_fut_v = get_p_num("WIN_FUT")
 
-    spread_win = None
-    if win_ajuste_v is not None and win_last_v is not None:
-        spread_win = win_ajuste_v - win_last_v
+    # --- Título ---
+    st.markdown("<h2 style='color:#00d4ff;'>🎯 Painel Unificado de Abertura Pregão B3</h2>", unsafe_allow_html=True)
+    ts_decisao = decisao_v2.get("metadata", {}).get("timestamp", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+    st.caption(
+        f"Orquestração Ativa: V2 ({ts_decisao}) · "
+        f"auto-refresh: 60s · ⚪ ponteiro branco = valor de 5 min atrás"
+    )
+    st.info("🚀 **Fila de Execução V2:** Este painel consome a decisão oficial gerada pelo motor de confluência.")
 
-    c_w1.metric("🎯 Ajuste", _fmt(win_ajuste_v, sufixo=" pts"))
-    c_w2.metric("📊 Futuro (Close)", _fmt(win_fut_v, sufixo=" pts"), f"{var_win:+.2f}%" if var_win is not None else None)
-    c_w3.metric("🕯️ Last (Candle)", _fmt(win_last_v, sufixo=" pts"))
-    c_w4.metric("📏 Spread (Ajuste - Last)", f"{spread_win:+,.0f} pts" if spread_win is not None else "—")
-    st.caption("💡 O 'Last' é o último tick negociado no pregão anterior (capturado via MT5).")
-    st.markdown("---")
+    tab_overnight, tab_0900, tab_1000 = st.tabs([
+        "🗓️ 1. Janela Pré-Market (Ajuste)",
+        "⚡ 2. Abertura 09:00h (Leilão WIN)",
+        "📊 3. Abertura 10:00h (Pregão À Vista)",
+    ])
 
-    # ======================================================================
-    # TERMÔMETRO MACRO COM MINI VELOCÍMETROS (centro em zero)
-    # VIX e DXY estão INVERTIDOS: subir = ruim = ponteiro para o vermelho
-    # ======================================================================
-    st.markdown("### 🌐 Termômetro Macro (com %)")
-    st.caption("Ponteiro centrado em zero · 🟢 positivo = compra · 🔴 negativo = venda · ⚠️ VIX/DXY invertidos (subir = risco)")
+    # ============================================================
+    # ABA 1
+    # ============================================================
+    with tab_overnight:
+        st.markdown("#### 📍 Mini Índice WIN")
+        c_w1, c_w2, c_w3, c_w4 = st.columns(4)
+        var_win = get_v_num("WIN_FUT")
 
-    m1, m2, m3, m4, m5, m6 = st.columns(6)
+        spread_win = None
+        if win_ajuste_v is not None and win_last_v is not None:
+            spread_win = win_ajuste_v - win_last_v
 
-    with m1:
-        mini_velocimetro(
-            get_v_num("SP500_FUT"),
-            "🇺🇸 S&P500",
-            _fmt(get_p_num("SP500_FUT"), casas=2),
-            inverter=False,
-        )
-    with m2:
-        mini_velocimetro(
-            get_v_num("NASDAQ_FUT"),
-            "💻 Nasdaq",
-            _fmt(get_p_num("NASDAQ_FUT"), casas=2),
-            inverter=False,
-        )
-    with m3:
-        mini_velocimetro(
-            get_v_num("EWZ"),
-            "🇧🇷 EWZ",
-            f"${_fmt(get_p_num('EWZ'), casas=2)}" if get_p_num("EWZ") is not None else "",
-            inverter=False,
-        )
-    with m4:
-        mini_velocimetro(
-            get_v_num("VIX"),
-            "⚠️ VIX",
-            _fmt(get_p_num("VIX"), casas=2),
-            inverter=True,   # VIX subindo = ruim = vermelho
-        )
-    with m5:
-        mini_velocimetro(
-            get_v_num("DXY"),
-            "💵 DXY",
-            _fmt(get_p_num("DXY"), casas=2),
-            inverter=True,   # DXY subindo = ruim para BRL = vermelho
-        )
-    with m6:
-        mini_velocimetro(
-            get_v_num("IRON_ORE"),
-            "⛏️ Minério",
-            f"${_fmt(get_p_num('IRON_ORE'), casas=2)}" if get_p_num("IRON_ORE") is not None else "",
-            inverter=False,
-        )
+        c_w1.metric("🎯 Ajuste", _fmt(win_ajuste_v, sufixo=" pts"))
+        c_w2.metric("📊 Futuro (Close)", _fmt(win_fut_v, sufixo=" pts"), f"{var_win:+.2f}%" if var_win is not None else None)
+        c_w3.metric("🕯️ Last (Candle)", _fmt(win_last_v, sufixo=" pts"))
+        c_w4.metric("📏 Spread (Ajuste - Last)", f"{spread_win:+,.0f} pts" if spread_win is not None else "—")
+        st.caption("💡 O 'Last' é o último tick negociado no pregão anterior (capturado via MT5).")
+        st.markdown("---")
 
-    st.markdown("---")
+        st.markdown("### 🌐 Termômetro Macro (com %)")
+        st.caption("Ponteiro centrado em zero · 🟢 positivo = compra · 🔴 negativo = venda · ⚠️ VIX/DXY invertidos")
 
-    st.markdown("### 📌 4. Contexto Macro e Confluência")
+        m1, m2, m3, m4, m5, m6 = st.columns(6)
 
-    # ---------- ADRs Brasileiras (mini velocímetros) ----------
-    st.markdown("##### ADRs Brasileiras")
-    a1, a2, a3, a4, a5, a6 = st.columns(6)
-
-    with a1:
-        mini_velocimetro(
-            get_v_num("BBD_ADR"), "BBD",
-            _fmt(get_p_num("BBD_ADR"), casas=2), inverter=False,
-        )
-    with a2:
-        mini_velocimetro(
-            get_v_num("ITUB_ADR"), "ITUB",
-            _fmt(get_p_num("ITUB_ADR"), casas=2), inverter=False,
-        )
-    with a3:
-        mini_velocimetro(
-            get_v_num("PETR_ADR"), "PETR",
-            _fmt(get_p_num("PETR_ADR"), casas=2), inverter=False,
-        )
-    with a4:
-        mini_velocimetro(
-            get_v_num("VALE_ADR"), "VALE",
-            _fmt(get_p_num("VALE_ADR"), casas=2), inverter=False,
-        )
-    with a5:
-        mini_velocimetro(
-            get_v_num("BBAS_ADR"), "BBAS",
-            _fmt(get_p_num("BBAS_ADR"), casas=2), inverter=False,
-        )
-    with a6:
-        mini_velocimetro(
-            get_v_num("B3_ADR"), "B3",
-            _fmt(get_p_num("B3_ADR"), casas=2), inverter=False,
-        )
-
-    # ---------- Macro & Taxas (mini velocímetros) ----------
-    st.markdown("##### Macro & Taxas")
-    mt1, mt2, mt3 = st.columns(3)
-
-    with mt1:
-        mini_velocimetro(
-            get_v_num("CRUDE_OIL"), "🛢️ Petróleo",
-            _fmt(get_p_num("CRUDE_OIL"), casas=2), inverter=False,
-        )
-    with mt2:
-        di27_val = get_p_num("DI1_2027")
-        mini_velocimetro(
-            get_v_num("DI1_2027"), "📈 DI 2027",
-            f"{_fmt(di27_val, casas=2)}%" if di27_val is not None else "",
-            inverter=True,   # DI subindo = juro maior = ruim para bolsa
-        )
-    with mt3:
-        di29_val = get_p_num("DI1_2029")
-        mini_velocimetro(
-            get_v_num("DI1_2029"), "📈 DI 2029",
-            f"{_fmt(di29_val, casas=2)}%" if di29_val is not None else "",
-            inverter=True,
-        )
-
-
-    st.markdown("##### Confluência com Tendência (últimos 15min)")
-    ativos_tend = ["WIN_FUT", "WDO_FUT", "SP500_FUT", "NASDAQ_FUT", "VIX", "EWZ"]
-    cols_t = st.columns(6)
-    for idx, t_ativo in enumerate(ativos_tend):
-        t_alt = next((k for k, v in TICKER_MAP.items() if v == t_ativo), "")
-        info_t = tendencias_dados.get(t_ativo) or tendencias_dados.get(t_alt) or {}
-        padrao = info_t.get("padrao_comportamento", "—") if isinstance(info_t, dict) else "—"
-        var_15 = None
-        if isinstance(info_t, dict):
-            var_15 = info_t.get("intervalo_5_para_0", {}).get("variacao_pct")
-        if var_15 is None:
-            var_15 = get_v_num(t_ativo)
-        with cols_t[idx]:
-            delta_str = f"{var_15:+.2f}%" if var_15 is not None else None
-            st.metric(label=t_ativo, value=padrao_bola(padrao) if padrao != "—" else "—", delta=delta_str, delta_color="normal" if (var_15 or 0) > 0 else "inverse" if (var_15 or 0) < 0 else "off")
-
-# ============================================================
-# ABA 2: ABERTURA 09:00H
-# ============================================================
-dados_09h = {
-    "noticias_0900": noticias_0900,
-    "metricas": metricas_calc,
-    "estimativa": estimativas,
-    "decisao_v2": decisao_v2,
-    "ativos": unificados,
-    "tendencias": tendencias_dados,
-    "resultado_operacional": resultado_op,
-    "analise_smc_regras": smc_regras,
-}
-service_09h = SetupService(dados_09h)
-
-with tab_0900:
-    st.header("Setup Abertura 09:00 – 09:15")
-    st.caption("Análise com IA e dados quantitativos")
-
-    if service_09h.janela_ok():
-        st.success("🟢 DENTRO DA JANELA (09:00 – 09:15)")
-    else:
-        st.warning(f"⏰ Fora da janela • {datetime.now().strftime('%H:%M:%S')}")
-
-    render_bloco_decisao_v2(service_09h)
-    render_bloco_leilao(service_09h)
-    render_bloco_operacionais(service_09h)
-    render_bloco_1_filtro_classificacao(service_09h)
-
-    st.markdown("---")
-    st.markdown("### 🔮 Projeção Estatística e Níveis de Pivô")
-
-    # ---------- Mini velocímetro da Variação Teórica ----------
-    pr_col1, pr_col2, pr_col3 = st.columns([1, 1, 1])
-
-    var_teorica = service_09h.var_teorica_pct
-
-    with pr_col1:
-        # Variação teórica é um % projetado; escala coerente com o mini velocímetro
-        mini_velocimetro(
-            var_teorica, "🔮 Variação Teórica",
-            f"{var_teorica:+.2f}%" if var_teorica is not None else "",
-            inverter=False,
-        )
-
-    ctx_aj = service_09h.contexto_ajuste()
-    gap_pts = ctx_aj.get("dist_pts")
-
-    with pr_col2:
-        # Gap em pontos → normaliza para escala de % aproximada (1% ≈ 1880 pts)
-        gap_pct_equiv = (gap_pts / 1880.0) if gap_pts is not None else None
-        mini_velocimetro(
-            gap_pct_equiv, "📏 Gap vs Ajuste",
-            f"{gap_pts:+.0f} pts" if gap_pts is not None else "",
-            inverter=False,
-        )
-
-    with pr_col3:
-        # Risco noticiário: 0% = sem risco, -10% = risco máximo (escala visual)
-        risco_val = -10.0 if service_09h.tem_3estrelas else 0.0
-        mini_velocimetro(
-            risco_val, "📰 Risco Noticiário",
-            "ELEVADO" if service_09h.tem_3estrelas else "BAIXO",
-            inverter=True,   # risco é ruim
-        )
-
-    pivots_w = estimativas.get("pivot_points", {}).get("WIN_FUT") or decisao_v2.get("decisao", {}).get("metadados", {}).get("pivots") or {}
-
-    
-    if pivots_w:
-        st.markdown("#### Níveis Técnicos de Suporte e Resistência (Floor Pivots)")
-        fl1, fl2 = st.columns(2)
-        r2 = pivots_w.get("R2") or pivots_w.get("r2")
-        r1 = pivots_w.get("R1") or pivots_w.get("r1")
-        pp = pivots_w.get("PP") or pivots_w.get("pp")
-        s1 = pivots_w.get("S1") or pivots_w.get("s1")
-        s2 = pivots_w.get("S2") or pivots_w.get("s2")
-
-        fl1.markdown(f"* **Resistência 2 (R2):** `{_fmt(r2)}`\n* **Resistência 1 (R1):** `{_fmt(r1)}`\n* **Ponto de Pivô (PP):** `{_fmt(pp)}`")
-        fl2.markdown(f"* **Suporte 1 (S1):** `{_fmt(s1)}`\n* **Suporte 2 (S2):** `{_fmt(s2)}`")
-    else:
-        st.caption("Níveis de pivô não disponíveis nos dados.")
-
-# ============================================================
-# ABA 3: ABERTURA 10:00H (PREGÃO À VISTA)
-# ============================================================
-with tab_1000:
-    st.markdown("<h3 style='color:#00d4ff;'>🎯 Estratégia de Abertura das 10:00h</h3>", unsafe_allow_html=True)
-    st.caption("Foco exclusivo: Mini Índice (WINFUT) — Rompimento da vela M5 das 10:00h integrado ao Orquestrador V2, SMC e Cost of Carry")
-
-    ativos = unificados.get("ativos", {})
-    win_last = ativos.get("WIN_FUT", {}).get("preco") or ativos.get("WIN_LAST_TICK", {}).get("preco")
-    win_ajuste = ativos.get("WIN_AJUSTE", {}).get("preco")
-
-    decisao_core = decisao_v2.get("decisao", {})
-    meta_smc = decisao_core.get("metadados", {}).get("smc", {})
-    meta_prec = decisao_core.get("metadados", {}).get("precificacao_teorica", {})
-
-    poc_ontem = meta_smc.get("poc_ontem") or smc_regras.get("niveis_institucionais", {}).get("poc_ontem")
-    vwap_ontem = meta_smc.get("vwap_ontem") or smc_regras.get("niveis_institucionais", {}).get("vwap_ontem")
-    ob_alinhado = meta_smc.get("ob_alinhado_com_poc")
-    preco_carregado = meta_prec.get("preco_carregado_di")
-
-    vies_final = decisao_core.get("vies_final") or smc_regras.get("bias_direcional")
-    confianca = decisao_core.get("confianca") or smc_regras.get("confianca_visual")
-
-    candle_high_10h, candle_low_10h = obter_max_min_vela_10h(win_last)
-
-    amplitude_range = None
-    if candle_high_10h is not None and candle_low_10h is not None:
-        amplitude_range = candle_high_10h - candle_low_10h
-
-    col_header1, col_header2, col_header3, col_header4 = st.columns(4)
-
-    with col_header1:
-        vies_str = str(vies_final or "—").upper()
-        conf_str = f"({confianca}%)" if confianca is not None else ""
-        if "COMPRA" in vies_str or vies_str == "ALTA":
-            st.success(f"Viés V2: COMPRA {conf_str}")
-        elif "VENDA" in vies_str or vies_str == "BAIXA":
-            st.error(f"Viés V2: VENDA {conf_str}")
-        else:
-            st.warning(f"Viés V2: {vies_str} {conf_str}")
-
-    with col_header2:
-        st.metric("Preço Atual (MT5)", _fmt(win_last, sufixo=" pts"))
-
-    with col_header3:
-        dist_ajuste = None
-        if win_last is not None and win_ajuste is not None:
-            dist_ajuste = win_last - win_ajuste
-        st.metric("Distância do Ajuste", f"{dist_ajuste:+.0f} pts" if dist_ajuste is not None else "—")
-
-    with col_header4:
-        ob_delta = "OB Alinhado 🟢" if ob_alinhado is True else None
-        st.metric("POC Ontem", _fmt(poc_ontem, sufixo=" pts"), delta=ob_delta)
-
-    t1, t2, t3 = st.columns(3)
-    t1.metric("VWAP Ontem", _fmt(vwap_ontem, casas=1, sufixo=" pts"))
-    t2.metric("Preço Carregado (DI)", _fmt(preco_carregado, sufixo=" pts"))
-    t3.metric("Amplitude Vela 10h", f"{amplitude_range:.0f} pts" if amplitude_range is not None else "—")
-
-    st.markdown("---")
-
-    col_sinal, col_metricas = st.columns([1.5, 1])
-
-    with col_sinal:
-        st.markdown("### 📡 Status do Sinal Operacional (Rompimento 10h)")
-
-        if amplitude_range is None:
-            st.markdown(
-                "<div style='background-color:#1e2230; padding:15px; border-radius:8px;'>"
-                "⚠️ <b>DADOS INDISPONÍVEIS:</b> Não foi possível obter a vela M5 das 10:00h via MT5.</div>",
-                unsafe_allow_html=True
+        with m1:
+            mini_velocimetro(
+                get_v_num("SP500_FUT"), "🇺🇸 S&P500",
+                _fmt(get_p_num("SP500_FUT"), casas=2),
+                inverter=False,
+                valor_anterior=_get_var_rom5(rom5, "SP500_FUT"),
             )
-        elif amplitude_range > 700 or amplitude_range < 50:
-            st.markdown(
-                f"<div style='background-color:rgba(255,107,107,0.15); padding:15px; border-radius:8px; border:1px solid #ff6b6b;'>"
-                f"⚠️ <b>SINAL OPERACIONAL BLOQUEADO:</b> A amplitude da vela das 10:00h está fora do padrão "
-                f"operacional seguro ({amplitude_range:.0f} pontos). Alto risco de ruído ou volatilidade abusiva.</div>",
-                unsafe_allow_html=True
+        with m2:
+            mini_velocimetro(
+                get_v_num("NASDAQ_FUT"), "💻 Nasdaq",
+                _fmt(get_p_num("NASDAQ_FUT"), casas=2),
+                inverter=False,
+                valor_anterior=_get_var_rom5(rom5, "NASDAQ_FUT"),
             )
+        with m3:
+            mini_velocimetro(
+                get_v_num("EWZ"), "🇧🇷 EWZ",
+                f"${_fmt(get_p_num('EWZ'), casas=2)}" if get_p_num("EWZ") is not None else "",
+                inverter=False,
+                valor_anterior=_get_var_rom5(rom5, "EWZ"),
+            )
+        with m4:
+            mini_velocimetro(
+                get_v_num("VIX"), "⚠️ VIX",
+                _fmt(get_p_num("VIX"), casas=2),
+                inverter=True,
+                valor_anterior=_get_var_rom5(rom5, "VIX"),
+            )
+        with m5:
+            mini_velocimetro(
+                get_v_num("DXY"), "💵 DXY",
+                _fmt(get_p_num("DXY"), casas=2),
+                inverter=True,
+                valor_anterior=_get_var_rom5(rom5, "DXY"),
+            )
+        with m6:
+            mini_velocimetro(
+                get_v_num("IRON_ORE"), "⛏️ Minério",
+                f"${_fmt(get_p_num('IRON_ORE'), casas=2)}" if get_p_num("IRON_ORE") is not None else "",
+                inverter=False,
+                valor_anterior=_get_var_rom5(rom5, "IRON_ORE"),
+            )
+
+        st.markdown("---")
+        st.markdown("### 📌 4. Contexto Macro e Confluência")
+
+        st.markdown("##### ADRs Brasileiras")
+        a1, a2, a3, a4, a5, a6 = st.columns(6)
+
+        with a1:
+            mini_velocimetro(
+                get_v_num("BBD_ADR"), "BBD",
+                _fmt(get_p_num("BBD_ADR"), casas=2), inverter=False,
+                valor_anterior=_get_var_rom5(rom5, "BBD_ADR"),
+            )
+        with a2:
+            mini_velocimetro(
+                get_v_num("ITUB_ADR"), "ITUB",
+                _fmt(get_p_num("ITUB_ADR"), casas=2), inverter=False,
+                valor_anterior=_get_var_rom5(rom5, "ITUB_ADR"),
+            )
+        with a3:
+            mini_velocimetro(
+                get_v_num("PETR_ADR"), "PETR",
+                _fmt(get_p_num("PETR_ADR"), casas=2), inverter=False,
+                valor_anterior=_get_var_rom5(rom5, "PETR_ADR"),
+            )
+        with a4:
+            mini_velocimetro(
+                get_v_num("VALE_ADR"), "VALE",
+                _fmt(get_p_num("VALE_ADR"), casas=2), inverter=False,
+                valor_anterior=_get_var_rom5(rom5, "VALE_ADR"),
+            )
+        with a5:
+            mini_velocimetro(
+                get_v_num("BBAS_ADR"), "BBAS",
+                _fmt(get_p_num("BBAS_ADR"), casas=2), inverter=False,
+                valor_anterior=_get_var_rom5(rom5, "BBAS_ADR"),
+            )
+        with a6:
+            mini_velocimetro(
+                get_v_num("B3_ADR"), "B3",
+                _fmt(get_p_num("B3_ADR"), casas=2), inverter=False,
+                valor_anterior=_get_var_rom5(rom5, "B3_ADR"),
+            )
+
+        st.markdown("##### Macro & Taxas")
+        mt1, mt2, mt3 = st.columns(3)
+
+        with mt1:
+            mini_velocimetro(
+                get_v_num("CRUDE_OIL"), "🛢️ Petróleo",
+                _fmt(get_p_num("CRUDE_OIL"), casas=2), inverter=False,
+                valor_anterior=_get_var_rom5(rom5, "CRUDE_OIL"),
+            )
+        with mt2:
+            di27_val = get_p_num("DI1_2027")
+            mini_velocimetro(
+                get_v_num("DI1_2027"), "📈 DI 2027",
+                f"{_fmt(di27_val, casas=2)}%" if di27_val is not None else "",
+                inverter=True,
+                valor_anterior=_get_var_rom5(rom5, "DI1_2027"),
+            )
+        with mt3:
+            di29_val = get_p_num("DI1_2029")
+            mini_velocimetro(
+                get_v_num("DI1_2029"), "📈 DI 2029",
+                f"{_fmt(di29_val, casas=2)}%" if di29_val is not None else "",
+                inverter=True,
+                valor_anterior=_get_var_rom5(rom5, "DI1_2029"),
+            )
+
+        st.markdown("##### Confluência com Tendência (últimos 15min)")
+        ativos_tend = ["WIN_FUT", "WDO_FUT", "SP500_FUT", "NASDAQ_FUT", "VIX", "EWZ"]
+        cols_t = st.columns(6)
+        for idx, t_ativo in enumerate(ativos_tend):
+            t_alt = next((k for k, v in TICKER_MAP.items() if v == t_ativo), "")
+            info_t = tendencias_dados.get(t_ativo) or tendencias_dados.get(t_alt) or {}
+            padrao = info_t.get("padrao_comportamento", "—") if isinstance(info_t, dict) else "—"
+            var_15 = None
+            if isinstance(info_t, dict):
+                var_15 = info_t.get("intervalo_5_para_0", {}).get("variacao_pct")
+            if var_15 is None:
+                var_15 = get_v_num(t_ativo)
+            with cols_t[idx]:
+                delta_str = f"{var_15:+.2f}%" if var_15 is not None else None
+                st.metric(
+                    label=t_ativo,
+                    value=padrao_bola(padrao) if padrao != "—" else "—",
+                    delta=delta_str,
+                    delta_color="normal" if (var_15 or 0) > 0 else "inverse" if (var_15 or 0) < 0 else "off",
+                )
+
+    # ============================================================
+    # ABA 2
+    # ============================================================
+    dados_09h = {
+        "noticias_0900": noticias_0900,
+        "metricas": metricas_calc,
+        "estimativa": estimativas,
+        "decisao_v2": decisao_v2,
+        "ativos": unificados,
+        "tendencias": tendencias_dados,
+        "resultado_operacional": resultado_op,
+        "analise_smc_regras": smc_regras,
+    }
+    service_09h = SetupService(dados_09h)
+
+    with tab_0900:
+        st.header("Setup Abertura 09:00 – 09:15")
+        st.caption("Análise com IA e dados quantitativos")
+
+        if service_09h.janela_ok():
+            st.success("🟢 DENTRO DA JANELA (09:00 – 09:15)")
         else:
-            vies_str = str(vies_final or "").upper()
+            st.warning(f"⏰ Fora da janela • {datetime.now().strftime('%H:%M:%S')}")
+
+        render_bloco_decisao_v2(service_09h)
+        render_bloco_leilao(service_09h)
+        render_bloco_operacionais(service_09h, rom5)
+        render_bloco_1_filtro_classificacao(service_09h, rom5)
+
+        st.markdown("---")
+        st.markdown("### 🔮 Projeção Estatística e Níveis de Pivô")
+
+        pr_col1, pr_col2, pr_col3 = st.columns([1, 1, 1])
+
+        var_teorica = service_09h.var_teorica_pct
+
+        with pr_col1:
+            mini_velocimetro(
+                var_teorica, "🔮 Variação Teórica",
+                f"{var_teorica:+.2f}%" if var_teorica is not None else "",
+                inverter=False,
+            )
+
+        ctx_aj = service_09h.contexto_ajuste()
+        gap_pts = ctx_aj.get("dist_pts")
+
+        with pr_col2:
+            gap_pct_equiv = (gap_pts / 1880.0) if gap_pts is not None else None
+            mini_velocimetro(
+                gap_pct_equiv, "📏 Gap vs Ajuste",
+                f"{gap_pts:+.0f} pts" if gap_pts is not None else "",
+                inverter=False,
+            )
+
+        with pr_col3:
+            risco_val = -10.0 if service_09h.tem_3estrelas else 0.0
+            mini_velocimetro(
+                risco_val, "📰 Risco Noticiário",
+                "ELEVADO" if service_09h.tem_3estrelas else "BAIXO",
+                inverter=True,
+            )
+
+        pivots_w = estimativas.get("pivot_points", {}).get("WIN_FUT") or decisao_v2.get("decisao", {}).get("metadados", {}).get("pivots") or {}
+
+        if pivots_w:
+            st.markdown("#### Níveis Técnicos de Suporte e Resistência (Floor Pivots)")
+            fl1, fl2 = st.columns(2)
+            r2 = pivots_w.get("R2") or pivots_w.get("r2")
+            r1 = pivots_w.get("R1") or pivots_w.get("r1")
+            pp = pivots_w.get("PP") or pivots_w.get("pp")
+            s1 = pivots_w.get("S1") or pivots_w.get("s1")
+            s2 = pivots_w.get("S2") or pivots_w.get("s2")
+
+            fl1.markdown(f"* **Resistência 2 (R2):** `{_fmt(r2)}`\n* **Resistência 1 (R1):** `{_fmt(r1)}`\n* **Ponto de Pivô (PP):** `{_fmt(pp)}`")
+            fl2.markdown(f"* **Suporte 1 (S1):** `{_fmt(s1)}`\n* **Suporte 2 (S2):** `{_fmt(s2)}`")
+        else:
+            st.caption("Níveis de pivô não disponíveis nos dados.")
+
+    # ============================================================
+    # ABA 3
+    # ============================================================
+    with tab_1000:
+        st.markdown("<h3 style='color:#00d4ff;'>🎯 Estratégia de Abertura das 10:00h</h3>", unsafe_allow_html=True)
+        st.caption("Foco exclusivo: Mini Índice (WINFUT)")
+
+        ativos = unificados.get("ativos", {})
+        win_last = ativos.get("WIN_FUT", {}).get("preco") or ativos.get("WIN_LAST_TICK", {}).get("preco")
+        win_ajuste = ativos.get("WIN_AJUSTE", {}).get("preco")
+
+        decisao_core = decisao_v2.get("decisao", {})
+        meta_smc = decisao_core.get("metadados", {}).get("smc", {})
+        meta_prec = decisao_core.get("metadados", {}).get("precificacao_teorica", {})
+
+        poc_ontem = meta_smc.get("poc_ontem") or smc_regras.get("niveis_institucionais", {}).get("poc_ontem")
+        vwap_ontem = meta_smc.get("vwap_ontem") or smc_regras.get("niveis_institucionais", {}).get("vwap_ontem")
+        ob_alinhado = meta_smc.get("ob_alinhado_com_poc")
+        preco_carregado = meta_prec.get("preco_carregado_di")
+
+        vies_final = decisao_core.get("vies_final") or smc_regras.get("bias_direcional")
+        confianca = decisao_core.get("confianca") or smc_regras.get("confianca_visual")
+
+        candle_high_10h, candle_low_10h = obter_max_min_vela_10h(win_last)
+
+        amplitude_range = None
+        if candle_high_10h is not None and candle_low_10h is not None:
+            amplitude_range = candle_high_10h - candle_low_10h
+
+        col_header1, col_header2, col_header3, col_header4 = st.columns(4)
+
+        with col_header1:
+            vies_str = str(vies_final or "—").upper()
+            conf_str = f"({confianca}%)" if confianca is not None else ""
             if "COMPRA" in vies_str or vies_str == "ALTA":
-                entrada = candle_high_10h + 5
-                stop = candle_low_10h - 20
-                alvo = entrada + amplitude_range
-
-                st.markdown(
-                    f"<div style='background-color:rgba(0,212,255,0.1); padding:15px; border-radius:8px; border:1px solid #00d4ff;'>"
-                    f"🟢 <b>PREPARADO PARA COMPRA:</b> Preço trabalhando para romper a Máxima da vela das 10h.<br>"
-                    f"• <b>Gatilho Buy Stop:</b> {entrada:,.0f} pts (Máxima + 1 tick)<br>"
-                    f"• <b>Stop Loss Técnico:</b> {stop:,.0f} pts (Mínima - margem)<br>"
-                    f"• <b>Alvo (Projeção 100%):</b> {alvo:,.0f} pts</div>",
-                    unsafe_allow_html=True
-                )
+                st.success(f"Viés V2: COMPRA {conf_str}")
             elif "VENDA" in vies_str or vies_str == "BAIXA":
-                entrada = candle_low_10h - 5
-                stop = candle_high_10h + 20
-                alvo = entrada - amplitude_range
-
-                st.markdown(
-                    f"<div style='background-color:rgba(255,107,107,0.1); padding:15px; border-radius:8px; border:1px solid #ff6b6b;'>"
-                    f"🔴 <b>PREPARADO PARA VENDA:</b> Preço trabalhando para romper a Mínima da vela das 10h.<br>"
-                    f"• <b>Gatilho Sell Stop:</b> {entrada:,.0f} pts (Mínima - 1 tick)<br>"
-                    f"• <b>Stop Loss Técnico:</b> {stop:,.0f} pts (Máxima + margem)<br>"
-                    f"• <b>Alvo (Projeção 100%):</b> {alvo:,.0f} pts</div>",
-                    unsafe_allow_html=True
-                )
+                st.error(f"Viés V2: VENDA {conf_str}")
             else:
+                st.warning(f"Viés V2: {vies_str} {conf_str}")
+
+        with col_header2:
+            st.metric("Preço Atual (MT5)", _fmt(win_last, sufixo=" pts"))
+
+        with col_header3:
+            dist_ajuste = None
+            if win_last is not None and win_ajuste is not None:
+                dist_ajuste = win_last - win_ajuste
+            st.metric("Distância do Ajuste", f"{dist_ajuste:+.0f} pts" if dist_ajuste is not None else "—")
+
+        with col_header4:
+            ob_delta = "OB Alinhado 🟢" if ob_alinhado is True else None
+            st.metric("POC Ontem", _fmt(poc_ontem, sufixo=" pts"), delta=ob_delta)
+
+        t1, t2, t3 = st.columns(3)
+        t1.metric("VWAP Ontem", _fmt(vwap_ontem, casas=1, sufixo=" pts"))
+        t2.metric("Preço Carregado (DI)", _fmt(preco_carregado, sufixo=" pts"))
+        t3.metric("Amplitude Vela 10h", f"{amplitude_range:.0f} pts" if amplitude_range is not None else "—")
+
+        st.markdown("---")
+
+        col_sinal, col_metricas = st.columns([1.5, 1])
+
+        with col_sinal:
+            st.markdown("### 📡 Status do Sinal Operacional (Rompimento 10h)")
+
+            if amplitude_range is None:
                 st.markdown(
                     "<div style='background-color:#1e2230; padding:15px; border-radius:8px;'>"
-                    "⚖️ <b>AGUARDANDO:</b> Orquestrador V2 aponta neutralidade macro. Não operar a abertura.</div>",
-                    unsafe_allow_html=True
+                    "⚠️ <b>DADOS INDISPONÍVEIS:</b> Não foi possível obter a vela M5 das 10:00h via MT5.</div>",
+                    unsafe_allow_html=True,
                 )
-
-    with col_metricas:
-        st.markdown("### 📊 Métricas da Vela 10:00h (M5)")
-        c1, c2 = st.columns(2)
-        c1.metric("Máxima (10h)", _fmt(candle_high_10h, sufixo=" pts"))
-        c1.metric("Mínima (10h)", _fmt(candle_low_10h, sufixo=" pts"))
-        c2.metric("Amplitude", f"{amplitude_range:.0f} pts" if amplitude_range is not None else "—")
-        c2.metric("Ajuste Diário", _fmt(win_ajuste, sufixo=" pts"))
-
-    st.markdown("---")
-
-    st.markdown("### 🧠 Filtros e Estruturas de Liquidez Ativas (SMC V2.6)")
-    col_ob, col_fvg, col_liq = st.columns(3)
-
-    with col_ob:
-        st.markdown("**Order Blocks Recentes (Volume Confirmed)**")
-        obs = meta_smc.get("order_blocks") or smc_regras.get("order_blocks", [])
-        if obs:
-            for ob in obs[:3]:
-                tipo = ob.get("tipo", "OB")
-                cor = "#00ff88" if tipo == "COMPRA" else "#ff6b6b"
-                preco = ob.get("preco") or ob.get("high")
-                low = ob.get("low")
-                high = ob.get("high")
+            elif amplitude_range > 700 or amplitude_range < 50:
                 st.markdown(
-                    f"• <span style='color:{cor};'>OB de {tipo}</span> em `{_fmt(preco)}` "
-                    f"(Níveis: {_fmt(low)}-{_fmt(high)})",
-                    unsafe_allow_html=True
+                    f"<div style='background-color:rgba(255,107,107,0.15); padding:15px; border-radius:8px; border:1px solid #ff6b6b;'>"
+                    f"⚠️ <b>SINAL OPERACIONAL BLOQUEADO:</b> Amplitude fora do padrão "
+                    f"({amplitude_range:.0f} pts).</div>",
+                    unsafe_allow_html=True,
                 )
-        else:
-            st.caption("Nenhum Order Block validado por volume na região atual.")
+            else:
+                vies_str = str(vies_final or "").upper()
+                if "COMPRA" in vies_str or vies_str == "ALTA":
+                    entrada = candle_high_10h + 5
+                    stop = candle_low_10h - 20
+                    alvo = entrada + amplitude_range
+                    st.markdown(
+                        f"<div style='background-color:rgba(0,212,255,0.1); padding:15px; border-radius:8px; border:1px solid #00d4ff;'>"
+                        f"🟢 <b>PREPARADO PARA COMPRA:</b><br>"
+                        f"• <b>Buy Stop:</b> {entrada:,.0f} pts<br>"
+                        f"• <b>Stop:</b> {stop:,.0f} pts<br>"
+                        f"• <b>Alvo:</b> {alvo:,.0f} pts</div>",
+                        unsafe_allow_html=True,
+                    )
+                elif "VENDA" in vies_str or vies_str == "BAIXA":
+                    entrada = candle_low_10h - 5
+                    stop = candle_high_10h + 20
+                    alvo = entrada - amplitude_range
+                    st.markdown(
+                        f"<div style='background-color:rgba(255,107,107,0.1); padding:15px; border-radius:8px; border:1px solid #ff6b6b;'>"
+                        f"🔴 <b>PREPARADO PARA VENDA:</b><br>"
+                        f"• <b>Sell Stop:</b> {entrada:,.0f} pts<br>"
+                        f"• <b>Stop:</b> {stop:,.0f} pts<br>"
+                        f"• <b>Alvo:</b> {alvo:,.0f} pts</div>",
+                        unsafe_allow_html=True,
+                    )
+                else:
+                    st.markdown(
+                        "<div style='background-color:#1e2230; padding:15px; border-radius:8px;'>"
+                        "⚖️ <b>AGUARDANDO:</b> Orquestrador V2 aponta neutralidade macro.</div>",
+                        unsafe_allow_html=True,
+                    )
 
-    with col_fvg:
-        st.markdown("**Fair Value Gaps Abertos (Imbalance)**")
-        fvgs = meta_smc.get("fvgs") or smc_regras.get("fair_value_gaps", [])
-        fvgs_abertos = [f for f in fvgs if not f.get("preenchido", False)]
-        if fvgs_abertos:
-            for fvg in fvgs_abertos[:3]:
-                tipo = fvg.get("tipo", "COMPRA")
-                cor = "#00ff88" if tipo == "COMPRA" else "#ff6b6b"
-                st.markdown(
-                    f"• <span style='color:{cor};'>FVG {tipo}</span> | "
-                    f"Zona: `{_fmt(fvg.get('inferior'))}` - `{_fmt(fvg.get('superior'))}`",
-                    unsafe_allow_html=True
-                )
-        else:
-            st.caption("Mercado eficiente. Sem desequilíbrios institucionais abertos.")
+        with col_metricas:
+            st.markdown("### 📊 Métricas da Vela 10:00h (M5)")
+            c1, c2 = st.columns(2)
+            c1.metric("Máxima (10h)", _fmt(candle_high_10h, sufixo=" pts"))
+            c1.metric("Mínima (10h)", _fmt(candle_low_10h, sufixo=" pts"))
+            c2.metric("Amplitude", f"{amplitude_range:.0f} pts" if amplitude_range is not None else "—")
+            c2.metric("Ajuste Diário", _fmt(win_ajuste, sufixo=" pts"))
 
-    with col_liq:
-        st.markdown("**Piscinas de Liquidez Pendentes**")
-        liq = smc_regras.get("liquidez", {})
-        bsl = liq.get("bsl", [])
-        ssl = liq.get("ssl", [])
+        st.markdown("---")
+        st.markdown("### 🧠 Filtros e Estruturas de Liquidez Ativas (SMC V2.6)")
+        col_ob, col_fvg, col_liq = st.columns(3)
 
-        if bsl:
-            st.markdown(f"🔼 **BSL (Buy Side):** `{_fmt(bsl[0])}` pts — Alvo de caça comprador.")
-        if ssl:
-            st.markdown(f"🔽 **SSL (Sell Side):** `{_fmt(ssl[0])}` pts — Alvo de caça vendedor.")
-        if not bsl and not ssl:
-            st.caption("Sem topos ou fundos duplos mapeados.")
+        with col_ob:
+            st.markdown("**Order Blocks Recentes**")
+            obs = meta_smc.get("order_blocks") or smc_regras.get("order_blocks", [])
+            if obs:
+                for ob in obs[:3]:
+                    tipo = ob.get("tipo", "OB")
+                    cor = "#00ff88" if tipo == "COMPRA" else "#ff6b6b"
+                    preco = ob.get("preco") or ob.get("high")
+                    low = ob.get("low")
+                    high = ob.get("high")
+                    st.markdown(
+                        f"• <span style='color:{cor};'>OB de {tipo}</span> em `{_fmt(preco)}` "
+                        f"(Níveis: {_fmt(low)}-{_fmt(high)})",
+                        unsafe_allow_html=True,
+                    )
+            else:
+                st.caption("Nenhum Order Block validado.")
 
-    st.markdown("---")
+        with col_fvg:
+            st.markdown("**Fair Value Gaps Abertos**")
+            fvgs = meta_smc.get("fvgs") or smc_regras.get("fair_value_gaps", [])
+            fvgs_abertos = [f for f in fvgs if not f.get("preenchido", False)]
+            if fvgs_abertos:
+                for fvg in fvgs_abertos[:3]:
+                    tipo = fvg.get("tipo", "COMPRA")
+                    cor = "#00ff88" if tipo == "COMPRA" else "#ff6b6b"
+                    st.markdown(
+                        f"• <span style='color:{cor};'>FVG {tipo}</span> | "
+                        f"Zona: `{_fmt(fvg.get('inferior'))}` - `{_fmt(fvg.get('superior'))}`",
+                        unsafe_allow_html=True,
+                    )
+            else:
+                st.caption("Mercado eficiente.")
 
-    st.markdown("### 📉 Visão Gráfica e Monitoramento de Rompimento")
+        with col_liq:
+            st.markdown("**Piscinas de Liquidez Pendentes**")
+            liq = smc_regras.get("liquidez", {})
+            bsl = liq.get("bsl", [])
+            ssl = liq.get("ssl", [])
+            if bsl:
+                st.markdown(f"🔼 **BSL:** `{_fmt(bsl[0])}` pts — Alvo de caça comprador.")
+            if ssl:
+                st.markdown(f"🔽 **SSL:** `{_fmt(ssl[0])}` pts — Alvo de caça vendedor.")
+            if not bsl and not ssl:
+                st.caption("Sem topos ou fundos duplos mapeados.")
 
-    fig = go.Figure()
+        st.markdown("---")
+        st.markdown("### 📉 Visão Gráfica e Monitoramento de Rompimento")
 
-    if win_ajuste is not None:
-        fig.add_trace(go.Scatter(
-            x=[0, 10], y=[win_ajuste, win_ajuste],
-            mode="lines", name="Ajuste Oficial B3",
-            line=dict(color="orange", dash="dash")
-        ))
+        fig = go.Figure()
 
-    if poc_ontem is not None:
-        fig.add_trace(go.Scatter(
-            x=[0, 10], y=[poc_ontem, poc_ontem],
-            mode="lines", name="POC Ontem (Volume Máx)",
-            line=dict(color="#a855f7", dash="dot")
-        ))
-    if vwap_ontem is not None:
-        fig.add_trace(go.Scatter(
-            x=[0, 10], y=[vwap_ontem, vwap_ontem],
-            mode="lines", name="VWAP Ontem",
-            line=dict(color="#9ca3af", dash="dot")
-        ))
+        if win_ajuste is not None:
+            fig.add_trace(go.Scatter(x=[0, 10], y=[win_ajuste, win_ajuste], mode="lines", name="Ajuste Oficial B3", line=dict(color="orange", dash="dash")))
 
-    if candle_high_10h is not None:
-        fig.add_trace(go.Scatter(
-            x=[2, 8], y=[candle_high_10h, candle_high_10h],
-            mode="lines+text", name="Máxima Mãe (Resistência)",
-            line=dict(color="#00d4ff", width=2),
-            text=[f"Gatilho Compra ({candle_high_10h:,.0f})"],
-            textposition="top center"
-        ))
-    if candle_low_10h is not None:
-        fig.add_trace(go.Scatter(
-            x=[2, 8], y=[candle_low_10h, candle_low_10h],
-            mode="lines+text", name="Mínima Mãe (Suporte)",
-            line=dict(color="#ff6b6b", width=2),
-            text=[f"Gatilho Venda ({candle_low_10h:,.0f})"],
-            textposition="bottom center"
-        ))
+        if poc_ontem is not None:
+            fig.add_trace(go.Scatter(x=[0, 10], y=[poc_ontem, poc_ontem], mode="lines", name="POC Ontem", line=dict(color="#a855f7", dash="dot")))
+        if vwap_ontem is not None:
+            fig.add_trace(go.Scatter(x=[0, 10], y=[vwap_ontem, vwap_ontem], mode="lines", name="VWAP Ontem", line=dict(color="#9ca3af", dash="dot")))
 
-    if win_last is not None:
-        fig.add_trace(go.Scatter(
-            x=[5], y=[win_last],
-            mode="markers+text", name="Preço Atual B3",
-            marker=dict(color="white", size=14, symbol="diamond"),
-            text=[f"WIN: {win_last:,.0f}"],
-            textposition="middle right"
-        ))
+        if candle_high_10h is not None:
+            fig.add_trace(go.Scatter(
+                x=[2, 8], y=[candle_high_10h, candle_high_10h],
+                mode="lines+text", name="Máxima Mãe",
+                line=dict(color="#00d4ff", width=2),
+                text=[f"Gatilho Compra ({candle_high_10h:,.0f})"],
+                textposition="top center",
+            ))
+        if candle_low_10h is not None:
+            fig.add_trace(go.Scatter(
+                x=[2, 8], y=[candle_low_10h, candle_low_10h],
+                mode="lines+text", name="Mínima Mãe",
+                line=dict(color="#ff6b6b", width=2),
+                text=[f"Gatilho Venda ({candle_low_10h:,.0f})"],
+                textposition="bottom center",
+            ))
 
-    fig.update_layout(
-        title="Níveis Críticos para a Janela de Rompimento Institucional (Vela 10h)",
-        xaxis=dict(showgrid=False, showticklabels=False),
-        yaxis=dict(title="Pontuação Mini Índice (WIN)", autorange=True),
-        template="plotly_dark",
-        height=450,
-        margin=dict(l=20, r=20, t=40, b=20),
-        legend=dict(
-            orientation="v",
-            yanchor="middle",
-            y=0.5,
-            xanchor="left",
-            x=1.02
+        if win_last is not None:
+            fig.add_trace(go.Scatter(
+                x=[5], y=[win_last],
+                mode="markers+text", name="Preço Atual B3",
+                marker=dict(color="white", size=14, symbol="diamond"),
+                text=[f"WIN: {win_last:,.0f}"],
+                textposition="middle right",
+            ))
+
+        fig.update_layout(
+            title="Níveis Críticos para a Janela de Rompimento Institucional",
+            xaxis=dict(showgrid=False, showticklabels=False),
+            yaxis=dict(title="Pontuação Mini Índice (WIN)", autorange=True),
+            template="plotly_dark",
+            height=450,
+            margin=dict(l=20, r=20, t=40, b=20),
+            legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.02),
         )
-    )
 
-    st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True)
+
+
+# ==============================================================================
+# EXECUÇÃO
+# ==============================================================================
+render_body()
