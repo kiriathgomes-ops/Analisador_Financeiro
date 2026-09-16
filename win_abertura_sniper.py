@@ -28,6 +28,21 @@ INTERVALO = 0.25
 TAMANHO_JANELA_TENDENCIA = 40  # ~10 segundos de memória do leilão
 INTERVALO_FORCAR_GRAVACAO = 10.0  # segundos
 
+# ============================================================
+# FILTRO DE SANIDADE DO PREÇO
+# ============================================================
+# Limite absoluto: WIN nunca esteve fora dessa faixa na história
+PRECO_MIN_ABSOLUTO = 50000
+PRECO_MAX_ABSOLUTO = 300000
+
+# Salto máximo aceito (em pontos) entre leituras consecutivas.
+# Para replay acelerado, aumentar (ex: 2000). Para mercado real, 500 é OK.
+LIMITE_SALTO_PTS = 1000
+
+# Quantas leituras anteriores usar como referência de "regime atual"
+JANELA_REFERENCIA = 5
+# ============================================================
+
 # TRATAMENTO DINÂMICO DO TESSERACT
 tesseract_bin = shutil.which("tesseract")
 if tesseract_bin:
@@ -49,7 +64,6 @@ else:
 # ROTAÇÃO DIÁRIA DO CSV
 # ============================================================
 def _parse_data(texto: str):
-    """Tenta parsear data com ou sem milissegundos. Retorna None se falhar."""
     texto = texto.strip()
     for fmt in ("%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%d %H:%M:%S"):
         try:
@@ -60,7 +74,6 @@ def _parse_data(texto: str):
 
 
 def _ultima_data_no_csv() -> datetime:
-    """Lê o CSV atual e retorna a data do último registro válido. None se vazio."""
     if not os.path.exists(ARQUIVO_CSV):
         return None
 
@@ -84,37 +97,25 @@ def _ultima_data_no_csv() -> datetime:
 
 
 def rotacionar_csv_se_necessario():
-    """
-    Se o CSV atual tem registros de data ANTERIOR a hoje, move o arquivo
-    pra pasta de histórico com nome baseado na data dos dados.
-
-    Comportamento:
-      - CSV atual com dados só de hoje → não faz nada
-      - CSV atual com dados de ontem  → move pra histórico
-      - CSV atual vazio/inexistente   → não faz nada
-    """
     ultima_data = _ultima_data_no_csv()
     if ultima_data is None:
-        return  # vazio, nada a fazer
+        return
 
     hoje = datetime.now().date()
     if ultima_data.date() == hoje:
-        return  # já tem dados de hoje, não rotaciona
+        return
 
-    # Precisa rotacionar
     data_ref = ultima_data.date().isoformat()
     nome_hist = f"preco_teorico_{data_ref}.csv"
     destino = os.path.join(PASTA_HISTORICO, nome_hist)
 
     if os.path.exists(destino):
-        # Já existe arquivo com essa data → concatena
         try:
             with open(destino, "r", encoding="utf-8-sig") as f:
                 linhas_hist = f.readlines()
             with open(ARQUIVO_CSV, "r", encoding="utf-8-sig") as f:
                 linhas_novas = f.readlines()
 
-            # Remove header do novo se existir
             if linhas_novas and linhas_novas[0].lower().startswith("datahora"):
                 linhas_novas = linhas_novas[1:]
 
@@ -127,7 +128,6 @@ def rotacionar_csv_se_necessario():
         except Exception as e:
             print(f"⚠️ Falha ao concatenar: {e}")
     else:
-        # Move direto
         try:
             shutil.move(ARQUIVO_CSV, destino)
             print(f"📦 CSV rotacionado: {nome_hist}")
@@ -136,8 +136,55 @@ def rotacionar_csv_se_necessario():
 # ============================================================
 
 
+# ============================================================
+# FILTRO DE SANIDADE DO PREÇO
+# ============================================================
+class FiltroPreco:
+    """
+    Filtra leituras absurdas do OCR.
+
+    Regras:
+      1. Preço dentro de [PRECO_MIN_ABSOLUTO, PRECO_MAX_ABSOLUTO]
+      2. |preço - mediana das últimas N leituras| < LIMITE_SALTO_PTS
+    """
+
+    def __init__(self):
+        self.ultimos_aceitos = deque(maxlen=JANELA_REFERENCIA)
+
+    def aceitar(self, preco: int) -> tuple:
+        """
+        Retorna (aceitar: bool, motivo: str).
+        """
+        # Regra 1: faixa absoluta
+        if preco < PRECO_MIN_ABSOLUTO or preco > PRECO_MAX_ABSOLUTO:
+            return False, f"fora da faixa absoluta [{PRECO_MIN_ABSOLUTO}, {PRECO_MAX_ABSOLUTO}]"
+
+        # Sem histórico → aceita
+        if not self.ultimos_aceitos:
+            self.ultimos_aceitos.append(preco)
+            return True, "primeira leitura"
+
+        # Regra 2: comparar com mediana
+        lista_ordenada = sorted(self.ultimos_aceitos)
+        n = len(lista_ordenada)
+        if n % 2 == 1:
+            mediana = lista_ordenada[n // 2]
+        else:
+            mediana = (lista_ordenada[n // 2 - 1] + lista_ordenada[n // 2]) / 2
+
+        delta = abs(preco - mediana)
+        if delta > LIMITE_SALTO_PTS:
+            return False, f"salto de {delta:+.0f} pts da mediana {mediana:.0f}"
+
+        self.ultimos_aceitos.append(preco)
+        return True, "OK"
+
+    def resetar(self):
+        self.ultimos_aceitos.clear()
+# ============================================================
+
+
 def carregar_contextos():
-    """Lê os arquivos JSON da pasta Coletas para formar a visão Macro e Institucional."""
     contexto = {
         "vies_macro": "NEUTRO",
         "score_macro": 0,
@@ -220,15 +267,25 @@ def melhorar_para_ocr(img_pil):
 def extrair_numero(img_pil):
     try:
         img_proc = melhorar_para_ocr(img_pil)
-        config = r'--oem 3 --psm 7 -c tessedit_char_whitelist=0123456789.'
+        # PSM 8 (single word) — melhor pra essa fonte do MT5
+        config = r'--oem 3 --psm 8 -c tessedit_char_whitelist=0123456789.'
         texto_bruto = pytesseract.image_to_string(img_proc, config=config).strip()
 
+        # Aceita padrão "189.142" ou "189142.00"
+        # Primeiro tenta o formato com ponto de milhar
         match = re.search(r'(\d{3})\.(\d{3})', texto_bruto)
         if match:
             valor_str = match.group(1) + match.group(2)
             preco_int = int(valor_str)
             if 70000 < preco_int < 300000:
                 return preco_int, 0.95
+
+        # Fallback: 6 dígitos seguidos (ex: "189142")
+        match6 = re.search(r'\d{6}', texto_bruto.replace(".", "").replace(",", ""))
+        if match6:
+            preco_int = int(match6.group(0))
+            if 70000 < preco_int < 300000:
+                return preco_int, 0.90
     except:
         pass
     return None, 0.0
@@ -273,10 +330,10 @@ def main():
     print(" 🎯 SNIPER DE LEILÃO (ÂNCORA NO PONTO) ")
     print("=" * 60)
     print(f" Modo: gravação por MUDANÇA + força a cada {INTERVALO_FORCAR_GRAVACAO:.0f}s")
+    print(f" Filtro: faixa [{PRECO_MIN_ABSOLUTO}, {PRECO_MAX_ABSOLUTO}] | salto máx {LIMITE_SALTO_PTS} pts")
     print(f" Rotação: CSV por dia em '{PASTA_HISTORICO}/'")
     print("=" * 60)
 
-    # ---- ROTAÇÃO DO CSV ----
     rotacionar_csv_se_necessario()
 
     if not os.path.exists(ARQUIVO_CONFIG):
@@ -298,10 +355,12 @@ def main():
     ultimo_preco = None
     ultimo_salvamento_dt = None
     historico = deque(maxlen=TAMANHO_JANELA_TENDENCIA)
+    filtro = FiltroPreco()
 
     total_tentativas = 0
     total_leituras_ok = 0
     total_leituras_falhas = 0
+    total_rejeitadas_filtro = 0
     total_mudanca = 0
     total_forcado = 0
 
@@ -315,6 +374,18 @@ def main():
             total_tentativas += 1
 
             if preco:
+                # ---- FILTRO DE SANIDADE ----
+                aceitar, motivo_filtro = filtro.aceitar(preco)
+
+                if not aceitar:
+                    total_rejeitadas_filtro += 1
+                    print(
+                        f"[{agora}] 🚫 Preço rejeitado: {preco} ({motivo_filtro})",
+                        end="\r",
+                    )
+                    time.sleep(INTERVALO)
+                    continue
+
                 total_leituras_ok += 1
                 historico.append(preco)
                 tendencia_micro, forca = analisar_fluxo(historico)
@@ -348,9 +419,12 @@ def main():
                     if motivo == "FORCADO_TEMPO":
                         print(f"⏱️  Gravação forçada: preço estável há {INTERVALO_FORCAR_GRAVACAO:.0f}s")
 
-                    print(f"📊 Stats: {total_tentativas} tent | {total_leituras_ok} OK | "
-                          f"{total_leituras_falhas} falhas | {total_mudanca} por mudança | "
-                          f"{total_forcado} por tempo")
+                    print(
+                        f"📊 Stats: {total_tentativas} tent | {total_leituras_ok} OK | "
+                        f"{total_leituras_falhas} falhas OCR | "
+                        f"{total_rejeitadas_filtro} rejeitadas filtro | "
+                        f"{total_mudanca} mudança | {total_forcado} tempo"
+                    )
 
                     salvar_csv(preco, conf, motivo)
                     ultimo_preco = preco
@@ -367,12 +441,13 @@ def main():
         print("=" * 60)
         print(" 📊 ESTATÍSTICAS FINAIS")
         print("=" * 60)
-        print(f"  Tentativas totais    : {total_tentativas}")
-        print(f"  Leituras OK          : {total_leituras_ok}")
-        print(f"  Leituras com falha   : {total_leituras_falhas}")
-        print(f"  Gravações por mudança: {total_mudanca}")
-        print(f"  Gravações forçadas   : {total_forcado}")
-        print(f"  Total gravado no CSV : {total_mudanca + total_forcado}")
+        print(f"  Tentativas totais       : {total_tentativas}")
+        print(f"  Leituras OK (aceitas)   : {total_leituras_ok}")
+        print(f"  Leituras com falha OCR  : {total_leituras_falhas}")
+        print(f"  Rejeitadas pelo filtro  : {total_rejeitadas_filtro}")
+        print(f"  Gravações por mudança   : {total_mudanca}")
+        print(f"  Gravações forçadas      : {total_forcado}")
+        print(f"  Total gravado no CSV    : {total_mudanca + total_forcado}")
         print("=" * 60)
 
 
