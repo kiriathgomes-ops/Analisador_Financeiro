@@ -39,7 +39,7 @@ def testar_extracao(regiao):
     
     img_proc = melhorar_para_ocr(img_pil)
     # Mantemos o ponto e os dígitos na whitelist
-    config = r'--oem 3 --psm 7 -c tessedit_char_whitelist=0123456789.'
+    config = r'--oem 3 --psm 8 -c tessedit_char_whitelist=0123456789.'
     texto_bruto = pytesseract.image_to_string(img_proc, config=config).strip()
     
     preco = None
