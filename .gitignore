@@ -33,3 +33,7 @@ Coletas/coleta_preco_teorico_historico/
 _teste_*.py
 _debug_*.py
 ferramentas/_debug_*.py
+
+# Dumps auto-gerados
+consolidado_projeto.txt
+dump_v2.txt
