@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Módulo: pages/1.1_🎯_Setup_Abertura.py
-Versão: 8.0 (Auto-refresh 60s + Ponteiro Anterior + Delta)
+Módulo: pages/2_🎯_Setup_Abertura.py
+Versão: 8.1 (Gauges de pressão unificados no padrão SVG — escala 2.0x)
 Objetivo: Painel unificado de monitoramento de aberturas do pregão (WIN/WDO)
 """
 
@@ -220,7 +220,9 @@ def obter_max_min_vela_10h(win_last):
 
 
 # ==============================================================================
-# MINI VELOCÍMETRO (com ponteiro anterior + delta)
+# MINI VELOCÍMETRO (com parâmetro ESCALA opcional)
+# - escala=1.0 → padrão das páginas 3/4/6
+# - escala=2.0 → usado na seção de pressão (Mercado Externo / ADRs)
 # ==============================================================================
 def mini_velocimetro(
     valor: Optional[float],
@@ -228,6 +230,7 @@ def mini_velocimetro(
     preco_fmt: str = "",
     inverter: bool = False,
     valor_anterior: Optional[float] = None,
+    escala: float = 1.0,
 ) -> None:
     # ---- Valor atual ----
     if valor is None:
@@ -273,6 +276,37 @@ def mini_velocimetro(
 
     angulo = (real_exibicao / 10.0) * 90.0
 
+    # ---- Escala (multiplica todas as dimensões) ----
+    s = max(0.5, float(escala))
+
+    gauge_w = 120 * s
+    gauge_h = 62 * s
+    arc_left = 5 * s
+    arc_top = 3 * s
+    arc_w = 110 * s
+    arc_h = 55 * s
+    arc_mask_inner = 34 * s
+    arc_mask_outer = 35 * s
+    needle_w = 8 * s
+    needle_h = 52 * s
+    needle_margin = -4 * s
+    needle_ant_w = 14 * s
+    needle_ant_h = 48 * s
+    needle_ant_margin = -7 * s
+    pivot_w = 12 * s
+    pivot_h = 12 * s
+    pivot_margin = -6 * s
+    label_fs = 11 * s
+    value_fs = 14 * s
+    delta_fs = 10 * s
+    sub_fs = 10 * s
+    value_mt = 4 * s
+    delta_mt = 3 * s
+    sub_mt = 2 * s
+
+    # Altura do widget HTML (deve caber tudo)
+    altura_widget = int(155 * s) if s <= 1.5 else int(150 * s + 30)
+
     html = f"""
     <!DOCTYPE html>
     <html>
@@ -286,25 +320,25 @@ def mini_velocimetro(
         }}
         .mini-wrap {{
             display: flex; flex-direction: column; align-items: center;
-            padding: 2px 0;
+            padding: {2 * s}px 0;
         }}
         .mini-label {{
-            font-size: 11px;
+            font-size: {label_fs}px;
             color: #c9d1d9;
-            margin-bottom: 1px;
+            margin-bottom: {1 * s}px;
             text-align: center;
             font-weight: 700;
             white-space: nowrap;
         }}
         .mini-gauge {{
             position: relative;
-            width: 110px;
-            height: 58px;
+            width: {gauge_w}px;
+            height: {gauge_h}px;
         }}
         .mini-arc {{
-            position: absolute; left: 5px; top: 3px;
-            width: 100px; height: 50px;
-            border-radius: 100px 100px 0 0;
+            position: absolute; left: {arc_left}px; top: {arc_top}px;
+            width: {arc_w}px; height: {arc_h}px;
+            border-radius: {arc_w}px {arc_w}px 0 0;
             background: conic-gradient(
                 from 270deg at 50% 100%,
                 #ff2020 0deg 30deg,
@@ -314,16 +348,16 @@ def mini_velocimetro(
                 #00a030 120deg 150deg,
                 #00cc44 150deg 180deg
             );
-            -webkit-mask: radial-gradient(circle at 50% 100%, transparent 32px, black 33px);
-                    mask: radial-gradient(circle at 50% 100%, transparent 32px, black 33px);
+            -webkit-mask: radial-gradient(circle at 50% 100%, transparent {arc_mask_inner}px, black {arc_mask_outer}px);
+                    mask: radial-gradient(circle at 50% 100%, transparent {arc_mask_inner}px, black {arc_mask_outer}px);
         }}
         .mini-needle {{
             position: absolute;
             left: 50%;
-            bottom: 3px;
-            width: 8px;
-            height: 48px;
-            margin-left: -4px;
+            bottom: {3 * s}px;
+            width: {needle_w}px;
+            height: {needle_h}px;
+            margin-left: {needle_margin}px;
             transform-origin: 50% 100%;
             transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
             z-index: 3;
@@ -331,10 +365,10 @@ def mini_velocimetro(
         .mini-needle-ant {{
             position: absolute;
             left: 50%;
-            bottom: 3px;
-            width: 14px;
-            height: 44px;
-            margin-left: -7px;
+            bottom: {3 * s}px;
+            width: {needle_ant_w}px;
+            height: {needle_ant_h}px;
+            margin-left: {needle_ant_margin}px;
             transform-origin: 50% 100%;
             transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
             z-index: 2;
@@ -343,35 +377,35 @@ def mini_velocimetro(
             position: absolute;
             left: 50%;
             bottom: 0px;
-            width: 10px; height: 10px;
-            margin-left: -5px;
+            width: {pivot_w}px; height: {pivot_h}px;
+            margin-left: {pivot_margin}px;
             border-radius: 50%;
             background: {cor};
             z-index: 4;
             transition: background 0.5s ease;
         }}
         .mini-value {{
-            font-size: 14px;
+            font-size: {value_fs}px;
             font-weight: 900;
             color: {cor};
             text-align: center;
-            margin-top: 4px;
+            margin-top: {value_mt}px;
             transition: color 0.5s ease;
             letter-spacing: 0.3px;
             line-height: 1.1;
         }}
         .mini-sub {{
-            font-size: 10px;
+            font-size: {sub_fs}px;
             color: #8b949e;
             text-align: center;
-            margin-top: 2px;
+            margin-top: {sub_mt}px;
             line-height: 1.1;
         }}
         .mini-delta {{
-            font-size: 10px;
+            font-size: {delta_fs}px;
             color: #c9d1d9;
             text-align: center;
-            margin-top: 3px;
+            margin-top: {delta_mt}px;
             font-weight: 700;
             letter-spacing: 0.3px;
             line-height: 1.1;
@@ -384,8 +418,8 @@ def mini_velocimetro(
             <div class="mini-gauge">
                 <div class="mini-arc"></div>
                 {svg_anterior}
-                <svg class="mini-needle" style="transform: rotate({angulo}deg);" viewBox="0 0 8 48">
-                    <path d="M 4 0 L 5.5 42 L 2.5 42 Z" fill="#ffffff"/>
+                <svg class="mini-needle" style="transform: rotate({angulo}deg);" viewBox="0 0 8 52">
+                    <path d="M 4 0 L 5.5 46 L 2.5 46 Z" fill="#ffffff"/>
                 </svg>
                 <div class="mini-pivot"></div>
             </div>
@@ -396,7 +430,7 @@ def mini_velocimetro(
     </body>
     </html>
     """
-    components.html(html, height=125, scrolling=False)
+    components.html(html, height=altura_widget, scrolling=False)
 
 
 # ==============================================================================
@@ -925,95 +959,6 @@ def render_bloco_1_filtro_classificacao(service: SetupService, rom5: dict):
     pen_m = service.ind_mercado_externo_penultima or calcular_ind_externo_rom5(rom5)
     pen_a = service.ind_adrs_penultima or calcular_ind_adrs_rom5(rom5)
 
-    def velocimetro(valor: Optional[float], penultima: Optional[float], titulo: str) -> go.Figure:
-        if valor is None:
-            real = 0.0
-            cor = "#ffc107"
-            texto_atual = "—"
-        else:
-            real = round(float(valor), 2)
-            cor = "#00c853" if real > 0.05 else ("#ff3d00" if real < -0.05 else "#ffc107")
-            texto_atual = f"{real:+.2f}%"
-
-        if penultima is not None:
-            pen = round(float(penultima), 2)
-            texto_centro = (
-                f"<b style='font-size:26px;color:{cor}'>{texto_atual}</b>"
-                f"<br><span style='font-size:13px;color:#ffffff'>Ant {pen:+.2f}%</span>"
-            )
-        else:
-            texto_centro = f"<b style='font-size:26px;color:{cor}'>{texto_atual}</b>"
-
-        steps = [
-            {"range": [-30, -4.5], "color": "#3d1010"},
-            {"range": [-4.5, -2.5], "color": "#4a2010"},
-            {"range": [-2.5, -1.5], "color": "#3d2e10"},
-            {"range": [-1.5, 1.5], "color": "#2a2a1a"},
-            {"range": [1.5, 2.5], "color": "#1a2e1a"},
-            {"range": [2.5, 4.5], "color": "#0f2a18"},
-            {"range": [4.5, 30], "color": "#0a2414"},
-        ]
-
-        fig = go.Figure()
-
-        if penultima is not None:
-            pen_val = max(-30.0, min(30.0, float(penultima)))
-            fig.add_trace(
-                go.Indicator(
-                    mode="gauge",
-                    value=pen_val,
-                    gauge={
-                        "axis": {"range": [-8, 8], "tickwidth": 1, "tickcolor": "#8b949e"},
-                        "bar": {"color": "rgba(0,0,0,0)"},
-                        "bgcolor": "#161b22",
-                        "bordercolor": "#30363d",
-                        "steps": steps,
-                        "threshold": {"line": {"color": "#ffffff", "width": 5}, "thickness": 0.85, "value": pen_val},
-                    },
-                    domain={"x": [0, 1], "y": [0, 1]},
-                )
-            )
-
-        fig.add_trace(
-            go.Indicator(
-                mode="gauge",
-                value=real,
-                title={
-                    "text": f"{titulo}<br><span style='font-size:0.7em;color:#8b949e'>escala ±8%</span>",
-                    "font": {"size": 14, "color": "#c9d1d9"},
-                },
-                gauge={
-                    "axis": {"range": [-8, 8], "tickwidth": 1, "tickcolor": "#8b949e", "visible": penultima is None},
-                    "bar": {"color": "rgba(0,0,0,0)"},
-                    "bgcolor": "rgba(0,0,0,0)" if penultima is not None else "#161b22",
-                    "bordercolor": "#30363d",
-                    "steps": steps if penultima is None else [],
-                    "threshold": {"line": {"color": cor, "width": 6}, "thickness": 0.85, "value": real},
-                },
-                domain={"x": [0, 1], "y": [0, 1]},
-            )
-        )
-
-        fig.update_layout(
-            paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(0,0,0,0)",
-            font={"color": "#e6edf3"},
-            height=280,
-            margin=dict(l=10, r=10, t=70, b=10),
-            annotations=[
-                dict(
-                    x=0.5, y=0.32,
-                    xref="paper", yref="paper",
-                    text=texto_centro,
-                    showarrow=False,
-                    font={"size": 14},
-                    xanchor="center",
-                    align="center",
-                )
-            ],
-        )
-        return fig
-
     st.markdown("##### ⏱️ Velocímetros de pressão")
 
     if service.tem_3estrelas:
@@ -1021,12 +966,16 @@ def render_bloco_1_filtro_classificacao(service: SetupService, rom5: dict):
     else:
         prioridade_mercado, prioridade_adrs = "Prioritário", "Secundário"
 
+    # ✅ Agora os dois gauges usam o MESMO estilo SVG (mini_velocimetro) com escala=2.0
     c1, c2 = st.columns(2)
     with c1:
-        st.plotly_chart(
-            velocimetro(ind_mercado, pen_m, "🌍 Mercado Externo"),
-            use_container_width=True,
-            config={"displayModeBar": False},
+        mini_velocimetro(
+            ind_mercado,
+            "🌍 Mercado Externo",
+            f"{ind_mercado:+.2f}%" if ind_mercado is not None else "",
+            inverter=False,
+            valor_anterior=pen_m,
+            escala=2.0,
         )
         if ind_mercado is not None:
             intensidade = "FORTE_VENDA" if ind_mercado < -4.5 else ("FORTE_COMPRA" if ind_mercado > 4.5 else "MODERADO/LATERAL")
@@ -1036,11 +985,15 @@ def render_bloco_1_filtro_classificacao(service: SetupService, rom5: dict):
                 st.caption(f"{intensidade} · {prioridade_mercado} · atual **{ind_mercado:+.2f}%**")
         else:
             st.caption("Dados de Mercado Externo indisponíveis")
+
     with c2:
-        st.plotly_chart(
-            velocimetro(ind_adrs, pen_a, "🇧🇷 BR ADRs Brasileiras"),
-            use_container_width=True,
-            config={"displayModeBar": False},
+        mini_velocimetro(
+            ind_adrs,
+            "🇧🇷 BR ADRs Brasileiras",
+            f"{ind_adrs:+.2f}%" if ind_adrs is not None else "",
+            inverter=False,
+            valor_anterior=pen_a,
+            escala=2.0,
         )
         if ind_adrs is not None:
             intensidade = "FORTE_COMPRA" if ind_adrs > 4.5 else ("FORTE_VENDA" if ind_adrs < -4.5 else "MODERADO/LATERAL")
