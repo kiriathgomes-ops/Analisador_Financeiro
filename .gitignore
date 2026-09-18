@@ -5,6 +5,7 @@ Coletas/*.png
 Coletas/*.jpg
 Coletas/*.csv
 Coletas/Historico*/
+!Coletas/config_regiao.json
 
 
 
@@ -43,3 +44,6 @@ dump_v2.txt
 
 # Backups gerados por fixN.py
 *.bak_*
+
+# Excecao: configs criticos versionados
+!Coletas/config_regiao.json
