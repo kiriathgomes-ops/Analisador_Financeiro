@@ -121,26 +121,21 @@ class LeilaoService:
     def _leituras_leilao_recente(self) -> List[Dict[str, Any]]:
         """
         Retorna as leituras do leilão do dia de hoje (até 09:00:30).
-        Se hoje não tiver leitura (fim de semana, feriado, OCR não rodou),
-        retorna as do último dia disponível no CSV.
+
+        IMPORTANTE: NÃO faz fallback para dias anteriores. Se hoje não tem
+        leitura, retorna lista vazia — o caller (NOVO_MOTOR) decide o que
+        fazer. Retornar dados de outro dia contamina o pipeline com preço
+        de leilão obsoleto.
+
+        Bug corrigido em 18/09/2026: gap de +11920 pts causado por leilão
+        de 17/09 lido como se fosse de hoje (sniper não tinha rodado ainda).
         """
         registros = self._ler_csv()
         if not registros:
             return []
 
         hoje = date.today()
-
-        # 1. Tenta hoje
-        filtrados = self._filtrar_por_dia(registros, hoje)
-        if filtrados:
-            return filtrados
-
-        # 2. Fallback: último dia com leitura
-        dias = sorted({r["dt"].date() for r in registros}, reverse=True)
-        if dias:
-            return self._filtrar_por_dia(registros, dias[0])
-
-        return []
+        return self._filtrar_por_dia(registros, hoje)
 
     # ------------------------------------------------------------
     # Filtro de outliers (glitches do OCR)
@@ -188,10 +183,15 @@ class LeilaoService:
         leituras_brutas = self._leituras_leilao_recente()
 
         if not leituras_brutas:
+            print(
+                f"[LEILAO] Sem leituras de hoje ({date.today().isoformat()}) "
+                f"no CSV. Fonte: INDISPONIVEL (nao faz fallback para dias anteriores)."
+            )
             return {
                 "disponivel": False,
                 "preco": None,
                 "timestamp": None,
+                "data_leitura": None,
                 "fonte": "INDISPONIVEL",
                 "total_leituras": 0,
                 "total_leituras_brutas": 0,
@@ -208,6 +208,7 @@ class LeilaoService:
                 "disponivel": False,
                 "preco": None,
                 "timestamp": None,
+                "data_leitura": None,
                 "fonte": "INDISPONIVEL",
                 "total_leituras": 0,
                 "total_leituras_brutas": len(leituras_brutas),
@@ -220,10 +221,16 @@ class LeilaoService:
         ultima = max(leituras, key=lambda r: r["dt"])
         precos = [r["preco"] for r in leituras]
 
+        data_leitura = ultima["dt"].date().isoformat()
+        print(
+            f"[LEILAO] Leitura de hoje ({data_leitura}): "
+            f"{ultima['preco']:.0f} pts (fonte OCR_LEILAO)"
+        )
         return {
             "disponivel": True,
             "preco": float(ultima["preco"]),
             "timestamp": ultima["dt"].isoformat(),
+            "data_leitura": data_leitura,
             "fonte": "OCR_LEILAO",
             "total_leituras": len(leituras),
             "total_leituras_brutas": len(leituras_brutas),
