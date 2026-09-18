@@ -40,3 +40,6 @@ dump_v2.txt
 
 # Backups gerados por fixN.py
 *.bak_*
+
+# Backups gerados por fixN.py
+*.bak_*
