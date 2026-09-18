@@ -28,6 +28,7 @@ if sys.platform == "win32":
         pass
 
 FILE_SMC_DADOS = Path(COLETAS_DIR) / "AnaliseGraficaSMC_Regras.json"
+FILE_CACHE_VAR_TEORICA = Path(COLETAS_DIR) / "EstimativaAbertura_Cache.json"
 
 
 def extrair_variacao(ativos_dict: dict, ativo_id: str) -> float:
@@ -45,6 +46,65 @@ def carregar_niveis_institucionais_smc() -> dict:
             return dados.get("niveis_institucionais", {})
     except Exception:
         return {"poc_ontem": 0.0, "vwap_ontem": 0.0}
+
+
+def _carregar_cache_var() -> dict:
+    """Le o cache da variacao teorica, se existir."""
+    if not os.path.exists(FILE_CACHE_VAR_TEORICA):
+        return {}
+    try:
+        with open(FILE_CACHE_VAR_TEORICA, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def _salvar_cache_var(payload: dict) -> None:
+    """Persiste o cache da variacao teorica."""
+    try:
+        os.makedirs(os.path.dirname(FILE_CACHE_VAR_TEORICA), exist_ok=True)
+        with open(FILE_CACHE_VAR_TEORICA, "w", encoding="utf-8") as f:
+            json.dump(payload, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        print(f"[AVISO] Falha ao salvar cache var teorica: {e}")
+
+
+def _resolver_var_teorica(data_ref: str, ajuste: float, var_teorica_atual: float):
+    """
+    Resolve a var_teorica_pct a ser usada neste ciclo.
+
+    Retorna (var_final, veio_do_cache, timestamp_cache).
+      - Se cache existe e bate (data + ajuste): usa cache
+      - Se nao: salva o valor atual no cache e retorna ele
+
+    `timestamp_cache` e None quando recalculado agora.
+    """
+    cache = _carregar_cache_var()
+    ajuste_arredondado = round(float(ajuste or 0.0), 0)
+
+    cache_data = cache.get("data_ref")
+    cache_ajuste = cache.get("ajuste")
+    if cache_data is not None:
+        try:
+            cache_ajuste = round(float(cache_ajuste), 0)
+        except (TypeError, ValueError):
+            cache_ajuste = None
+
+    if cache_data == data_ref and cache_ajuste == ajuste_arredondado:
+        var = cache.get("variacao_teorica_pct")
+        ts = cache.get("timestamp_geracao")
+        if var is not None:
+            return float(var), True, ts
+
+    # Cache invalido ou inexistente -> salva o atual
+    novo = {
+        "data_ref": data_ref,
+        "ajuste": ajuste_arredondado,
+        "variacao_teorica_pct": float(var_teorica_atual) if var_teorica_atual is not None else 0.0,
+        "timestamp_geracao": datetime.now().isoformat(),
+    }
+    _salvar_cache_var(novo)
+    return float(var_teorica_atual) if var_teorica_atual is not None else 0.0, False, None
 
 
 def calcular_abertura_win(ativos_dict: dict, preco_referencia_base: float) -> dict:
@@ -114,6 +174,26 @@ def processar_calculos_operacionais():
     win_metrics = calcular_abertura_win(ativos_dict, preco_base)
     win_metrics["contexto_janela"] = contexto_janela
 
+    # ---- CONGELA variacao_teorica_pct por dia (data + ajuste) ----
+    var_teorica_calculada = win_metrics.get("variacao_teorica_pct")
+    var_teorica_final, do_cache, ts_cache = _resolver_var_teorica(
+        data_ref=datetime.now().date().isoformat(),
+        ajuste=preco_base,
+        var_teorica_atual=var_teorica_calculada,
+    )
+
+    # Recalcula a abertura teorica com a var congelada
+    abertura_congelada = round(preco_base * (1 + var_teorica_final / 100), 0) if preco_base > 0 else 0.0
+
+    win_metrics["variacao_teorica_pct"] = round(var_teorica_final, 4)
+    win_metrics["abertura_teorica_pontos"] = abertura_congelada
+    win_metrics["var_teorica_congelada"] = True
+    win_metrics["var_teorica_do_cache"] = bool(do_cache)
+    win_metrics["var_teorica_timestamp_cache"] = ts_cache
+    win_metrics["var_teorica_calculada_agora"] = (
+        round(var_teorica_calculada, 4) if var_teorica_calculada is not None else None
+    )
+
     # --- PONTOS DE PIVÔ CLÁSSICOS (MANTIDOS INTEGRALMENTE PARA SUAS PAGES) ---
     win_fut = ativos_dict.get("WIN_FUT", {})
     high_d1 = win_fut.get("high", 0.0)
@@ -137,7 +217,10 @@ def processar_calculos_operacionais():
     payload = {
         "metadata_calculo": {
             "timestamp_calculo": datetime.now().isoformat(),
-            "janela_ativa": contexto_janela
+            "janela_ativa": contexto_janela,
+            "var_teorica_congelada": win_metrics.get("var_teorica_congelada", False),
+            "var_teorica_do_cache": win_metrics.get("var_teorica_do_cache", False),
+            "var_teorica_timestamp_cache": win_metrics.get("var_teorica_timestamp_cache"),
         },
         "estimativa_abertura": {"WIN_INDICE": win_metrics},
         "pivot_points": {"WIN_FUT": pivots},
@@ -154,7 +237,15 @@ def processar_calculos_operacionais():
     print("\n" + "-" * 60)
     print(" 🎯 ESTIMATIVAS DE ABERTURA & CARREGAMENTO")
     print("-" * 60)
+    if win_metrics.get("var_teorica_do_cache"):
+        ts_cache = win_metrics.get("var_teorica_timestamp_cache") or "?"
+        ts_curto = ts_cache[11:19] if len(ts_cache) >= 19 else ts_cache
+        origem_var = f"🔒 CONGELADA (do cache, gerada {ts_curto})"
+    else:
+        origem_var = "🆕 RECALCULADA AGORA (primeira vez hoje ou ajuste mudou)"
+
     print(f" Variação Teórica (Delta) : {win_metrics['variacao_teorica_pct']}%")
+    print(f"   └─ Origem              : {origem_var}")
     print(f" Abertura Teórica WIN     : {win_metrics['abertura_teorica_pontos']} pts")
     
     coc = win_metrics["cost_of_carry"]
