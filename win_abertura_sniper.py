@@ -9,7 +9,7 @@ import csv
 import os
 import json
 import shutil
-from datetime import datetime
+from datetime import datetime, time as dt_time
 from collections import deque
 
 # ==================== CONFIGURAÇÕES DE PASTAS ====================
@@ -41,6 +41,17 @@ LIMITE_SALTO_PTS = 1000
 
 # Quantas leituras anteriores usar como referência de "regime atual"
 JANELA_REFERENCIA = 5
+
+# Janela de LEILÃO — durante esse período o preço teórico oscila MUITO
+# (é descoberta de preço). O filtro de salto vs mediana é DESABILITADO.
+LEILAO_INICIO = dt_time(8, 50)
+LEILAO_FIM = dt_time(9, 5)
+
+
+def _esta_no_leilao() -> bool:
+    """True se estiver na janela de leilão (08:50–09:05)."""
+    agora = datetime.now().time()
+    return LEILAO_INICIO <= agora <= LEILAO_FIM
 # ============================================================
 
 # TRATAMENTO DINÂMICO DO TESSERACT
@@ -143,21 +154,48 @@ class FiltroPreco:
     """
     Filtra leituras absurdas do OCR.
 
-    Regras:
-      1. Preço dentro de [PRECO_MIN_ABSOLUTO, PRECO_MAX_ABSOLUTO]
-      2. |preço - mediana das últimas N leituras| < LIMITE_SALTO_PTS
+    Comportamento:
+      - Durante o leilão (08:50–09:05): valida APENAS faixa absoluta.
+        O preço teórico pode ir de 187k → 200k → 185k em segundos — isso
+        é descoberta de preço, NÃO ruído. Não usar mediana móvel.
+      - Fora do leilão: valida faixa absoluta + salto vs mediana.
+
+    Contadores internos (para relatório final):
+      - rejeicoes_absoluta: quantas vezes caiu fora de [MIN, MAX]
+      - rejeicoes_mediana:  quantas vezes passou da faixa absoluta mas
+                            foi rejeitada por salto vs mediana
     """
 
     def __init__(self):
         self.ultimos_aceitos = deque(maxlen=JANELA_REFERENCIA)
+        self.modo_leilao = False
+        self.rejeicoes_absoluta = 0
+        self.rejeicoes_mediana = 0
 
     def aceitar(self, preco: int) -> tuple:
         """
         Retorna (aceitar: bool, motivo: str).
         """
-        # Regra 1: faixa absoluta
+        no_leilao = _esta_no_leilao()
+
+        # Detecta transição de modo (log único)
+        if no_leilao != self.modo_leilao:
+            if no_leilao:
+                print("[FILTRO] Entrando em modo LEILÃO — filtro de salto DESABILITADO")
+                self.ultimos_aceitos.clear()
+            else:
+                print("[FILTRO] Saindo do leilão — filtro de salto REATIVADO")
+            self.modo_leilao = no_leilao
+
+        # Camada 1 — faixa absoluta (sempre aplica)
         if preco < PRECO_MIN_ABSOLUTO or preco > PRECO_MAX_ABSOLUTO:
+            self.rejeicoes_absoluta += 1
             return False, f"fora da faixa absoluta [{PRECO_MIN_ABSOLUTO}, {PRECO_MAX_ABSOLUTO}]"
+
+        # Camada 2 — salto vs mediana (só FORA do leilão)
+        if no_leilao:
+            self.ultimos_aceitos.append(preco)
+            return True, "OK_LEILAO"
 
         # Sem histórico → aceita
         if not self.ultimos_aceitos:
@@ -174,6 +212,7 @@ class FiltroPreco:
 
         delta = abs(preco - mediana)
         if delta > LIMITE_SALTO_PTS:
+            self.rejeicoes_mediana += 1
             return False, f"salto de {delta:+.0f} pts da mediana {mediana:.0f}"
 
         self.ultimos_aceitos.append(preco)
@@ -331,6 +370,7 @@ def main():
     print("=" * 60)
     print(f" Modo: gravação por MUDANÇA + força a cada {INTERVALO_FORCAR_GRAVACAO:.0f}s")
     print(f" Filtro: faixa [{PRECO_MIN_ABSOLUTO}, {PRECO_MAX_ABSOLUTO}] | salto máx {LIMITE_SALTO_PTS} pts")
+    print(f" Leilão: filtro de salto DESABILITADO entre {LEILAO_INICIO.strftime('%H:%M')} e {LEILAO_FIM.strftime('%H:%M')}")
     print(f" Rotação: CSV por dia em '{PASTA_HISTORICO}/'")
     print("=" * 60)
 
@@ -397,11 +437,19 @@ def main():
                 )
 
                 if mudou or precisa_forcar:
-                    motivo = "MUDANCA" if mudou else "FORCADO_TEMPO"
+                    # Marca motivo base
                     if mudou:
+                        motivo_base = "MUDANCA"
                         total_mudanca += 1
                     else:
+                        motivo_base = "FORCADO_TEMPO"
                         total_forcado += 1
+
+                    # Sufixo [MODO_LEILAO] quando aplicável
+                    if _esta_no_leilao():
+                        motivo = f"{motivo_base}_LEILAO"
+                    else:
+                        motivo = motivo_base
 
                     gap_ajuste, pos_ajuste, gap_fechamento, pos_fechamento, dist_poc, pos_poc, veredito, vies_geral = calcular_confluencia(preco, contexto, tendencia_micro)
 
@@ -416,8 +464,10 @@ def main():
                     print(f"🎯 VEREDITO      : {veredito}")
                     print("=" * 40)
 
-                    if motivo == "FORCADO_TEMPO":
+                    if motivo_base == "FORCADO_TEMPO":
                         print(f"⏱️  Gravação forçada: preço estável há {INTERVALO_FORCAR_GRAVACAO:.0f}s")
+                    if _esta_no_leilao():
+                        print(f"🎪 Modo LEILÃO ativo — filtro de salto relaxado")
 
                     print(
                         f"📊 Stats: {total_tentativas} tent | {total_leituras_ok} OK | "
@@ -445,6 +495,8 @@ def main():
         print(f"  Leituras OK (aceitas)   : {total_leituras_ok}")
         print(f"  Leituras com falha OCR  : {total_leituras_falhas}")
         print(f"  Rejeitadas pelo filtro  : {total_rejeitadas_filtro}")
+        print(f"      ├─ fora faixa abs.  : {filtro.rejeicoes_absoluta}")
+        print(f"      └─ salto vs mediana : {filtro.rejeicoes_mediana}")
         print(f"  Gravações por mudança   : {total_mudanca}")
         print(f"  Gravações forçadas      : {total_forcado}")
         print(f"  Total gravado no CSV    : {total_mudanca + total_forcado}")
@@ -453,3 +505,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
