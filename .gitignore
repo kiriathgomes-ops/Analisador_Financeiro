@@ -37,3 +37,6 @@ ferramentas/_debug_*.py
 # Dumps auto-gerados
 consolidado_projeto.txt
 dump_v2.txt
+
+# Backups gerados por fixN.py
+*.bak_*
