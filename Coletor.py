@@ -19,6 +19,12 @@
 #     da brapi em vez de cair direto no cache congelado (pipeline não para
 #     mesmo se MT5 estiver offline).
 #   - Fix typo: esta_fora_do_pregão → esta_fora_do_pregao
+#
+# ATUALIZAÇÃO 18/09/2026 (v2 — cosmético):
+#   - coletar_ajuste_oficial(silencioso=False): TV fallback agora pode ser
+#     chamado em modo silencioso quando roda em paralelo com brapi.
+#     Motivo: o TV imprimia "Dentro da janela. Coletando ajuste TV..." mesmo
+#     quando o brapi já tinha resolvido — confundia o log.
 # ============================================================
 
 from __future__ import annotations
@@ -534,16 +540,21 @@ def coletar_ajuste_brapi() -> List[dict]:
 # ------------------------------------------------------------
 # Ajuste oficial (TV) — FALLBACK quando brapi falha
 # ------------------------------------------------------------
-def coletar_ajuste_oficial() -> List[dict]:
+def coletar_ajuste_oficial(silencioso: bool = False) -> List[dict]:
     """
     Fallback do ajuste (TradingView). ATENÇÃO: o TV retorna 'close'
     (último negócio), NÃO o ajuste oficial B3. Use apenas se a brapi falhar.
+
+    Parâmetro `silencioso`: quando True, suprime os prints cosméticos
+    ("Dentro da janela...", "Fora da janela..."). Usado quando chamada em
+    paralelo com brapi (evita log ruidoso).
     """
     timestamp = datetime.now().isoformat()
     hora_atual = datetime.now().time()
 
     if JANELA_AJUSTE_FIM < hora_atual < JANELA_AJUSTE_INICIO:
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] Fora da janela de ajuste. Cache...")
+        if not silencioso:
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] Fora da janela de ajuste. Cache...")
         for arquivo_cache in (FILE_RAM, FILE_ROM0):
             if not os.path.exists(arquivo_cache):
                 continue
@@ -582,7 +593,8 @@ def coletar_ajuste_oficial() -> List[dict]:
             },
         ]
 
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] Dentro da janela. Coletando ajuste TV (FALLBACK)...")
+    if not silencioso:
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Dentro da janela. Coletando ajuste TV (FALLBACK)...")
     simbolos = [
         {"ativo": "B3_AJUSTE_WIN", "ticker": "BMFBOVESPA:WIN1!"},
         {"ativo": "B3_AJUSTE_WDO", "ticker": "BMFBOVESPA:WDO1!"},
@@ -614,7 +626,8 @@ def coletar_ajuste_oficial() -> List[dict]:
                     },
                 }
         except Exception as e:
-            print(f"   ❌ Ajuste {item['ativo']}: {e}")
+            if not silencioso:
+                print(f"   ❌ Ajuste {item['ativo']}: {e}")
             return {
                 "ativo": item["ativo"],
                 "fonte": "TRADINGVIEW_DIRECT_SYMBOL",
@@ -819,8 +832,7 @@ def _montar_win_wdo_mt5(coletas: List[dict]) -> bool:
     montou_win_fut = False
     ticks_para_congelar: Dict[str, dict] = {}
 
-    # ✅ NOVO: coleta os fechamentos brapi já presentes em `coletas`
-    # (foram adicionados por `executar_pipeline_coleta` antes de chamar esta função)
+    # ✅ Fallback brapi: coleta os fechamentos já presentes em `coletas`
     fech_brapi: Dict[str, float] = {}
     for item in coletas:
         ativo = item.get("ativo")
@@ -844,7 +856,7 @@ def _montar_win_wdo_mt5(coletas: List[dict]) -> bool:
         info = ativos_mt5.get(prefixo) or {}
         last_val = (lasts.get(prefixo) or {}).get("last") or info.get("last")
 
-        # ✅ NOVO: fallback brapi quando MT5 não tem last
+        # ✅ Fallback brapi quando MT5 não tem last
         if last_val is None or float(last_val or 0) <= 0:
             brapi_close = fech_brapi.get(f"B3_FECHAMENTO_{prefixo}")
             if brapi_close and brapi_close > 0:
@@ -857,7 +869,6 @@ def _montar_win_wdo_mt5(coletas: List[dict]) -> bool:
         # ---------- FUT: sempre MT5 (ou brapi fallback) ----------
         if last_val is not None and float(last_val or 0) > 0:
             last_val = float(last_val)
-            # last/close REAL do MT5 (sem mid) — usado no LAST_TICK
             last_real = last_val
             close_d1 = info.get("close")
             if close_d1 is not None and float(close_d1 or 0) > 0:
@@ -875,7 +886,6 @@ def _montar_win_wdo_mt5(coletas: List[dict]) -> bool:
             if var_pct is None and prev_c and float(prev_c or 0) > 0:
                 var_pct = round(((last_val / float(prev_c)) - 1) * 100, 4)
 
-            # Mid só para FUT (preço operacional). LAST_TICK NÃO usa mid.
             last_fut = last_val
             if (
                 isinstance(bid, (int, float))
@@ -900,7 +910,6 @@ def _montar_win_wdo_mt5(coletas: List[dict]) -> bool:
                 "volume": float(vol_v) if vol_v is not None else None,
                 "fechamento_anterior": float(prev_c) if prev_c else None,
             }
-            # LAST_TICK: close/last real do MT5 (D1 close prioritário), SEM mid
             var_pct_real = var_pct
             if prev_c and float(prev_c or 0) > 0 and last_real > 0:
                 var_pct_real = round(((last_real / float(prev_c)) - 1) * 100, 4)
@@ -932,7 +941,7 @@ def _montar_win_wdo_mt5(coletas: List[dict]) -> bool:
             if prefixo == "WIN":
                 montou_win_fut = True
 
-            # ---------- LAST_TICK (close/last real, sem mid) ----------
+            # ---------- LAST_TICK ----------
             if fora_pregao:
                 item_last = {
                     "ativo": ativo_last,
@@ -1044,10 +1053,11 @@ def executar_pipeline_coleta() -> None:
     coletas: List[dict] = []
 
     # --- Fontes HTTP independentes em paralelo (com brapi) ---
+    # TV fallback roda em modo SILENCIOSO — só aparece se brapi falhar.
     with ThreadPoolExecutor(max_workers=5) as ex:
         fut_ptax = ex.submit(coletar_bacen_ptax)
-        fut_ajuste_brapi = ex.submit(coletar_ajuste_brapi)   # PRIMÁRIO
-        fut_ajuste_tv = ex.submit(coletar_ajuste_oficial)    # FALLBACK
+        fut_ajuste_brapi = ex.submit(coletar_ajuste_brapi)         # PRIMÁRIO
+        fut_ajuste_tv = ex.submit(coletar_ajuste_oficial, True)    # FALLBACK (silencioso)
         fut_tv = ex.submit(coletar_tradingview)
         fut_fh = ex.submit(coletar_finnhub)
 
@@ -1066,8 +1076,11 @@ def executar_pipeline_coleta() -> None:
             f"   ✅ brapi OK — {n_ajustes} ajustes + {n_fech} fechamentos"
         )
     else:
-        coletas.extend(ajustes_tv)
+        # brapi falhou — aí sim imprime o retorno do TV (fallback real)
         print(f"   ⚠️ brapi indisponível — usando TV fallback ({len(ajustes_tv)} itens)")
+        # Re-executa TV em modo verboso pra dar visibilidade
+        ajustes_tv_verbose = coletar_ajuste_oficial(silencioso=False)
+        coletas.extend(ajustes_tv_verbose or ajustes_tv)
 
     coletas.append(ptax)
     coletas.extend(tv_dados)
@@ -1102,7 +1115,6 @@ def executar_pipeline_coleta() -> None:
     )
 
     # Monta WIN_FUT (sempre) + WIN_LAST_TICK (vivo fora / congelado no pregão)
-    # Inclui fallback brapi para WIN_LAST_TICK se MT5 falhar
     montou = _montar_win_wdo_mt5(coletas)
 
     if not montou and not mt5_ok and esta_fora_do_pregao():
