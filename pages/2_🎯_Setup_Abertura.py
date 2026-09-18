@@ -920,21 +920,21 @@ def render_bloco_operacionais(service: SetupService, rom5: dict):
         with e1:
             mini_velocimetro(
                 score, "⚡ Score",
-                f"{score:+.2f}" if score is not None else "",
+                f"Ant {score_ant:+.2f}" if score_ant is not None else "",
                 inverter=False,
                 valor_anterior=score_ant,
             )
         with e2:
             mini_velocimetro(
                 ind_adrs, "🇧🇷 Σ ADRs",
-                f"{ind_adrs:+.2f}%" if ind_adrs is not None else "",
+                f"Ant {ind_adrs_ant:+.2f}%" if ind_adrs_ant is not None else "",
                 inverter=False,
                 valor_anterior=ind_adrs_ant,
             )
         with e3:
             mini_velocimetro(
                 ind_ext, "🌍 Σ Macro",
-                f"{ind_ext:+.2f}%" if ind_ext is not None else "",
+                f"Ant {ind_ext_ant:+.2f}%" if ind_ext_ant is not None else "",
                 inverter=False,
                 valor_anterior=ind_ext_ant,
             )
@@ -972,7 +972,7 @@ def render_bloco_1_filtro_classificacao(service: SetupService, rom5: dict):
         mini_velocimetro(
             ind_mercado,
             "🌍 Mercado Externo",
-            f"{ind_mercado:+.2f}%" if ind_mercado is not None else "",
+            f"Ant {pen_m:+.2f}%" if pen_m is not None else "",
             inverter=False,
             valor_anterior=pen_m,
             escala=2.0,
@@ -990,7 +990,7 @@ def render_bloco_1_filtro_classificacao(service: SetupService, rom5: dict):
         mini_velocimetro(
             ind_adrs,
             "🇧🇷 BR ADRs Brasileiras",
-            f"{ind_adrs:+.2f}%" if ind_adrs is not None else "",
+            f"Ant {pen_a:+.2f}%" if pen_a is not None else "",
             inverter=False,
             valor_anterior=pen_a,
             escala=2.0,
@@ -1049,6 +1049,11 @@ def render_body():
         return None
 
     win_last_v = get_p_num("WIN_LAST_TICK")
+    # Fallback: se WIN_LAST_TICK nao existe (durante o pregao, pois o
+    # LastTick_Congelado.json so e gravado fora do pregao), usa o fechamento
+    # oficial da brapi (WIN_FECHAMENTO_B3), que e o mesmo valor conceitual.
+    if win_last_v is None:
+        win_last_v = get_p_num("WIN_FECHAMENTO_B3")
     win_ajuste_v = get_p_num("WIN_AJUSTE")
     win_fut_v = get_p_num("WIN_FUT")
 
