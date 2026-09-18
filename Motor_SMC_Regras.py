@@ -125,6 +125,17 @@ class ConfigSMC:
     ob_min_range: float = 30.0
     ob_fallback_brutos: bool = True
 
+    # Deduplicação de OBs por ativo (threshold em pontos)
+    # WIN tem tick de 5 pts → OBs separados por <50 pts são o mesmo bloco
+    # WDO tem tick de 0.5 pts → 5 pts já é generoso
+    dedup_ob_dist: Dict[str, float] = field(
+        default_factory=lambda: {
+            "WIN": 50.0,
+            "WDO": 5.0,
+        }
+    )
+    dedup_ob_dist_default: float = 10.0
+
     # Confluência OB ↔ POC
     ob_poc_dist_win: float = 300.0
     ob_poc_dist_wdo: float = 30.0
@@ -209,6 +220,21 @@ def _tick_size_para(ativo: str, config: ConfigSMC = CONFIG) -> float:
         if chave in ativo_up:
             return tick
     return config.tick_size_default
+
+
+def _dedup_dist_para(ativo: str, config: ConfigSMC = CONFIG) -> float:
+    """
+    Retorna a distancia minima (em pontos) para considerar dois OBs distintos.
+
+    WIN: 50 pts (blocos muito proximos sao o mesmo OB visto de angulos diferentes)
+    WDO: 5 pts
+    Default: 10 pts
+    """
+    ativo_up = (ativo or "").upper()
+    for chave, dist in config.dedup_ob_dist.items():
+        if chave in ativo_up:
+            return dist
+    return config.dedup_ob_dist_default
 
 
 # ============================================================
@@ -552,6 +578,7 @@ def detectar_order_blocks(
     candles: List[Candle],
     swings: List[Swing],
     eventos_estrutura: List[EventoEstrutura],
+    ativo: str = "WIN",
     config: ConfigSMC = CONFIG,
 ) -> List[OrderBlock]:
     obs_brutos: List[OrderBlock] = []
@@ -636,11 +663,22 @@ def detectar_order_blocks(
             ob.validado_por = "FALLBACK"
         obs_validados = obs_brutos
 
-    # ---- Deduplicação
+    # ---- Deduplicação (threshold por ativo)
+    dist_dedup = _dedup_dist_para(ativo, config)
     unicos: List[OrderBlock] = []
     for ob in obs_validados:
-        if not any(abs(ob.preco_ref - u.preco_ref) < 10 and ob.tipo == u.tipo for u in unicos):
+        if not any(
+            abs(ob.preco_ref - u.preco_ref) < dist_dedup and ob.tipo == u.tipo
+            for u in unicos
+        ):
             unicos.append(ob)
+
+    # Log diagnostico (ajuda a ver quantos OBs foram consolidados)
+    if len(unicos) < len(obs_validados):
+        logger.info(
+            f"Dedup OB [{ativo}] (thr {dist_dedup:.0f} pts): "
+            f"{len(obs_validados)} -> {len(unicos)}"
+        )
 
     return unicos
 
@@ -931,7 +969,7 @@ def analisar_smc(
     swings = detectar_swings(candles, config.swing_left, config.swing_right)
     eventos, bias = detectar_bos_choch(candles, swings)
     fvgs = detectar_fvg(candles, config)
-    obs = detectar_order_blocks(candles, swings, eventos, config)
+    obs = detectar_order_blocks(candles, swings, eventos, ativo, config)
     liq = detectar_liquidez(swings, config.eq_tol_pontos)
 
     bos = any(e.tipo == "BOS" for e in eventos[-3:])
