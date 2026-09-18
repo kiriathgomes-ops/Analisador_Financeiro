@@ -4,7 +4,7 @@ Módulo: monitor_preco_teorico.py
 Versão: 3.0 - Produção Otimizada V2
 Objetivo: Monitorar a formação de preço teórico e spreads do leilão B3 em tempo real via MT5.
 """
-
+import json 
 import sys
 import time
 import logging

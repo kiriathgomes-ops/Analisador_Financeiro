@@ -6,11 +6,20 @@ from datetime import datetime
 
 from .schemas import (
     DadosEntrada, DadosAberturaTeorica, DadosPivot,
-    DadosContexto, DadosTendencia, DadosNoticias
+    DadosContexto, DadosTendencia, DadosNoticias,
 )
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 COLETAS_DIR = BASE_DIR / "Coletas"
+
+
+# Import defensivo do LeilaoService (pode falhar se v2 não estiver no path)
+try:
+    from v2.core.services.leilao_service import LeilaoService
+    LEILAO_SERVICE_DISPONIVEL = True
+except ImportError:
+    LEILAO_SERVICE_DISPONIVEL = False
+
 
 def carregar_json(nome: str) -> Dict[str, Any]:
     caminho = COLETAS_DIR / nome
@@ -22,41 +31,171 @@ def carregar_json(nome: str) -> Dict[str, Any]:
     except Exception:
         return {}
 
+
+def _extrair_estimativa_win(estimativa: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Extrai o bloco 'estimativa_abertura.WIN_INDICE' do EstimativaAbertura.json,
+    aceitando tanto 'estimativa_abertura' (singular) quanto 'estimativas_abertura' (plural).
+    """
+    if not isinstance(estimativa, dict):
+        return {}
+
+    for chave in ("estimativa_abertura", "estimativas_abertura"):
+        bloco = estimativa.get(chave)
+        if isinstance(bloco, dict):
+            win = bloco.get("WIN_INDICE")
+            if isinstance(win, dict) and win:
+                return win
+
+    return {}
+
+
+def _extrair_preco_referencia_win(
+    congelado: Dict[str, Any],
+    validados: Dict[str, Any],
+    mt5: Dict[str, Any],
+) -> Optional[float]:
+    """
+    Busca o preço de referência do WIN (close do congelado).
+    Prioridade:
+      1. LastTick_Congelado.json → ticks.WIN_LAST_TICK.dados_reais.close
+      2. Dados_Validados.json → WIN_FUT.close
+      3. Dados_MT5_v2_2.json → ativos.WIN.last
+    """
+    if isinstance(congelado, dict):
+        ticks = congelado.get("ticks") or {}
+        win_tick = ticks.get("WIN_LAST_TICK") or {}
+        dados = win_tick.get("dados_reais") or {}
+        valor = dados.get("close")
+        if valor is not None and float(valor) > 0:
+            return float(valor)
+
+    if isinstance(validados, dict):
+        ativos_validados = validados.get("ativos_validados")
+        if isinstance(ativos_validados, list):
+            for item in ativos_validados:
+                if not isinstance(item, dict):
+                    continue
+                if item.get("ativo_id") != "WIN_FUT":
+                    continue
+                valor = item.get("close")
+                if valor is not None and float(valor) > 0:
+                    return float(valor)
+                break
+
+    if isinstance(mt5, dict):
+        win_mt5 = (mt5.get("ativos") or {}).get("WIN") or {}
+        valor = win_mt5.get("last")
+        if valor is not None and float(valor) > 0:
+            return float(valor)
+
+    return None
+
+
+def _obter_abertura_leilao() -> Dict[str, Any]:
+    """
+    Chama o LeilaoService (OCR) e retorna dict com preco/timestamp/fonte.
+    Em caso de falha, retorna indisponível.
+    """
+    indisponivel = {
+        "disponivel": False,
+        "preco": None,
+        "timestamp": None,
+        "fonte": "INDISPONIVEL",
+    }
+
+    if not LEILAO_SERVICE_DISPONIVEL:
+        return indisponivel
+
+    try:
+        svc = LeilaoService(COLETAS_DIR)
+        return svc.obter_preco_leilao()
+    except Exception as e:
+        print(f"⚠️ LeilaoService falhou: {e}")
+        return indisponivel
+
+
 def coletar_dados_entrada() -> Optional[DadosEntrada]:
     ativos = carregar_json("DadosAtivosUnificados.json").get("ativos", {})
     estimativa = carregar_json("EstimativaAbertura.json")
-    est_win = estimativa.get("estimativas_abertura", {}).get("WIN_INDICE", {})
+    validados = carregar_json("Dados_Validados.json")
+    mt5 = carregar_json("Dados_MT5_v2_2.json")
+    congelado = carregar_json("LastTick_Congelado.json")
+
+    est_win = _extrair_estimativa_win(estimativa)
     pivots = estimativa.get("pivot_points", {}).get("WIN_FUT", {})
+
     metricas = carregar_json("Metricas_Calculadas.json")
     indicadores = metricas.get("indicadores_compostos", {})
     macro = metricas.get("indicadores_macro", {})
     adrs_data = metricas.get("performance_relativa", {}).get("adrs_brasileiras", {})
+
     decisao_v2 = carregar_json("Decisao_V2.json")
-    win_core = decisao_v2.get("decisao", {})  # V2 já tem a decisão diretamente
+    win_core = decisao_v2.get("decisao", {})
+
     tendencias_raw = carregar_json("Analise_Tendencias.json")
     tendencia_win_data = None
     for chave in ["WIN_FUT", "BMFBOVESPA:WIN1!"]:
         if chave in tendencias_raw:
             tendencia_win_data = tendencias_raw[chave]
             break
+
     noticias = carregar_json("Noticias_Impacto_Dia.json")
     alertas = noticias.get("alertas", {})
     resumo_noticias = noticias.get("resumo", {})
 
+    # ---- WIN: preço atual ----
     win_ativo = ativos.get("WIN_FUT", {})
     win_atual = win_ativo.get("preco")
-    win_high = win_ativo.get("high")   # máxima da pré-abertura (se disponível)
-    win_low = win_ativo.get("low")     # mínima da pré-abertura (se disponível)
+    win_high = win_ativo.get("high")
+    win_low = win_ativo.get("low")
     ajuste_win = ativos.get("WIN_AJUSTE", {}).get("preco")
-    abertura_teorica_val = est_win.get("abertura_teorica_pontos", 0.0)
-    if win_atual is None:
-        win_atual = abertura_teorica_val
-    fechamento_anterior = ajuste_win
+
+    # ---- Preço do LEILÃO (OCR) ----
+    leilao = _obter_abertura_leilao()
+
+    # ---- Abertura teórica CALCULADA (do CalculadoraEstimativaAbertura) ----
+    abertura_teorica_calculada = float(est_win.get("abertura_teorica_pontos", 0.0) or 0.0)
+
+    # ---- Prioridade: OCR > Calculado > Ajuste ----
+    abertura_leilao_real: Optional[float] = None
+    abertura_leilao_timestamp: Optional[str] = None
+
+    if leilao.get("disponivel") and leilao.get("preco"):
+        abertura_projetada = float(leilao["preco"])
+        fonte_abertura = "OCR_LEILAO"
+        abertura_leilao_real = float(leilao["preco"])
+        abertura_leilao_timestamp = leilao.get("timestamp")
+    elif abertura_teorica_calculada > 0:
+        abertura_projetada = abertura_teorica_calculada
+        fonte_abertura = "CALCULADO"
+    else:
+        abertura_projetada = float(ajuste_win or 0.0)
+        fonte_abertura = "AJUSTE"
+
+    # Preço atual com fallback em cascata
+    if win_atual is None or float(win_atual or 0.0) <= 0:
+        win_atual = abertura_projetada or ajuste_win or 0.0
+
+    # Fechamento anterior via 3 fontes
+    fechamento_anterior = _extrair_preco_referencia_win(congelado, validados, mt5)
+    if fechamento_anterior is None or fechamento_anterior <= 0:
+        fechamento_anterior = float(ajuste_win or 0.0)
+
+    # high/low do congelado (informativo)
+    if (win_high is None or win_low is None) and isinstance(congelado, dict):
+        ticks = congelado.get("ticks") or {}
+        win_tick = ticks.get("WIN_LAST_TICK") or {}
+        dados = win_tick.get("dados_reais") or {}
+        if win_high is None:
+            win_high = dados.get("high")
+        if win_low is None:
+            win_low = dados.get("low")
 
     abertura_teorica = DadosAberturaTeorica(
         variacao_teorica_pct=est_win.get("variacao_teorica_pct", 0.0),
-        abertura_teorica_pontos=abertura_teorica_val,
-        pontos_ajuste_base=est_win.get("pontos_ajuste_base", 0.0)
+        abertura_teorica_pontos=abertura_projetada,
+        pontos_ajuste_base=est_win.get("preco_referencia_base", 0.0),
     )
 
     pivot = DadosPivot(
@@ -64,7 +203,7 @@ def coletar_dados_entrada() -> Optional[DadosEntrada]:
         r1=pivots.get("R1", 0.0),
         r2=pivots.get("R2", 0.0),
         s1=pivots.get("S1", 0.0),
-        s2=pivots.get("S2", 0.0)
+        s2=pivots.get("S2", 0.0),
     )
 
     contexto = DadosContexto(
@@ -82,10 +221,15 @@ def coletar_dados_entrada() -> Optional[DadosEntrada]:
         iron_var=ativos.get("IRON_ORE", {}).get("variacao_pct"),
         crude_oil=ativos.get("CRUDE_OIL", {}).get("preco"),
         crude_var=ativos.get("CRUDE_OIL", {}).get("variacao_pct"),
-        adrs={ticker: {"close": data.get("close"), "change_percent": data.get("change_percent")}
-              for ticker, data in adrs_data.items()},
+        adrs={
+            ticker: {
+                "close": data.get("close"),
+                "change_percent": data.get("change_percent"),
+            }
+            for ticker, data in adrs_data.items()
+        },
         indicador_mercado_externo=indicadores.get("indicador_mercado_externo"),
-        indicador_adrs_brasileiras=indicadores.get("indicador_adrs_brasileiras")
+        indicador_adrs_brasileiras=indicadores.get("indicador_adrs_brasileiras"),
     )
 
     tendencia = DadosTendencia()
@@ -99,24 +243,26 @@ def coletar_dados_entrada() -> Optional[DadosEntrada]:
         tem_3_estrelas_outros=alertas.get("tem_3_estrelas_outros_horarios", False),
         tem_multiplas_2_estrelas=alertas.get("tem_multiplas_2_estrelas_mesmo_horario", False),
         classificacao_impacto=resumo_noticias.get("classificacao", "BAIXO"),
-        risco_abertura_win=alertas.get("risco_abertura_WIN", False)
+        risco_abertura_win=alertas.get("risco_abertura_WIN", False),
     )
-
-    core_vies = win_core.get("vies_final")
-    core_score = win_core.get("score_numeric")
 
     return DadosEntrada(
         timestamp=datetime.now().isoformat(),
         fechamento_anterior_win=fechamento_anterior,
         ajuste_win=ajuste_win,
         preco_atual_win=win_atual,
-        maxima_pre_abertura=win_high,   # nova
-        minima_pre_abertura=win_low,    # nova
+        maxima_pre_abertura=win_high,
+        minima_pre_abertura=win_low,
         abertura_teorica=abertura_teorica,
         pivot_win=pivot,
         contexto=contexto,
         tendencia_win=tendencia,
         noticias=noticias_obj,
-        core_win_vies=core_vies,
-        core_win_score=core_score
+        core_win_vies=win_core.get("vies_final"),
+        core_win_score=win_core.get("score_numeric"),
+        # Novos campos
+        abertura_leilao_real=abertura_leilao_real,
+        abertura_leilao_timestamp=abertura_leilao_timestamp,
+        abertura_teorica_calculada=abertura_teorica_calculada,
+        fonte_abertura=fonte_abertura,
     )

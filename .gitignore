@@ -1,3 +1,45 @@
-.env
-Coletas/__pycache__/
+# Dados de coleta (gerados pelo pipeline)
+Coletas/*.json
+Coletas/*.md
+Coletas/*.png
+Coletas/*.jpg
+Coletas/*.csv
+Coletas/Historico*/
+
+
+
+
+# Backups
+* copy.py
+* copy *.py
+*_old*
+*_backup*
+
+# Logs e cache
+*.log
 __pycache__/
+*.pyc
+.venv/
+.env
+_legado/
+dump_v2.txt
+_debug_leilao.py
+dump_v2.py
+
+# Historico de coletas (dados gerados pelo OCR)
+Coletas/coleta_preco_teorico_historico/
+
+# Scripts de debug/teste local
+_teste_*.py
+_debug_*.py
+ferramentas/_debug_*.py
+
+# Dumps auto-gerados
+consolidado_projeto.txt
+dump_v2.txt
+
+# Backups gerados por fixN.py
+*.bak_*
+
+# Backups gerados por fixN.py
+*.bak_*

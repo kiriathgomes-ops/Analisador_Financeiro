@@ -1,6 +1,6 @@
 # ============================================================
 # ARQUIVO: Coletor.py
-# DATA: 30/07/2026 | Atualizado 31/08/2026
+# DATA: 30/07/2026 | Atualizado 18/09/2026
 # AUTOR: Arquiteto de Sistemas
 # MOTIVO: Ingestão de Dados (BACEN SGS 10813 + TV + B3 WIN/WDO Separados)
 #         Engine de Rotação Temporal de Memória e
@@ -11,6 +11,20 @@
 #   - WIN_LAST_TICK: MT5 só FORA do pregão + grava LastTick_Congelado.json
 #   - No pregão: LAST lido do arquivo fixo (não depende da rotação ROM)
 #   - Idem WDO
+#
+# ATUALIZAÇÃO 18/09/2026 (Opção C — ajuste + fechamento via brapi):
+#   - B3_AJUSTE_WIN/WDO agora vêm da brapi.dev (campo 'settlement')
+#   - B3_FECHAMENTO_WIN/WDO também vêm da brapi (campo 'close') [auditoria]
+#   - Fallback: se o MT5 não entregar 'last' para WIN/WDO, usa o fechamento
+#     da brapi em vez de cair direto no cache congelado (pipeline não para
+#     mesmo se MT5 estiver offline).
+#   - Fix typo: esta_fora_do_pregão → esta_fora_do_pregao
+#
+# ATUALIZAÇÃO 18/09/2026 (v2 — cosmético):
+#   - coletar_ajuste_oficial(silencioso=False): TV fallback agora pode ser
+#     chamado em modo silencioso quando roda em paralelo com brapi.
+#     Motivo: o TV imprimia "Dentro da janela. Coletando ajuste TV..." mesmo
+#     quando o brapi já tinha resolvido — confundia o log.
 # ============================================================
 
 from __future__ import annotations
@@ -397,14 +411,150 @@ def coletar_bacen_ptax() -> dict:
 
 
 # ------------------------------------------------------------
-# Ajuste oficial (TV) — só na janela 19:00–08:50
+# Ajuste + Fechamento oficial B3 — via brapi.dev (FONTE PRIMÁRIA)
 # ------------------------------------------------------------
-def coletar_ajuste_oficial() -> List[dict]:
+def _descobrir_contrato_win() -> str:
+    """
+    Lê o contrato principal do WIN no MT5 v2.2 e devolve o símbolo
+    pronto pro brapi (ex: 'WINV26'). Fallback: WINV26.
+    """
+    if os.path.exists(FILE_MT5_V2):
+        try:
+            with open(FILE_MT5_V2, "r", encoding="utf-8") as f:
+                mt5_json = json.load(f)
+            contrato = (
+                (mt5_json.get("ativos") or {}).get("WIN", {}).get("contrato_principal")
+            )
+            if contrato and str(contrato).upper().startswith("WIN"):
+                return str(contrato).upper()
+        except Exception:
+            pass
+    return "WINV26"
+
+
+def _descobrir_contrato_wdo() -> str:
+    """Idem ao WIN, mas pro WDO."""
+    if os.path.exists(FILE_MT5_V2):
+        try:
+            with open(FILE_MT5_V2, "r", encoding="utf-8") as f:
+                mt5_json = json.load(f)
+            contrato = (
+                (mt5_json.get("ativos") or {}).get("WDO", {}).get("contrato_principal")
+            )
+            if contrato and str(contrato).upper().startswith("WDO"):
+                return str(contrato).upper()
+        except Exception:
+            pass
+    return "WDOU26"
+
+
+def coletar_ajuste_brapi() -> List[dict]:
+    """
+    Busca AJUSTE + FECHAMENTO oficiais via brapi.dev em uma única chamada.
+
+    Retorna 4 itens por ciclo:
+      - B3_AJUSTE_WIN      → settlement (ajuste oficial B3)
+      - B3_AJUSTE_WDO      → settlement
+      - B3_FECHAMENTO_WIN  → close (último negócio, auditoria + fallback)
+      - B3_FECHAMENTO_WDO  → close
+
+    IMPORTANTE: o TradingView WIN1! retorna 'close' (último negócio), não o
+    ajuste oficial. A brapi expõe 'settlement' que É o ajuste publicado
+    pela B3 (usado para acerto diário de posições).
+    """
+    timestamp = datetime.now().isoformat()
+    saida: List[dict] = []
+
+    contrato_win = _descobrir_contrato_win()
+    contrato_wdo = _descobrir_contrato_wdo()
+
+    try:
+        url = (
+            f"https://brapi.dev/api/v2/futures/quote?"
+            f"symbols={contrato_win},{contrato_wdo}"
+        )
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            dados = json.loads(resp.read().decode("utf-8"))
+    except Exception as e:
+        print(f"   ⚠️ brapi ajuste falhou: {e}")
+        return []
+
+    for item in dados.get("quotes", []) or []:
+        symbol = str(item.get("symbol", "")).upper()
+        settlement = item.get("settlement")
+        close_val = item.get("close")
+
+        if symbol.startswith("WIN"):
+            prefixo = "WIN"
+        elif symbol.startswith("WDO"):
+            prefixo = "WDO"
+        else:
+            continue
+
+        # ---- 1. Ajuste oficial (settlement) ----
+        if settlement and float(settlement) > 0:
+            saida.append({
+                "ativo": f"B3_AJUSTE_{prefixo}",
+                "fonte": "BRAPI_SETTLEMENT",
+                "timestamp": timestamp,
+                "status": "OK",
+                "dados_reais": {
+                    "close": float(settlement),          # AJUSTE OFICIAL
+                    "open": item.get("open"),
+                    "high": item.get("high"),
+                    "low": item.get("low"),
+                    "change_percent": item.get("oscillationPct"),
+                    "volume": item.get("volume"),
+                    "fechamento_real": close_val,        # informativo
+                    "preco_medio": item.get("average"),  # informativo
+                },
+            })
+
+        # ---- 2. Fechamento oficial (close) ----
+        if close_val and float(close_val) > 0:
+            saida.append({
+                "ativo": f"B3_FECHAMENTO_{prefixo}",
+                "fonte": "BRAPI_CLOSE",
+                "timestamp": timestamp,
+                "status": "OK",
+                "dados_reais": {
+                    "close": float(close_val),
+                    "open": item.get("open"),
+                    "high": item.get("high"),
+                    "low": item.get("low"),
+                    "change_percent": item.get("oscillationPct"),
+                    "volume": item.get("volume"),
+                    "preco_medio": item.get("average"),
+                },
+            })
+
+    for it in saida:
+        print(
+            f"   ✅ {it['ativo']} via brapi: {it['dados_reais']['close']:.4f}"
+        )
+
+    return saida
+
+
+# ------------------------------------------------------------
+# Ajuste oficial (TV) — FALLBACK quando brapi falha
+# ------------------------------------------------------------
+def coletar_ajuste_oficial(silencioso: bool = False) -> List[dict]:
+    """
+    Fallback do ajuste (TradingView). ATENÇÃO: o TV retorna 'close'
+    (último negócio), NÃO o ajuste oficial B3. Use apenas se a brapi falhar.
+
+    Parâmetro `silencioso`: quando True, suprime os prints cosméticos
+    ("Dentro da janela...", "Fora da janela..."). Usado quando chamada em
+    paralelo com brapi (evita log ruidoso).
+    """
     timestamp = datetime.now().isoformat()
     hora_atual = datetime.now().time()
 
     if JANELA_AJUSTE_FIM < hora_atual < JANELA_AJUSTE_INICIO:
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] Fora da janela de ajuste. Cache...")
+        if not silencioso:
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] Fora da janela de ajuste. Cache...")
         for arquivo_cache in (FILE_RAM, FILE_ROM0):
             if not os.path.exists(arquivo_cache):
                 continue
@@ -443,7 +593,8 @@ def coletar_ajuste_oficial() -> List[dict]:
             },
         ]
 
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] Dentro da janela. Coletando ajuste TV...")
+    if not silencioso:
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Dentro da janela. Coletando ajuste TV (FALLBACK)...")
     simbolos = [
         {"ativo": "B3_AJUSTE_WIN", "ticker": "BMFBOVESPA:WIN1!"},
         {"ativo": "B3_AJUSTE_WDO", "ticker": "BMFBOVESPA:WDO1!"},
@@ -475,7 +626,8 @@ def coletar_ajuste_oficial() -> List[dict]:
                     },
                 }
         except Exception as e:
-            print(f"   ❌ Ajuste {item['ativo']}: {e}")
+            if not silencioso:
+                print(f"   ❌ Ajuste {item['ativo']}: {e}")
             return {
                 "ativo": item["ativo"],
                 "fonte": "TRADINGVIEW_DIRECT_SYMBOL",
@@ -587,6 +739,7 @@ def gerar_arquivo_unificado(coletas: List[dict]) -> None:
 # ------------------------------------------------------------
 # Montagem WIN_FUT / WIN_LAST_TICK a partir do MT5
 # + arquivo fixo LastTick_Congelado.json (Fase 0)
+# + fallback brapi quando MT5 falhar (Opção C)
 # ------------------------------------------------------------
 def _carregar_cache_coletas(*arquivos: str) -> list:
     """Lê itens de coletas dos arquivos de cache (ordem de prioridade)."""
@@ -634,7 +787,6 @@ def _salvar_last_tick_congelado(ticks: Dict[str, dict]) -> None:
     """
     if not ticks:
         return
-    # merge com existente para não apagar WDO se só veio WIN
     atual = _carregar_last_tick_congelado()
     atual.update(ticks)
     payload = {
@@ -659,6 +811,10 @@ def _montar_win_wdo_mt5(coletas: List[dict]) -> bool:
         - FORA do pregão → MT5 ao vivo + grava LastTick_Congelado.json
         - NO pregão     → lê arquivo fixo (fallback: RAM/ROM se arquivo ausente)
 
+    FALLBACK (novo): se o MT5 não entregar 'last' para WIN/WDO, usa o
+    fechamento oficial da brapi (B3_FECHAMENTO_WIN/WDO) antes de cair
+    no cache congelado. Isso evita perder o ciclo quando o MT5 falha.
+
     Retorna True se montou pelo menos WIN_FUT fresco do MT5.
     """
     mt5_json: dict = {}
@@ -676,6 +832,16 @@ def _montar_win_wdo_mt5(coletas: List[dict]) -> bool:
     montou_win_fut = False
     ticks_para_congelar: Dict[str, dict] = {}
 
+    # ✅ Fallback brapi: coleta os fechamentos já presentes em `coletas`
+    fech_brapi: Dict[str, float] = {}
+    for item in coletas:
+        ativo = item.get("ativo")
+        if ativo in ("B3_FECHAMENTO_WIN", "B3_FECHAMENTO_WDO"):
+            if item.get("status") == "OK":
+                close_v = (item.get("dados_reais") or {}).get("close")
+                if close_v and float(close_v) > 0:
+                    fech_brapi[ativo] = float(close_v)
+
     freeze_map = _carregar_last_tick_congelado() if not fora_pregao else {}
     cache_itens: list = []
     if not fora_pregao and not freeze_map:
@@ -690,9 +856,24 @@ def _montar_win_wdo_mt5(coletas: List[dict]) -> bool:
         info = ativos_mt5.get(prefixo) or {}
         last_val = (lasts.get(prefixo) or {}).get("last") or info.get("last")
 
-        # ---------- FUT: sempre MT5 ----------
+        # ✅ Fallback brapi quando MT5 não tem last
+        if last_val is None or float(last_val or 0) <= 0:
+            brapi_close = fech_brapi.get(f"B3_FECHAMENTO_{prefixo}")
+            if brapi_close and brapi_close > 0:
+                print(
+                    f"   🔄 {prefixo}: MT5 sem last — usando fechamento brapi "
+                    f"{brapi_close:.0f}"
+                )
+                last_val = brapi_close
+
+        # ---------- FUT: sempre MT5 (ou brapi fallback) ----------
         if last_val is not None and float(last_val or 0) > 0:
             last_val = float(last_val)
+            last_real = last_val
+            close_d1 = info.get("close")
+            if close_d1 is not None and float(close_d1 or 0) > 0:
+                last_real = float(close_d1)
+
             open_v = info.get("open")
             high_v = info.get("high")
             low_v = info.get("low")
@@ -705,26 +886,39 @@ def _montar_win_wdo_mt5(coletas: List[dict]) -> bool:
             if var_pct is None and prev_c and float(prev_c or 0) > 0:
                 var_pct = round(((last_val / float(prev_c)) - 1) * 100, 4)
 
+            last_fut = last_val
             if (
                 isinstance(bid, (int, float))
                 and isinstance(ask, (int, float))
                 and bid > 0
                 and ask > 0
-                and (last_val < bid or last_val > ask)
+                and (last_fut < bid or last_fut > ask)
             ):
                 mid = round((float(bid) + float(ask)) / 2.0, 1)
                 print(
-                    f"   ⚠️ {prefixo} last={last_val} fora do spread "
-                    f"[{bid},{ask}] → mid={mid}"
+                    f"   ⚠️ {prefixo} last={last_fut} fora do spread "
+                    f"[{bid},{ask}] → mid={mid} (apenas FUT)"
                 )
-                last_val = mid
+                last_fut = mid
 
-            ohlc = {
-                "close": last_val,
+            ohlc_fut = {
+                "close": last_fut,
                 "open": float(open_v) if open_v is not None else None,
                 "high": float(high_v) if high_v is not None else None,
                 "low": float(low_v) if low_v is not None else None,
                 "change_percent": var_pct,
+                "volume": float(vol_v) if vol_v is not None else None,
+                "fechamento_anterior": float(prev_c) if prev_c else None,
+            }
+            var_pct_real = var_pct
+            if prev_c and float(prev_c or 0) > 0 and last_real > 0:
+                var_pct_real = round(((last_real / float(prev_c)) - 1) * 100, 4)
+            ohlc_last = {
+                "close": last_real,
+                "open": float(open_v) if open_v is not None else None,
+                "high": float(high_v) if high_v is not None else None,
+                "low": float(low_v) if low_v is not None else None,
+                "change_percent": var_pct_real,
                 "volume": float(vol_v) if vol_v is not None else None,
                 "fechamento_anterior": float(prev_c) if prev_c else None,
             }
@@ -738,11 +932,11 @@ def _montar_win_wdo_mt5(coletas: List[dict]) -> bool:
                 "fonte": "MT5_v2.2",
                 "timestamp": ts,
                 "status": "OK",
-                "dados_reais": dict(ohlc),
+                "dados_reais": dict(ohlc_fut),
             })
             print(
-                f"   ✅ {prefixo}_FUT SEMPRE ({contrato}): last={last_val} "
-                f"OHLC=({ohlc['open']}/{ohlc['high']}/{ohlc['low']}) var={var_pct}"
+                f"   ✅ {prefixo}_FUT SEMPRE ({contrato}): last={last_fut} "
+                f"OHLC=({ohlc_fut['open']}/{ohlc_fut['high']}/{ohlc_fut['low']}) var={var_pct}"
             )
             if prefixo == "WIN":
                 montou_win_fut = True
@@ -754,11 +948,14 @@ def _montar_win_wdo_mt5(coletas: List[dict]) -> bool:
                     "fonte": "MT5_v2.2",
                     "timestamp": ts,
                     "status": "OK",
-                    "dados_reais": dict(ohlc),
+                    "dados_reais": dict(ohlc_last),
                 }
                 coletas.append(item_last)
                 ticks_para_congelar[ativo_last] = item_last
-                print(f"   ✅ {ativo_last} MT5 ao vivo (fora do pregão)")
+                print(
+                    f"   ✅ {ativo_last} MT5 real close={last_real} "
+                    f"(sem mid; fora do pregão)"
+                )
             else:
                 frozen = freeze_map.get(ativo_last)
                 if frozen and (frozen.get("dados_reais") or {}).get("close"):
@@ -784,7 +981,7 @@ def _montar_win_wdo_mt5(coletas: List[dict]) -> bool:
                             f"chave ausente neste ciclo"
                         )
         else:
-            print(f"   ⚠️ {prefixo}: sem last MT5 para FUT")
+            print(f"   ⚠️ {prefixo}: sem last MT5 nem brapi para FUT")
             if not fora_pregao:
                 frozen = freeze_map.get(ativo_last)
                 if frozen:
@@ -810,7 +1007,6 @@ def _montar_win_wdo_mt5(coletas: List[dict]) -> bool:
 
 def _reutilizar_cache_last_fut(coletas: List[dict]) -> None:
     """Fallback fora do pregão se MT5 falhar totalmente."""
-    # tenta arquivo fixo primeiro
     freeze = _carregar_last_tick_congelado()
     added = False
     for ativo in ("WIN_LAST_TICK", "WDO_LAST_TICK"):
@@ -856,27 +1052,43 @@ def executar_pipeline_coleta() -> None:
 
     coletas: List[dict] = []
 
-    # --- Fontes HTTP independentes em paralelo ---
-    with ThreadPoolExecutor(max_workers=4) as ex:
+    # --- Fontes HTTP independentes em paralelo (com brapi) ---
+    # TV fallback roda em modo SILENCIOSO — só aparece se brapi falhar.
+    with ThreadPoolExecutor(max_workers=5) as ex:
         fut_ptax = ex.submit(coletar_bacen_ptax)
-        fut_ajuste = ex.submit(coletar_ajuste_oficial)
+        fut_ajuste_brapi = ex.submit(coletar_ajuste_brapi)         # PRIMÁRIO
+        fut_ajuste_tv = ex.submit(coletar_ajuste_oficial, True)    # FALLBACK (silencioso)
         fut_tv = ex.submit(coletar_tradingview)
         fut_fh = ex.submit(coletar_finnhub)
 
         ptax = fut_ptax.result()
-        ajustes = fut_ajuste.result()
+        ajustes_brapi = fut_ajuste_brapi.result()
+        ajustes_tv = fut_ajuste_tv.result()
         tv_dados = fut_tv.result()
         finnhub_dados = fut_fh.result()
 
+    # ---- Ajuste oficial: brapi primeiro, TV como fallback ----
+    if ajustes_brapi:
+        coletas.extend(ajustes_brapi)
+        n_ajustes = sum(1 for x in ajustes_brapi if x["ativo"].startswith("B3_AJUSTE"))
+        n_fech = sum(1 for x in ajustes_brapi if x["ativo"].startswith("B3_FECHAMENTO"))
+        print(
+            f"   ✅ brapi OK — {n_ajustes} ajustes + {n_fech} fechamentos"
+        )
+    else:
+        # brapi falhou — aí sim imprime o retorno do TV (fallback real)
+        print(f"   ⚠️ brapi indisponível — usando TV fallback ({len(ajustes_tv)} itens)")
+        # Re-executa TV em modo verboso pra dar visibilidade
+        ajustes_tv_verbose = coletar_ajuste_oficial(silencioso=False)
+        coletas.extend(ajustes_tv_verbose or ajustes_tv)
+
     coletas.append(ptax)
-    coletas.extend(ajustes)
     coletas.extend(tv_dados)
     coletas.extend(finnhub_dados)
 
     ok_fh = sum(1 for d in finnhub_dados if d.get("status") == "OK")
     print(
-        f"   ✅ Finnhub: {ok_fh} OK | TV: {len(tv_dados)} | "
-        f"Ajustes: {len(ajustes)}"
+        f"   ✅ Finnhub: {ok_fh} OK | TV: {len(tv_dados)}"
     )
 
     # --- MT5: sempre coleta v2.2 (WIN_FUT precisa estar fresco) ---
@@ -943,5 +1155,6 @@ def executar_pipeline_coleta() -> None:
 if __name__ == "__main__":
     print("=" * 60)
     print(" COLETOR — WIN_FUT sempre | LAST arquivo fixo (Fase 0)")
+    print("        + Ajuste e Fechamento oficiais via brapi.dev")
     print("=" * 60)
     executar_pipeline_coleta()

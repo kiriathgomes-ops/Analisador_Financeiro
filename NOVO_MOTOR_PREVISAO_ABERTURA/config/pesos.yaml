@@ -13,9 +13,19 @@ score_limiares:
   moderado: 40
   fraco: 0
 
-gap_limiares:
-  micro: 20
-  pequeno: 50
-  moderado: 100
-  forte: 200
-  extremo: 999999
+# Limiares de gap em % do preço de referência (não mais pontos).
+# Ver motor_gap.py (LIMIARES_PCT) para detalhes da calibração.
+gap_limiares_pct:
+  micro: 0.05
+  pequeno: 0.15
+  moderado: 0.30
+  forte: 0.60
+  extremo: 999.0
+
+# DEPRECATED — mantido apenas para referência histórica (valores em pontos)
+# gap_limiares:
+#   micro: 20
+#   pequeno: 50
+#   moderado: 100
+#   forte: 200
+#   extremo: 999999
