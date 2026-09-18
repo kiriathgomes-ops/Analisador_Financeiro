@@ -336,6 +336,43 @@ def capturar_regiao(regiao):
         return Image.frombytes("RGB", img.size, img.bgra, "raw", "BGRX")
 
 
+def _regiao_e_azul_leilao(pil_image, threshold: float = 0.40) -> bool:
+    """
+    Detecta se a regiao tem fundo AZUL caracteristico da barra de leilao.
+
+    Estrategia:
+      - Reduz a imagem para 10x10 (rapido, robusto a ruido)
+      - Conta pixels com B alto e dominante (R e G baixos)
+      - Se a fracao de pixels azuis >= threshold, considera leilao ativo
+
+    Args:
+        pil_image: imagem capturada (PIL)
+        threshold: fracao minima de pixels azuis (default 0.40)
+
+    Returns:
+        True se a regiao e predominantemente azul, False caso contrario.
+    """
+    try:
+        small = pil_image.resize((10, 10))
+        pixels = list(small.getdata())
+        total = len(pixels)
+        if total == 0:
+            return False
+
+        azuis = 0
+        for r, g, b in pixels:
+            # Azul do leilao (aprox RGB 30-80, 130-180, 220-255)
+            # Regra: B alto E B > R+40 E B > G+30
+            if b > 120 and b > (r + 40) and b > (g + 30):
+                azuis += 1
+
+        fracao = azuis / total
+        return fracao >= threshold
+    except Exception:
+        # Em caso de erro, assume "nao leilao" (conservador)
+        return False
+
+
 def analisar_fluxo(historico):
     if len(historico) < 10:
         return "LATERAL", 0
@@ -404,13 +441,35 @@ def main():
     total_mudanca = 0
     total_forcado = 0
 
+    # Contador de ciclos fora do leilao (para relatorio final)
+    total_fora_leilao = 0
+    ultimo_estado_azul = None  # None | True | False
+
     try:
         while True:
             img = capturar_regiao(regiao)
-            preco, conf = extrair_numero(img)
             agora_dt = datetime.now()
             agora = agora_dt.strftime('%H:%M:%S')
 
+            # ---- Deteccao de leilao por cor de fundo ----
+            azul = _regiao_e_azul_leilao(img)
+
+            # Log so na transicao (nao spamma)
+            if azul != ultimo_estado_azul:
+                if azul:
+                    print(f"[{agora}] 🟦 [LEILAO] Barra azul detectada — OCR ATIVO")
+                else:
+                    print(f"[{agora}] ⬛ [LEILAO] Barra azul ausente — OCR PAUSADO")
+                ultimo_estado_azul = azul
+
+            if not azul:
+                total_fora_leilao += 1
+                print(f"[{agora}] Fora do leilao (sem fundo azul)", end="\r")
+                time.sleep(INTERVALO)
+                continue
+
+            # ---- Leilao ativo: roda OCR normal ----
+            preco, conf = extrair_numero(img)
             total_tentativas += 1
 
             if preco:
@@ -497,6 +556,7 @@ def main():
         print(f"  Rejeitadas pelo filtro  : {total_rejeitadas_filtro}")
         print(f"      ├─ fora faixa abs.  : {filtro.rejeicoes_absoluta}")
         print(f"      └─ salto vs mediana : {filtro.rejeicoes_mediana}")
+        print(f"  Ciclos fora do leilao   : {total_fora_leilao}")
         print(f"  Gravações por mudança   : {total_mudanca}")
         print(f"  Gravações forçadas      : {total_forcado}")
         print(f"  Total gravado no CSV    : {total_mudanca + total_forcado}")
