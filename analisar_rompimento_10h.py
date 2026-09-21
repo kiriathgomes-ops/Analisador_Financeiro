@@ -412,11 +412,32 @@ def main() -> int:
     if vela:
         print(f"  Vela    : {vela['status']} | O={vela['open']:.0f} H={vela['high']:.0f} L={vela['low']:.0f} C={vela['close']:.0f}")
     print()
-    print("  Proximo passo:")
-    print("    1. Abra o arquivo no Notepad:")
-    print(f"       notepad {SAIDA_PATH}")
-    print("    2. Ctrl+A, Ctrl+C")
-    print("    3. Cole na IA (Claude, GPT-4, etc)")
+    print("  Abrindo no Notepad...")
+    print()
+    print("  Proximo passo (dentro do Notepad):")
+    print("    1. Ctrl+A (seleciona tudo)")
+    print("    2. Ctrl+C (copia)")
+    print("    3. Cola na IA (Claude, GPT-4, etc)")
+    print()
+
+    # Abre automaticamente no Notepad (Windows)
+    try:
+        import subprocess
+        subprocess.Popen(["notepad.exe", str(SAIDA_PATH)])
+        print("  [OK] Notepad aberto.")
+    except FileNotFoundError:
+        # Fallback: os.startfile (abre com app padrao do .txt)
+        try:
+            import os
+            os.startfile(str(SAIDA_PATH))
+            print("  [OK] Arquivo aberto no app padrao.")
+        except Exception as e:
+            print(f"  [AVISO] Nao foi possivel abrir automaticamente: {e}")
+            print(f"  Abra manualmente: notepad {SAIDA_PATH}")
+    except Exception as e:
+        print(f"  [AVISO] Falha ao abrir Notepad: {e}")
+        print(f"  Abra manualmente: notepad {SAIDA_PATH}")
+
     print()
     return 0
 

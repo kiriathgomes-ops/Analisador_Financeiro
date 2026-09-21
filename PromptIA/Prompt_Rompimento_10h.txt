@@ -148,7 +148,8 @@ INVALIDACAO:
 8. Máximo 2 linhas por observação.
 9. Linguagem de mesa. Sem "acredito", "talvez", "sugiro".
 10. Nunca sugerir operar contra ajuste B3 em gap > 500 pts.
-
+11. Se o Bloco E (vela 10:00) estiver indisponível, VIES FINAL = AGUARDAR
+    independentemente de qualquer outro fator. Sem vela, sem R:R, sem trade.
 ---
 
 ## 6. CÁLCULO DA CONFIANÇA
