@@ -3,7 +3,7 @@
 # DATA: 30/07/2026 | Atualizado 18/09/2026
 # AUTOR: Arquiteto de Sistemas
 # MOTIVO: Fase 3 - Validação, sanitização e padronização dos
-#         32 ativos (com WIN e WDO Ajustes separados).
+#         34 ativos (com WIN e WDO Ajustes separados).
 # DESCRICAO:
 #   Processa o arquivo JSON bruto oriundo da fase de coleta,
 #   aplica regras de negócio para consistência de dados,
@@ -184,6 +184,6 @@ def executar_validacao() -> bool:
 # ------------------------------------------------------------
 if __name__ == "__main__":
     print("=" * 60)
-    print(" FASE 3: ENGINE DE VALIDAÇÃO E SANITIZAÇÃO DE DADOS (32 ATIVOS)")
+    print(" FASE 3: ENGINE DE VALIDAÇÃO E SANITIZAÇÃO DE DADOS (34 ATIVOS)")
     print("=" * 60)
     executar_validacao()
