@@ -47,3 +47,6 @@ dump_v2.txt
 
 # Excecao: configs criticos versionados
 !Coletas/config_regiao.json
+
+# Snapshots gerados para IA (runtime)
+Coletas/snapshot_rompimento_10h.txt
