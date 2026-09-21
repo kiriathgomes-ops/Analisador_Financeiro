@@ -12,10 +12,16 @@ Correção v2.1:
 import asyncio
 import importlib
 import logging
+import os
 import time
 import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
+
+# Forca UTF-8 em TODOS os subprocess filhos (evita UnicodeEncodeError com
+# emojis no cp1252 do Windows). Setar no processo pai faz o filho herdar.
+os.environ["PYTHONUTF8"] = "1"
+os.environ["PYTHONIOENCODING"] = "utf-8"
 
 # Configuração detalhada de logs
 logging.basicConfig(
@@ -44,6 +50,10 @@ def run_sync_module(module_object, name: str):
     Executor dinâmico para módulos síncronos.
     Tenta invocar .main(), .executar(), .run(). Caso o script execute o código
     diretamente no bloco `if __name__ == '__main__'`, ele roda via subprocess.
+
+    Quando roda via subprocess, captura stdout/stderr e exibe o traceback real
+    do script filho em caso de falha (evita "returned non-zero exit status 1"
+    sem contexto).
     """
     start = time.perf_counter()
     logging.info(f"🚀 Iniciando: {name}")
@@ -57,7 +67,25 @@ def run_sync_module(module_object, name: str):
         else:
             script_path = getattr(module_object, "__file__", None)
             if script_path:
-                subprocess.run([sys.executable, script_path], check=True)
+                # Captura stdout/stderr para exibir erro real do script filho
+                result = subprocess.run(
+                    [sys.executable, script_path],
+                    capture_output=True,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                )
+                if result.returncode != 0:
+                    logging.error(
+                        f"❌ Subprocess '{name}' falhou (exit {result.returncode})"
+                    )
+                    if result.stdout:
+                        logging.error(f"--- STDOUT ---\n{result.stdout}")
+                    if result.stderr:
+                        logging.error(f"--- STDERR ---\n{result.stderr}")
+                    raise subprocess.CalledProcessError(
+                        result.returncode, result.args, result.stdout, result.stderr
+                    )
             else:
                 importlib.reload(module_object)
 

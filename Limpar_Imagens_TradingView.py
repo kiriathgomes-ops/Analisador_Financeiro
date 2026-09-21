@@ -2,7 +2,16 @@ import glob
 import os
 import re
 import shutil
+import sys
 from pathlib import Path
+
+# Forca UTF-8 no terminal Windows (evita UnicodeEncodeError com emojis
+# quando o script e chamado via subprocess.run() no main_pipeline.py)
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except (AttributeError, OSError):
+        pass
 
 # ============================================================
 # CONFIGURAÇÃO DE CAMINHOS E METAS
