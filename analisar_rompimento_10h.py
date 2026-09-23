@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import argparse
 import json
-from datetime import datetime, time as dt_time
+from datetime import datetime, time as dt_time, timedelta
 from pathlib import Path
 
 
@@ -36,8 +36,38 @@ ARQUIVOS = {
     "decisao":      COLETAS_DIR / "Decisao_V2.json",
 }
 
-# Simbolos candidatos para buscar a vela M5 no MT5
-SIMBOLOS_MT5 = ["WINV26", "WINZ26", "WIN$"]
+# Fallback estatico — a lista real vem de Coletas/Dados_MT5_v2_2.json
+SIMBOLOS_MT5_FALLBACK = ["WINV26", "WINZ26", "WIN$"]
+JSON_MT5 = COLETAS_DIR / "Dados_MT5_v2_2.json"
+
+
+def _descobrir_contrato_vigente():
+    """
+    Le Coletas/Dados_MT5_v2_2.json e retorna a lista de simbolos a testar
+    no MT5. Prioriza ativos.WIN.contrato_principal e completa com
+    contratos_vigentes (na ordem). Se falhar, usa o fallback estatico.
+    """
+    try:
+        if JSON_MT5.exists():
+            with open(JSON_MT5, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            win = ((data.get("ativos") or {}).get("WIN") or {})
+            principal = win.get("contrato_principal")
+            simbolos = []
+            if principal:
+                simbolos.append(principal)
+            for c in (win.get("contratos_vigentes") or []):
+                nome = c.get("contrato")
+                if nome and nome not in simbolos:
+                    simbolos.append(nome)
+            if simbolos:
+                print(f"[DIAG] Contrato vigente do JSON: {principal}")
+                print(f"[DIAG] Simbolos a testar: {simbolos}")
+                return simbolos
+    except Exception as e:
+        print(f"[DIAG] Falha ao ler {JSON_MT5}: {e}")
+    print(f"[DIAG] Usando fallback estatico: {SIMBOLOS_MT5_FALLBACK}")
+    return list(SIMBOLOS_MT5_FALLBACK)
 
 
 # ============================================================
@@ -87,37 +117,70 @@ def obter_vela_10h():
         return None
 
     try:
+        simbolos = _descobrir_contrato_vigente()
         hoje = datetime.now().date()
-        for simbolo in SIMBOLOS_MT5:
-            info = mt5.symbol_info(simbolo)
-            if info is None:
-                continue
-            if not info.visible:
-                mt5.symbol_select(simbolo, True)
 
-            rates = mt5.copy_rates_from_pos(simbolo, mt5.TIMEFRAME_M5, 0, 100)
-            if rates is None or len(rates) == 0:
-                continue
+        # Tenta hoje e cai para ate 7 dias uteis anteriores se nao achar
+        # (fim de semana, feriado, ou rodada fora da janela do pregao).
+        for offset_dias in range(0, 7):
+            alvo = hoje - timedelta(days=offset_dias)
+            for simbolo in simbolos:
+                info = mt5.symbol_info(simbolo)
+                if info is None:
+                    print(f"[DIAG] {simbolo}: symbol_info=None (nao existe)")
+                    continue
+                if not info.visible:
+                    mt5.symbol_select(simbolo, True)
 
-            # Procura a vela com hora 10:00 de hoje
-            for r in rates:
-                dt = datetime.fromtimestamp(r["time"])
-                if dt.date() == hoje and dt.hour == 10 and dt.minute == 0:
-                    agora = datetime.now()
-                    # Se a vela esta em formacao (agora < 10:05)
-                    em_formacao = agora.time() < dt_time(10, 5)
-                    return {
-                        "simbolo": simbolo,
-                        "time": dt.isoformat(),
-                        "open": float(r["open"]),
-                        "high": float(r["high"]),
-                        "low": float(r["low"]),
-                        "close": float(r["close"]),
-                        "volume": float(r["tick_volume"]),
-                        "status": "EM_FORMACAO" if em_formacao else "FECHADA",
-                    }
+                rates = mt5.copy_rates_from_pos(
+                    simbolo, mt5.TIMEFRAME_M5, 0, 500
+                )
+                if rates is None or len(rates) == 0:
+                    print(
+                        f"[DIAG] {simbolo}: copy_rates_from_pos "
+                        f"retornou vazio (last_error={mt5.last_error()})"
+                    )
+                    continue
 
-        print(f"[AVISO] Vela 10:00 de hoje nao encontrada no MT5.")
+                dt_first = datetime.fromtimestamp(rates[0]["time"])
+                dt_last = datetime.fromtimestamp(rates[-1]["time"])
+                print(
+                    f"[DIAG] {simbolo} qtd=500: {len(rates)} barras, "
+                    f"{dt_first.isoformat()} -> {dt_last.isoformat()} "
+                    f"(alvo={alvo.isoformat()})"
+                )
+
+                for r in rates:
+                    dt = datetime.fromtimestamp(r["time"])
+                    if (
+                        dt.date() == alvo
+                        and dt.hour == 10
+                        and dt.minute == 0
+                    ):
+                        agora = datetime.now()
+                        em_formacao = agora.time() < dt_time(10, 5)
+                        if alvo != hoje:
+                            print(
+                                f"[DIAG] Vela 10:00 de hoje nao achada; "
+                                f"usando ultimo dia util: {alvo.isoformat()}"
+                            )
+                        return {
+                            "simbolo": simbolo,
+                            "time": dt.isoformat(),
+                            "open": float(r["open"]),
+                            "high": float(r["high"]),
+                            "low": float(r["low"]),
+                            "close": float(r["close"]),
+                            "volume": float(r["tick_volume"]),
+                            "status": (
+                                "EM_FORMACAO" if em_formacao else "FECHADA"
+                            ),
+                        }
+
+        print(
+            "[AVISO] Vela 10:00 nao encontrada nos ultimos 7 dias "
+            "em nenhum simbolo testado."
+        )
         return None
     finally:
         mt5.shutdown()
