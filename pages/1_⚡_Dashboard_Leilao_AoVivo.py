@@ -30,6 +30,7 @@ PASTA_COLETAS = BASE_DIR / "Coletas"
 ARQUIVO_CSV = PASTA_COLETAS / "preco_teorico_win_fluxo.csv"
 ARQUIVO_JSON_MACRO = PASTA_COLETAS / "DadosAtivosUnificados.json"
 ARQUIVO_JSON_SMC = PASTA_COLETAS / "AnaliseGraficaSMC_Regras.json"
+ARQUIVO_JSON_MTF = PASTA_COLETAS / "AnaliseGraficaSMC_MTF.json"
 ARQUIVO_JSON_ESTIMATIVA = PASTA_COLETAS / "EstimativaAbertura.json"
 
 
@@ -144,6 +145,7 @@ def renderizar_dashboard_tempo_real():
     # ---- Carrega dados ----
     macro_data = carregar_json(ARQUIVO_JSON_MACRO).get("ativos", {})
     smc_data = carregar_json(ARQUIVO_JSON_SMC)
+    smc_mtf = carregar_json(ARQUIVO_JSON_MTF)
     estimativa_calc = carregar_estimativa_calculada()
     leilao = carregar_leilao_ocr()
 
@@ -258,6 +260,46 @@ def renderizar_dashboard_tempo_real():
         st.info(f"**Viés Macro:** {vies_macro}")
         st.info(f"**Viés Estrutural SMC:** {vies_smc}")
         st.text(f"Score Macro: {score_macro:+.3f}")
+
+        # ---------- MTF: contexto multi-timeframe (fix32) ----------
+        _conf_mtf = (smc_mtf or {}).get("confluencia") or {}
+        if _conf_mtf:
+            _ver = _conf_mtf.get("veredito_mtf") or "—"
+            _dir = _conf_mtf.get("direcao_dominante") or "—"
+            _rac = _conf_mtf.get("racional") or ""
+            _b15 = _conf_mtf.get("bias_m15") or "—"
+            _b5 = _conf_mtf.get("bias_m5") or "—"
+            _b1 = _conf_mtf.get("bias_m1") or "—"
+            _c15 = _conf_mtf.get("confianca_m15")
+            _c5 = _conf_mtf.get("confianca_m5")
+            _c1 = _conf_mtf.get("confianca_m1")
+
+            st.markdown("#### 🧭 Multi-Timeframe (M15 / M5 / M1)")
+
+            _ccols = st.columns(3)
+            with _ccols[0]:
+                st.metric("M15 (macro)", f"{_b15}",
+                          f"{_c15}%" if _c15 is not None else None)
+            with _ccols[1]:
+                st.metric("M5 (médio)", f"{_b5}",
+                          f"{_c5}%" if _c5 is not None else None)
+            with _ccols[2]:
+                st.metric("M1 (micro)", f"{_b1}",
+                          f"{_c1}%" if _c1 is not None else None)
+
+            _msg = f"**{_ver}** — direção dominante: `{_dir}`"
+            if _rac:
+                _msg += f"\n\n{_rac}"
+
+            if _ver == "ALINHADO_FORTE":
+                st.success(_msg)
+            elif _ver in ("REVERSAO_MICRO_MEDIO", "CONFLITO_MACRO"):
+                st.warning(_msg)
+            elif _ver == "DIVERGENTE":
+                st.error(_msg)
+            else:
+                st.info(_msg)
+        # ---------- fim MTF ----------
 
     with c_right:
         st.subheader("🎯 Veredito Operacional (Confluência)")
