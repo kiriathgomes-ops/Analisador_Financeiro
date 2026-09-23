@@ -56,3 +56,11 @@ lixeira_analise/
 
 # Scripts de cleanup one-shot
 cleanup_fase*.py
+
+# Inventario auto-gerado
+Coletas/ArquivosApp.py
+
+# Dumps auto-gerados
+Coletas/App_Completo.txt
+
+Coletas/App_Completo.txt
