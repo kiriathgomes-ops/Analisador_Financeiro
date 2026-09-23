@@ -102,6 +102,12 @@ FILE_SMC_MTF = COLETAS_DIR / "AnaliseGraficaSMC_MTF.json"
 # Modificador de confianca SMC por veredito multi-timeframe.
 # Aplicado ANTES de comparar com CONFIANCA_MINIMA_CONFLUENCIA (55).
 # Opcao 2: o MTF refina a confianca, nao sobrescreve a direcao.
+#
+# CONFIANCA_MINIMA_FINAL: gate adicional sobre a confianca ponderada
+# (0.6*SMC_ajustado + 0.4*NOVO_MOTOR). Mais baixo que o gate do SMC
+# para nao bloquear operacoes legitimas quando o MTF derruba o SMC.
+CONFIANCA_MINIMA_FINAL = 45.0
+
 MODIFICADOR_MTF = {
     "ALINHADO_FORTE": +10,
     "PULLBACK": 0,
@@ -109,6 +115,7 @@ MODIFICADOR_MTF = {
     "CONFLITO_MACRO": -25,
     "DIVERGENTE": -40,
     "NEUTRO": -15,
+    "PARCIAL": -15,   # apenas 1-2 TFs disponiveis (analise incompleta)
 }
 FILE_WIN_1MIN = COLETAS_DIR / "WIN_1min.png"
 FILE_WIN_5MIN = COLETAS_DIR / "WIN_5min.png"

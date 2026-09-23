@@ -188,9 +188,17 @@ def calcular_confluencia_mtf(
             + (" (parcial)" if parcial else "") + ".",
         )
     elif n_tfs < 3:
-        # Parcial: sem todas as pernas, comportamento conservador
+        # Parcial: sem todas as pernas. Alinhamento passa a refletir
+        # se as direcoes disponiveis concordam ou divergem (fix37c).
+        _dirs_unicas = set(direcoes)
+        if len(_dirs_unicas) >= 2:
+            _alinh = "PARCIAL_DIVERGENTE"
+        elif len(_dirs_unicas) == 1:
+            _alinh = "PARCIAL_ALINHADO"
+        else:
+            _alinh = "PARCIAL_INDEFINIDO"
         veredito, alinhamento, racional = (
-            "PARCIAL", f"{n_dir}/{n_tfs}",
+            "PARCIAL", _alinh,
             f"Parcial: apenas {', '.join(tfs_presentes)} disponiveis. "
             f"Direcao = {direcoes[0] if direcoes else 'NEUTRO'}.",
         )
@@ -261,6 +269,7 @@ def calcular_confluencia_mtf(
         "timeframes_disponiveis": tfs_presentes,
         "n_tfs_disponiveis": n_tfs,
         "parcial": parcial,
+        "direcoes_concordam": (len(set(direcoes)) == 1) if len(direcoes) >= 2 else None,
     }
 
 

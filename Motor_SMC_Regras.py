@@ -541,23 +541,11 @@ def detectar_bos_choch(
             last_low = s
 
     if eventos:
-        # Estabilidade: bias por MAIORIA dos ultimos N eventos (fix31).
-        # Se empate ou sem maioria clara, usa o ultimo (comportamento
-        # historico). Reduz flip-flop em timeframes ruidosos (M1).
-        _janela_n = getattr(config, "bias_janela", 5)
-        _margem = getattr(config, "bias_min_margem", 1)
-        janela = eventos[-_janela_n:]
-        votos_alta = sum(1 for e in janela if e.direcao == "ALTA")
-        votos_baixa = sum(1 for e in janela if e.direcao == "BAIXA")
-        margem = _margem
-
-        if votos_alta >= votos_baixa + margem:
-            bias = "ALTA"
-        elif votos_baixa >= votos_alta + margem:
-            bias = "BAIXA"
-        else:
-            # Sem maioria clara: mantem o ultimo evento
-            bias = eventos[-1].direcao
+        # Fix38: revertido ao comportamento original (fix31 sem evidencia
+        # estatistica de ganho). O bias segue o ultimo evento de estrutura.
+        # ConfigSMC.bias_janela/bias_min_margem ficam disponiveis caso
+        # a estrategia seja revisitada com mais dados.
+        bias = eventos[-1].direcao
     return eventos, bias
 
 
