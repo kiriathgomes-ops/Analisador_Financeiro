@@ -175,10 +175,22 @@ def calcular_confluencia_mtf(
             f"Macro+Médio em {b15}; micro contra ({b1}). Aguardar pullback no M1.",
         )
     elif b15 != b5 and b5 == b1 and b5 in ("ALTA", "BAIXA"):
-        veredito, alinhamento, racional = (
-            "CONFLITO_MACRO", "MICRO_ALINHADO_CONTRA_MACRO",
-            f"Micro e médio em {b5}, macro em {b15}. Nao operar contra M15.",
-        )
+        # Opcao C: micro+medio contra macro.
+        # Se a soma das confiancas do micro+medio supera o macro por um
+        # fator (1.8), considera possivel reversao em curso.
+        soma_micro_medio = c5 + c1
+        limiar_reversao = c15 * 1.8
+        if soma_micro_medio >= limiar_reversao:
+            veredito, alinhamento, racional = (
+                "REVERSAO_MICRO_MEDIO", "MICRO_MEDIO_CONTRA_MACRO",
+                f"Micro ({b1}, {c1}%) e medio ({b5}, {c5}%) contra macro "
+                f"{b15} ({c15}%). Possivel reversao em curso.",
+            )
+        else:
+            veredito, alinhamento, racional = (
+                "CONFLITO_MACRO", "MICRO_ALINHADO_CONTRA_MACRO",
+                f"Micro e médio em {b5}, macro em {b15}. Nao operar contra M15.",
+            )
     else:
         veredito, alinhamento, racional = (
             "DIVERGENTE", "SEM_CONFLUENCIA",
@@ -190,7 +202,22 @@ def calcular_confluencia_mtf(
         c15 * pesos["15m"] + c5 * pesos["5m"] + c1 * pesos["1m"]
     ) / sum(pesos.values())
 
-    direcao_dom = b15 if b15 in ("ALTA", "BAIXA") else (b5 if b5 in ("ALTA", "BAIXA") else b1)
+    if veredito == "REVERSAO_MICRO_MEDIO":
+        direcao_dom = b5  # micro+medio mandam no cenario de reversao
+    elif b15 in ("ALTA", "BAIXA"):
+        direcao_dom = b15
+    elif b5 in ("ALTA", "BAIXA"):
+        direcao_dom = b5
+    else:
+        direcao_dom = b1
+
+    # Campos auxiliares (apenas para debug/auditoria)
+    try:
+        soma_micro_medio_dbg = c5 + c1
+        limiar_reversao_dbg = round(c15 * 1.8, 1)
+    except NameError:
+        soma_micro_medio_dbg = None
+        limiar_reversao_dbg = None
 
     return {
         "bias_m15": b15,
@@ -199,6 +226,8 @@ def calcular_confluencia_mtf(
         "confianca_m15": c15,
         "confianca_m5": c5,
         "confianca_m1": c1,
+        "confianca_micro_medio_soma": soma_micro_medio_dbg,
+        "limiar_reversao": limiar_reversao_dbg,
         "veredito_mtf": veredito,
         "alinhamento": alinhamento,
         "direcao_dominante": direcao_dom,
