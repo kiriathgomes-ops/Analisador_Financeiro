@@ -36,17 +36,22 @@ os.makedirs(HISTORICO_DIR, exist_ok=True)
 ATIVOS = {
     "WIN": {
         "prefixo": "WIN",
-        "descricao": "Mini Índice B3"
+        "descricao": "Mini Índice B3",
+        # "expiracao" = front-month (menor vencimento futuro) — correto p/ WIN/WDO
+        # "volume"    = maior liquidez do dia — correto p/ DI1
+        "criterio": "expiracao"
     },
 
     "WDO": {
         "prefixo": "WDO",
-        "descricao": "Mini Dólar B3"
+        "descricao": "Mini Dólar B3",
+        "criterio": "expiracao"
     },
 
     "DI1": {
         "prefixo": "DI1",
-        "descricao": "DI Futuro B3"
+        "descricao": "DI Futuro B3",
+        "criterio": "volume"
     }
 }
 
@@ -246,7 +251,7 @@ def obter_contratos(prefixo):
     return contratos
 
 
-def selecionar_contrato(prefixo):
+def selecionar_contrato(prefixo, criterio="expiracao"):
 
     contratos = obter_contratos(prefixo)
 
@@ -296,13 +301,24 @@ def selecionar_contrato(prefixo):
     #
     # ------------------------------------------------------------
 
-    validos.sort(
-        key=lambda x: (
-            x["volume"],
-            -x["expiracao"].timestamp()
-        ),
-        reverse=True
-    )
+    # Criterio por ativo:
+    #   WIN/WDO → front-month (menor expiracao futura), volume desempata.
+    #   DI1     → maior volume (liquidez nao esta no vencimento mais
+    #             proximo; pula p/ jan. do ano seguinte).
+    if criterio == "volume":
+        validos.sort(
+            key=lambda x: (
+                -x["volume"],
+                x["expiracao"].timestamp(),
+            )
+        )
+    else:
+        validos.sort(
+            key=lambda x: (
+                x["expiracao"].timestamp(),
+                -x["volume"],
+            )
+        )
 
     if not validos:
 
@@ -447,7 +463,8 @@ def coletar_ativo(nome_ativo, configuracao):
 
     prefixo = configuracao["prefixo"]
 
-    principal, contratos = selecionar_contrato(prefixo)
+    criterio = configuracao.get("criterio", "expiracao")
+    principal, contratos = selecionar_contrato(prefixo, criterio=criterio)
 
     if principal is None:
 
