@@ -1021,6 +1021,7 @@ def render_body():
     unificados, _ = carregar_json_absoluto("DadosAtivosUnificados.json")
     decisao_v2, _ = carregar_json_absoluto("Decisao_V2.json")
     smc_regras, _ = carregar_json_absoluto("AnaliseGraficaSMC_Regras.json")
+    smc_mtf, _ = carregar_json_absoluto("AnaliseGraficaSMC_MTF.json")
     estimativas, _ = carregar_json_absoluto("EstimativaAbertura.json")
     if not estimativas:
         estimativas, _ = carregar_json_absoluto("Resultado_Calculadora.json")
@@ -1428,6 +1429,53 @@ def render_body():
             c2.metric("Ajuste Diário", _fmt(win_ajuste, sufixo=" pts"))
 
         st.markdown("---")
+        # ---------- MTF: contexto multi-timeframe (fix28) ----------
+        if smc_mtf:
+            conf = smc_mtf.get("confluencia") or {}
+            _ver = conf.get("veredito_mtf") or "—"
+            _dir = conf.get("direcao_dominante") or "—"
+            _rac = conf.get("racional") or ""
+            _b15 = conf.get("bias_m15") or "—"
+            _b5 = conf.get("bias_m5") or "—"
+            _b1 = conf.get("bias_m1") or "—"
+            _c15 = conf.get("confianca_m15")
+            _c5 = conf.get("confianca_m5")
+            _c1 = conf.get("confianca_m1")
+
+            st.markdown("### 🧭 Contexto Multi-Timeframe (M15 / M5 / M1)")
+
+            _cols = st.columns(3)
+            with _cols[0]:
+                st.metric("M15 (macro)", f"{_b15}", f"{_c15}%" if _c15 is not None else None)
+            with _cols[1]:
+                st.metric("M5 (médio)", f"{_b5}", f"{_c5}%" if _c5 is not None else None)
+            with _cols[2]:
+                st.metric("M1 (micro)", f"{_b1}", f"{_c1}%" if _c1 is not None else None)
+
+            _cor = {
+                "ALINHADO_FORTE": "success",
+                "PULLBACK": "info",
+                "REVERSAO_MICRO_MEDIO": "warning",
+                "CONFLITO_MACRO": "warning",
+                "DIVERGENTE": "error",
+                "NEUTRO": "info",
+                "SEM_DIRECAO": "info",
+            }.get(_ver, "info")
+
+            _msg = f"**{_ver}** — direção dominante: `{_dir}`"
+            if _rac:
+                _msg += f"\n\n{_rac}"
+
+            if _cor == "success":
+                st.success(_msg)
+            elif _cor == "warning":
+                st.warning(_msg)
+            elif _cor == "error":
+                st.error(_msg)
+            else:
+                st.info(_msg)
+        # ---------- fim MTF ----------
+
         st.markdown("### 🧠 Filtros e Estruturas de Liquidez Ativas (SMC V2.6)")
         col_ob, col_fvg, col_liq = st.columns(3)
 
