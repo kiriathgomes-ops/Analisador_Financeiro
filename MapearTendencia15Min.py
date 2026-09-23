@@ -8,8 +8,10 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent
 PASTA_COLETAS = BASE_DIR / "Coletas"
 
-# Tolerância em % para desconsiderar ruídos insignificantes (0.001 = 0.001%)
-TOLERANCIA_PERCENTUAL = 0.0001
+# Tolerancia em % para desconsiderar ruidos insignificantes.
+# 0.005 = 0.005%: no WIN (~190k) ~9,5 pts; no WDO (~5.1k) ~0,25 pts.
+# Bate com o threshold do mini_velocimetro (0.005).
+TOLERANCIA_PERCENTUAL = 0.005
 
 
 def carregar_e_mapear_coleta(nome_arquivo):
