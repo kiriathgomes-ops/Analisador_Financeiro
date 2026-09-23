@@ -1444,13 +1444,34 @@ def render_body():
 
             st.markdown("### 🧭 Contexto Multi-Timeframe (M15 / M5 / M1)")
 
+            def _cor_bias(_b):
+                _s = str(_b or "").upper()
+                if "ALTA" in _s or "COMPRA" in _s or "BULL" in _s:
+                    return "#22c55e"
+                if "BAIXA" in _s or "VENDA" in _s or "BEAR" in _s:
+                    return "#ef4444"
+                return "#a3a3a3"
+
+            def _card_bias(col, label, bias, conf):
+                _cor = _cor_bias(bias)
+                _conf = f"{conf}%" if conf is not None else "—"
+                with col:
+                    st.markdown(
+                        f"<div style='padding:10px 14px;border-radius:8px;"
+                        f"background:rgba(255,255,255,0.03);"
+                        f"border-left:3px solid {_cor};'>"
+                        f"<div style='font-size:0.85rem;color:#9ca3af;'>{label}</div>"
+                        f"<div style='font-size:1.5rem;font-weight:700;color:{_cor};"
+                        f"line-height:1.2;margin-top:2px;'>{bias}</div>"
+                        f"<div style='font-size:0.8rem;color:#6b7280;margin-top:2px;'>"
+                        f"Confiança: {_conf}</div></div>",
+                        unsafe_allow_html=True,
+                    )
+
             _cols = st.columns(3)
-            with _cols[0]:
-                st.metric("M15 (macro)", f"{_b15}", f"{_c15}%" if _c15 is not None else None)
-            with _cols[1]:
-                st.metric("M5 (médio)", f"{_b5}", f"{_c5}%" if _c5 is not None else None)
-            with _cols[2]:
-                st.metric("M1 (micro)", f"{_b1}", f"{_c1}%" if _c1 is not None else None)
+            _card_bias(_cols[0], "M15 (macro)", _b15, _c15)
+            _card_bias(_cols[1], "M5 (médio)", _b5, _c5)
+            _card_bias(_cols[2], "M1 (micro)", _b1, _c1)
 
             _cor = {
                 "ALINHADO_FORTE": "success",
