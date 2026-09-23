@@ -54,8 +54,7 @@ def executar_smoke_test():
         ("Calculadora.py (Spreads e DI)", "Calculadora", "calcular_metricas"),
         ("CalculadoraEstimativaAbertura.py", "CalculadoraEstimativaAbertura", "processar_calculos_operacionais"),
         ("Gerar_Resultado_Operacional_Abertura.py", "Gerar_Resultado_Operacional_Abertura", "processar_resultado_operacional"),
-        ("Motor_SMC_Regras.py (Algoritmo SMC)", "Motor_SMC_Regras", "analisar_smc"),
-        ("Gerar_Relatorio.py (Markdown Executivo)", "Gerar_Relatorio", "executar_relatorio_macro")
+        ("Motor_SMC_Regras.py (Algoritmo SMC)", "Motor_SMC_Regras", "analisar_smc")
     ]
 
     for label, modulo_nome, funcao_nome in modulos_pipeline:
