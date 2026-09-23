@@ -50,3 +50,6 @@ dump_v2.txt
 
 # Snapshots gerados para IA (runtime)
 Coletas/snapshot_rompimento_10h.txt
+
+# Pasta de limpeza local
+lixeira_analise/
