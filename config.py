@@ -97,6 +97,19 @@ FILE_TOKEN_USAGE = COLETAS_DIR / "token_usage.log"
 
 # SMC / visão
 FILE_SMC_REGRAS = COLETAS_DIR / "AnaliseGraficaSMC_Regras.json"
+FILE_SMC_MTF = COLETAS_DIR / "AnaliseGraficaSMC_MTF.json"
+
+# Modificador de confianca SMC por veredito multi-timeframe.
+# Aplicado ANTES de comparar com CONFIANCA_MINIMA_CONFLUENCIA (55).
+# Opcao 2: o MTF refina a confianca, nao sobrescreve a direcao.
+MODIFICADOR_MTF = {
+    "ALINHADO_FORTE": +10,
+    "PULLBACK": 0,
+    "REVERSAO_MICRO_MEDIO": -10,
+    "CONFLITO_MACRO": -25,
+    "DIVERGENTE": -40,
+    "NEUTRO": -15,
+}
 FILE_WIN_1MIN = COLETAS_DIR / "WIN_1min.png"
 FILE_WIN_5MIN = COLETAS_DIR / "WIN_5min.png"
 

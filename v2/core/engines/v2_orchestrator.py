@@ -23,6 +23,8 @@ from config import (
     FILE_DECISAO_V2,
     FILE_UNIFICADO,
     FILE_SMC_REGRAS,
+    FILE_SMC_MTF,
+    MODIFICADOR_MTF,
     FILE_ESTIMATIVA_ABERTURA,
     FILE_NOTICIAS_IMPACTO,
     HISTORICO_DECISOES_V2_DIR,
@@ -78,7 +80,7 @@ class V2Orchestrator:
     # ------------------------------------------------------------
     # Leitura dos motores
     # ------------------------------------------------------------
-    def _ler_smc(self, smc_dados: dict) -> Dict[str, Any]:
+    def _ler_smc(self, smc_dados: dict, mtf_dados: Optional[dict] = None) -> Dict[str, Any]:
         if not smc_dados:
             return {
                 "direcao": "NEUTRO", "confianca": 0, "entrada": None,
@@ -98,6 +100,9 @@ class V2Orchestrator:
             "ob_alinhado": bool(niveis.get("ob_alinhado_com_poc", False)),
             "order_blocks": smc_dados.get("order_blocks", []) or [],
             "fvgs": smc_dados.get("fair_value_gaps", []) or [],
+            "veredito_mtf": (
+                ((mtf_dados or {}).get("confluencia") or {}).get("veredito_mtf")
+            ),
         }
 
     def _ler_novo_motor(self) -> Optional[Dict[str, Any]]:
@@ -163,7 +168,14 @@ class V2Orchestrator:
         riscos = []
 
         smc_dir = smc["direcao"]
-        smc_conf = smc["confianca"]
+        smc_conf_bruta = smc["confianca"]
+        _delta_mtf = MODIFICADOR_MTF.get(smc.get("veredito_mtf") or "", 0)
+        smc_conf = max(0.0, min(100.0, smc_conf_bruta + _delta_mtf))
+        if _delta_mtf:
+            motivos.append(
+                f"MTF [{smc.get('veredito_mtf')}]: confianca SMC "
+                f"{smc_conf_bruta:.0f}% -> {smc_conf:.0f}% ({_delta_mtf:+d})"
+            )
 
         if smc_dir == "NEUTRO":
             motivos.append("SMC sem direção definida (LATERAL/NEUTRO)")
@@ -221,6 +233,7 @@ class V2Orchestrator:
     def consolidar_decisao(self) -> dict:
         ativos_dados = self._carregar_json_defensivo(FILE_UNIFICADO)
         smc_dados = self._carregar_json_defensivo(FILE_SMC_REGRAS)
+        mtf_dados = self._carregar_json_defensivo(FILE_SMC_MTF)
         estimativas = self._carregar_json_defensivo(FILE_ESTIMATIVA_ABERTURA)
         noticias = self._carregar_json_defensivo(FILE_NOTICIAS_IMPACTO)
 
@@ -234,7 +247,7 @@ class V2Orchestrator:
             self.contextos_status["vision_ok"] = True
             self.contextos_status["session_ok"] = True
 
-        smc = self._ler_smc(smc_dados)
+        smc = self._ler_smc(smc_dados, mtf_dados)
         novo_motor = self._ler_novo_motor()
 
         ativos = ativos_dados.get("ativos", {}) if isinstance(ativos_dados, dict) else {}
