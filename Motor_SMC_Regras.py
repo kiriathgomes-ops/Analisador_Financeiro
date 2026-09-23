@@ -147,6 +147,10 @@ class ConfigSMC:
     ob_poc_dist_win: float = 300.0
     ob_poc_dist_wdo: float = 30.0
 
+    # Estabilidade direcional: bias por maioria dos ultimos N eventos
+    bias_janela: int = 5
+    bias_min_margem: int = 1  # diferenca minima entre votos ALTA/BAIXA
+
     # Stop mínimo (proteção contra ruído M5)
     stop_min_dist: float = 150.0
     stop_atr_mult: float = 0.8
@@ -535,7 +539,23 @@ def detectar_bos_choch(
             last_low = s
 
     if eventos:
-        bias = eventos[-1].direcao
+        # Estabilidade: bias por MAIORIA dos ultimos N eventos (fix31).
+        # Se empate ou sem maioria clara, usa o ultimo (comportamento
+        # historico). Reduz flip-flop em timeframes ruidosos (M1).
+        _janela_n = getattr(CONFIG, "bias_janela", 5)
+        _margem = getattr(CONFIG, "bias_min_margem", 1)
+        janela = eventos[-_janela_n:]
+        votos_alta = sum(1 for e in janela if e.direcao == "ALTA")
+        votos_baixa = sum(1 for e in janela if e.direcao == "BAIXA")
+        margem = _margem
+
+        if votos_alta >= votos_baixa + margem:
+            bias = "ALTA"
+        elif votos_baixa >= votos_alta + margem:
+            bias = "BAIXA"
+        else:
+            # Sem maioria clara: mantem o ultimo evento
+            bias = eventos[-1].direcao
     return eventos, bias
 
 
