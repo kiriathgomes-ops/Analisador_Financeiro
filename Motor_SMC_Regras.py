@@ -147,9 +147,6 @@ class ConfigSMC:
     ob_poc_dist_win: float = 300.0
     ob_poc_dist_wdo: float = 30.0
 
-    # Estabilidade direcional: bias por maioria dos ultimos N eventos
-    bias_janela: int = 5
-    bias_min_margem: int = 1  # diferenca minima entre votos ALTA/BAIXA
 
     # Stop mínimo (proteção contra ruído M5)
     stop_min_dist: float = 150.0

@@ -66,3 +66,9 @@ Coletas/App_Completo.txt
 Coletas/App_Completo.txt
 
 0_*.txt
+
+# Notas pessoais
+*Novotrab*
+Coletas/snapshot_mtf_ia.txt
+Coletas/snapshot_mtf_scripts.json
+tmp_*.py
