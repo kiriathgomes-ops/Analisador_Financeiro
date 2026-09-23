@@ -70,6 +70,47 @@ def _descobrir_contrato_vigente():
     return list(SIMBOLOS_MT5_FALLBACK)
 
 
+def _obter_spot_mt5():
+    """
+    Le o spot REAL do MT5 no instante da geracao (last/bid/ask).
+    Usa o contrato vigente do JSON. Retorna dict ou None.
+    Nao deve travar o pipeline: qualquer erro retorna None.
+    """
+    try:
+        import MetaTrader5 as mt5
+    except ImportError:
+        return None
+    if not mt5.initialize():
+        return None
+    try:
+        simbolos = _descobrir_contrato_vigente()
+        simbolo = simbolos[0] if simbolos else None
+        if not simbolo:
+            return None
+        info = mt5.symbol_info(simbolo)
+        if info is None:
+            return None
+        if not info.visible:
+            mt5.symbol_select(simbolo, True)
+        tick = mt5.symbol_info_tick(simbolo)
+        if tick is None:
+            return None
+        return {
+            "simbolo": simbolo,
+            "bid": float(getattr(tick, "bid", 0) or 0),
+            "ask": float(getattr(tick, "ask", 0) or 0),
+            "last": float(getattr(tick, "last", 0) or 0),
+            "time": datetime.fromtimestamp(tick.time).isoformat(),
+        }
+    except Exception:
+        return None
+    finally:
+        try:
+            mt5.shutdown()
+        except Exception:
+            pass
+
+
 # ============================================================
 # HELPERS
 # ============================================================
@@ -346,6 +387,84 @@ def bloco_vela10(vela: dict) -> str:
     ])
 
 
+def bloco_risco_orb(vela: dict, spot: dict, ajuste: float = None) -> str:
+    """
+    Bloco E.5 — Risco do setup ORB.
+    Explicita M, m, stops, alvos e o estado REAL do rompimento
+    (usando o spot do MT5, nao o WIN_FUT defasado do Bloco A).
+    """
+    if not vela:
+        return "--- BLOCO E.5: RISCO ORB ---\n  [sem vela 10:00 para calcular]"
+
+    M = float(vela["high"])
+    m = float(vela["low"])
+    A = M - m
+
+    preco_ref = None
+    fonte_ref = "—"
+    if spot and spot.get("last", 0) > 0:
+        preco_ref = spot["last"]
+        fonte_ref = f"MT5 spot ({spot.get('simbolo','?')})"
+
+    linhas = [
+        "--- BLOCO E.5: RISCO ORB ---",
+        "",
+        f"  Gatilho COMPRA (M) : {fmt(M, 0)}",
+        f"  Stop  COMPRA       : {fmt(m, 0)}   (risco {fmt(A, 0)} pts)",
+        f"  Alvo  COMPRA       : {fmt(M + A, 0)}",
+        "",
+        f"  Gatilho VENDA  (m) : {fmt(m, 0)}",
+        f"  Stop  VENDA        : {fmt(M, 0)}   (risco {fmt(A, 0)} pts)",
+        f"  Alvo  VENDA        : {fmt(m - A, 0)}",
+        "",
+        f"  Preco spot MT5     : {fmt(preco_ref, 0) if preco_ref else '—'}   ({fonte_ref})",
+    ]
+
+    if preco_ref:
+        if preco_ref > M:
+            dist = preco_ref - M
+            linhas.append(f"  Rompimento REAL    : ALTA  (dist {fmt(dist, 0)} pts)")
+        elif preco_ref < m:
+            dist = m - preco_ref
+            linhas.append(f"  Rompimento REAL    : BAIXA (dist {fmt(dist, 0)} pts)")
+        else:
+            linhas.append("  Rompimento REAL    : NAO OCORREU (preco dentro da faixa)")
+
+    # --- REGRA 10 (prioridade maxima) ---
+    if preco_ref and ajuste and ajuste > 0:
+        gap = abs(preco_ref - ajuste)
+        if preco_ref > ajuste:
+            posicao = "ACIMA"
+            direcao_bloqueada = "VENDA"
+        elif preco_ref < ajuste:
+            posicao = "ABAIXO"
+            direcao_bloqueada = "COMPRA"
+        else:
+            posicao = "NO AJUSTE"
+            direcao_bloqueada = None
+
+        linhas.append("")
+        linhas.append(f"  WIN_AJUSTE B3      : {fmt(ajuste, 0)}")
+        linhas.append(f"  Posicao vs ajuste  : {posicao}  (gap {fmt(gap, 0)} pts)")
+        if gap > 500 and direcao_bloqueada:
+            linhas.append(f"  REGRA 10 ATIVA     : {direcao_bloqueada} BLOQUEADA (gap > 500)")
+            linhas.append("  -> VIES FINAL = AGUARDAR (prioridade maxima).")
+        else:
+            linhas.append(f"  REGRA 10           : ok (gap {fmt(gap, 0)} < 500)")
+
+    if A > 400:
+        linhas.append("")
+        linhas.append(f"  ALERTA: amplitude {fmt(A, 0)} pts — stop largo.")
+        linhas.append(f"  Loss potencial (1 contrato) = {fmt(A, 0)} pts por lado.")
+
+    linhas.append("")
+    linhas.append("  NOTA: quando o alinhamento e DIVERGENTE mas o gatilho")
+    linhas.append("  mecanico JA disparou ha menos de 150 pts, o setup ORB")
+    linhas.append("  segue valido — com confianca reduzida e stop = amplitude.")
+
+    return "\n".join(linhas)
+
+
 def bloco_decisao(dec: dict) -> str:
     if not dec:
         return "--- BLOCO F: DECISAO V2 ---\n  [arquivo vazio]"
@@ -394,6 +513,21 @@ def montar_snapshot(vela: dict) -> str:
 
     agora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+    # Spot real do MT5 no instante da geracao (contorna defasagem do Bloco A)
+    spot = _obter_spot_mt5()
+    if spot:
+        print(f"[DIAG] Spot MT5: {spot['simbolo']} last={spot['last']} "
+              f"bid={spot['bid']} ask={spot['ask']}")
+
+    # Ajuste B3 (para checagem da Regra 10 no Bloco E.5)
+    _aj = ((ativos.get("ativos") or {}).get("WIN_AJUSTE") or {}).get("preco")
+    try:
+        ajuste_b3 = float(_aj) if _aj else None
+    except (TypeError, ValueError):
+        ajuste_b3 = None
+    if ajuste_b3:
+        print(f"[DIAG] Ajuste B3: {ajuste_b3}")
+
     # Le o prompt do arquivo (se existir)
     if PROMPT_PATH.exists():
         prompt_txt = PROMPT_PATH.read_text(encoding="utf-8")
@@ -425,6 +559,8 @@ def montar_snapshot(vela: dict) -> str:
         bloco_smc(smc),
         "",
         bloco_vela10(vela),
+        "",
+        bloco_risco_orb(vela, spot, ajuste_b3),
         "",
         bloco_decisao(decisao),
         "",

@@ -125,7 +125,20 @@ Classifique o ALINHAMENTO GERAL:
         Nao existe direcao dominante (2+ blocos em zona neutra, ou dados
         insuficientes).
 
-Se ALINHAMENTO = DIVERGENTE, VIES FINAL deve ser AGUARDAR (regra 3).
+Se ALINHAMENTO = DIVERGENTE, VIES FINAL = AGUARDAR (conservador).
+
+Racional: quando 2+ blocos direcionais apontam direcoes opostas, o
+sinal mecanico (inclusive gatilho ORB disparado) perde confiabilidade.
+A perda potencial (stop = amplitude) nao compensa a incerteza.
+
+A UNICA excecao e quando TODOS os 3 criterios abaixo sao verdadeiros:
+    (a) Regra 10 NAO esta ativa (gap spot vs ajuste < 500 pts)
+    (b) 2+ blocos direcionais apontam a MESMA direcao do gatilho
+    (c) gatilho mecanico disparou ha < 150 pts do preco atual
+
+Se a excecao valer: reporte a direcao do gatilho com confianca
+reduzida em 40%, sinalize em ALERTAS o stop = amplitude (R:R ~ 1).
+Na duvida, AGUARDAR.
 
 
 ---
@@ -165,6 +178,7 @@ Contexto macro : [BULLISH | BEARISH | MISTO]
 Contexto de fluxo : [COMPRA | VENDA | NEUTRO]
 Contexto tecnico : [ALTA | BAIXA | LATERAL]
 Posicao vs ajuste : [ACIMA | ABAIXO | NO AJUSTE]
+Regra 10 aplicavel: [SIM | NAO]  (gap vs ajuste = XXX pts)
 
 Alinhamento geral : [ALINHADO | DIVERGENTE | NEUTRO]
 
@@ -244,9 +258,36 @@ INVALIDACAO:
 7. Vela em formação → reduzir 15% e marcar alerta.
 8. Máximo 2 linhas por observação.
 9. Linguagem de mesa. Sem "acredito", "talvez", "sugiro".
-10. Nunca sugerir operar contra ajuste B3 em gap > 500 pts.
-11. Se o Bloco E (vela 10:00) estiver indisponível, VIES FINAL = AGUARDAR
+10. REGRA 10 - PRIORIDADE MAXIMA (sobrepoe TODAS as outras regras,
+    incluindo a 3.5 e qualquer gatilho mecanico ja disparado):
+
+    Nunca sugerir operar contra ajuste B3 em gap > 500 pts.
+
+    Aplicacao obrigatoria ANTES do VIES FINAL:
+      1. Calcule GAP = |spot MT5 - WIN_AJUSTE| (Bloco A ou E.5)
+      2. Verifique o BLOCO E.5: se consta "REGRA 10 ATIVA", use como
+         verdade absoluta - nao recalcule manualmente.
+      3. Se GAP > 500 E direcao pretendida e contra a posicao vs ajuste:
+           Preco ACIMA do ajuste -> VENDA bloqueada
+           Preco ABAIXO do ajuste -> COMPRA bloqueada
+           VIES FINAL = AGUARDAR
+      4. Isso vale mesmo se o gatilho mecanico ORB disparou.
+11. Se o Bloco E (vela 10:00) estiver indisponivel, VIES FINAL = AGUARDAR
     independentemente de qualquer outro fator. Sem vela, sem R:R, sem trade.
+
+12. CHECKLIST OBRIGATORIO ANTES DO VIES FINAL.
+    Aplique na ordem. Se qualquer item FALHAR, VIES FINAL = AGUARDAR.
+
+    [ ] 1. Bloco E disponivel? (regra 11)
+    [ ] 2. Amplitude no filtro [50, 700]? (regra 2)
+    [ ] 3. Bloco E.5 indica "REGRA 10 ATIVA"? Se SIM -> AGUARDAR.
+    [ ] 4. Alinhamento geral NAO e DIVERGENTE? (regra 3.5)
+    [ ] 5. R:R a mercado >= 0,9? (regra 5)
+    [ ] 6. Pelo menos 3 dos 6 fatores alinhados? (regra 4)
+
+    Se TODOS passarem -> VIES FINAL = direcao validada
+    Se algum FALHAR   -> VIES FINAL = AGUARDAR
+    Se regra 2 falhar -> VIES FINAL = NAO OPERAR
 ---
 
 ## 5.5. DIRETRIZ METODOLÓGICA
@@ -255,12 +296,17 @@ O Bloco F (Decisao V2) contem a opiniao do orquestrador oficial e DEVE ser
 tratado como UM dos inputs, nunca como resposta final. Voce deve:
 
 1. Aplicar o framework das 6 etapas (secao 3) usando PRIMARIAMENTE os
-   Blocos A-E (ativos, metricas, estimativa, SMC, vela 10:00).
+   Blocos A-E.5 (ativos, metricas, estimativa, SMC, vela 10:00, risco ORB).
 2. Citar o Bloco F apenas como contexto adicional (motivos/riscos).
 3. Formar seu VIES FINAL de forma INDEPENDENTE. Se sua conclusao divergir
    do Bloco F, sinalize no campo ALERTAS com a justificativa.
 4. Nunca copiar o campo `vies_final` do Bloco F sem antes validar que os
-   Blocos A-E sustentam a mesma conclusao.
+   Blocos A-E.5 sustentam a mesma conclusao.
+5. ANTES de emitir o VIES FINAL, aplique o checklist da regra 12.
+   Se qualquer item falhar, VIES FINAL = AGUARDAR.
+6. O campo "Regra 10 aplicavel" no template e OBRIGATORIO. Se voce
+   nao souber o gap exato, calcule a partir do Bloco A (WIN_AJUSTE)
+   e do Bloco E.5 (Preco spot MT5).
 
 ---
 
