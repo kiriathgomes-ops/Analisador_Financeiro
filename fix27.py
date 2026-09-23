@@ -1,4 +1,79 @@
-#!/usr/bin/env python3
+"""
+fix27.py — Motor SMC multi-timeframe (M1/M5/M15) + consolidacao MTF
+
+Mudancas:
+  A) Motor_SMC_Regras.py
+     - ConfigSMC ganha lookback_map {1m: 240, 5m: 120, 15m: 80}
+     - analisar_smc() usa lookback_map.get(timeframe, config.lookback)
+
+  B) Rodar_SMC_Regras.py (reescrito)
+     - Uma unica conexao MT5 -> 3x copy_rates_from_pos
+     - Roda analise em M1, M5, M15
+     - Salva:
+         Coletas/AnaliseGraficaSMC_Regras.json      (M5, compatibilidade)
+         Coletas/AnaliseGraficaSMC_Regras_M1.json
+         Coletas/AnaliseGraficaSMC_Regras_M15.json
+         Coletas/AnaliseGraficaSMC_MTF.json         (consolidado)
+     - Imprime resumo unificado
+
+Uso:
+    python fix27.py --dry-run
+    python fix27.py
+    python fix27.py --reverter
+"""
+
+import argparse
+import shutil
+import sys
+from datetime import datetime
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent
+ALVO_MOTOR = ROOT / "Motor_SMC_Regras.py"
+ALVO_RODAR = ROOT / "Rodar_SMC_Regras.py"
+
+# ===========================================================================
+# PATCHES no Motor_SMC_Regras.py
+# ===========================================================================
+
+P_LOOKBACK_FIELD_ANTIGO = (
+    "    max_obs: int = 6\n"
+    "    lookback: int = 120\n"
+)
+
+P_LOOKBACK_FIELD_NOVO = (
+    "    max_obs: int = 6\n"
+    "    lookback: int = 120  # fallback quando TF nao esta no mapa\n"
+    "    lookback_map: Dict[str, int] = field(\n"
+    "        default_factory=lambda: {\n"
+    '            "1m": 240,\n'
+    '            "5m": 120,\n'
+    '            "15m": 80,\n'
+    "        }\n"
+    "    )\n"
+)
+
+P_LOOKBACK_USO_ANTIGO = (
+    "    # 2. Lookback\n"
+    "    candles = aplicar_lookback(candles, config.lookback)\n"
+)
+
+P_LOOKBACK_USO_NOVO = (
+    "    # 2. Lookback especifico por timeframe\n"
+    "    lookback_efetivo = config.lookback_map.get(timeframe, config.lookback)\n"
+    "    candles = aplicar_lookback(candles, lookback_efetivo)\n"
+)
+
+PATCHES_MOTOR = [
+    ("ConfigSMC.lookback_map adicionado", P_LOOKBACK_FIELD_ANTIGO, P_LOOKBACK_FIELD_NOVO),
+    ("analisar_smc usa lookback por TF", P_LOOKBACK_USO_ANTIGO, P_LOOKBACK_USO_NOVO),
+]
+
+# ===========================================================================
+# NOVO Rodar_SMC_Regras.py
+# ===========================================================================
+
+NOVO_RODAR = '''#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 Rodar_SMC_Regras.py -- v3 (multi-timeframe)
@@ -303,7 +378,7 @@ def executar() -> int:
     print(f"   [OK] MTF -> {caminho_mtf.name}")
 
     # Resumo
-    print("\n" + "-" * 62)
+    print("\\n" + "-" * 62)
     print(" RESUMO MTF")
     print("-" * 62)
     confluencia = calcular_confluencia_mtf(
@@ -321,3 +396,110 @@ def executar() -> int:
 
 if __name__ == "__main__":
     sys.exit(executar())
+'''
+
+# ===========================================================================
+# HELPERS
+# ===========================================================================
+
+def _backup(p: Path) -> Path:
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    bak = p.with_suffix(p.suffix + f".bak_{ts}")
+    shutil.copy2(p, bak)
+    return bak
+
+
+def _ultimo_backup(p: Path):
+    baks = sorted(p.parent.glob(p.name + ".bak_*"))
+    return baks[-1] if baks else None
+
+
+def aplicar_patches(alvo: Path, patches, dry_run: bool) -> int:
+    if not alvo.exists():
+        print(f"[ERRO] {alvo.name} nao encontrado")
+        return 1
+
+    conteudo = alvo.read_text(encoding="utf-8")
+    novo = conteudo
+    faltando = []
+    for nome, old, new in patches:
+        if old not in novo:
+            faltando.append(nome)
+            continue
+        novo = novo.replace(old, new, 1)
+        print(f"  [PATCH OK] {nome}")
+
+    if faltando:
+        print(f"\\n[ABORT] {alvo.name} — padroes nao encontrados:")
+        for f in faltando:
+            print(f"    - {f}")
+        return 2
+
+    if novo == conteudo:
+        print(f"  [INFO] {alvo.name}: nada mudou.")
+        return 0
+
+    if dry_run:
+        print(f"  [DRY-RUN] {alvo.name}: nao salvo.")
+        return 0
+
+    bak = _backup(alvo)
+    print(f"  [BACKUP] {bak.name}")
+    alvo.write_text(novo, encoding="utf-8")
+    print(f"  [OK] {alvo.name} atualizado.")
+    return 0
+
+
+def substituir_arquivo(alvo: Path, conteudo_novo: str, dry_run: bool) -> int:
+    if not alvo.exists():
+        print(f"[AVISO] {alvo.name} nao existe — sera criado.")
+
+    if dry_run:
+        print(f"  [DRY-RUN] {alvo.name}: seria substituido ({len(conteudo_novo)} chars).")
+        return 0
+
+    if alvo.exists():
+        bak = _backup(alvo)
+        print(f"  [BACKUP] {bak.name}")
+    alvo.write_text(conteudo_novo, encoding="utf-8")
+    print(f"  [OK] {alvo.name} substituido ({len(conteudo_novo)} chars).")
+    return 0
+
+
+def aplicar(dry_run: bool) -> int:
+    print(f"\\n[ALVO 1] {ALVO_MOTOR.name}")
+    r1 = aplicar_patches(ALVO_MOTOR, PATCHES_MOTOR, dry_run)
+
+    print(f"\\n[ALVO 2] {ALVO_RODAR.name} (reescrita completa)")
+    r2 = substituir_arquivo(ALVO_RODAR, NOVO_RODAR, dry_run)
+
+    if r1 == 0 and r2 == 0:
+        print("\\n[SUCESSO] fix27 aplicado.")
+        return 0
+    return max(r1, r2)
+
+
+def reverter() -> int:
+    for alvo in (ALVO_MOTOR, ALVO_RODAR):
+        if not alvo.exists():
+            print(f"[ERRO] {alvo.name} nao encontrado.")
+            continue
+        bak = _ultimo_backup(alvo)
+        if not bak:
+            print(f"[ERRO] {alvo.name}: nenhum backup.")
+            continue
+        shutil.copy2(bak, alvo)
+        print(f"[REVERTER] {alvo.name} restaurado de {bak.name}")
+    return 0
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--reverter", action="store_true")
+    args = ap.parse_args()
+    return reverter() if args.reverter else aplicar(dry_run=args.dry_run)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

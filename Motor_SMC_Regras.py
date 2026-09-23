@@ -96,7 +96,14 @@ class ConfigSMC:
     max_niveis: int = 12
     max_fvgs: int = 8
     max_obs: int = 6
-    lookback: int = 120
+    lookback: int = 120  # fallback quando TF nao esta no mapa
+    lookback_map: Dict[str, int] = field(
+        default_factory=lambda: {
+            "1m": 240,
+            "5m": 120,
+            "15m": 80,
+        }
+    )
 
     # Filtro de volume e expansão
     vol_ma_period: int = 20
@@ -947,8 +954,9 @@ def analisar_smc(
     poc = inst_niveis["poc"]
     vwap = inst_niveis["vwap"]
 
-    # 2. Lookback
-    candles = aplicar_lookback(candles, config.lookback)
+    # 2. Lookback especifico por timeframe
+    lookback_efetivo = config.lookback_map.get(timeframe, config.lookback)
+    candles = aplicar_lookback(candles, lookback_efetivo)
 
     if len(candles) < 10:
         logger.warning(f"Candles insuficientes ({len(candles)}), abortando análise")
