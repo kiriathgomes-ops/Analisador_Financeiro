@@ -149,25 +149,50 @@ def _direcao(bias: str) -> str:
 def calcular_confluencia_mtf(
     r15: Dict[str, Any], r5: Dict[str, Any], r1: Dict[str, Any]
 ) -> Dict[str, Any]:
-    b15 = _direcao(r15.get("bias_direcional", "LATERAL"))
-    b5 = _direcao(r5.get("bias_direcional", "LATERAL"))
-    b1 = _direcao(r1.get("bias_direcional", "LATERAL"))
+    # Detecta quais TFs realmente retornaram dados (fix36)
+    tfs_presentes = []
+    if r15 and r15.get("bias_direcional"):
+        tfs_presentes.append("15m")
+    if r5 and r5.get("bias_direcional"):
+        tfs_presentes.append("5m")
+    if r1 and r1.get("bias_direcional"):
+        tfs_presentes.append("1m")
+    n_tfs = len(tfs_presentes)
+    parcial = n_tfs < 3
 
-    c15 = int(r15.get("confianca_visual", 0) or 0)
-    c5 = int(r5.get("confianca_visual", 0) or 0)
-    c1 = int(r1.get("confianca_visual", 0) or 0)
+    b15 = _direcao(r15.get("bias_direcional", "LATERAL")) if r15 else "LATERAL"
+    b5 = _direcao(r5.get("bias_direcional", "LATERAL")) if r5 else "LATERAL"
+    b1 = _direcao(r1.get("bias_direcional", "LATERAL")) if r1 else "LATERAL"
+
+    c15 = int(r15.get("confianca_visual", 0) or 0) if r15 else 0
+    c5 = int(r5.get("confianca_visual", 0) or 0) if r5 else 0
+    c1 = int(r1.get("confianca_visual", 0) or 0) if r1 else 0
 
     direcoes = [b for b in (b15, b5, b1) if b in ("ALTA", "BAIXA")]
+    n_dir = len(direcoes)
 
-    if not direcoes:
+    if n_tfs == 0:
+        veredito, alinhamento, racional = (
+            "NEUTRO", "SEM_TFS",
+            "Nenhum timeframe retornou dados.",
+        )
+    elif n_dir == 0:
         veredito, alinhamento, racional = (
             "NEUTRO", "SEM_DIRECAO",
-            "Nenhum dos 3 TFs marcou direcao clara.",
+            f"Nenhum dos {n_tfs} TFs marcou direcao clara.",
         )
-    elif len(set(direcoes)) == 1 and len(direcoes) == 3:
+    elif len(set(direcoes)) == 1 and n_dir == n_tfs and n_tfs >= 2:
         veredito, alinhamento, racional = (
-            "ALINHADO_FORTE", "3/3",
-            f"M15, M5 e M1 em {direcoes[0]} — sinal forte.",
+            "ALINHADO_FORTE", f"{n_dir}/{n_tfs}",
+            f"{', '.join(tfs_presentes)} em {direcoes[0]} — sinal forte"
+            + (" (parcial)" if parcial else "") + ".",
+        )
+    elif n_tfs < 3:
+        # Parcial: sem todas as pernas, comportamento conservador
+        veredito, alinhamento, racional = (
+            "PARCIAL", f"{n_dir}/{n_tfs}",
+            f"Parcial: apenas {', '.join(tfs_presentes)} disponiveis. "
+            f"Direcao = {direcoes[0] if direcoes else 'NEUTRO'}.",
         )
     elif b15 == b5 and b5 != b1 and b1 in ("ALTA", "BAIXA"):
         veredito, alinhamento, racional = (
@@ -233,6 +258,9 @@ def calcular_confluencia_mtf(
         "direcao_dominante": direcao_dom,
         "confianca_ponderada": round(conf_pond, 1),
         "racional": racional,
+        "timeframes_disponiveis": tfs_presentes,
+        "n_tfs_disponiveis": n_tfs,
+        "parcial": parcial,
     }
 
 

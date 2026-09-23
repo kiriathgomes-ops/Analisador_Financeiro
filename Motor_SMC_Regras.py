@@ -477,7 +477,9 @@ def _so_lows(swings: List[Swing]) -> List[Swing]:
 # BOS / CHOCH
 # ============================================================
 def detectar_bos_choch(
-    candles: List[Candle], swings: List[Swing]
+    candles: List[Candle],
+    swings: List[Swing],
+    config: ConfigSMC = CONFIG,
 ) -> Tuple[List[EventoEstrutura], str]:
     eventos: List[EventoEstrutura] = []
     if len(swings) < 4 or len(candles) < 5:
@@ -542,8 +544,8 @@ def detectar_bos_choch(
         # Estabilidade: bias por MAIORIA dos ultimos N eventos (fix31).
         # Se empate ou sem maioria clara, usa o ultimo (comportamento
         # historico). Reduz flip-flop em timeframes ruidosos (M1).
-        _janela_n = getattr(CONFIG, "bias_janela", 5)
-        _margem = getattr(CONFIG, "bias_min_margem", 1)
+        _janela_n = getattr(config, "bias_janela", 5)
+        _margem = getattr(config, "bias_min_margem", 1)
         janela = eventos[-_janela_n:]
         votos_alta = sum(1 for e in janela if e.direcao == "ALTA")
         votos_baixa = sum(1 for e in janela if e.direcao == "BAIXA")
@@ -995,7 +997,7 @@ def analisar_smc(
 
     # 3. Detecções
     swings = detectar_swings(candles, config.swing_left, config.swing_right)
-    eventos, bias = detectar_bos_choch(candles, swings)
+    eventos, bias = detectar_bos_choch(candles, swings, config)
     fvgs = detectar_fvg(candles, config)
     obs = detectar_order_blocks(candles, swings, eventos, ativo, config)
     liq = detectar_liquidez(swings, config.eq_tol_pontos)
