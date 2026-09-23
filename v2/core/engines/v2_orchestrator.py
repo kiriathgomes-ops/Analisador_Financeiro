@@ -25,6 +25,7 @@ from config import (
     FILE_SMC_REGRAS,
     FILE_SMC_MTF,
     MODIFICADOR_MTF,
+    CONFIANCA_MINIMA_FINAL,
     FILE_ESTIMATIVA_ABERTURA,
     FILE_NOTICIAS_IMPACTO,
     HISTORICO_DECISOES_V2_DIR,
@@ -216,6 +217,18 @@ class V2Orchestrator:
         if smc_dir == nm_dir and nm_dir != "NEUTRO":
             confianca_final = (smc_conf * PESO_SMC) + (nm_conf * PESO_NOVO_MOTOR)
             confianca_final = round(min(100.0, confianca_final), 1)
+
+            # Gate adicional: confianca FINAL tambem precisa passar o minimo.
+            # Com o MTF ativo (pode derrubar SMC em ate -40), o minimo final
+            # e mais baixo (CONFIANCA_MINIMA_FINAL=45) para nao bloquear
+            # operacoes legitimas que ja passaram no gate do SMC.
+            if confianca_final < CONFIANCA_MINIMA_FINAL:
+                motivos.append(
+                    f"⚠️ Confiança final {confianca_final:.1f}% < "
+                    f"mínimo {CONFIANCA_MINIMA_FINAL:.0f}% — não opera"
+                )
+                return False, "NEUTRO", None, confianca_final, motivos, riscos
+
             motivos.append(f"✅ Confluência confirmada em {smc_dir}")
             return True, smc_dir, smc_dir, confianca_final, motivos, riscos
 
