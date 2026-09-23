@@ -35,16 +35,24 @@ o fechamento da 1ª vela M5 do pregão à vista).
 
 **ESTADO DO ROMPIMENTO (obrigatorio avaliar ANTES do veredito):**
 
-Compare o preco ATUAL (WIN_FUT no Bloco A) com os gatilhos M e m:
+Compare o preco ATUAL (spot MT5 do Bloco E.5) com os gatilhos M e m:
 
 
-**PRECO ATUAL — REGRA DE REFERENCIA:**
+**PRECO ATUAL — REGRA DE REFERENCIA (v2):**
 
-Use o campo WIN_FUT (Bloco A) como referencia primaria do "preco atual".
-E o preco ao vivo do contrato principal no MT5.
+Fonte PRIMARIA: "Preco spot MT5" do BLOCO E.5 (lido no instante
+da geracao do snapshot). Este e o preco vivo no momento da analise.
 
-Se WIN_FUT estiver ausente/zerado, use WIN_LAST_TICK como fallback —
-mas sinalize no ALERTA que a referencia pode estar defasada.
+Fonte SECUNDARIA: WIN_FUT (Bloco A) — pode estar defasado em ate
+5 minutos porque vem do DadosAtivosUnificados.json.
+
+Regra:
+  - Se os dois divergirem <= 100 pts: use o spot MT5.
+  - Se os dois divergirem > 100 pts: o proprio BLOCO E.5 emite um
+    alerta "DIVERGENCIA DE REFERENCIA". Nesse caso, use o spot MT5
+    como verdade e sinalize em ALERTAS.
+  - Se spot MT5 estiver ausente/zerado: use WIN_FUT como fallback
+    e sinalize em ALERTAS que a referencia pode estar defasada.
 
 IGNORE WIN_FECHAMENTO_B3 (e apenas o fechamento oficial do dia anterior).
 
@@ -166,7 +174,7 @@ Minima : XXX,XXX
 Amplitude: XXX pts [DENTRO DO FILTRO | FORA DO FILTRO]
 
 
-Preco atual (WIN_FUT): XXX,XXX
+Preco atual (spot MT5): XXX,XXX
 
 Estado do Rompimento : [NAO_OCORREU | ROMPEU_ALTA | ROMPEU_BAIXA]
 

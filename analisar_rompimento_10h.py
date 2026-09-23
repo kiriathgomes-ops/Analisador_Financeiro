@@ -387,7 +387,7 @@ def bloco_vela10(vela: dict) -> str:
     ])
 
 
-def bloco_risco_orb(vela: dict, spot: dict, ajuste: float = None) -> str:
+def bloco_risco_orb(vela: dict, spot: dict, ajuste: float = None, win_fut: float = None) -> str:
     """
     Bloco E.5 — Risco do setup ORB.
     Explicita M, m, stops, alvos e o estado REAL do rompimento
@@ -419,6 +419,16 @@ def bloco_risco_orb(vela: dict, spot: dict, ajuste: float = None) -> str:
         "",
         f"  Preco spot MT5     : {fmt(preco_ref, 0) if preco_ref else '—'}   ({fonte_ref})",
     ]
+
+    # --- Alerta automatico de divergencia WIN_FUT vs spot MT5 ---
+    if preco_ref and win_fut and abs(preco_ref - win_fut) > 100:
+        delta = preco_ref - win_fut
+        linhas.append("")
+        linhas.append("  DIVERGENCIA DE REFERENCIA:")
+        linhas.append(f"    WIN_FUT (Bloco A) : {fmt(win_fut, 0)}")
+        linhas.append(f"    Spot MT5 (E.5)    : {fmt(preco_ref, 0)}")
+        linhas.append(f"    Delta             : {fmt(delta, 0)} pts")
+        linhas.append("    -> Use spot MT5 como verdade. WIN_FUT pode estar defasado.")
 
     if preco_ref:
         if preco_ref > M:
@@ -528,6 +538,13 @@ def montar_snapshot(vela: dict) -> str:
     if ajuste_b3:
         print(f"[DIAG] Ajuste B3: {ajuste_b3}")
 
+    # WIN_FUT (Bloco A) — para deteccao de divergencia vs spot MT5 no E.5
+    _wf = ((ativos.get("ativos") or {}).get("WIN_FUT") or {}).get("preco")
+    try:
+        win_fut = float(_wf) if _wf else None
+    except (TypeError, ValueError):
+        win_fut = None
+
     # Le o prompt do arquivo (se existir)
     if PROMPT_PATH.exists():
         prompt_txt = PROMPT_PATH.read_text(encoding="utf-8")
@@ -560,7 +577,7 @@ def montar_snapshot(vela: dict) -> str:
         "",
         bloco_vela10(vela),
         "",
-        bloco_risco_orb(vela, spot, ajuste_b3),
+        bloco_risco_orb(vela, spot, ajuste_b3, win_fut),
         "",
         bloco_decisao(decisao),
         "",
