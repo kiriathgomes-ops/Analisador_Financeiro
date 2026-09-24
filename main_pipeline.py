@@ -123,7 +123,7 @@ async def main_pipeline_async():
         # FASE 3: Processamento, Sanitização e Motor SMC (Estrutura Básica)
         # -------------------------------------------------------------
         await loop.run_in_executor(pool, run_sync_module, Analise_Noticias, "Análise Quantitativa de Notícias")
-        await loop.run_in_executor(pool, run_sync_module, Validador, "Validador de Dados (32 Ativos)")
+        await loop.run_in_executor(pool, run_sync_module, Validador, "Validador de Dados (34 Ativos)")
 
         # 💡 AJUSTE CRÍTICO: Roda o SMC AQUI para gerar a POC/VWAP antes das calculadoras
         await loop.run_in_executor(pool, run_sync_module, Rodar_SMC_Regras, "Motor SMC & ICT Regras (POC / VWAP)")

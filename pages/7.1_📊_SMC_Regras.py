@@ -1,9 +1,12 @@
 # -*- coding: utf-8 -*-
 """
 Módulo: pages/7.1_📊_SMC_Regras.py
-Versão: 4.0 - Candlestick + Zonas SMC (POC/VWAP/OB/FVG/BSL/SSL)
+Versão: 4.2 - Candlestick + Zonas SMC (POC/VWAP/OB/FVG/BSL/SSL)
+                  + Zoom inicial nas últimas pernadas
+                  + Auto-refresh de 5 min (sincronizado com o Agendador)
 Objetivo: Renderizar estruturas SMC/ICT em gráfico de candles reais (MT5)
          com todas as zonas institucionais sobrepostas.
+         Exibe por padrão apenas os últimos N candles (pernadas recentes).
 """
 
 import streamlit as st
@@ -13,6 +16,23 @@ from plotly.subplots import make_subplots
 from datetime import datetime
 
 from config import FILE_SMC_REGRAS
+
+# 🔄 Auto-refresh (instalar: pip install streamlit-autorefresh)
+try:
+    from streamlit_autorefresh import st_autorefresh
+    AUTOREFRESH_DISPONIVEL = True
+except ImportError:
+    AUTOREFRESH_DISPONIVEL = False
+
+
+# ==============================================================================
+# CONFIGURAÇÕES DE VISUALIZAÇÃO (AJUSTE AQUI O PADRÃO)
+# ==============================================================================
+QTD_CANDLES_PADRAO = 30              # Padrão: 30 candles M5 (~2.5 horas de pregão)
+OPCOES_CANDLES = [30, 60, 100, 150, 200]
+
+# Intervalo do auto-refresh em minutos (alinhado com Agendador.py)
+INTERVALO_REFRESH_MIN = 5
 
 
 # ==============================================================================
@@ -28,9 +48,9 @@ def carregar_json_defensivo(caminho):
         return {}
 
 
-@st.cache_data(ttl=120, show_spinner=False)
+@st.cache_data(ttl=60, show_spinner=False)  # Reduzido para 60s (sincronizado com autorefresh)
 def carregar_candles_mt5(symbol: str = "WIN$", timeframe_min: int = 5, qtd: int = 200):
-    """Busca candles do MT5. Cache de 2 min para não pesar."""
+    """Busca candles do MT5. Cache de 60s para alinhar com o autorefresh."""
     try:
         from Motor_SMC_Regras import carregar_mt5
         candles, simbolo_ok = carregar_mt5(symbol, timeframe_min, qtd, validar_pregao=False)
@@ -44,15 +64,65 @@ def carregar_candles_mt5(symbol: str = "WIN$", timeframe_min: int = 5, qtd: int 
 # ==============================================================================
 st.set_page_config(page_title="Quant Terminal - SMC por Regras", layout="wide")
 
+
+# ==============================================================================
+# AUTO-REFRESH + CONTROLES NA SIDEBAR
+# ==============================================================================
+with st.sidebar:
+    st.markdown("### ⚙️ Controles SMC")
+    auto_refresh = st.checkbox(
+        f"🔄 Auto-atualizar ({INTERVALO_REFRESH_MIN} min)",
+        value=True,
+        help="Atualiza a página automaticamente para buscar novos dados do pipeline.",
+        key="smc_auto_refresh_toggle",
+    )
+
+    if auto_refresh and AUTOREFRESH_DISPONIVEL:
+        st_autorefresh(
+            interval=INTERVALO_REFRESH_MIN * 60 * 1000,
+            key="smc_autorefresh_key",
+        )
+        st.caption(f"✅ Ativo — refresh a cada {INTERVALO_REFRESH_MIN} min")
+    elif auto_refresh and not AUTOREFRESH_DISPONIVEL:
+        st.warning("⚠️ Instale: `pip install streamlit-autorefresh`")
+    else:
+        st.caption("⏸️ Auto-refresh pausado")
+
+
 dados_smc = carregar_json_defensivo(FILE_SMC_REGRAS)
 
 # --- CABEÇALHO ---
 st.markdown("<h2 style='color:#00d4ff;'>🧠 Smart Money Concepts (SMC) & ICT</h2>", unsafe_allow_html=True)
-st.caption(f"Análise algorítmica pura (Sem IA) atualizada em: {dados_smc.get('timestamp', 'N/A')}")
+
+# Mostra o timestamp do JSON + horário da última leitura
+ts_dados = dados_smc.get('timestamp', 'N/A')
+ts_pagina = datetime.now().strftime("%H:%M:%S")
+st.caption(f"Análise algorítmica pura (Sem IA) · Dados: **{ts_dados}** · Página lida às **{ts_pagina}**")
 
 if not dados_smc or "erro" in dados_smc:
     st.error(f"⚠️ Erro ao carregar dados do Motor SMC: {dados_smc.get('erro', 'Arquivo não gerado ou sem candles suficientes')}")
     st.stop()
+
+
+# ==============================================================================
+# CONTROLE DE CANDLES VISÍVEIS (SELETOR)
+# ==============================================================================
+col_ctrl1, col_ctrl2 = st.columns([1, 3])
+
+with col_ctrl1:
+    qtd_visivel = st.selectbox(
+        "🕯️ Candles visíveis:",
+        options=OPCOES_CANDLES,
+        index=OPCOES_CANDLES.index(QTD_CANDLES_PADRAO) if QTD_CANDLES_PADRAO in OPCOES_CANDLES else 0,
+        help="Quantidade de candles M5 exibidos inicialmente. Para visão mais ampla, use o Profit.",
+        key="smc_qtd_candles",
+    )
+
+with col_ctrl2:
+    st.caption(
+        f"Exibindo os **últimos {qtd_visivel} candles** (~{qtd_visivel * 5 // 60}h de pregão). "
+        "Aumente no seletor ao lado ou abra o Profit para uma visão mais ampla."
+    )
 
 
 # ==============================================================================
@@ -100,7 +170,7 @@ st.markdown("---")
 # ==============================================================================
 # GRÁFICO DE CANDLESTICK COM ZONAS SMC
 # ==============================================================================
-def render_grafico_candles(dados: dict) -> go.Figure:
+def render_grafico_candles(dados: dict, qtd_visivel: int = QTD_CANDLES_PADRAO) -> go.Figure:
     """
     Gráfico de candlestick do WIN M5 com sobreposição:
     - POC / VWAP de ontem
@@ -110,6 +180,9 @@ def render_grafico_candles(dados: dict) -> go.Figure:
     - Entrada / Stop / Alvos
     - Swing Highs / Lows (marcadores)
     - BOS / CHoCH (anotações)
+
+    Parâmetros:
+        qtd_visivel: número de candles M5 exibidos (foco nas últimas pernadas).
     """
     # ---------- Coleta de dados do SMC ----------
     niveis = dados.get("niveis_institucionais", {}) or {}
@@ -126,11 +199,26 @@ def render_grafico_candles(dados: dict) -> go.Figure:
     stop = dados.get("stop_sugerido")
     alvos = dados.get("alvos", []) or []
 
-    swings = dados.get("swings_recentes", []) or []
-    eventos = dados.get("eventos_estrutura", []) or []
+    swings = list(dados.get("swings_recentes", []) or [])
+    eventos = list(dados.get("eventos_estrutura", []) or [])
 
     # ---------- Busca candles do MT5 ----------
+    # Sempre puxamos 200 para ter contexto, mas exibimos apenas os últimos N
     candles, simbolo_ok = carregar_candles_mt5("WIN$", 5, 200)
+
+    # ---------- FATIA APENAS AS ÚLTIMAS PERNADAS ----------
+    if candles and qtd_visivel and qtd_visivel < len(candles):
+        candles = candles[-qtd_visivel:]
+
+        # Janela temporal visível (para filtrar swings e eventos fora do range)
+        t_min = candles[0]["time"]
+        t_max = candles[-1]["time"]
+
+        # Filtra swings que caem dentro da janela visível
+        swings = [s for s in swings if t_min <= str(s.get("time", "")) <= t_max]
+
+        # Filtra eventos (BOS/CHoCH) que caem dentro da janela visível
+        eventos = [e for e in eventos if t_min <= str(e.get("time", "")) <= t_max]
 
     fig = go.Figure()
 
@@ -300,9 +388,9 @@ def render_grafico_candles(dados: dict) -> go.Figure:
         ))
 
     # ---------- 4. Swing Highs / Lows (marcadores) ----------
-    if candles:
-        swings_high = [s for s in swings if s["tipo"].startswith("HIGH")]
-        swings_low = [s for s in swings if s["tipo"].startswith("LOW")]
+    if candles and swings:
+        swings_high = [s for s in swings if str(s.get("tipo", "")).startswith("HIGH")]
+        swings_low = [s for s in swings if str(s.get("tipo", "")).startswith("LOW")]
 
         if swings_high:
             fig.add_trace(go.Scatter(
@@ -325,7 +413,7 @@ def render_grafico_candles(dados: dict) -> go.Figure:
             ))
 
     # ---------- 5. BOS / CHoCH (anotações) ----------
-    if candles:
+    if candles and eventos:
         for e in eventos[-4:]:
             tipo_ev = e.get("tipo", "")
             direcao = e.get("direcao", "")
@@ -369,7 +457,8 @@ def render_grafico_candles(dados: dict) -> go.Figure:
         title=dict(
             text=f"<b>WIN M5 — Zonas Institucionais SMC</b> · "
                  f"Viés: <span style='color:{'#00ff88' if vies == 'ALTA' else '#ff6b6b' if vies == 'BAIXA' else '#ccc'}'>{vies}</span> · "
-                 f"Confiança: {confianca}%",
+                 f"Confiança: {confianca}% · "
+                 f"<span style='font-size:0.85em; color:#8b949e;'>últimos {len(candles) if candles else 0} candles</span>",
             font=dict(size=15),
         ),
         height=680,
@@ -442,7 +531,7 @@ with st.expander("ℹ️ Como ler este gráfico", expanded=False):
 | **🔵 Entrada / 🔴 Stop / 🟢 Alvos** | Setup operacional gerado pelo motor |
 """)
 
-fig_smc = render_grafico_candles(dados_smc)
+fig_smc = render_grafico_candles(dados_smc, qtd_visivel=qtd_visivel)
 st.plotly_chart(fig_smc, use_container_width=True, config={"displayModeBar": False})
 
 # ---------- Sumário de distâncias ----------
