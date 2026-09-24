@@ -54,6 +54,9 @@ Coletas/snapshot_rompimento_10h.txt
 # Pasta de limpeza local
 lixeira_analise/
 
+# Cache incremental de candles (fix41)
+Coletas/cache/
+
 # Scripts de cleanup one-shot
 cleanup_fase*.py
 

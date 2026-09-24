@@ -61,13 +61,18 @@ def carregar_json_defensivo(caminho):
         return {}
 
 
-@st.cache_data(ttl=60, show_spinner=False)  # Reduzido para 60s (sincronizado com autorefresh)
+@st.cache_data(ttl=60, show_spinner=False)
 def carregar_candles_mt5(symbol: str = "WIN$", timeframe_min: int = 5, qtd: int = 200):
-    """Busca candles do MT5. Cache de 60s para alinhar com o autorefresh."""
+    """
+    fix41: usa cache_candles.obter_candles() em vez de puxar tudo do MT5.
+
+    O cache faz fetch incremental dos ultimos candles, entao essa funcao
+    fica barata mesmo com TTL de 60s — o M1 atualiza a cada minuto.
+    """
     try:
-        from Motor_SMC_Regras import carregar_mt5
-        candles, simbolo_ok = carregar_mt5(symbol, timeframe_min, qtd, validar_pregao=False)
-        return candles, simbolo_ok
+        from cache_candles import obter_candles
+        candles, contrato = obter_candles(symbol, timeframe_min, qtd)
+        return candles, contrato
     except Exception as e:
         return [], str(e)
 

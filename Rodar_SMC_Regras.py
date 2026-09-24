@@ -37,6 +37,8 @@ except ImportError as e:
     print(f"[ERRO] Import Motor_SMC_Regras: {e}")
     sys.exit(1)
 
+from cache_candles import obter_candles_multi_tf
+
 if sys.platform == "win32":
     try:
         sys.stdout.reconfigure(encoding="utf-8")
@@ -331,7 +333,19 @@ def executar() -> int:
 
     try:
         print(f"-> Coletando {ATIVO} em 3 TFs numa conexao MT5...")
-        coletas = carregar_multi_mt5(ATIVO, TIMEFRAMES)
+        # fix41: usa cache incremental em vez de pull de 300 velas do MT5
+        tf_qtd = {
+            1:  TIMEFRAMES["1m"]["qtd"],
+            5:  TIMEFRAMES["5m"]["qtd"],
+            15: TIMEFRAMES["15m"]["qtd"],
+        }
+        mapa_labels = {1: "1m", 5: "5m", 15: "15m"}
+
+        coletas_por_tf = obter_candles_multi_tf(ATIVO, tf_qtd)
+
+        coletas = {}
+        for tf_min, (candles, contrato) in coletas_por_tf.items():
+            coletas[mapa_labels[tf_min]] = (candles, contrato)
     except Exception as e:
         print(f"[ERRO] Coleta MT5: {e}")
         return 1
