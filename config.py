@@ -98,6 +98,8 @@ FILE_TOKEN_USAGE = COLETAS_DIR / "token_usage.log"
 # SMC / visão
 FILE_SMC_REGRAS = COLETAS_DIR / "AnaliseGraficaSMC_Regras.json"
 FILE_SMC_MTF = COLETAS_DIR / "AnaliseGraficaSMC_MTF.json"
+FILE_SMC_M1 = COLETAS_DIR / "AnaliseGraficaSMC_Regras_M1.json"
+FILE_SMC_M15 = COLETAS_DIR / "AnaliseGraficaSMC_Regras_M15.json"
 
 # Modificador de confianca SMC por veredito multi-timeframe.
 # Aplicado ANTES de comparar com CONFIANCA_MINIMA_CONFLUENCIA (55).

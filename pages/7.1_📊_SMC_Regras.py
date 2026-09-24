@@ -28,8 +28,21 @@ except ImportError:
 # ==============================================================================
 # CONFIGURAÇÕES DE VISUALIZAÇÃO (AJUSTE AQUI O PADRÃO)
 # ==============================================================================
-QTD_CANDLES_PADRAO = 30              # Padrão: 30 candles M5 (~2.5 horas de pregão)
+QTD_CANDLES_PADRAO = 30              # Padrão (compat M5): 30 candles (~2.5h)
 OPCOES_CANDLES = [30, 60, 100, 150, 200]
+
+# Defaults por timeframe (fix40 — multi-TF visual)
+# chave = timeframe em minutos; valor = quantidade de candles inicial
+QTD_CANDLES_POR_TF = {
+    1:  60,   # M1:  1h de leitura micro
+    5:  30,   # M5:  2.5h (mantém o atual)
+    15: 20,   # M15: 5h de leitura macro
+}
+OPCOES_CANDLES_POR_TF = {
+    1:  [30, 60, 120, 180, 240],
+    5:  [30, 60, 100, 150, 200],
+    15: [10, 20, 40, 60, 80],
+}
 
 # Intervalo do auto-refresh em minutos (alinhado com Agendador.py)
 INTERVALO_REFRESH_MIN = 5
@@ -170,7 +183,16 @@ st.markdown("---")
 # ==============================================================================
 # GRÁFICO DE CANDLESTICK COM ZONAS SMC
 # ==============================================================================
-def render_grafico_candles(dados: dict, qtd_visivel: int = QTD_CANDLES_PADRAO) -> go.Figure:
+def render_grafico_candles(
+    dados: dict,
+    qtd_visivel: int = QTD_CANDLES_PADRAO,
+    timeframe_min: int = 5,
+    tf_label: str = "M5",
+) -> go.Figure:
+    # --- fix40: usa dados do dict, não globais (bug latente corrigido) ---
+    vies = dados.get("bias_direcional", "LATERAL")
+    confianca = dados.get("confianca_visual", 0)
+    preco_atual = dados.get("preco_atual", 0.0)
     """
     Gráfico de candlestick do WIN M5 com sobreposição:
     - POC / VWAP de ontem
@@ -182,7 +204,9 @@ def render_grafico_candles(dados: dict, qtd_visivel: int = QTD_CANDLES_PADRAO) -
     - BOS / CHoCH (anotações)
 
     Parâmetros:
-        qtd_visivel: número de candles M5 exibidos (foco nas últimas pernadas).
+        qtd_visivel: número de candles exibidos (foco nas últimas pernadas).
+        timeframe_min: timeframe em minutos (1, 5, 15).
+        tf_label: rótulo do TF para título (ex: "M5", "M15").
     """
     # ---------- Coleta de dados do SMC ----------
     niveis = dados.get("niveis_institucionais", {}) or {}
@@ -204,7 +228,7 @@ def render_grafico_candles(dados: dict, qtd_visivel: int = QTD_CANDLES_PADRAO) -
 
     # ---------- Busca candles do MT5 ----------
     # Sempre puxamos 200 para ter contexto, mas exibimos apenas os últimos N
-    candles, simbolo_ok = carregar_candles_mt5("WIN$", 5, 200)
+    candles, simbolo_ok = carregar_candles_mt5("WIN$", timeframe_min, 200)
 
     # ---------- FATIA APENAS AS ÚLTIMAS PERNADAS ----------
     if candles and qtd_visivel and qtd_visivel < len(candles):
@@ -455,7 +479,7 @@ def render_grafico_candles(dados: dict, qtd_visivel: int = QTD_CANDLES_PADRAO) -
     # ---------- Layout ----------
     fig.update_layout(
         title=dict(
-            text=f"<b>WIN M5 — Zonas Institucionais SMC</b> · "
+            text=f"<b>WIN {tf_label} — Zonas Institucionais SMC</b> · "
                  f"Viés: <span style='color:{'#00ff88' if vies == 'ALTA' else '#ff6b6b' if vies == 'BAIXA' else '#ccc'}'>{vies}</span> · "
                  f"Confiança: {confianca}% · "
                  f"<span style='font-size:0.85em; color:#8b949e;'>últimos {len(candles) if candles else 0} candles</span>",
@@ -531,8 +555,89 @@ with st.expander("ℹ️ Como ler este gráfico", expanded=False):
 | **🔵 Entrada / 🔴 Stop / 🟢 Alvos** | Setup operacional gerado pelo motor |
 """)
 
-fig_smc = render_grafico_candles(dados_smc, qtd_visivel=qtd_visivel)
-st.plotly_chart(fig_smc, use_container_width=True, config={"displayModeBar": False})
+# ==============================================================================
+# MULTI-TIMEFRAME VISUAL (fix40): M1 → M5 → M15 empilhados
+# ==============================================================================
+def _carregar_dados_tf(tf_min: int) -> dict:
+    """Carrega o JSON do SMC correspondente ao timeframe."""
+    from config import COLETAS_DIR, FILE_SMC_REGRAS
+    mapa = {
+        1: COLETAS_DIR / "AnaliseGraficaSMC_Regras_M1.json",
+        5: FILE_SMC_REGRAS,
+        15: COLETAS_DIR / "AnaliseGraficaSMC_Regras_M15.json",
+    }
+    return carregar_json_defensivo(mapa.get(tf_min, FILE_SMC_REGRAS))
+
+
+def _render_bloco_tf(tf_min: int, tf_label: str) -> None:
+    """Renderiza header + seletor + gráfico de um timeframe."""
+    dados_tf = _carregar_dados_tf(tf_min)
+
+    st.markdown(f"### 🕯️ {tf_label} — Zonas SMC")
+
+    if not dados_tf or "erro" in dados_tf:
+        st.warning(
+            f"⚠️ Arquivo SMC de {tf_label} não disponível. "
+            f"Rode `python Rodar_SMC_Regras.py` pra gerar."
+        )
+        return
+
+    # Cabeçalho com bias + confiança deste TF
+    _bias_tf = dados_tf.get("bias_direcional", "LATERAL")
+    _conf_tf = dados_tf.get("confianca_visual", 0)
+    _cor = "#00ff88" if _bias_tf == "ALTA" else ("#ff6b6b" if _bias_tf == "BAIXA" else "#ccc")
+    st.markdown(
+        f"<div style='padding:6px 12px; border-left:4px solid {_cor}; "
+        f"background:rgba(255,255,255,0.03); border-radius:6px;'>"
+        f"Viés {tf_label}: <b style='color:{_cor};'>{_bias_tf}</b> · "
+        f"Confiança: <b>{_conf_tf}%</b></div>",
+        unsafe_allow_html=True,
+    )
+
+    # Seletor de candles deste TF
+    _opcoes = OPCOES_CANDLES_POR_TF.get(tf_min, [30, 60, 100])
+    _default = QTD_CANDLES_POR_TF.get(tf_min, 30)
+    _qtd = st.selectbox(
+        f"Candles visíveis ({tf_label}):",
+        options=_opcoes,
+        index=_opcoes.index(_default) if _default in _opcoes else 0,
+        key=f"smc_qtd_tf_{tf_min}",
+    )
+
+    # Renderiza
+    fig_tf = render_grafico_candles(
+        dados_tf,
+        qtd_visivel=_qtd,
+        timeframe_min=tf_min,
+        tf_label=tf_label,
+    )
+    st.plotly_chart(
+        fig_tf,
+        use_container_width=True,
+        config={"displayModeBar": False},
+        key=f"plot_tf_{tf_min}",
+    )
+
+
+st.markdown("---")
+st.markdown("## 📊 Visão Multi-Timeframe (M1 · M5 · M15)")
+st.caption(
+    "Sequência **micro → médio → macro**. Cada gráfico mostra as zonas SMC "
+    "do timeframe correspondente, permitindo leitura visual da confluência."
+)
+
+# M1 (micro)
+_render_bloco_tf(1, "M1")
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+# M5 (médio — mantém comportamento atual)
+_render_bloco_tf(5, "M5")
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+# M15 (macro)
+_render_bloco_tf(15, "M15")
 
 # ---------- Sumário de distâncias ----------
 st.markdown("##### 📌 Distâncias até o preço atual")
