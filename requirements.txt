@@ -54,3 +54,4 @@ opencv-python>=4.8.0
 
 # Config (motor_score.py)
 PyYAML>=6.0
+streamlit-autorefresh==1.0.1
