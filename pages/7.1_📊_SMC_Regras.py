@@ -123,69 +123,6 @@ if not dados_smc or "erro" in dados_smc:
 
 
 # ==============================================================================
-# CONTROLE DE CANDLES VISÍVEIS (SELETOR)
-# ==============================================================================
-col_ctrl1, col_ctrl2 = st.columns([1, 3])
-
-with col_ctrl1:
-    qtd_visivel = st.selectbox(
-        "🕯️ Candles visíveis:",
-        options=OPCOES_CANDLES,
-        index=OPCOES_CANDLES.index(QTD_CANDLES_PADRAO) if QTD_CANDLES_PADRAO in OPCOES_CANDLES else 0,
-        help="Quantidade de candles M5 exibidos inicialmente. Para visão mais ampla, use o Profit.",
-        key="smc_qtd_candles",
-    )
-
-with col_ctrl2:
-    st.caption(
-        f"Exibindo os **últimos {qtd_visivel} candles** (~{qtd_visivel * 5 // 60}h de pregão). "
-        "Aumente no seletor ao lado ou abra o Profit para uma visão mais ampla."
-    )
-
-
-# ==============================================================================
-# KPIs SUPERIORES
-# ==============================================================================
-vies = dados_smc.get("bias_direcional", "LATERAL")
-confianca = dados_smc.get("confianca_visual", 0)
-preco_atual = dados_smc.get("preco_atual", 0.0)
-
-c1, c2, c3 = st.columns(3)
-
-if vies == "ALTA":
-    c1.markdown(
-        f"<div style='background-color:rgba(0, 255, 136, 0.1); padding:10px; border-radius:8px; border-left:5px solid #00ff88;'>"
-        f"📊 <b>Viés Estrutural HTF:</b><br>"
-        f"<span style='font-size:1.5rem; color:#00ff88; font-weight:bold;'>🐂 BULLISH / ALTA</span></div>",
-        unsafe_allow_html=True,
-    )
-elif vies == "BAIXA":
-    c1.markdown(
-        f"<div style='background-color:rgba(255, 107, 107, 0.1); padding:10px; border-radius:8px; border-left:5px solid #ff6b6b;'>"
-        f"📊 <b>Viés Estrutural HTF:</b><br>"
-        f"<span style='font-size:1.5rem; color:#ff6b6b; font-weight:bold;'>🐻 BEARISH / BAIXA</span></div>",
-        unsafe_allow_html=True,
-    )
-else:
-    c1.markdown(
-        f"<div style='background-color:rgba(255, 255, 255, 0.05); padding:10px; border-radius:8px; border-left:5px solid #888;'>"
-        f"📊 <b>Viés Estrutural HTF:</b><br>"
-        f"<span style='font-size:1.5rem; color:#ccc; font-weight:bold;'>⚖️ LATERAL / RANGE</span></div>",
-        unsafe_allow_html=True,
-    )
-
-c2.metric(
-    "Confiança do Setup",
-    f"{confianca}%",
-    delta="Sinal Forte" if confianca >= 70 else "Aguardar Confluência",
-    delta_color="normal" if confianca >= 70 else "off",
-)
-c3.metric("Último Preço (B3)", f"{preco_atual:,.0f} pts")
-
-st.markdown("---")
-
-
-# ==============================================================================
 # GRÁFICO DE CANDLESTICK COM ZONAS SMC
 # ==============================================================================
 def render_grafico_candles(
@@ -529,36 +466,6 @@ def render_grafico_candles(
 
     return fig
 
-
-# ==============================================================================
-# RENDERIZAÇÃO
-# ==============================================================================
-st.markdown("### 📈 Gráfico de Candles com Zonas SMC sobrepostas")
-st.caption(
-    "Candles M5 do WIN (via MT5) com sobreposição de POC/VWAP, Order Blocks, "
-    "Fair Value Gaps, liquidez (BSL/SSL), swings, BOS/CHoCH e setup operacional."
-)
-
-with st.expander("ℹ️ Como ler este gráfico", expanded=False):
-    st.markdown("""
-| Elemento | Significado |
-|---|---|
-| **🟢🔴 Candles** | WIN M5 (verde = alta, vermelho = baixa) |
-| **🟪 POC Ontem** | Preço de maior volume do dia anterior — ímã de preço |
-| **⬜ VWAP Ontem** | Preço médio ponderado por volume do dia anterior |
-| **⬜ Linha pontilhada branca** | Preço atual em tempo real |
-| **🟢 Banda verde** | Order Block de COMPRA (suporte institucional) |
-| **🔴 Banda vermelha** | Order Block de VENDA (resistência institucional) |
-| **🔵 Banda azul clara** | FVG de compra aberto (imbalance) |
-| **🟠 Banda laranja** | FVG de venda aberto |
-| **🔻 Triângulos vermelhos** | Swing Highs (topos) |
-| **🔺 Triângulos verdes** | Swing Lows (fundos) |
-| **🩵 BSL** | Liquidez acima (stop de compradores) |
-| **🔴 SSL** | Liquidez abaixo (stop de vendedores) |
-| **↑ BOS/CHoCH ALTA** | Rompimento de estrutura para cima |
-| **↓ BOS/CHoCH BAIXA** | Rompimento de estrutura para baixo |
-| **🔵 Entrada / 🔴 Stop / 🟢 Alvos** | Setup operacional gerado pelo motor |
-""")
 
 # ==============================================================================
 # MULTI-TIMEFRAME VISUAL (fix40): M1 → M5 → M15 empilhados
