@@ -537,11 +537,26 @@ def detectar_bos_choch(
                         break
             last_low = s
 
+    # Fix43: dedup por (idx, tipo, direcao). O mesmo candle pode
+    # romper multiplos swings ao mesmo tempo e gerar eventos duplicados
+    # no mesmo timestamp — isso inflava contagens e confianca.
     if eventos:
-        # Fix38: revertido ao comportamento original (fix31 sem evidencia
-        # estatistica de ganho). O bias segue o ultimo evento de estrutura.
-        # ConfigSMC.bias_janela/bias_min_margem ficam disponiveis caso
-        # a estrategia seja revisitada com mais dados.
+        # Fix43: dedup por (idx, tipo, direcao)
+        vistos = set()
+        unicos = []
+        for e in eventos:
+            chave = (e.idx, e.tipo, e.direcao)
+            if chave in vistos:
+                continue
+            vistos.add(chave)
+            unicos.append(e)
+        eventos = unicos
+
+        # Fix44: ordena cronologicamente pelo idx do candle de rompimento.
+        # Sem isso, eventos[-1] nao era o mais recente (bug pre-existente).
+        eventos.sort(key=lambda e: e.idx)
+
+    if eventos:
         bias = eventos[-1].direcao
     return eventos, bias
 
@@ -987,8 +1002,15 @@ def analisar_smc(
     obs = detectar_order_blocks(candles, swings, eventos, ativo, config)
     liq = detectar_liquidez(swings, config.eq_tol_pontos)
 
-    bos = any(e.tipo == "BOS" for e in eventos[-3:])
-    choch = any(e.tipo == "CHOCH" for e in eventos[-3:])
+    # Fix43: BOS/CHoCH so contam se apontarem na direcao do bias.
+    # Sem isso, um BOS contra-tendencia somava pontos indevidamente.
+    _bias_dirs = {"ALTA", "BAIXA"}
+    if bias in _bias_dirs:
+        bos = any(e.tipo == "BOS" and e.direcao == bias for e in eventos[-3:])
+        choch = any(e.tipo == "CHOCH" and e.direcao == bias for e in eventos[-3:])
+    else:
+        bos = any(e.tipo == "BOS" for e in eventos[-3:])
+        choch = any(e.tipo == "CHOCH" for e in eventos[-3:])
 
     fvgs_abertos = [f for f in fvgs if not f.preenchido][-config.max_fvgs :]
     obs = obs[-config.max_obs :]
@@ -1133,6 +1155,20 @@ def analisar_smc(
             "filtro_volume_real_aplicado": True,
             "versao_motor": "2.1",
             "config": asdict(config),
+            # Fix43: breakdown dos 6 criterios de confianca
+            "_debug_confianca": {
+                "bias_ativo": bias in ("ALTA", "BAIXA"),
+                "bos_ativo": bos,
+                "choch_ativo": choch,
+                "fvg_ativo": bool(fvgs_abertos),
+                "ob_ativo": bool(obs),
+                "ob_confluente_ativo": ob_confluente,
+                "total_eventos": len(eventos),
+                "ultimos_3_eventos": [
+                    {"tipo": e.tipo, "direcao": e.direcao, "time": e.time}
+                    for e in eventos[-3:]
+                ],
+            },
         },
     }
 
