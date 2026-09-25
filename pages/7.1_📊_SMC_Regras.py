@@ -109,6 +109,11 @@ with st.sidebar:
 
 dados_smc = carregar_json_defensivo(FILE_SMC_REGRAS)
 
+# fix45: variaveis de conveniencia (removidas pelo fix42)
+vies = dados_smc.get("bias_direcional", "LATERAL")
+confianca = dados_smc.get("confianca_visual", 0)
+preco_atual = dados_smc.get("preco_atual", 0.0)
+
 # --- CABEÇALHO ---
 st.markdown("<h2 style='color:#00d4ff;'>🧠 Smart Money Concepts (SMC) & ICT</h2>", unsafe_allow_html=True)
 
