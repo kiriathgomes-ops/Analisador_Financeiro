@@ -27,7 +27,7 @@ ARQUIVO_DIR = CACHE_DIR / "_arquivo"
 
 BRT = timezone(timedelta(hours=-3))
 MAX_CACHE_POR_TF = 1000
-QTD_REFRESH_INCREMENTAL = 15
+QTD_REFRESH_INCREMENTAL = 60
 DIAS_RETENCAO = 30
 
 if sys.platform == "win32":
