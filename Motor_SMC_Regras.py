@@ -904,6 +904,23 @@ def calcular_confianca(
     obs: List[OrderBlock],
     ob_confluente: bool,
 ) -> int:
+    """
+    Calcula um SCORE TECNICO de presenca de criterios (0-100).
+
+    IMPORTANTE: NAO e probabilidade de acerto.
+
+    Mede a presenca dos 6 criterios tecnicos com pesos fixos:
+        bias (25) + bos (20) + choch (10) + fvg (15) + ob (15) + ob_confluente (15)
+
+    Um setup com 1 OB e 1 FVG pode legitimamente bater 100% se todos os
+    criterios forem atendidos. Para setups com pouca estrutura, esse numero
+    tende a superestimar a qualidade percebida.
+
+    Interpretar como "score tecnico", nao como "confianca operacional".
+
+    Ref: fix48 (2026-09-26) - semantica documentada apos caso M1 com 100%
+    em setup de 2 OBs + 1 FVG.
+    """
     pesos = {
         "bias": 25,
         "bos": 20,
@@ -1090,6 +1107,9 @@ def analisar_smc(
         cenarios.append(alerta)
 
     # 9. Confiança
+    # Nota (fix48): confianca_visual e score de PRESENCA de criterios,
+    # nao probabilidade de acerto. Pode bater 100% em setups com pouca
+    # estrutura (1 OB, 1 FVG). Ver docstring de calcular_confianca.
     conf = calcular_confianca(bias, bos, choch, fvgs_abertos, obs, ob_confluente)
 
     # 10. Entrada / Stop / Alvos
