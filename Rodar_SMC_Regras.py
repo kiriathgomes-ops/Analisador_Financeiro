@@ -121,7 +121,7 @@ def carregar_multi_mt5(symbol: str, tf_spec: Dict[str, Dict[str, Any]]) -> Dict[
                         pass
 
                 from datetime import timezone
-                dt_brt = datetime.fromtimestamp(r["time"], tz=timezone.utc).astimezone(BRT)
+                dt_brt = datetime.fromtimestamp(r["time"], tz=timezone.utc).replace(tzinfo=BRT)
                 candles.append({
                     "time": dt_brt.isoformat(),
                     "open": float(r["open"]),

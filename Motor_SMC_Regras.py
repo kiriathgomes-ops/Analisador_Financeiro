@@ -1299,7 +1299,7 @@ def carregar_mt5(
                 pass
 
         # MT5 retorna UTC — converte para BRT
-        dt_brt = datetime.fromtimestamp(r["time"], tz=timezone.utc).astimezone(BRT)
+        dt_brt = datetime.fromtimestamp(r["time"], tz=timezone.utc).replace(tzinfo=BRT)
 
         out.append(
             {

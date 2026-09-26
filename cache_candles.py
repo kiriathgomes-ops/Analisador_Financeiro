@@ -39,7 +39,7 @@ if sys.platform == "win32":
 
 def _rate_para_dict(rate) -> Dict[str, Any]:
     try:
-        dt_brt = datetime.fromtimestamp(rate["time"], tz=timezone.utc).astimezone(BRT)
+        dt_brt = datetime.fromtimestamp(rate["time"], tz=timezone.utc).replace(tzinfo=BRT)
     except Exception:
         dt_brt = datetime.now(BRT)
 
