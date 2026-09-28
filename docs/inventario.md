@@ -1,14 +1,14 @@
 # Inventario de Arquivos
 
-Gerado em: 2026-09-27 21:54:38
+Gerado em: 2026-09-28 12:11:28
 
-**Total:** 97 arquivos .py | 22,803 linhas | 860,081 bytes
+**Total:** 94 arquivos .py | 22,328 linhas | 841,374 bytes
 
 ## Distribuicao por pasta
 
 | Pasta | Arquivos | Linhas |
 |---|---:|---:|
-| `(raiz)` | 36 | 11,038 |
+| `(raiz)` | 33 | 10,563 |
 | `NOVO_MOTOR_PREVISAO_ABERTURA` | 11 | 1,200 |
 | `ferramentas` | 3 | 191 |
 | `pages` | 17 | 6,385 |
@@ -29,7 +29,6 @@ Gerado em: 2026-09-27 21:54:38
 | `Gerar_Mapa_Fluxo.py` | 228 | 9,658 | 2026-09-12 18:41 |
 | `Gerar_Mapa_Inventario_Tecnico.py` | 418 | 6,733 | 2026-08-01 13:50 |
 | `Gerar_Mapa_Projeto.py` | 120 | 4,460 | 2026-08-30 21:19 |
-| `Gerar_Relatorio_Mensagem.bak_20260927_213031.py` | 257 | 11,009 | 2026-09-23 13:13 |
 | `Gerar_Relatorio_Mensagem.py` | 255 | 11,004 | 2026-09-27 21:30 |
 | `Gerar_Resultado_Operacional_Abertura.py` | 176 | 7,132 | 2026-08-30 21:19 |
 | `Limpar_Imagens_TradingView.py` | 126 | 4,603 | 2026-09-23 11:43 |
@@ -61,9 +60,7 @@ Gerado em: 2026-09-27 21:54:38
 | `ferramentas/_debug_regiao.py` | 14 | 390 | 2026-09-18 15:33 |
 | `ferramentas/mapear_regiao_ocr.py` | 86 | 3,249 | 2026-09-18 09:37 |
 | `ferramentas/teste_ocr_direto.py` | 91 | 3,065 | 2026-09-18 09:37 |
-| `fix01.py` | 170 | 6,079 | 2026-09-27 21:30 |
-| `fix02.py` | 155 | 5,218 | 2026-09-27 21:42 |
-| `fix03.py` | 95 | 2,815 | 2026-09-27 21:47 |
+| `gerar_dump_completo.py` | 202 | 6,414 | 2026-09-27 22:07 |
 | `gerar_snapshot_mtf_ia.py` | 272 | 9,457 | 2026-09-24 14:52 |
 | `main_pipeline.py` | 171 | 7,854 | 2026-09-24 14:52 |
 | `pages/1_⚡_Dashboard_Leilao_AoVivo.py` | 405 | 15,601 | 2026-09-23 13:13 |

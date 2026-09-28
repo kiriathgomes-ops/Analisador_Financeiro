@@ -1,6 +1,6 @@
 # Arvore de Arquivos
 
-Gerado em: 2026-09-27 21:54:37
+Gerado em: 2026-09-28 12:11:28
 
 ```
 .
@@ -9,17 +9,17 @@ Gerado em: 2026-09-27 21:54:37
 |   |   `-- candles_WINV26_15m.json
 |   |       (+2 arquivos semelhantes)
 |   |-- coleta_preco_teorico_historico
-|   |   `-- preco_teorico_2026-09-24.csv
-|   |       (+7 arquivos semelhantes)
+|   |   `-- preco_teorico_2026-09-25.csv
+|   |       (+8 arquivos semelhantes)
 |   |-- Historico_Aberturas
-|   |   `-- 2026-09-25.json
-|   |       (+16 arquivos semelhantes)
+|   |   `-- 2026-09-28.json
+|   |       (+17 arquivos semelhantes)
 |   |-- Historico_Decisoes_V2
-|   |   `-- 20260925_185903.json
-|   |       (+378 arquivos semelhantes)
+|   |   `-- 20260928_120903.json
+|   |       (+428 arquivos semelhantes)
 |   |-- Historico_MT5
-|   |   `-- MT5_v2_2_20260925_185902_174818.json
-|   |       (+328 arquivos semelhantes)
+|   |   `-- MT5_v2_2_20260928_120902_176612.json
+|   |       (+378 arquivos semelhantes)
 |   |-- Analise_Tendencias.json
 |   |-- AnaliseGraficaSMC_MTF.json
 |   |-- AnaliseGraficaSMC_Regras.json
@@ -64,11 +64,19 @@ Gerado em: 2026-09-27 21:54:37
 |   |-- WIN_1min.png
 |   `-- WIN_5min.png
 |-- docs
+|   |-- dump_completo
+|   |   |-- _raiz.md
+|   |   |-- Coletas.md
+|   |   |-- ferramentas.md
+|   |   |-- NOVO_MOTOR_PREVISAO_ABERTURA.md
+|   |   |-- pages.md
+|   |   |-- PromptIA.md
+|   |   |-- utils.md
+|   |   `-- v2.md
 |   |-- arvore.md
 |   |-- estado_atual.md
 |   |-- inventario.md
 |   |-- melhorias.md
-|   |-- melhorias.md.bak_20260927_214736
 |   |-- prompt_deepseek.md
 |   |-- README.md
 |   `-- system_prompt_agente.md
@@ -90,7 +98,6 @@ Gerado em: 2026-09-27 21:54:37
 |   |   |-- motor_cenarios.py
 |   |   |-- motor_gap.py
 |   |   |-- motor_previsao.py
-|   |   |-- motor_previsao.py.bak_20260927_211310
 |   |   `-- motor_score.py
 |   |-- dados
 |   |   |-- __init__.py
@@ -191,16 +198,12 @@ Gerado em: 2026-09-27 21:54:37
 |-- Coletor_MT5_v2_2.py
 |-- comçarNovotrab.txt
 |-- config.py
-|-- config.py.bak_20260927_211310
 |-- diag_orb_10h.py
-|-- fix01.py
-|-- fix02.py
-|-- fix03.py
 |-- gerar_docs.py
+|-- gerar_dump_completo.py
 |-- Gerar_Mapa_Fluxo.py
 |-- Gerar_Mapa_Inventario_Tecnico.py
 |-- Gerar_Mapa_Projeto.py
-|-- Gerar_Relatorio_Mensagem.bak_20260927_213031.py
 |-- Gerar_Relatorio_Mensagem.py
 |-- Gerar_Resultado_Operacional_Abertura.py
 |-- gerar_snapshot_mtf_ia.py
@@ -208,7 +211,6 @@ Gerado em: 2026-09-27 21:54:37
 |-- main_pipeline.py
 |-- MapearTendencia15Min.py
 |-- Motor_SMC_Regras.py
-|-- Motor_SMC_Regras.py.bak_20260927_214246
 |-- README.md
 |-- requirements.txt
 |-- Rodar_SMC_Regras.py
