@@ -14,7 +14,7 @@ import streamlit.components.v1 as components
 import pandas as pd
 import plotly.graph_objects as go
 
-from config import FILE_MT5_V2, FILE_UNIFICADO, FILE_DECISAO_V2, FILE_METRICAS, MAPEAMENTO_ADR_B3
+from config import FILE_MT5_V2, FILE_UNIFICADO, FILE_DECISAO_V2, FILE_METRICAS, MAPEAMENTO_ADR_B3, MAPEAMENTO_TICKERS_INVERSO, MAPA_B3_PARA_ADR, ADRS_COMPOSTO
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -29,37 +29,9 @@ st.set_page_config(
 # ==============================================================================
 # MAPEAMENTOS
 # ==============================================================================
-MAPA_TICKERS_ROM5 = {
-    "EWZ": "AMEX:EWZ",
-    "VIX": "TVC:VIX",
-    "CRUDE_OIL": "NYMEX:CL1!",
-    "IRON_ORE_2M": "SGX:FEF2!",
-    "IRON_ORE": "SGX:FEF1!",
-    "VALE_ADR": "NYSE:VALE",
-    "PETR_ADR": "NYSE:PBR",
-    "ITUB_ADR": "NYSE:ITUB",
-    "BBAS_ADR": "OTC:BDORY",
-    "BBD_ADR": "NYSE:BBD",
-    "B3_ADR": "OTC:BOLSY",
-    "VALE3": "VALE3",
-    "PETR4": "PETR4",
-    "ITUB4": "ITUB4",
-    "BBAS3": "BBAS3",
-    "BBDC4": "BBDC4",
-    "B3SA3": "B3SA3",
-}
 
 # ✅ Direto: Ação B3 → chave do ADR no unificado/rom-5
-MAPA_B3_PARA_ADR = {
-    "VALE3": "VALE_ADR",
-    "PETR4": "PETR_ADR",
-    "ITUB4": "ITUB_ADR",
-    "BBAS3": "BBAS_ADR",
-    "BBDC4": "BBD_ADR",
-    "B3SA3": "B3_ADR",
-}
 
-ADRS_COMPOSTO = ["BBD_ADR", "ITUB_ADR", "PETR_ADR", "VALE_ADR", "BBAS_ADR", "B3_ADR"]
 
 
 # ==============================================================================
@@ -271,7 +243,7 @@ def carregar_rom5() -> dict:
 def _get_var_rom5(rom5: dict, chave_interna: str) -> Optional[float]:
     if not rom5:
         return None
-    ticker = MAPA_TICKERS_ROM5.get(chave_interna, chave_interna)
+    ticker = MAPEAMENTO_TICKERS_INVERSO.get(chave_interna, chave_interna)
     for item in rom5.get("coletas", []):
         if item.get("ativo") == ticker:
             val = (item.get("dados_reais") or {}).get("change_percent")

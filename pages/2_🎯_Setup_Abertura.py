@@ -19,6 +19,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 import plotly.graph_objects as go
 import pandas as pd
+from config import MAPEAMENTO_TICKERS, MAPEAMENTO_TICKERS_INVERSO, ADRS_COMPOSTO
 
 # ==============================================================================
 # CONFIGURAÇÃO DA PÁGINA STREAMLIT E CSS UNIFICADO
@@ -68,49 +69,9 @@ RAIZ_PROJETO = ARQUIVO_ATUAL.parents[1] if ARQUIVO_ATUAL.parent.name == "pages" 
 if str(RAIZ_PROJETO) not in sys.path:
     sys.path.insert(0, str(RAIZ_PROJETO))
 
-TICKER_MAP = {
-    "BMFBOVESPA:WIN1!": "WIN_FUT",
-    "BMFBOVESPA:WDO1!": "WDO_FUT",
-    "CME_MINI:ES1!": "SP500_FUT",
-    "CME_MINI:NQ1!": "NASDAQ_FUT",
-    "TVC:VIX": "VIX",
-    "AMEX:EWZ": "EWZ",
-    "TVC:DXY": "DXY",
-    "NYSE:VALE": "VALE_ADR",
-    "NYSE:PBR": "PETR_ADR",
-    "NYSE:ITUB": "ITUB_ADR",
-    "NYSE:BBD": "BBD_ADR",
-    "OTC:BDORY": "BBAS_ADR",
-    "OTC:BOLSY": "B3_ADR",
-}
 
 # Mapa chave interna → ticker bruto no rom-5
-MAPA_TICKERS_ROM5 = {
-    "EWZ": "AMEX:EWZ",
-    "VIX": "TVC:VIX",
-    "DXY": "TVC:DXY",
-    "CRUDE_OIL": "NYMEX:CL1!",
-    "IRON_ORE_2M": "SGX:FEF2!",
-    "IRON_ORE": "SGX:FEF1!",
-    "SP500_FUT": "CME_MINI:ES1!",
-    "NASDAQ_FUT": "CME_MINI:NQ1!",
-    "VALE_ADR": "NYSE:VALE",
-    "PETR_ADR": "NYSE:PBR",
-    "ITUB_ADR": "NYSE:ITUB",
-    "BBAS_ADR": "OTC:BDORY",
-    "BBD_ADR": "NYSE:BBD",
-    "B3_ADR": "OTC:BOLSY",
-    "DI1_2027": "BMFBOVESPA:DI1F2027",
-    "DI1_2029": "BMFBOVESPA:DI1F2029",
-    "WIN_AJUSTE": "B3_AJUSTE_WIN",
-    "WDO_AJUSTE": "B3_AJUSTE_WDO",
-    "WIN_FUT": "BMFBOVESPA:WIN1!",
-    "WDO_FUT": "BMFBOVESPA:WDO1!",
-    "WIN_LAST_TICK": "WIN_LAST_TICK",
-    "WDO_LAST_TICK": "WDO_LAST_TICK",
-}
 
-ADRS_COMPOSTO = ["BBD_ADR", "ITUB_ADR", "PETR_ADR", "VALE_ADR", "BBAS_ADR", "B3_ADR"]
 
 
 def carregar_json_absoluto(nome_arquivo):
@@ -151,7 +112,7 @@ def _get_var_rom5(rom5: dict, chave_interna: str) -> Optional[float]:
     """Retorna change_percent do ativo no rom-5."""
     if not rom5:
         return None
-    ticker = MAPA_TICKERS_ROM5.get(chave_interna, chave_interna)
+    ticker = MAPEAMENTO_TICKERS_INVERSO.get(chave_interna, chave_interna)
     for item in rom5.get("coletas", []):
         if item.get("ativo") == ticker:
             val = (item.get("dados_reais") or {}).get("change_percent")
@@ -164,7 +125,7 @@ def _get_preco_rom5(rom5: dict, chave_interna: str) -> Optional[float]:
     """Retorna close do ativo no rom-5."""
     if not rom5:
         return None
-    ticker = MAPA_TICKERS_ROM5.get(chave_interna, chave_interna)
+    ticker = MAPEAMENTO_TICKERS_INVERSO.get(chave_interna, chave_interna)
     for item in rom5.get("coletas", []):
         if item.get("ativo") == ticker:
             val = (item.get("dados_reais") or {}).get("close")
@@ -1213,7 +1174,7 @@ def render_body():
         ativos_tend = ["WIN_FUT", "WDO_FUT", "SP500_FUT", "NASDAQ_FUT", "VIX", "EWZ"]
         cols_t = st.columns(6)
         for idx, t_ativo in enumerate(ativos_tend):
-            t_alt = next((k for k, v in TICKER_MAP.items() if v == t_ativo), "")
+            t_alt = next((k for k, v in MAPEAMENTO_TICKERS.items() if v == t_ativo), "")
             info_t = tendencias_dados.get(t_ativo) or tendencias_dados.get(t_alt) or {}
             padrao = info_t.get("padrao_comportamento", "—") if isinstance(info_t, dict) else "—"
             var_15 = None
