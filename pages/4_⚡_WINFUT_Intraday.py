@@ -34,7 +34,7 @@ st.title("⚡ WINFUT — Cockpit de Decisão Intraday")
 # ==============================================================================
 # MAPEAMENTO: chaves amigáveis → nomes de tickers no rom-5
 # ==============================================================================
-MAPA_TICKERS_ROM5 = {
+ALIASES_BUSCA_ROM5 = {
     "SP500_FUT": ["CME_MINI:ES1!", "SP500_FUT"],
     "NASDAQ_FUT": ["CME_MINI:NQ1!", "NASDAQ_FUT"],
     "EWZ": ["AMEX:EWZ", "EWZ"],
@@ -46,8 +46,6 @@ MAPA_TICKERS_ROM5 = {
     "ITUB4": ["ITUB4"],
     "BBDC4": ["BBDC4"],
     "BBAS3": ["BBAS3"],
-    "WEGE3": ["WEGE3"],
-    "ABEV3": ["ABEV3"],
     "IRON_ORE": ["SGX:FEF1!", "IRON_ORE"],
     "CRUDE_OIL": ["NYMEX:CL1!", "CRUDE_OIL"],
     "DI1_2027": ["BMFBOVESPA:DI1F2027", "DI1_2027"],
@@ -339,7 +337,7 @@ def buscar_metrica(chaves_busca: list, tipo_campo: str = "var", fontes: list = N
 def buscar_metrica_rom5(chave_interna: str, rom5: dict, tipo_campo: str = "var") -> float:
     """
     Busca variação no Coleta_rom-5.json (coleta de 5 min atrás).
-    Usa o MAPA_TICKERS_ROM5 para traduzir a chave interna nos tickers originais.
+    Usa o ALIASES_BUSCA_ROM5 para traduzir a chave interna nos tickers originais.
     """
     if not rom5:
         return 0.0
@@ -348,7 +346,7 @@ def buscar_metrica_rom5(chave_interna: str, rom5: dict, tipo_campo: str = "var")
     if not isinstance(coletas, list):
         return 0.0
 
-    tickers_buscar = MAPA_TICKERS_ROM5.get(chave_interna, [chave_interna])
+    tickers_buscar = ALIASES_BUSCA_ROM5.get(chave_interna, [chave_interna])
     tickers_buscar_upper = [t.upper() for t in tickers_buscar]
 
     for item in coletas:
@@ -544,20 +542,10 @@ def render_body():
             "var": buscar_metrica(["BBAS3", "BBAS"], fontes=fontes_dados),
             "chave_rom5": "BBAS3",
         },
-        "WEGE3": {
-            "preco": buscar_metrica(["WEGE3", "WEGE"], tipo_campo="ultimo", fontes=fontes_dados),
-            "var": buscar_metrica(["WEGE3", "WEGE"], fontes=fontes_dados),
-            "chave_rom5": "WEGE3",
-        },
-        "ABEV3": {
-            "preco": buscar_metrica(["ABEV3", "ABEV"], tipo_campo="ultimo", fontes=fontes_dados),
-            "var": buscar_metrica(["ABEV3", "ABEV"], fontes=fontes_dados),
-            "chave_rom5": "ABEV3",
-        },
     }
 
-    col_a, col_b, col_c, col_d, col_e, col_f, col_g = st.columns(7)
-    cols_acoes = [col_a, col_b, col_c, col_d, col_e, col_f, col_g]
+    col_a, col_b, col_c, col_d, col_e = st.columns(5)
+    cols_acoes = [col_a, col_b, col_c, col_d, col_e]
 
     for i, (ativo, dados) in enumerate(acoes_b3.items()):
         var_ant = buscar_metrica_rom5(dados["chave_rom5"], rom5)
