@@ -11,44 +11,12 @@ import json
 import pandas as pd
 from datetime import datetime
 
-from config import FILE_VALIDADOS, COLETAS_DIR
+from config import FILE_VALIDADOS, COLETAS_DIR, MAPEAMENTO_TICKERS_INVERSO
 
 
 # ==============================================================================
-# MAPA TICKERS ROM-5 (canônico — idêntico às pages 2, 3 e 4)
+# MAPA TICKERS ROM-5 (importado do config.py — MAPEAMENTO_TICKERS_INVERSO)
 # ==============================================================================
-MAPA_TICKERS_ROM5 = {
-    "SP500_FUT": "CME_MINI:ES1!",
-    "NASDAQ_FUT": "CME_MINI:NQ1!",
-    "VIX": "TVC:VIX",
-    "DXY": "TVC:DXY",
-    "USD_MXN": "FX_IDC:USDMXN",
-    "CRUDE_OIL": "NYMEX:CL1!",
-    "IRON_ORE": "SGX:FEF1!",
-    "IRON_ORE_2M": "SGX:FEF2!",
-    "GOLD": "TVC:GOLD",
-    "EWZ": "AMEX:EWZ",
-    "VALE_ADR": "NYSE:VALE",
-    "PETR_ADR": "NYSE:PBR",
-    "ITUB_ADR": "NYSE:ITUB",
-    "BBAS_ADR": "OTC:BDORY",
-    "BBD_ADR": "NYSE:BBD",
-    "B3_ADR": "OTC:BOLSY",
-    "WIN_AJUSTE": "B3_AJUSTE_WIN",
-    "WDO_AJUSTE": "B3_AJUSTE_WDO",
-    "WIN_FUT": "BMFBOVESPA:WIN1!",
-    "WDO_FUT": "BMFBOVESPA:WDO1!",
-    "WIN_LAST_TICK": "WIN_LAST_TICK",
-    "WDO_LAST_TICK": "WDO_LAST_TICK",
-    "DI1_2027": "BMFBOVESPA:DI1F2027",
-    "DI1_2029": "BMFBOVESPA:DI1F2029",
-    "VALE3": "VALE3",
-    "PETR4": "PETR4",
-    "ITUB4": "ITUB4",
-    "BBAS3": "BBAS3",
-    "BBDC4": "BBDC4",
-    "B3SA3": "B3SA3",
-}
 
 
 # Nomes curtos (fix do corte [:18])
@@ -311,7 +279,7 @@ def carregar_rom_dict(nome_arquivo: str) -> dict:
 
 def buscar_valor(ativo_id: str, rom_dict: dict):
     """Traduz ativo_id interno → ticker rom → change_percent."""
-    ticker = MAPA_TICKERS_ROM5.get(ativo_id)
+    ticker = MAPEAMENTO_TICKERS_INVERSO.get(ativo_id)
     if not ticker:
         return None
     return rom_dict.get(ticker)
