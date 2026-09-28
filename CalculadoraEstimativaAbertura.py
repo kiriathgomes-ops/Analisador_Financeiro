@@ -115,8 +115,8 @@ def calcular_abertura_win(ativos_dict: dict, preco_referencia_base: float) -> di
     petr = extrair_variacao(ativos_dict, "PETR_ADR")
     
     pesos = PESOS_ESTIMATIVA_ABERTURA
-    cesta_adrs = (vale * pesos.get("adr_vale", 0.30)) + (petr * pesos.get("adr_petr", 0.25))
-    var_pct = (ewz * pesos.get("ewz", 0.30)) + (cesta_adrs * pesos.get("cesta_adrs", 0.35)) + (sp500 * pesos.get("sp500_fut", 0.20))
+    cesta_adrs = (vale * pesos["adr_vale"]) + (petr * pesos["adr_petr"])
+    var_pct = (ewz * pesos["ewz"]) + (cesta_adrs * pesos["cesta_adrs"]) + (sp500 * pesos["sp500_fut"])
     
     abertura_estimada = 0.0
     if preco_referencia_base > 0:
@@ -154,7 +154,7 @@ def processar_calculos_operacionais():
 
     ativos_dict = {item["ativo_id"]: item for item in dados_json.get("ativos_validados", [])}
 
-        # --- PREÇO BASE DE REFERÊNCIA (sempre o ajuste oficial) ---
+    # --- PREÇO BASE DE REFERÊNCIA (sempre o ajuste oficial) ---
     # O ajuste oficial da B3 é estável durante o dia e é o padrão institucional
     # para cálculo de gap de abertura. NÃO usar WIN_FUT.close (preço atual),
     # que muda a cada tick e faz a "abertura teórica" variar.

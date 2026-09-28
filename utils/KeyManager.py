@@ -85,7 +85,7 @@ class KeyManager:
 key_manager = KeyManager()
 
 # Atalhos de compatibilidade (Aliases) para o pipeline principal
-get_groq_client = key_manager.get_groq_client if hasattr(key_manager, 'get_groq_client') else key_manager.obter_cliente_groq
+get_groq_client = key_manager.obter_cliente_groq
 
 if __name__ == "__main__":
     print("=" * 60)
