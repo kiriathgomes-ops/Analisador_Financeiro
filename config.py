@@ -145,6 +145,12 @@ JANELA_AJUSTE_FIM = time(8, 50, 0)  # 08:50
 HORA_PREGAO_INICIO = time(9, 0, 0)   # 09:00
 HORA_PREGAO_FIM = time(18, 25, 0)    # 18:25
 
+# Janela de leilao (mesma janela usada pelo sniper OCR).
+# Fora deste intervalo, o gap de abertura NAO participa mais da
+# direcao do NOVO_MOTOR (Visao C so faz sentido durante o leilao).
+JANELA_LEILAO_INICIO = time(8, 50, 0)  # 08:50
+JANELA_LEILAO_FIM = time(9, 5, 0)      # 09:05
+
 # Timeouts de HTTP (segundos)
 TIMEOUT_TRADINGVIEW = 10
 TIMEOUT_FINNHUB = 5

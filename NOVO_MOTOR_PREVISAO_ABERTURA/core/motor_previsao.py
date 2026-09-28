@@ -2,6 +2,8 @@
 from datetime import datetime
 from typing import Optional, Dict, Any, Tuple
 
+from config import JANELA_LEILAO_INICIO, JANELA_LEILAO_FIM
+
 from ..dados.coletor_dados import coletar_dados_entrada
 from ..dados.schemas import (
     DadosEntrada, ResultadoPrevisao, ClassificacaoGAP,
@@ -68,7 +70,7 @@ class PrevisaoAberturaOrquestrador:
         faixa_inf, faixa_sup = self._calcular_faixa(abertura_teorica)
 
         # 6. Direção (baseada no gap + ajuste)
-        direcao = self._determinar_direcao(gap, ajuste_analise)
+        direcao = self._determinar_direcao(gap, ajuste_analise, score.direcao)
 
         # 7. Divergência entre direcao_prevista e score.direcao
         div_flag, div_msg = self._calcular_divergencia(direcao, score.direcao)
@@ -118,7 +120,16 @@ class PrevisaoAberturaOrquestrador:
             abertura + MARGEM_FAIXA_PADRAO,
         )
 
-    def _determinar_direcao(self, gap: ClassificacaoGAP, ajuste: AnaliseAjuste) -> str:
+    def _determinar_direcao(
+        self, gap: ClassificacaoGAP, ajuste: AnaliseAjuste, score_direcao: str
+    ) -> str:
+        agora = datetime.now().time()
+        fora_do_leilao = not (JANELA_LEILAO_INICIO <= agora <= JANELA_LEILAO_FIM)
+        if fora_do_leilao:
+            # Fora do leilao o gap de abertura nao opina mais.
+            # NOVO_MOTOR passa a ser 100% score-driven.
+            return score_direcao
+
         if abs(gap.gap_pontos) > MAX_GAP_REALISTA:
             return "NEUTRO"
 
