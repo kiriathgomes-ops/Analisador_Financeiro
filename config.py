@@ -304,6 +304,25 @@ MAPEAMENTO_TICKERS: Dict[str, str] = {
 }
 
 # ------------------------------------------------------------
+# 9b. MAPAS DERIVADOS — centralizados (F2)
+#     Fonte unica para as pages (elimina copias locais)
+# ------------------------------------------------------------
+MAPEAMENTO_TICKERS_INVERSO: Dict[str, str] = {
+    v: k for k, v in MAPEAMENTO_TICKERS.items()
+}
+
+ADRS_COMPOSTO: List[str] = ["BBD_ADR", "ITUB_ADR", "PETR_ADR", "VALE_ADR", "BBAS_ADR", "B3_ADR"]
+
+MAPA_B3_PARA_ADR: Dict[str, str] = {
+    "VALE3": "VALE_ADR",
+    "PETR4": "PETR_ADR",
+    "ITUB4": "ITUB_ADR",
+    "BBAS3": "BBAS_ADR",
+    "BBDC4": "BBD_ADR",
+    "B3SA3": "B3_ADR",
+}
+
+# ------------------------------------------------------------
 # 10. PESOS — ESTIMATIVA DE ABERTURA WIN
 #     (CalculadoraEstimativaAbertura / alinhado ao uso atual)
 # ------------------------------------------------------------
