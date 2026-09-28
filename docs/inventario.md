@@ -1,16 +1,15 @@
 # Inventario de Arquivos
 
-Gerado em: 2026-09-26 09:28:50
+Gerado em: 2026-09-27 21:54:38
 
-**Total:** 95 arquivos .py | 22,741 linhas | 940,223 bytes
+**Total:** 97 arquivos .py | 22,803 linhas | 860,081 bytes
 
 ## Distribuicao por pasta
 
 | Pasta | Arquivos | Linhas |
 |---|---:|---:|
-| `(raiz)` | 33 | 10,398 |
-| `Coletas` | 1 | 589 |
-| `NOVO_MOTOR_PREVISAO_ABERTURA` | 11 | 1,189 |
+| `(raiz)` | 36 | 11,038 |
+| `NOVO_MOTOR_PREVISAO_ABERTURA` | 11 | 1,200 |
 | `ferramentas` | 3 | 191 |
 | `pages` | 17 | 6,385 |
 | `utils` | 1 | 101 |
@@ -25,24 +24,24 @@ Gerado em: 2026-09-26 09:28:50
 | `Calculadora.py` | 263 | 10,891 | 2026-09-18 09:37 |
 | `CalculadoraEstimativaAbertura.py` | 272 | 11,200 | 2026-09-18 09:37 |
 | `Coleta_Noticias_Calendario.py` | 293 | 10,916 | 2026-08-20 07:58 |
-| `Coletas/ArquivosApp.py` | 589 | 104,799 | 2026-09-24 08:18 |
 | `Coletor.py` | 1,160 | 44,954 | 2026-09-18 09:37 |
 | `Coletor_MT5_v2_2.py` | 872 | 23,989 | 2026-09-23 11:43 |
 | `Gerar_Mapa_Fluxo.py` | 228 | 9,658 | 2026-09-12 18:41 |
 | `Gerar_Mapa_Inventario_Tecnico.py` | 418 | 6,733 | 2026-08-01 13:50 |
 | `Gerar_Mapa_Projeto.py` | 120 | 4,460 | 2026-08-30 21:19 |
-| `Gerar_Relatorio_Mensagem.py` | 257 | 11,009 | 2026-09-23 13:13 |
+| `Gerar_Relatorio_Mensagem.bak_20260927_213031.py` | 257 | 11,009 | 2026-09-23 13:13 |
+| `Gerar_Relatorio_Mensagem.py` | 255 | 11,004 | 2026-09-27 21:30 |
 | `Gerar_Resultado_Operacional_Abertura.py` | 176 | 7,132 | 2026-08-30 21:19 |
 | `Limpar_Imagens_TradingView.py` | 126 | 4,603 | 2026-09-23 11:43 |
 | `MapearTendencia15Min.py` | 131 | 4,539 | 2026-09-23 11:43 |
-| `Motor_SMC_Regras.py` | 1,376 | 47,460 | 2026-09-26 09:09 |
+| `Motor_SMC_Regras.py` | 1,379 | 47,460 | 2026-09-27 21:42 |
 | `NOVO_MOTOR_PREVISAO_ABERTURA/__init__.py` | 4 | 123 | 2026-08-10 10:47 |
 | `NOVO_MOTOR_PREVISAO_ABERTURA/config/__init__.py` | 1 | 49 | 2026-08-10 10:47 |
 | `NOVO_MOTOR_PREVISAO_ABERTURA/core/__init__.py` | 1 | 47 | 2026-08-10 10:47 |
 | `NOVO_MOTOR_PREVISAO_ABERTURA/core/motor_ajuste.py` | 89 | 2,680 | 2026-09-18 09:37 |
 | `NOVO_MOTOR_PREVISAO_ABERTURA/core/motor_cenarios.py` | 143 | 6,771 | 2026-09-18 09:37 |
 | `NOVO_MOTOR_PREVISAO_ABERTURA/core/motor_gap.py` | 86 | 3,397 | 2026-09-18 09:37 |
-| `NOVO_MOTOR_PREVISAO_ABERTURA/core/motor_previsao.py` | 253 | 10,571 | 2026-09-18 09:37 |
+| `NOVO_MOTOR_PREVISAO_ABERTURA/core/motor_previsao.py` | 264 | 10,991 | 2026-09-27 21:19 |
 | `NOVO_MOTOR_PREVISAO_ABERTURA/core/motor_score.py` | 166 | 5,224 | 2026-09-18 09:37 |
 | `NOVO_MOTOR_PREVISAO_ABERTURA/dados/__init__.py` | 1 | 48 | 2026-08-10 10:47 |
 | `NOVO_MOTOR_PREVISAO_ABERTURA/dados/coletor_dados.py` | 268 | 10,189 | 2026-09-18 09:37 |
@@ -50,7 +49,6 @@ Gerado em: 2026-09-26 09:28:50
 | `Rodar_SMC_Regras.py` | 403 | 14,696 | 2026-09-26 08:53 |
 | `Temp_Validacao_Smoke.py` | 94 | 4,121 | 2026-09-23 11:43 |
 | `Validador.py` | 189 | 7,317 | 2026-09-23 11:43 |
-| `_patch_gerar_docs.py` | 44 | 1,168 | 2026-09-26 09:28 |
 | `analisar_divergencia.py` | 75 | 2,035 | 2026-09-23 11:43 |
 | `analisar_historico.py` | 202 | 6,231 | 2026-09-23 11:43 |
 | `analisar_historico_v2.py` | 152 | 5,095 | 2026-09-23 11:43 |
@@ -58,11 +56,14 @@ Gerado em: 2026-09-26 09:28:50
 | `app_home.py` | 432 | 14,993 | 2026-08-30 21:19 |
 | `backtest_bias_estabilidade.py` | 117 | 4,003 | 2026-09-23 13:13 |
 | `cache_candles.py` | 409 | 13,115 | 2026-09-26 08:53 |
-| `config.py` | 408 | 13,940 | 2026-09-24 14:52 |
+| `config.py` | 414 | 14,229 | 2026-09-27 21:19 |
 | `diag_orb_10h.py` | 112 | 4,274 | 2026-09-23 11:43 |
 | `ferramentas/_debug_regiao.py` | 14 | 390 | 2026-09-18 15:33 |
 | `ferramentas/mapear_regiao_ocr.py` | 86 | 3,249 | 2026-09-18 09:37 |
 | `ferramentas/teste_ocr_direto.py` | 91 | 3,065 | 2026-09-18 09:37 |
+| `fix01.py` | 170 | 6,079 | 2026-09-27 21:30 |
+| `fix02.py` | 155 | 5,218 | 2026-09-27 21:42 |
+| `fix03.py` | 95 | 2,815 | 2026-09-27 21:47 |
 | `gerar_snapshot_mtf_ia.py` | 272 | 9,457 | 2026-09-24 14:52 |
 | `main_pipeline.py` | 171 | 7,854 | 2026-09-24 14:52 |
 | `pages/1_⚡_Dashboard_Leilao_AoVivo.py` | 405 | 15,601 | 2026-09-23 13:13 |

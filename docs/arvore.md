@@ -1,6 +1,6 @@
 # Arvore de Arquivos
 
-Gerado em: 2026-09-26 09:28:50
+Gerado em: 2026-09-27 21:54:37
 
 ```
 .
@@ -25,7 +25,6 @@ Gerado em: 2026-09-26 09:28:50
 |   |-- AnaliseGraficaSMC_Regras.json
 |   |-- AnaliseGraficaSMC_Regras_M1.json
 |   |-- AnaliseGraficaSMC_Regras_M15.json
-|   |-- ArquivosApp.py
 |   |-- Coleta_ram.json
 |   |-- Coleta_rom-0.json
 |   |-- Coleta_rom-10.json
@@ -60,14 +59,19 @@ Gerado em: 2026-09-26 09:28:50
 |   |-- Resultado_Calculadora_Operacional_Abertura.json
 |   |-- snapshot_mtf_ia.txt
 |   |-- snapshot_mtf_scripts.json
-|   |-- snapshot_rompimento_10h copy.txt
 |   |-- snapshot_rompimento_10h.txt
 |   |-- token_usage.log
 |   |-- WIN_1min.png
 |   `-- WIN_5min.png
 |-- docs
 |   |-- arvore.md
-|   `-- inventario.md
+|   |-- estado_atual.md
+|   |-- inventario.md
+|   |-- melhorias.md
+|   |-- melhorias.md.bak_20260927_214736
+|   |-- prompt_deepseek.md
+|   |-- README.md
+|   `-- system_prompt_agente.md
 |-- ferramentas
 |   |-- _debug_regiao.py
 |   |-- mapear_regiao_ocr.py
@@ -86,6 +90,7 @@ Gerado em: 2026-09-26 09:28:50
 |   |   |-- motor_cenarios.py
 |   |   |-- motor_gap.py
 |   |   |-- motor_previsao.py
+|   |   |-- motor_previsao.py.bak_20260927_211310
 |   |   `-- motor_score.py
 |   |-- dados
 |   |   |-- __init__.py
@@ -169,7 +174,6 @@ Gerado em: 2026-09-26 09:28:50
 |-- 03_rodar_gerar_relatorios.bat
 |-- 0_rodar_tudo.bat
 |-- 1_rodar_pipeline_3x.bat
-|-- _patch_gerar_docs.py
 |-- abertura 25set.txt
 |-- Agendador.py
 |-- analisar_divergencia.py
@@ -187,11 +191,16 @@ Gerado em: 2026-09-26 09:28:50
 |-- Coletor_MT5_v2_2.py
 |-- comçarNovotrab.txt
 |-- config.py
+|-- config.py.bak_20260927_211310
 |-- diag_orb_10h.py
+|-- fix01.py
+|-- fix02.py
+|-- fix03.py
 |-- gerar_docs.py
 |-- Gerar_Mapa_Fluxo.py
 |-- Gerar_Mapa_Inventario_Tecnico.py
 |-- Gerar_Mapa_Projeto.py
+|-- Gerar_Relatorio_Mensagem.bak_20260927_213031.py
 |-- Gerar_Relatorio_Mensagem.py
 |-- Gerar_Resultado_Operacional_Abertura.py
 |-- gerar_snapshot_mtf_ia.py
@@ -199,7 +208,7 @@ Gerado em: 2026-09-26 09:28:50
 |-- main_pipeline.py
 |-- MapearTendencia15Min.py
 |-- Motor_SMC_Regras.py
-|-- NOTAS.md
+|-- Motor_SMC_Regras.py.bak_20260927_214246
 |-- README.md
 |-- requirements.txt
 |-- Rodar_SMC_Regras.py

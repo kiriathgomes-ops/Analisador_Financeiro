@@ -312,8 +312,9 @@ def aplicar_lookback(candles: List[Candle], lookback: int) -> List[Candle]:
 # MÉTRICAS DE VOLUME / EXPANSÃO
 # ============================================================
 def calcular_metricas_medias(
-    candles: List[Candle], idx_atual: int, periodo: int = CONFIG.vol_ma_period
+    candles: List[Candle], idx_atual: int, config: ConfigSMC = CONFIG
 ) -> Tuple[float, float]:
+    periodo = config.vol_ma_period
     inicio = max(0, idx_atual - periodo)
     janela = candles[inicio:idx_atual]
 
@@ -435,9 +436,10 @@ def calcular_poc_vwap(candles: List[Candle], ativo: str, config: ConfigSMC = CON
 # ============================================================
 def detectar_swings(
     candles: List[Candle],
-    left: int = CONFIG.swing_left,
-    right: int = CONFIG.swing_right,
+    config: ConfigSMC = CONFIG,
 ) -> List[Swing]:
+    left = config.swing_left
+    right = config.swing_right
     swings: List[Swing] = []
     n = len(candles)
     if n < left + right + 1:
@@ -572,7 +574,7 @@ def detectar_fvg(candles: List[Candle], config: ConfigSMC = CONFIG) -> List[FVG]
 
     for i in range(2, n):
         c0, c1, c2 = candles[i - 2], candles[i - 1], candles[i]
-        media_vol, media_corpo = calcular_metricas_medias(candles, i - 1, config.vol_ma_period)
+        media_vol, media_corpo = calcular_metricas_medias(candles, i - 1, config)
         # Exige expansão FORTE para validar FVG
         if classificar_candle(c1, media_vol, media_corpo, config) != "FORTE":
             continue
@@ -634,7 +636,7 @@ def detectar_order_blocks(
         if range_ob < config.ob_min_range:
             continue
 
-        media_vol, media_corpo = calcular_metricas_medias(candles, i, config.vol_ma_period)
+        media_vol, media_corpo = calcular_metricas_medias(candles, i, config)
         candle_saida = candles[i + 1] if (i + 1) < n else cand
 
         if not e_candle_expansao(candle_saida, media_vol, media_corpo, config):
@@ -715,7 +717,8 @@ def detectar_order_blocks(
 # ============================================================
 # LIQUIDEZ
 # ============================================================
-def detectar_liquidez(swings: List[Swing], tol: float = CONFIG.eq_tol_pontos) -> Dict[str, List[float]]:
+def detectar_liquidez(swings: List[Swing], config: ConfigSMC = CONFIG) -> Dict[str, List[float]]:
+    tol = config.eq_tol_pontos
     bsl: List[float] = []
     ssl: List[float] = []
 
@@ -1013,11 +1016,11 @@ def analisar_smc(
         }
 
     # 3. Detecções
-    swings = detectar_swings(candles, config.swing_left, config.swing_right)
+    swings = detectar_swings(candles, config)
     eventos, bias = detectar_bos_choch(candles, swings, config)
     fvgs = detectar_fvg(candles, config)
     obs = detectar_order_blocks(candles, swings, eventos, ativo, config)
-    liq = detectar_liquidez(swings, config.eq_tol_pontos)
+    liq = detectar_liquidez(swings, config)
 
     # Fix43: BOS/CHoCH so contam se apontarem na direcao do bias.
     # Sem isso, um BOS contra-tendencia somava pontos indevidamente.

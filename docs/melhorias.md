@@ -24,7 +24,6 @@ Atualizado em 2026-09-26.
 
 
 
-\- \[ ] Remover uso de CONFIG global nos detectores SMC
 
 \- \[ ] Trocar `global` do Gerar_Relatorio_Mensagem por parametro explicito
 
@@ -40,6 +39,7 @@ Atualizado em 2026-09-26.
 
 
 
+\- \[x] Remover uso de CONFIG global nos detectores SMC (fix02.py)
 \- \[x] Cache incremental de candles (v0.11.0)
 
 \- \[x] Multi-TF visual M1/M5/M15 na pagina SMC_Regras (v0.11.0)

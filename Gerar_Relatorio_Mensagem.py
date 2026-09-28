@@ -71,16 +71,16 @@ smc_dados = {}
 # ==============================================================================
 # FUNÇÕES DE EXTRAÇÃO E FORMATAÇÃO DE DADOS
 # ==============================================================================
-def get_preco_str(chave, sufixo=""):
-    if chave in ativos:
-        val = ativos[chave].get("preco")
+def get_preco_str(ativos_dict, chave, sufixo=""):
+    if chave in ativos_dict:
+        val = ativos_dict[chave].get("preco")
         if val is not None and isinstance(val, (int, float)):
             return f"{val:,.2f}{sufixo}"
     return "N/A"
 
-def get_var_str(chave):
-    if chave in ativos:
-        val = ativos[chave].get("variacao_pct")
+def get_var_str(ativos_dict, chave):
+    if chave in ativos_dict:
+        val = ativos_dict[chave].get("variacao_pct")
         if val is not None and isinstance(val, (int, float)):
             return f"{val:+.2f}%"
     return "N/A"
@@ -94,8 +94,15 @@ def get_num_fmt(dicionario, chave, padrao=0.0):
 # Extração de Decisão e Targets
 # FIX30b: este bloco agora roda DENTRO de executar() (antes ficava no
 # nivel de modulo, congelando os valores do import).
-def _calcular_derivados():
-    """Calcula todos os campos derivados a partir das vars globais."""
+def _calcular_derivados(estado):
+    """Calcula todos os campos derivados a partir do dict de estado."""
+    ativos = estado["ativos"]
+    obj_decisao = estado["obj_decisao"]
+    meta_decisao = estado["meta_decisao"]
+    estimativas = estado["estimativas"]
+    resultado_operacional = estado["resultado_operacional"]
+    smc_dados = estado["smc_dados"]
+
     vies_final = obj_decisao.get("vies_final") or "NEUTRO"
     confianca = obj_decisao.get("confianca", 0)
     icone_confianca = "🔴" if confianca >= 80 else ("🟡" if confianca >= 50 else "⚪")
@@ -128,11 +135,11 @@ def _calcular_derivados():
     poc_str = f"{poc_ontem:,.0f} pts" if isinstance(poc_ontem, (int, float)) and poc_ontem > 0 else "—"
     vwap_str = f"{vwap_ontem:,.1f} pts" if isinstance(vwap_ontem, (int, float)) and vwap_ontem > 0 else "—"
 
-    vix_val = get_preco_str("VIX")
-    iron_val = get_preco_str("IRON_ORE")
-    oil_val = get_preco_str("CRUDE_OIL")
-    di27_val = get_var_str("DI1_2027")
-    di29_val = get_var_str("DI1_2029")
+    vix_val = get_preco_str(ativos, "VIX")
+    iron_val = get_preco_str(ativos, "IRON_ORE")
+    oil_val = get_preco_str(ativos, "CRUDE_OIL")
+    di27_val = get_var_str(ativos, "DI1_2027")
+    di29_val = get_var_str(ativos, "DI1_2029")
 
     return {
         "vies_final": vies_final,
@@ -165,19 +172,10 @@ def executar():
     print("=" * 60)
 
     # --- FIX30 + FIX30b: recarrega estado E recalcula derivados ---
-    global ativos, obj_decisao, meta_decisao
-    global estimativas, resultado_operacional, smc_dados
-
     estado = _carregar_estado()
-    ativos = estado["ativos"]
-    obj_decisao = estado["obj_decisao"]
-    meta_decisao = estado["meta_decisao"]
-    estimativas = estado["estimativas"]
-    resultado_operacional = estado["resultado_operacional"]
-    smc_dados = estado["smc_dados"]
 
     # Recalcula TODOS os derivados (gatilho, stop, alvos, teorico, etc)
-    _d = _calcular_derivados()
+    _d = _calcular_derivados(estado)
     vies_final = _d["vies_final"]
     confianca = _d["confianca"]
     icone_confianca = _d["icone_confianca"]
