@@ -1,7 +1,7 @@
 # Dump completo - pages
 
-Gerado em: 2026-09-28 12:11:32
-Total de arquivos: 17
+Gerado em: 2026-09-29 08:09:22
+Total de arquivos: 16
 
 ## Arvore
 
@@ -9,11 +9,10 @@ Total de arquivos: 17
 pages
 |-- 1_⚡_Dashboard_Leilao_AoVivo.py
 |-- 2_🎯_Setup_Abertura.py
-|-- 3_⚡_Monitor_Abertura_Leilao_V3.2.py
+|-- 3_⚡_Monitor_Abertura_Leilao.py
 |-- 4_⚡_WINFUT_Intraday.py
-|-- 6.5_📈_Previsao_Abertura_WINFUT.py
-|-- 6.7_📈_Matriz_de_Influencia.py
-|-- 6_📡_Ativos_Monitorados.py
+|-- 5_📡_Ativos_Monitorados.py
+|-- 6_📈_Matriz_de_Influencia.py
 |-- 7.1_📊_SMC_Regras.py
 |-- 7.2_🤖_IA_SpikeImagem.py
 |-- 7.3_📥_Gerador_Profit_Pro.py
@@ -462,6 +461,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 import plotly.graph_objects as go
 import pandas as pd
+from config import MAPEAMENTO_TICKERS, MAPEAMENTO_TICKERS_INVERSO, ADRS_COMPOSTO
 
 # ==============================================================================
 # CONFIGURAÇÃO DA PÁGINA STREAMLIT E CSS UNIFICADO
@@ -511,49 +511,9 @@ RAIZ_PROJETO = ARQUIVO_ATUAL.parents[1] if ARQUIVO_ATUAL.parent.name == "pages" 
 if str(RAIZ_PROJETO) not in sys.path:
     sys.path.insert(0, str(RAIZ_PROJETO))
 
-TICKER_MAP = {
-    "BMFBOVESPA:WIN1!": "WIN_FUT",
-    "BMFBOVESPA:WDO1!": "WDO_FUT",
-    "CME_MINI:ES1!": "SP500_FUT",
-    "CME_MINI:NQ1!": "NASDAQ_FUT",
-    "TVC:VIX": "VIX",
-    "AMEX:EWZ": "EWZ",
-    "TVC:DXY": "DXY",
-    "NYSE:VALE": "VALE_ADR",
-    "NYSE:PBR": "PETR_ADR",
-    "NYSE:ITUB": "ITUB_ADR",
-    "NYSE:BBD": "BBD_ADR",
-    "OTC:BDORY": "BBAS_ADR",
-    "OTC:BOLSY": "B3_ADR",
-}
 
 # Mapa chave interna → ticker bruto no rom-5
-MAPA_TICKERS_ROM5 = {
-    "EWZ": "AMEX:EWZ",
-    "VIX": "TVC:VIX",
-    "DXY": "TVC:DXY",
-    "CRUDE_OIL": "NYMEX:CL1!",
-    "IRON_ORE_2M": "SGX:FEF2!",
-    "IRON_ORE": "SGX:FEF1!",
-    "SP500_FUT": "CME_MINI:ES1!",
-    "NASDAQ_FUT": "CME_MINI:NQ1!",
-    "VALE_ADR": "NYSE:VALE",
-    "PETR_ADR": "NYSE:PBR",
-    "ITUB_ADR": "NYSE:ITUB",
-    "BBAS_ADR": "OTC:BDORY",
-    "BBD_ADR": "NYSE:BBD",
-    "B3_ADR": "OTC:BOLSY",
-    "DI1_2027": "BMFBOVESPA:DI1F2027",
-    "DI1_2029": "BMFBOVESPA:DI1F2029",
-    "WIN_AJUSTE": "B3_AJUSTE_WIN",
-    "WDO_AJUSTE": "B3_AJUSTE_WDO",
-    "WIN_FUT": "BMFBOVESPA:WIN1!",
-    "WDO_FUT": "BMFBOVESPA:WDO1!",
-    "WIN_LAST_TICK": "WIN_LAST_TICK",
-    "WDO_LAST_TICK": "WDO_LAST_TICK",
-}
 
-ADRS_COMPOSTO = ["BBD_ADR", "ITUB_ADR", "PETR_ADR", "VALE_ADR", "BBAS_ADR", "B3_ADR"]
 
 
 def carregar_json_absoluto(nome_arquivo):
@@ -594,7 +554,7 @@ def _get_var_rom5(rom5: dict, chave_interna: str) -> Optional[float]:
     """Retorna change_percent do ativo no rom-5."""
     if not rom5:
         return None
-    ticker = MAPA_TICKERS_ROM5.get(chave_interna, chave_interna)
+    ticker = MAPEAMENTO_TICKERS_INVERSO.get(chave_interna, chave_interna)
     for item in rom5.get("coletas", []):
         if item.get("ativo") == ticker:
             val = (item.get("dados_reais") or {}).get("change_percent")
@@ -607,7 +567,7 @@ def _get_preco_rom5(rom5: dict, chave_interna: str) -> Optional[float]:
     """Retorna close do ativo no rom-5."""
     if not rom5:
         return None
-    ticker = MAPA_TICKERS_ROM5.get(chave_interna, chave_interna)
+    ticker = MAPEAMENTO_TICKERS_INVERSO.get(chave_interna, chave_interna)
     for item in rom5.get("coletas", []):
         if item.get("ativo") == ticker:
             val = (item.get("dados_reais") or {}).get("close")
@@ -1656,7 +1616,7 @@ def render_body():
         ativos_tend = ["WIN_FUT", "WDO_FUT", "SP500_FUT", "NASDAQ_FUT", "VIX", "EWZ"]
         cols_t = st.columns(6)
         for idx, t_ativo in enumerate(ativos_tend):
-            t_alt = next((k for k, v in TICKER_MAP.items() if v == t_ativo), "")
+            t_alt = next((k for k, v in MAPEAMENTO_TICKERS.items() if v == t_ativo), "")
             info_t = tendencias_dados.get(t_ativo) or tendencias_dados.get(t_alt) or {}
             padrao = info_t.get("padrao_comportamento", "—") if isinstance(info_t, dict) else "—"
             var_15 = None
@@ -2047,7 +2007,7 @@ def render_body():
 render_body()
 ```
 
-### `pages/3_⚡_Monitor_Abertura_Leilao_V3.2.py`
+### `pages/3_⚡_Monitor_Abertura_Leilao.py`
 
 ```python
 # -*- coding: utf-8 -*-
@@ -2066,7 +2026,7 @@ import streamlit.components.v1 as components
 import pandas as pd
 import plotly.graph_objects as go
 
-from config import FILE_MT5_V2, FILE_UNIFICADO, FILE_DECISAO_V2, FILE_METRICAS, MAPEAMENTO_ADR_B3
+from config import FILE_MT5_V2, FILE_UNIFICADO, FILE_DECISAO_V2, FILE_METRICAS, MAPEAMENTO_ADR_B3, MAPEAMENTO_TICKERS_INVERSO, MAPA_B3_PARA_ADR, ADRS_COMPOSTO
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -2081,37 +2041,9 @@ st.set_page_config(
 # ==============================================================================
 # MAPEAMENTOS
 # ==============================================================================
-MAPA_TICKERS_ROM5 = {
-    "EWZ": "AMEX:EWZ",
-    "VIX": "TVC:VIX",
-    "CRUDE_OIL": "NYMEX:CL1!",
-    "IRON_ORE_2M": "SGX:FEF2!",
-    "IRON_ORE": "SGX:FEF1!",
-    "VALE_ADR": "NYSE:VALE",
-    "PETR_ADR": "NYSE:PBR",
-    "ITUB_ADR": "NYSE:ITUB",
-    "BBAS_ADR": "OTC:BDORY",
-    "BBD_ADR": "NYSE:BBD",
-    "B3_ADR": "OTC:BOLSY",
-    "VALE3": "VALE3",
-    "PETR4": "PETR4",
-    "ITUB4": "ITUB4",
-    "BBAS3": "BBAS3",
-    "BBDC4": "BBDC4",
-    "B3SA3": "B3SA3",
-}
 
 # ✅ Direto: Ação B3 → chave do ADR no unificado/rom-5
-MAPA_B3_PARA_ADR = {
-    "VALE3": "VALE_ADR",
-    "PETR4": "PETR_ADR",
-    "ITUB4": "ITUB_ADR",
-    "BBAS3": "BBAS_ADR",
-    "BBDC4": "BBD_ADR",
-    "B3SA3": "B3_ADR",
-}
 
-ADRS_COMPOSTO = ["BBD_ADR", "ITUB_ADR", "PETR_ADR", "VALE_ADR", "BBAS_ADR", "B3_ADR"]
 
 
 # ==============================================================================
@@ -2323,7 +2255,7 @@ def carregar_rom5() -> dict:
 def _get_var_rom5(rom5: dict, chave_interna: str) -> Optional[float]:
     if not rom5:
         return None
-    ticker = MAPA_TICKERS_ROM5.get(chave_interna, chave_interna)
+    ticker = MAPEAMENTO_TICKERS_INVERSO.get(chave_interna, chave_interna)
     for item in rom5.get("coletas", []):
         if item.get("ativo") == ticker:
             val = (item.get("dados_reais") or {}).get("change_percent")
@@ -2635,7 +2567,7 @@ st.title("⚡ WINFUT — Cockpit de Decisão Intraday")
 # ==============================================================================
 # MAPEAMENTO: chaves amigáveis → nomes de tickers no rom-5
 # ==============================================================================
-MAPA_TICKERS_ROM5 = {
+ALIASES_BUSCA_ROM5 = {
     "SP500_FUT": ["CME_MINI:ES1!", "SP500_FUT"],
     "NASDAQ_FUT": ["CME_MINI:NQ1!", "NASDAQ_FUT"],
     "EWZ": ["AMEX:EWZ", "EWZ"],
@@ -2647,8 +2579,6 @@ MAPA_TICKERS_ROM5 = {
     "ITUB4": ["ITUB4"],
     "BBDC4": ["BBDC4"],
     "BBAS3": ["BBAS3"],
-    "WEGE3": ["WEGE3"],
-    "ABEV3": ["ABEV3"],
     "IRON_ORE": ["SGX:FEF1!", "IRON_ORE"],
     "CRUDE_OIL": ["NYMEX:CL1!", "CRUDE_OIL"],
     "DI1_2027": ["BMFBOVESPA:DI1F2027", "DI1_2027"],
@@ -2940,7 +2870,7 @@ def buscar_metrica(chaves_busca: list, tipo_campo: str = "var", fontes: list = N
 def buscar_metrica_rom5(chave_interna: str, rom5: dict, tipo_campo: str = "var") -> float:
     """
     Busca variação no Coleta_rom-5.json (coleta de 5 min atrás).
-    Usa o MAPA_TICKERS_ROM5 para traduzir a chave interna nos tickers originais.
+    Usa o ALIASES_BUSCA_ROM5 para traduzir a chave interna nos tickers originais.
     """
     if not rom5:
         return 0.0
@@ -2949,7 +2879,7 @@ def buscar_metrica_rom5(chave_interna: str, rom5: dict, tipo_campo: str = "var")
     if not isinstance(coletas, list):
         return 0.0
 
-    tickers_buscar = MAPA_TICKERS_ROM5.get(chave_interna, [chave_interna])
+    tickers_buscar = ALIASES_BUSCA_ROM5.get(chave_interna, [chave_interna])
     tickers_buscar_upper = [t.upper() for t in tickers_buscar]
 
     for item in coletas:
@@ -3145,20 +3075,10 @@ def render_body():
             "var": buscar_metrica(["BBAS3", "BBAS"], fontes=fontes_dados),
             "chave_rom5": "BBAS3",
         },
-        "WEGE3": {
-            "preco": buscar_metrica(["WEGE3", "WEGE"], tipo_campo="ultimo", fontes=fontes_dados),
-            "var": buscar_metrica(["WEGE3", "WEGE"], fontes=fontes_dados),
-            "chave_rom5": "WEGE3",
-        },
-        "ABEV3": {
-            "preco": buscar_metrica(["ABEV3", "ABEV"], tipo_campo="ultimo", fontes=fontes_dados),
-            "var": buscar_metrica(["ABEV3", "ABEV"], fontes=fontes_dados),
-            "chave_rom5": "ABEV3",
-        },
     }
 
-    col_a, col_b, col_c, col_d, col_e, col_f, col_g = st.columns(7)
-    cols_acoes = [col_a, col_b, col_c, col_d, col_e, col_f, col_g]
+    col_a, col_b, col_c, col_d, col_e = st.columns(5)
+    cols_acoes = [col_a, col_b, col_c, col_d, col_e]
 
     for i, (ativo, dados) in enumerate(acoes_b3.items()):
         var_ant = buscar_metrica_rom5(dados["chave_rom5"], rom5)
@@ -3345,680 +3265,7 @@ def render_body():
 render_body()
 ```
 
-### `pages/6.5_📈_Previsao_Abertura_WINFUT.py`
-
-```python
-# ============================================================
-# PÁGINA: Previsão de Abertura WINFUT
-# FASE 7 — Dashboard operacional V2 + Plotly
-#
-# Visualizações:
-#   - Barras de comportamentos (Plotly)
-#   - Gauge distância / posição vs ajuste
-#   - Níveis (ajuste, last, pivots)
-#   - Contexto externo (barras de variação)
-# ============================================================
-
-from __future__ import annotations
-
-import sys
-from pathlib import Path
-
-import streamlit as st
-import plotly.graph_objects as go
-import plotly.express as px
-
-# Garante import da raiz do projeto
-ROOT = Path(__file__).resolve().parent.parent
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
-from v2.core.services.win_session_builder import build_win_session
-from v2.core.engines.opening_scenario_engine import gerar_cenario_abertura
-from v2.core.services.session_history import SessionHistoryService, salvar_sessao_hoje
-
-st.set_page_config(
-    page_title="Previsão Abertura WINFUT",
-    page_icon="📈",
-    layout="wide",
-)
-
-
-
-# Banner migração V1 → V2 (Fase 3)
-st.warning(
-    "⚠️ **PÁGINA LEGADO** — A decisão oficial é a **V2** "
-    "(`Coletas/Decisao_V2.json` e o menu **🎯 Decisão V2**). "
-    "Esta tela não alimenta mais o fluxo operacional."
-)
-
-# Tema escuro dos gráficos
-PLOTLY_LAYOUT = dict(
-    paper_bgcolor="rgba(0,0,0,0)",
-    plot_bgcolor="rgba(0,0,0,0)",
-    font=dict(color="#e6edf3", size=13),
-    margin=dict(l=40, r=20, t=40, b=40),
-)
-
-st.title("📈 Previsão de Abertura — WINFUT")
-st.caption("Cenários em relação ao ajuste · Não é ordem de compra/venda")
-
-# ------------------------------------------------------------
-# Carregar dados
-# ------------------------------------------------------------
-@st.cache_data(ttl=60)
-def carregar():
-    session = build_win_session()
-    cenario = gerar_cenario_abertura(session)
-    session.cenario = cenario
-    return session, cenario
-
-
-try:
-    session, cenario = carregar()
-except Exception as e:
-    st.error(f"Falha ao montar WinSession: {e}")
-    st.stop()
-
-# ------------------------------------------------------------
-# Ações
-# ------------------------------------------------------------
-col_a, col_b, col_c = st.columns([1, 1, 2])
-with col_a:
-    if st.button("🔄 Atualizar", use_container_width=True):
-        st.cache_data.clear()
-        st.rerun()
-with col_b:
-    if st.button("💾 Gravar no histórico", use_container_width=True):
-        path = salvar_sessao_hoje(session, cenario, tag="ui")
-        st.success(f"Salvo: {path.name}")
-
-# ------------------------------------------------------------
-# 1. Referências de preço
-# ------------------------------------------------------------
-st.subheader("Referências")
-
-c1, c2, c3, c4, c5 = st.columns(5)
-with c1:
-    st.metric("Contrato", session.metadata.contrato_principal or "—")
-with c2:
-    st.metric("Ajuste", f"{session.precos.ajuste:,.0f}" if session.precos.ajuste else "—")
-with c3:
-    st.metric("Last MT5", f"{session.precos.last_mt5:,.0f}" if session.precos.last_mt5 else "—")
-with c4:
-    dist = session.distancias.last_vs_ajuste_pts
-    st.metric(
-        "Distância",
-        f"{dist:+,.0f} pts" if dist is not None else "—",
-        delta=f"{session.distancias.last_vs_ajuste_pct:+.3f}%" if session.distancias.last_vs_ajuste_pct else None,
-    )
-with c5:
-    pos = cenario.relacao_com_ajuste.posicao or "—"
-    cor = {"ACIMA": "🟢", "ABAIXO": "🔴", "NO_AJUSTE": "🟡"}.get(pos, "⚪")
-    st.metric("Posição", f"{cor} {pos}")
-
-st.divider()
-
-# ------------------------------------------------------------
-# 2. Cenário + Gauge de distância
-# ------------------------------------------------------------
-st.subheader("Cenário principal")
-
-dir_ = cenario.direcao_provavel or "NEUTRO"
-prob = cenario.probabilidade_direcao
-conf = cenario.confianca_geral
-badge = {"ALTA": "🟢 ALTA", "BAIXA": "🔴 BAIXA", "NEUTRO": "🟡 NEUTRO"}.get(dir_, dir_)
-
-col1, col2 = st.columns([1.4, 1])
-
-with col1:
-    st.markdown(f"### {badge}")
-    st.write(cenario.relacao_com_ajuste.cenario_principal or "—")
-    if cenario.cenario_alternativo:
-        st.info(f"**Alternativo:** {cenario.cenario_alternativo}")
-
-    m1, m2, m3 = st.columns(3)
-    m1.metric("Prob. direção", f"{prob:.0f}%" if prob else "—")
-    m2.metric("Confiança", f"{conf:.0f}%" if conf else "—")
-    m3.metric(
-        "Prob. cenário",
-        f"{cenario.relacao_com_ajuste.probabilidade_cenario:.0f}%"
-        if cenario.relacao_com_ajuste.probabilidade_cenario
-        else "—",
-    )
-
-with col2:
-    # Gauge: distância last vs ajuste
-    dist_val = float(dist) if dist is not None else 0.0
-    # Escala simétrica em torno de 0
-    limite = max(400, abs(dist_val) * 1.5, 200)
-
-    fig_gauge = go.Figure(
-        go.Indicator(
-            mode="gauge+number+delta",
-            value=dist_val,
-            delta={"reference": 0, "relative": False, "valueformat": "+.0f"},
-            number={"suffix": " pts", "font": {"size": 28}},
-            title={"text": "Last × Ajuste", "font": {"size": 16}},
-            gauge={
-                "axis": {"range": [-limite, limite], "tickwidth": 1},
-                "bar": {"color": "#00c853" if dist_val >= 0 else "#ff3d00"},
-                "bgcolor": "#1a1c23",
-                "borderwidth": 0,
-                "steps": [
-                    {"range": [-limite, -150], "color": "#3d1515"},
-                    {"range": [-150, -50], "color": "#2a2210"},
-                    {"range": [-50, 50], "color": "#1a2a1a"},
-                    {"range": [50, 150], "color": "#1a2a1a"},
-                    {"range": [150, limite], "color": "#153d15"},
-                ],
-                "threshold": {
-                    "line": {"color": "#ffc107", "width": 3},
-                    "thickness": 0.8,
-                    "value": 0,
-                },
-            },
-        )
-    )
-    fig_gauge.update_layout(
-        **PLOTLY_LAYOUT,
-        height=260,
-    )
-    st.plotly_chart(fig_gauge, use_container_width=True)
-
-st.divider()
-
-# ------------------------------------------------------------
-# 3. Comportamentos (barras Plotly)
-# ------------------------------------------------------------
-st.subheader("Comportamentos possíveis")
-
-cb = cenario.comportamentos
-labels = [
-    "Romper e continuar",
-    "Testar e rejeitar",
-    "Testar e recuperar",
-    "Retornar ao ajuste",
-    "Falso rompimento",
-]
-valores = [
-    cb.romper_e_continuar or 0,
-    cb.testar_e_rejeitar or 0,
-    cb.testar_e_recuperar or 0,
-    cb.retornar_ao_ajuste or 0,
-    cb.falso_rompimento or 0,
-]
-cores = ["#00c853", "#ff9800", "#42a5f5", "#ab47bc", "#ff3d00"]
-
-fig_comp = go.Figure(
-    go.Bar(
-        x=valores,
-        y=labels,
-        orientation="h",
-        marker_color=cores,
-        text=[f"{v:.0f}%" for v in valores],
-        textposition="outside",
-        cliponaxis=False,
-    )
-)
-fig_comp.update_layout(
-    **PLOTLY_LAYOUT,
-    height=280,
-    xaxis=dict(title="Probabilidade (%)", range=[0, max(valores + [40]) * 1.25], gridcolor="#2a2d4a"),
-    yaxis=dict(autorange="reversed"),
-    showlegend=False,
-)
-st.plotly_chart(fig_comp, use_container_width=True)
-st.caption("Heurística inicial — será refinada com histórico estatístico.")
-
-st.divider()
-
-# ------------------------------------------------------------
-# 4. Níveis + Contexto (dois gráficos)
-# ------------------------------------------------------------
-col_n, col_x = st.columns(2)
-
-with col_n:
-    st.subheader("Níveis de preço")
-    n = session.niveis
-    nomes = []
-    precos = []
-    cores_n = []
-
-    mapa_niveis = [
-        ("R2", n.r2, "#ef5350"),
-        ("R1", n.r1, "#ff8a65"),
-        ("Last", session.precos.last_mt5, "#00e676"),
-        ("Ajuste", session.precos.ajuste, "#ffc107"),
-        ("PP", n.pivot_pp, "#90caf9"),
-        ("S1", n.s1, "#81c784"),
-        ("S2", n.s2, "#66bb6a"),
-    ]
-    for nome, val, cor in mapa_niveis:
-        if val is not None:
-            nomes.append(nome)
-            precos.append(val)
-            cores_n.append(cor)
-
-    if precos:
-        fig_niv = go.Figure(
-            go.Bar(
-                x=nomes,
-                y=precos,
-                marker_color=cores_n,
-                text=[f"{p:,.0f}" for p in precos],
-                textposition="outside",
-                cliponaxis=False,
-            )
-        )
-        fig_niv.update_layout(
-            **PLOTLY_LAYOUT,
-            height=320,
-            yaxis=dict(title="Pontos", gridcolor="#2a2d4a"),
-            showlegend=False,
-        )
-        st.plotly_chart(fig_niv, use_container_width=True)
-    else:
-        st.write("Níveis indisponíveis.")
-
-with col_x:
-    st.subheader("Contexto externo (variação %)")
-    ctx = session.contexto
-    ctx_labels = []
-    ctx_vals = []
-
-    pares = [
-        ("VIX", ctx.vix.variacao_pct),
-        ("ES", ctx.sp500_fut.variacao_pct),
-        ("NQ", ctx.nasdaq_fut.variacao_pct),
-        ("DXY", ctx.dxy.variacao_pct),
-        ("USD/BRL", ctx.usd_brl.variacao_pct),
-        ("ADRs", ctx.indicador_adrs),
-        ("Minério", ctx.iron_ore.variacao_pct),
-        ("Petróleo", ctx.crude_oil.variacao_pct),
-    ]
-    for nome, val in pares:
-        if val is not None:
-            ctx_labels.append(nome)
-            ctx_vals.append(val)
-
-    if ctx_vals:
-        cores_ctx = ["#00c853" if v >= 0 else "#ff3d00" for v in ctx_vals]
-        fig_ctx = go.Figure(
-            go.Bar(
-                x=ctx_labels,
-                y=ctx_vals,
-                marker_color=cores_ctx,
-                text=[f"{v:+.2f}%" for v in ctx_vals],
-                textposition="outside",
-                cliponaxis=False,
-            )
-        )
-        fig_ctx.update_layout(
-            **PLOTLY_LAYOUT,
-            height=320,
-            yaxis=dict(title="Variação %", gridcolor="#2a2d4a", zeroline=True, zerolinecolor="#ffc107"),
-            showlegend=False,
-        )
-        st.plotly_chart(fig_ctx, use_container_width=True)
-    else:
-        st.write("Contexto indisponível.")
-
-    # Texto resumido
-    if cenario.contexto_resumo:
-        with st.expander("Detalhe textual"):
-            for linha in cenario.contexto_resumo:
-                st.write(f"• {linha}")
-
-st.divider()
-
-# ------------------------------------------------------------
-# 5. Calendário econômico / notícias de impacto
-# ------------------------------------------------------------
-st.subheader("Calendário econômico")
-
-news = getattr(session, "noticias", None)
-if news is not None and getattr(news, "disponivel", False):
-    n1, n2, n3, n4 = st.columns(4)
-    with n1:
-        st.metric("Impacto total", news.impacto_total if news.impacto_total is not None else "—")
-    with n2:
-        risco = news.classificacao_risco or "—"
-        emoji = {
-            "BAIXO": "🟢",
-            "ATENÇÃO": "🟡",
-            "ALTO": "🟠",
-            "EXTREMO": "🔴",
-        }.get(risco, "⚪")
-        st.metric("Classificação", f"{emoji} {risco}")
-    with n3:
-        st.metric("Risco abertura WIN", "⚠️ SIM" if news.risco_abertura_win else "Não")
-    with n4:
-        st.metric("⭐⭐⭐ BR 09:00", "SIM" if news.tem_3_estrelas_brasil_0900 else "Não")
-
-    # Barra visual do impacto (0–20+ escala típica do Analise_Noticias)
-    impacto_val = float(news.impacto_total or 0)
-    fig_news = go.Figure(
-        go.Indicator(
-            mode="gauge+number",
-            value=impacto_val,
-            number={"font": {"size": 28}},
-            title={"text": "Pontuação de impacto do dia", "font": {"size": 14}},
-            gauge={
-                "axis": {"range": [0, max(20, impacto_val + 2)]},
-                "bar": {
-                    "color": (
-                        "#00c853" if impacto_val < 4
-                        else "#ffc107" if impacto_val < 9
-                        else "#ff9800" if impacto_val < 15
-                        else "#ff3d00"
-                    )
-                },
-                "steps": [
-                    {"range": [0, 4], "color": "#1a2a1a"},
-                    {"range": [4, 9], "color": "#2a2a10"},
-                    {"range": [9, 15], "color": "#2a1a10"},
-                    {"range": [15, max(20, impacto_val + 2)], "color": "#3d1515"},
-                ],
-            },
-        )
-    )
-    fig_news.update_layout(**PLOTLY_LAYOUT, height=220)
-    st.plotly_chart(fig_news, use_container_width=True)
-
-    if news.tem_3_estrelas_outros_horarios and news.noticias_3_estrelas:
-        with st.expander("Notícias ⭐⭐⭐ em outros horários"):
-            for item in news.noticias_3_estrelas:
-                st.write(
-                    f"• {item.get('hora', '')} | [{item.get('moeda', '')}] "
-                    f"{item.get('pais', '')} — {item.get('evento', '')}"
-                )
-    if news.tem_multiplas_2_estrelas_mesmo_horario and news.horarios_multiplas_2_estrelas:
-        with st.expander("Horários com 2+ notícias ⭐⭐"):
-            for item in news.horarios_multiplas_2_estrelas:
-                st.write(
-                    f"• {item.get('hora', '')} — "
-                    f"{item.get('quantidade_2_estrelas', '')} eventos"
-                )
-else:
-    st.info(
-        "Calendário econômico não disponível. "
-        "Rode a coleta/análise de notícias (Noticias_Impacto_Dia.json)."
-    )
-
-st.divider()
-
-# ------------------------------------------------------------
-# 6. Histórico recente (timeline simples)
-# ------------------------------------------------------------
-st.subheader("Histórico recente")
-
-try:
-    svc = SessionHistoryService()
-    recentes = svc.resumo_recente(10)
-    if not recentes:
-        st.write("Nenhum histórico ainda. Use **Gravar no histórico**.")
-    else:
-        datas = [r.get("data") for r in recentes]
-        dists = [r.get("distancia_pts") or 0 for r in recentes]
-        cores_h = ["#00c853" if d >= 0 else "#ff3d00" for d in dists]
-
-        fig_hist = go.Figure()
-        fig_hist.add_trace(
-            go.Scatter(
-                x=datas,
-                y=dists,
-                mode="lines+markers",
-                line=dict(color="#90caf9", width=2),
-                marker=dict(size=10, color=cores_h),
-                text=[
-                    f"{r.get('posicao')} · {r.get('direcao')}<br>{r.get('cenario_principal', '')[:80]}"
-                    for r in recentes
-                ],
-                hoverinfo="text+y",
-            )
-        )
-        fig_hist.add_hline(y=0, line_dash="dot", line_color="#ffc107")
-        fig_hist.update_layout(
-            **PLOTLY_LAYOUT,
-            height=280,
-            yaxis=dict(title="Distância last × ajuste (pts)", gridcolor="#2a2d4a"),
-            xaxis=dict(title="Data"),
-            showlegend=False,
-        )
-        st.plotly_chart(fig_hist, use_container_width=True)
-
-        with st.expander("Lista"):
-            for r in reversed(recentes):
-                st.write(
-                    f"**{r.get('data')}** · {r.get('contrato')} · "
-                    f"Ajuste {r.get('ajuste')} · Last {r.get('last_mt5')} · "
-                    f"{r.get('distancia_pts'):+.0f} pts · {r.get('posicao')} · {r.get('direcao')}"
-                )
-except Exception as e:
-    st.write(f"Histórico indisponível: {e}")
-
-st.caption(
-    f"Fonte last: {session.metadata.fonte_last or '—'} · "
-    f"Coleta: {session.metadata.timestamp_coleta or '—'} · "
-    "Assistente de cenário — não é recomendação de trade."
-)
-
-
-```
-
-### `pages/6.7_📈_Matriz_de_Influencia.py`
-
-```python
-# -*- coding: utf-8 -*-
-"""
-Módulo: pages/1.2_📈_Matriz_de_Influencia.py
-Versão: 1.0
-Objetivo: Guia rápido e visual de correlação/influência dos ativos internacionais e taxas no WIN/WDO
-"""
-
-import streamlit as st
-import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
-
-# ==============================================================================
-# CONFIGURAÇÃO DA PÁGINA
-# ==============================================================================
-st.set_page_config(page_title="WINFUT - Matriz de Influência", layout="wide")
-
-st.markdown("""
-<style>
-.stApp { background-color: #0e1117; }
-.card-impact-high {
-    background-color: #0d381e;
-    border-left: 5px solid #00c853;
-    padding: 15px;
-    border-radius: 8px;
-    margin-bottom: 15px;
-}
-.card-impact-bear {
-    background-color: #380d0d;
-    border-left: 5px solid #ff3d00;
-    padding: 15px;
-    border-radius: 8px;
-    margin-bottom: 15px;
-}
-.card-impact-warn {
-    background-color: #382b0d;
-    border-left: 5px solid #ffab00;
-    padding: 15px;
-    border-radius: 8px;
-    margin-bottom: 15px;
-}
-</style>
-""", unsafe_allow_html=True)
-
-# ==============================================================================
-# CABEÇALHO TÉCNICO
-# ==============================================================================
-st.markdown("<h2 style='color:#00d4ff;'>📈 Matriz de Influência e Confluência de Ativos</h2>", unsafe_allow_html=True)
-st.caption("Guia de consulta rápida para tomada de decisão no leilão e pré-market da B3")
-
-# ==============================================================================
-# 1. PESO E IMPACTO DIRETO DOS ATIVOS NO WIN/WDO
-# ==============================================================================
-st.markdown("---")
-st.subheader("⚖️ Pesos e Vetores de Influência Directa")
-
-col_left, col_right = st.columns(2)
-
-with col_left:
-    st.markdown("#### 🟢 Drivers Principais do Mini Índice (WIN)")
-    df_win_peso = pd.DataFrame([
-        {"Ativo": "ADRs Brasileiras (VALE, PETR, Bancos)", "Peso Proporcional": 55, "Impacto Directo": "Direto (+ / +)"},
-        {"Ativo": "Índices US (S&P500 / Nasdaq)", "Peso Proporcional": 25, "Impacto Directo": "Direto (+ / +)"},
-        {"Ativo": "Commodities (Petróleo / Minério)", "Peso Proporcional": 10, "Impacto Directo": "Direto (+ / +)"},
-        {"Ativo": "VIX (Índice do Medo)", "Peso Proporcional": -5, "Impacto Directo": "Inverso (+ / -)"},
-        {"Ativo": "Curva de Juros DI (DI1 2027/2029)", "Peso Proporcional": -5, "Impacto Directo": "Inverso (+ / -)"}
-    ])
-    
-    fig_win = px.bar(
-        df_win_peso, x="Peso Proporcional", y="Ativo", orientation='h',
-        color="Peso Proporcional",
-        color_continuous_scale=["#ff3d00", "#ffab00", "#00c853"],
-        title="Força Explicativa no Pregão de Abertura do WIN"
-    )
-    fig_win.update_layout(height=280, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font={"color": "#e6edf3"}, coloraxis_showscale=False)
-    st.plotly_chart(fig_win, use_container_width=True)
-
-with col_right:
-    st.markdown("#### 🔴 Drivers Principais do Mini Dólar (WDO)")
-    df_wdo_peso = pd.DataFrame([
-        {"Ativo": "DXY (Índice Dólar Global)", "Peso Proporcional": 45, "Impacto Directo": "Direto (+ / +)"},
-        {"Ativo": "Curva de Juros DI (DI1 2027/2029)", "Peso Proporcional": 25, "Impacto Directo": "Direto (+ / +)"},
-        {"Ativo": "EWZ (ETF Brasil no Exterior)", "Peso Proporcional": -20, "Impacto Directo": "Inverso (+ / -)"},
-        {"Ativo": "VIX (Aversão Global a Risco)", "Peso Proporcional": 10, "Impacto Directo": "Direto (+ / +)"}
-    ])
-    
-    fig_wdo = px.bar(
-        df_wdo_peso, x="Peso Proporcional", y="Ativo", orientation='h',
-        color="Peso Proporcional",
-        color_continuous_scale=["#00c853", "#ffab00", "#ff3d00"],
-        title="Força Explicativa no Pregão de Abertura do WDO"
-    )
-    fig_wdo.update_layout(height=280, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font={"color": "#e6edf3"}, coloraxis_showscale=False)
-    st.plotly_chart(fig_wdo, use_container_width=True)
-
-# ==============================================================================
-# 2. TABELA INTERATIVA DE CENÁRIOS E DIVERGÊNCIAS (CONSULTA RÁPIDA)
-# ==============================================================================
-st.markdown("---")
-st.subheader("🧩 Cenários de Confluência e Divergência na Prática")
-
-cenarios_data = [
-    {
-        "Cenário": "🔥 Super Confluência de Alta",
-        "ADRs BR": "🟢 Forte Alta (+2.0%)",
-        "S&P / Nasdaq": "🟢 Positivos",
-        "VIX / DI": "🔴 Queda / Estável",
-        "Comportamento Projetado (WIN)": "🚀 GAP de Alta Forte + Explosão",
-        "Estratégia": "Não fazer FADE/Venda contra o gap. Foco em compra no retração ou rompimento pós-abertura."
-    },
-    {
-        "Cenário": "⚡ Divergência: ADRs vs EUA (Seu Exemplo)",
-        "ADRs BR": "🟢 Forte Alta (+1.5%)",
-        "S&P / Nasdaq": "🔴 Baixa (-0.8%)",
-        "VIX / DI": "🟡 Neutro",
-        "Comportamento Projetado (WIN)": "⚖️ Abertura Autônoma / Rali do Ibovespa",
-        "Estratégia": "Prioridade total às ADRs (VALE/PETR/Bancos). O peso local supera o exterior se commodities/commodities financeiras estiverem compradas."
-    },
-    {
-        "Cenário": "⚠️ Aversão Global a Risco (Risk-Off)",
-        "ADRs BR": "🔴 Em Queda",
-        "S&P / Nasdaq": "🔴 Em Queda Forte",
-        "VIX / DI": "🟢 VIX Dispara / DI Sobe",
-        "Comportamento Projetado (WIN)": "📉 GAP de Baixa Agressivo",
-        "Estratégia": "Aguardar teste no ajuste. Se perder o ajuste no leilão, preferência por continuação da venda (Explosão Venda)."
-    },
-    {
-        "Cenário": "🛑 Divergência Interna de Commodities",
-        "ADRs BR": "🟡 Mistas (PETR subindo, VALE caindo)",
-        "S&P / Nasdaq": "🟢 Leve Alta",
-        "VIX / DI": "🟡 Estável",
-        "Comportamento Projetado (WIN)": "🔄 Mercado Travado / Leilão Sujo",
-        "Estratégia": "Operacional de Leilão fica BLOQUEADO. Operar preferencialmente 'Retorno ao Ajuste (500/100)' após 09:15h."
-    }
-]
-
-for c in cenarios_data:
-    if "Super Confluência" in c["Cenário"]:
-        css = "card-impact-high"
-    elif "Divergência" in c["Cenário"]:
-        css = "card-impact-warn"
-    else:
-        css = "card-impact-bear"
-        
-    st.markdown(f"""
-    <div class="{css}">
-        <h4 style="margin:0 0 8px;">{c['Cenário']}</h4>
-        <p><b>• ADRs BR:</b> {c['ADRs BR']} | <b>• EUA:</b> {c['S&P / Nasdaq']} | <b>• VIX/DI:</b> {c['VIX / DI']}</p>
-        <p><b>📉 Expectativa no Índice:</b> <code style="color:#00d4ff;">{c['Comportamento Projetado (WIN)']}</code></p>
-        <p style="margin-bottom:0;">💡 <b>Estratégia Operacional:</b> {c['Estratégia']}</p>
-    </div>
-    """, unsafe_allow_html=True)
-
-# ==============================================================================
-# 3. MAPA DE CALOR DE MATRIZ DE CORRELAÇÃO ESTÁTICA/HISTÓRICA
-# ==============================================================================
-st.markdown("---")
-st.subheader("🔥 Matriz de Correlação Cruzada (Referência Pré-Market)")
-
-matriz_corr = pd.DataFrame(
-    [
-        [1.00, 0.85, 0.72, -0.68, -0.62, -0.78],
-        [0.85, 1.00, 0.65, -0.55, -0.50, -0.72],
-        [0.72, 0.65, 1.00, -0.45, -0.40, -0.58],
-        [-0.68, -0.55, -0.45, 1.00, 0.75, 0.62],
-        [-0.62, -0.50, -0.40, 0.75, 1.00, 0.55],
-        [-0.78, -0.72, -0.58, 0.62, 0.55, 1.00]
-    ],
-    columns=["WIN_FUT", "ADRs BR", "S&P500", "VIX", "DI1", "WDO_FUT"],
-    index=["WIN_FUT", "ADRs BR", "S&P500", "VIX", "DI1", "WDO_FUT"]
-)
-
-fig_heatmap = px.imshow(
-    matriz_corr,
-    text_auto=".2f",
-    color_continuous_scale="RdBu_r",
-    title="Coeficiente de Correlação Típico do Leilão de Abertura"
-)
-fig_heatmap.update_layout(height=400, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font={"color": "#e6edf3"})
-st.plotly_chart(fig_heatmap, use_container_width=True)
-
-# ==============================================================================
-# 4. REGRAS DE OURO PARA CONSULTA RÁPIDA
-# ==============================================================================
-st.markdown("---")
-st.markdown("### 📌 Regras de Ouro no Pré-Market")
-
-col_r1, col_r2, col_r3 = st.columns(3)
-
-with col_r1:
-    st.markdown("""
-    **1. Prioridade das ADRs**
-    Quando há notícia Relevante de 3★ no Brasil às 09:00, as **ADRs Brasileiras** (VALE, PETR, ITUB) possuem **60%+ da prioridade** operacional sobre os índices S&P500/Nasdaq.
-    """)
-
-with col_r2:
-    st.markdown("""
-    **2. Trava do VIX**
-    Se o **VIX** estiver subindo acima de **+5.00%**, qualquer alta do Mini Índice deve ser operada com desconfiança (alvo mais curto), pois o risco de pullback abrupto é elevado.
-    """)
-
-with col_r3:
-    st.markdown("""
-    **3. Regra dos DIs Curto vs Longo**
-    Se a Curva de **DI (2027/2029)** estiver subindo forte, o Mini Índice tende a pressionar para baixo e o Mini Dólar atua na ponta compradora.
-    """)
-```
-
-### `pages/6_📡_Ativos_Monitorados.py`
+### `pages/5_📡_Ativos_Monitorados.py`
 
 ```python
 # -*- coding: utf-8 -*-
@@ -4034,44 +3281,12 @@ import json
 import pandas as pd
 from datetime import datetime
 
-from config import FILE_VALIDADOS, COLETAS_DIR
+from config import FILE_VALIDADOS, COLETAS_DIR, MAPEAMENTO_TICKERS_INVERSO
 
 
 # ==============================================================================
-# MAPA TICKERS ROM-5 (canônico — idêntico às pages 2, 3 e 4)
+# MAPA TICKERS ROM-5 (importado do config.py — MAPEAMENTO_TICKERS_INVERSO)
 # ==============================================================================
-MAPA_TICKERS_ROM5 = {
-    "SP500_FUT": "CME_MINI:ES1!",
-    "NASDAQ_FUT": "CME_MINI:NQ1!",
-    "VIX": "TVC:VIX",
-    "DXY": "TVC:DXY",
-    "USD_MXN": "FX_IDC:USDMXN",
-    "CRUDE_OIL": "NYMEX:CL1!",
-    "IRON_ORE": "SGX:FEF1!",
-    "IRON_ORE_2M": "SGX:FEF2!",
-    "GOLD": "TVC:GOLD",
-    "EWZ": "AMEX:EWZ",
-    "VALE_ADR": "NYSE:VALE",
-    "PETR_ADR": "NYSE:PBR",
-    "ITUB_ADR": "NYSE:ITUB",
-    "BBAS_ADR": "OTC:BDORY",
-    "BBD_ADR": "NYSE:BBD",
-    "B3_ADR": "OTC:BOLSY",
-    "WIN_AJUSTE": "B3_AJUSTE_WIN",
-    "WDO_AJUSTE": "B3_AJUSTE_WDO",
-    "WIN_FUT": "BMFBOVESPA:WIN1!",
-    "WDO_FUT": "BMFBOVESPA:WDO1!",
-    "WIN_LAST_TICK": "WIN_LAST_TICK",
-    "WDO_LAST_TICK": "WDO_LAST_TICK",
-    "DI1_2027": "BMFBOVESPA:DI1F2027",
-    "DI1_2029": "BMFBOVESPA:DI1F2029",
-    "VALE3": "VALE3",
-    "PETR4": "PETR4",
-    "ITUB4": "ITUB4",
-    "BBAS3": "BBAS3",
-    "BBDC4": "BBDC4",
-    "B3SA3": "B3SA3",
-}
 
 
 # Nomes curtos (fix do corte [:18])
@@ -4334,7 +3549,7 @@ def carregar_rom_dict(nome_arquivo: str) -> dict:
 
 def buscar_valor(ativo_id: str, rom_dict: dict):
     """Traduz ativo_id interno → ticker rom → change_percent."""
-    ticker = MAPA_TICKERS_ROM5.get(ativo_id)
+    ticker = MAPEAMENTO_TICKERS_INVERSO.get(ativo_id)
     if not ticker:
         return None
     return rom_dict.get(ticker)
@@ -4599,6 +3814,217 @@ def render_body():
 # EXECUÇÃO
 # ==============================================================================
 render_body()
+```
+
+### `pages/6_📈_Matriz_de_Influencia.py`
+
+```python
+# -*- coding: utf-8 -*-
+"""
+Módulo: pages/1.2_📈_Matriz_de_Influencia.py
+Versão: 1.0
+Objetivo: Guia rápido e visual de correlação/influência dos ativos internacionais e taxas no WIN/WDO
+"""
+
+import streamlit as st
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+
+# ==============================================================================
+# CONFIGURAÇÃO DA PÁGINA
+# ==============================================================================
+st.set_page_config(page_title="WINFUT - Matriz de Influência", layout="wide")
+
+st.markdown("""
+<style>
+.stApp { background-color: #0e1117; }
+.card-impact-high {
+    background-color: #0d381e;
+    border-left: 5px solid #00c853;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+}
+.card-impact-bear {
+    background-color: #380d0d;
+    border-left: 5px solid #ff3d00;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+}
+.card-impact-warn {
+    background-color: #382b0d;
+    border-left: 5px solid #ffab00;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# ==============================================================================
+# CABEÇALHO TÉCNICO
+# ==============================================================================
+st.markdown("<h2 style='color:#00d4ff;'>📈 Matriz de Influência e Confluência de Ativos</h2>", unsafe_allow_html=True)
+st.caption("Guia de consulta rápida para tomada de decisão no leilão e pré-market da B3")
+
+# ==============================================================================
+# 1. PESO E IMPACTO DIRETO DOS ATIVOS NO WIN/WDO
+# ==============================================================================
+st.markdown("---")
+st.subheader("⚖️ Pesos e Vetores de Influência Directa")
+
+col_left, col_right = st.columns(2)
+
+with col_left:
+    st.markdown("#### 🟢 Drivers Principais do Mini Índice (WIN)")
+    df_win_peso = pd.DataFrame([
+        {"Ativo": "ADRs Brasileiras (VALE, PETR, Bancos)", "Peso Proporcional": 55, "Impacto Directo": "Direto (+ / +)"},
+        {"Ativo": "Índices US (S&P500 / Nasdaq)", "Peso Proporcional": 25, "Impacto Directo": "Direto (+ / +)"},
+        {"Ativo": "Commodities (Petróleo / Minério)", "Peso Proporcional": 10, "Impacto Directo": "Direto (+ / +)"},
+        {"Ativo": "VIX (Índice do Medo)", "Peso Proporcional": -5, "Impacto Directo": "Inverso (+ / -)"},
+        {"Ativo": "Curva de Juros DI (DI1 2027/2029)", "Peso Proporcional": -5, "Impacto Directo": "Inverso (+ / -)"}
+    ])
+    
+    fig_win = px.bar(
+        df_win_peso, x="Peso Proporcional", y="Ativo", orientation='h',
+        color="Peso Proporcional",
+        color_continuous_scale=["#ff3d00", "#ffab00", "#00c853"],
+        title="Força Explicativa no Pregão de Abertura do WIN"
+    )
+    fig_win.update_layout(height=280, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font={"color": "#e6edf3"}, coloraxis_showscale=False)
+    st.plotly_chart(fig_win, use_container_width=True)
+
+with col_right:
+    st.markdown("#### 🔴 Drivers Principais do Mini Dólar (WDO)")
+    df_wdo_peso = pd.DataFrame([
+        {"Ativo": "DXY (Índice Dólar Global)", "Peso Proporcional": 45, "Impacto Directo": "Direto (+ / +)"},
+        {"Ativo": "Curva de Juros DI (DI1 2027/2029)", "Peso Proporcional": 25, "Impacto Directo": "Direto (+ / +)"},
+        {"Ativo": "EWZ (ETF Brasil no Exterior)", "Peso Proporcional": -20, "Impacto Directo": "Inverso (+ / -)"},
+        {"Ativo": "VIX (Aversão Global a Risco)", "Peso Proporcional": 10, "Impacto Directo": "Direto (+ / +)"}
+    ])
+    
+    fig_wdo = px.bar(
+        df_wdo_peso, x="Peso Proporcional", y="Ativo", orientation='h',
+        color="Peso Proporcional",
+        color_continuous_scale=["#00c853", "#ffab00", "#ff3d00"],
+        title="Força Explicativa no Pregão de Abertura do WDO"
+    )
+    fig_wdo.update_layout(height=280, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font={"color": "#e6edf3"}, coloraxis_showscale=False)
+    st.plotly_chart(fig_wdo, use_container_width=True)
+
+# ==============================================================================
+# 2. TABELA INTERATIVA DE CENÁRIOS E DIVERGÊNCIAS (CONSULTA RÁPIDA)
+# ==============================================================================
+st.markdown("---")
+st.subheader("🧩 Cenários de Confluência e Divergência na Prática")
+
+cenarios_data = [
+    {
+        "Cenário": "🔥 Super Confluência de Alta",
+        "ADRs BR": "🟢 Forte Alta (+2.0%)",
+        "S&P / Nasdaq": "🟢 Positivos",
+        "VIX / DI": "🔴 Queda / Estável",
+        "Comportamento Projetado (WIN)": "🚀 GAP de Alta Forte + Explosão",
+        "Estratégia": "Não fazer FADE/Venda contra o gap. Foco em compra no retração ou rompimento pós-abertura."
+    },
+    {
+        "Cenário": "⚡ Divergência: ADRs vs EUA (Seu Exemplo)",
+        "ADRs BR": "🟢 Forte Alta (+1.5%)",
+        "S&P / Nasdaq": "🔴 Baixa (-0.8%)",
+        "VIX / DI": "🟡 Neutro",
+        "Comportamento Projetado (WIN)": "⚖️ Abertura Autônoma / Rali do Ibovespa",
+        "Estratégia": "Prioridade total às ADRs (VALE/PETR/Bancos). O peso local supera o exterior se commodities/commodities financeiras estiverem compradas."
+    },
+    {
+        "Cenário": "⚠️ Aversão Global a Risco (Risk-Off)",
+        "ADRs BR": "🔴 Em Queda",
+        "S&P / Nasdaq": "🔴 Em Queda Forte",
+        "VIX / DI": "🟢 VIX Dispara / DI Sobe",
+        "Comportamento Projetado (WIN)": "📉 GAP de Baixa Agressivo",
+        "Estratégia": "Aguardar teste no ajuste. Se perder o ajuste no leilão, preferência por continuação da venda (Explosão Venda)."
+    },
+    {
+        "Cenário": "🛑 Divergência Interna de Commodities",
+        "ADRs BR": "🟡 Mistas (PETR subindo, VALE caindo)",
+        "S&P / Nasdaq": "🟢 Leve Alta",
+        "VIX / DI": "🟡 Estável",
+        "Comportamento Projetado (WIN)": "🔄 Mercado Travado / Leilão Sujo",
+        "Estratégia": "Operacional de Leilão fica BLOQUEADO. Operar preferencialmente 'Retorno ao Ajuste (500/100)' após 09:15h."
+    }
+]
+
+for c in cenarios_data:
+    if "Super Confluência" in c["Cenário"]:
+        css = "card-impact-high"
+    elif "Divergência" in c["Cenário"]:
+        css = "card-impact-warn"
+    else:
+        css = "card-impact-bear"
+        
+    st.markdown(f"""
+    <div class="{css}">
+        <h4 style="margin:0 0 8px;">{c['Cenário']}</h4>
+        <p><b>• ADRs BR:</b> {c['ADRs BR']} | <b>• EUA:</b> {c['S&P / Nasdaq']} | <b>• VIX/DI:</b> {c['VIX / DI']}</p>
+        <p><b>📉 Expectativa no Índice:</b> <code style="color:#00d4ff;">{c['Comportamento Projetado (WIN)']}</code></p>
+        <p style="margin-bottom:0;">💡 <b>Estratégia Operacional:</b> {c['Estratégia']}</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+# ==============================================================================
+# 3. MAPA DE CALOR DE MATRIZ DE CORRELAÇÃO ESTÁTICA/HISTÓRICA
+# ==============================================================================
+st.markdown("---")
+st.subheader("🔥 Matriz de Correlação Cruzada (Referência Pré-Market)")
+
+matriz_corr = pd.DataFrame(
+    [
+        [1.00, 0.85, 0.72, -0.68, -0.62, -0.78],
+        [0.85, 1.00, 0.65, -0.55, -0.50, -0.72],
+        [0.72, 0.65, 1.00, -0.45, -0.40, -0.58],
+        [-0.68, -0.55, -0.45, 1.00, 0.75, 0.62],
+        [-0.62, -0.50, -0.40, 0.75, 1.00, 0.55],
+        [-0.78, -0.72, -0.58, 0.62, 0.55, 1.00]
+    ],
+    columns=["WIN_FUT", "ADRs BR", "S&P500", "VIX", "DI1", "WDO_FUT"],
+    index=["WIN_FUT", "ADRs BR", "S&P500", "VIX", "DI1", "WDO_FUT"]
+)
+
+fig_heatmap = px.imshow(
+    matriz_corr,
+    text_auto=".2f",
+    color_continuous_scale="RdBu_r",
+    title="Coeficiente de Correlação Típico do Leilão de Abertura"
+)
+fig_heatmap.update_layout(height=400, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font={"color": "#e6edf3"})
+st.plotly_chart(fig_heatmap, use_container_width=True)
+
+# ==============================================================================
+# 4. REGRAS DE OURO PARA CONSULTA RÁPIDA
+# ==============================================================================
+st.markdown("---")
+st.markdown("### 📌 Regras de Ouro no Pré-Market")
+
+col_r1, col_r2, col_r3 = st.columns(3)
+
+with col_r1:
+    st.markdown("""
+    **1. Prioridade das ADRs**
+    Quando há notícia Relevante de 3★ no Brasil às 09:00, as **ADRs Brasileiras** (VALE, PETR, ITUB) possuem **60%+ da prioridade** operacional sobre os índices S&P500/Nasdaq.
+    """)
+
+with col_r2:
+    st.markdown("""
+    **2. Trava do VIX**
+    Se o **VIX** estiver subindo acima de **+5.00%**, qualquer alta do Mini Índice deve ser operada com desconfiança (alvo mais curto), pois o risco de pullback abrupto é elevado.
+    """)
+
+with col_r3:
+    st.markdown("""
+    **3. Regra dos DIs Curto vs Longo**
+    Se a Curva de **DI (2027/2029)** estiver subindo forte, o Mini Índice tende a pressionar para baixo e o Mini Dólar atua na ponta compradora.
+    """)
 ```
 
 ### `pages/7.1_📊_SMC_Regras.py`

@@ -1,7 +1,7 @@
 # Dump completo - _raiz
 
-Gerado em: 2026-09-28 12:11:32
-Total de arquivos: 38
+Gerado em: 2026-09-29 08:09:21
+Total de arquivos: 39
 
 ## Arvore
 
@@ -22,6 +22,7 @@ Total de arquivos: 38
 |-- Limpar_Imagens_TradingView.py
 |-- MapearTendencia15Min.py
 |-- Motor_SMC_Regras.py
+|-- PROXIMOS_PASSOS.md
 |-- README.md
 |-- Rodar_SMC_Regras.py
 |-- Temp_Validacao_Smoke.py
@@ -715,8 +716,8 @@ def calcular_abertura_win(ativos_dict: dict, preco_referencia_base: float) -> di
     petr = extrair_variacao(ativos_dict, "PETR_ADR")
     
     pesos = PESOS_ESTIMATIVA_ABERTURA
-    cesta_adrs = (vale * pesos.get("adr_vale", 0.30)) + (petr * pesos.get("adr_petr", 0.25))
-    var_pct = (ewz * pesos.get("ewz", 0.30)) + (cesta_adrs * pesos.get("cesta_adrs", 0.35)) + (sp500 * pesos.get("sp500_fut", 0.20))
+    cesta_adrs = (vale * pesos["adr_vale"]) + (petr * pesos["adr_petr"])
+    var_pct = (ewz * pesos["ewz"]) + (cesta_adrs * pesos["cesta_adrs"]) + (sp500 * pesos["sp500_fut"])
     
     abertura_estimada = 0.0
     if preco_referencia_base > 0:
@@ -754,7 +755,7 @@ def processar_calculos_operacionais():
 
     ativos_dict = {item["ativo_id"]: item for item in dados_json.get("ativos_validados", [])}
 
-        # --- PREÇO BASE DE REFERÊNCIA (sempre o ajuste oficial) ---
+    # --- PREÇO BASE DE REFERÊNCIA (sempre o ajuste oficial) ---
     # O ajuste oficial da B3 é estável durante o dia e é o padrão institucional
     # para cálculo de gap de abertura. NÃO usar WIN_FUT.close (preço atual),
     # que muda a cada tick e faz a "abertura teórica" variar.
@@ -6088,6 +6089,43 @@ if __name__ == "__main__":
     main()
 ```
 
+### `PROXIMOS_PASSOS.md`
+
+```markdown
+﻿# PROXIMOS PASSOS - Analisador_Financeiro
+
+Data: 28/09/2026
+Branch atual: main (sincronizada com origin)
+Status: F2 + F3c concluidas e publicadas
+
+## CONCLUIDO
+
+- F2 - mapas de ticker centralizados no config.py -> mergeado e publicado.
+- F3c - suite de contratos (8 testes) -> commit 8b1f383, publicado.
+- Delecao da page 6.5 -> intencional (confirmado pelo Kiriath).
+- Push -> main sincronizada com origin.
+
+## F3 - PROXIMOS ALVOS DE REFACTOR (EM ABERTO)
+
+| #   | Alvo                              | Descricao                                                        | Prioridade |
+|-----|-----------------------------------|------------------------------------------------------------------|------------|
+| F3a | Page 2 standalone                 | Centralizar caminhos (FILE_MT5_V2, FILE_UNIFICADO etc.) no config | alta       |
+| F3b | ALIASES_BUSCA_ROM5 (page 4)       | Decidir se o mapa str -> list vai pro config.py                  | media      |
+| F3d | MAPEAMENTO_ADR_B3 vs MAPA_B3_PARA_ADR | Revisar convivencia/nomenclatura dos dois mapas              | baixa      |
+
+## SUITE DE TESTES
+
+python -m v2.tests.test_contracts -v   # 8 testes (contratos dos mapas)
+
+Obs: pytest nao instalado. Instalar se quiser: pip install pytest.
+
+## BACKUPS
+
+- _backup_fase2a/  -  _backup_fase2bc/  -  _backup_fase2d/
+- git reflog para recuperar qualquer estado anterior.
+
+```
+
 ### `README.md`
 
 ```markdown
@@ -9331,6 +9369,25 @@ MAPEAMENTO_TICKERS: Dict[str, str] = {
     "BBAS3": "BBAS3",
     "BBDC4": "BBDC4",
     "B3SA3": "B3SA3",
+}
+
+# ------------------------------------------------------------
+# 9b. MAPAS DERIVADOS — centralizados (F2)
+#     Fonte unica para as pages (elimina copias locais)
+# ------------------------------------------------------------
+MAPEAMENTO_TICKERS_INVERSO: Dict[str, str] = {
+    v: k for k, v in MAPEAMENTO_TICKERS.items()
+}
+
+ADRS_COMPOSTO: List[str] = ["BBD_ADR", "ITUB_ADR", "PETR_ADR", "VALE_ADR", "BBAS_ADR", "B3_ADR"]
+
+MAPA_B3_PARA_ADR: Dict[str, str] = {
+    "VALE3": "VALE_ADR",
+    "PETR4": "PETR_ADR",
+    "ITUB4": "ITUB_ADR",
+    "BBAS3": "BBAS_ADR",
+    "BBDC4": "BBD_ADR",
+    "B3SA3": "B3_ADR",
 }
 
 # ------------------------------------------------------------

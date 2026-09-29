@@ -1,6 +1,6 @@
 # Dump completo - utils
 
-Gerado em: 2026-09-28 12:11:32
+Gerado em: 2026-09-29 08:09:22
 Total de arquivos: 2
 
 ## Arvore
@@ -333,7 +333,7 @@ class KeyManager:
 key_manager = KeyManager()
 
 # Atalhos de compatibilidade (Aliases) para o pipeline principal
-get_groq_client = key_manager.get_groq_client if hasattr(key_manager, 'get_groq_client') else key_manager.obter_cliente_groq
+get_groq_client = key_manager.obter_cliente_groq
 
 if __name__ == "__main__":
     print("=" * 60)

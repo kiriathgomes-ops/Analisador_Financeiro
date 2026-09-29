@@ -1,19 +1,24 @@
 # Inventario de Arquivos
 
-Gerado em: 2026-09-28 12:11:28
+Gerado em: 2026-09-29 08:09:14
 
-**Total:** 94 arquivos .py | 22,328 linhas | 841,374 bytes
+**Total:** 102 arquivos .py | 26,368 linhas | 1,000,766 bytes
 
 ## Distribuicao por pasta
 
 | Pasta | Arquivos | Linhas |
 |---|---:|---:|
-| `(raiz)` | 33 | 10,563 |
+| `(raiz)` | 33 | 10,582 |
 | `NOVO_MOTOR_PREVISAO_ABERTURA` | 11 | 1,200 |
+| `_backup_fase1` | 3 | 382 |
+| `_backup_fase1_item3` | 1 | 272 |
+| `_backup_fase2a` | 1 | 414 |
+| `_backup_fase2bc` | 3 | 2,726 |
+| `_backup_fase2d` | 1 | 744 |
 | `ferramentas` | 3 | 191 |
-| `pages` | 17 | 6,385 |
+| `pages` | 16 | 5,818 |
 | `utils` | 1 | 101 |
-| `v2` | 29 | 3,888 |
+| `v2` | 29 | 3,938 |
 
 ## Inventario completo
 
@@ -22,7 +27,7 @@ Gerado em: 2026-09-28 12:11:28
 | `Agendador.py` | 75 | 2,698 | 2026-08-02 21:49 |
 | `Analise_Noticias.py` | 191 | 7,968 | 2026-08-30 21:19 |
 | `Calculadora.py` | 263 | 10,891 | 2026-09-18 09:37 |
-| `CalculadoraEstimativaAbertura.py` | 272 | 11,200 | 2026-09-18 09:37 |
+| `CalculadoraEstimativaAbertura.py` | 272 | 11,146 | 2026-09-28 14:07 |
 | `Coleta_Noticias_Calendario.py` | 293 | 10,916 | 2026-08-20 07:58 |
 | `Coletor.py` | 1,160 | 44,954 | 2026-09-18 09:37 |
 | `Coletor_MT5_v2_2.py` | 872 | 23,989 | 2026-09-23 11:43 |
@@ -48,6 +53,15 @@ Gerado em: 2026-09-28 12:11:28
 | `Rodar_SMC_Regras.py` | 403 | 14,696 | 2026-09-26 08:53 |
 | `Temp_Validacao_Smoke.py` | 94 | 4,121 | 2026-09-23 11:43 |
 | `Validador.py` | 189 | 7,317 | 2026-09-23 11:43 |
+| `_backup_fase1/CalculadoraEstimativaAbertura.py` | 272 | 11,200 | 2026-09-18 09:37 |
+| `_backup_fase1/utils/KeyManager.py` | 101 | 3,666 | 2026-08-30 21:19 |
+| `_backup_fase1/v2/core/__init__.py` | 9 | 168 | 2026-08-26 11:54 |
+| `_backup_fase1_item3/CalculadoraEstimativaAbertura.py` | 272 | 11,200 | 2026-09-18 09:37 |
+| `_backup_fase2a/config.py` | 414 | 14,229 | 2026-09-27 21:19 |
+| `_backup_fase2bc/2_🎯_Setup_Abertura.py` | 1,604 | 65,907 | 2026-09-23 13:13 |
+| `_backup_fase2bc/3_⚡_Monitor_Abertura_Leilao.py` | 544 | 19,618 | 2026-09-18 09:37 |
+| `_backup_fase2bc/6_📡_Ativos_Monitorados.py` | 578 | 21,554 | 2026-09-18 09:37 |
+| `_backup_fase2d/4_⚡_WINFUT_Intraday.py` | 744 | 28,319 | 2026-09-18 09:37 |
 | `analisar_divergencia.py` | 75 | 2,035 | 2026-09-23 11:43 |
 | `analisar_historico.py` | 202 | 6,231 | 2026-09-23 11:43 |
 | `analisar_historico_v2.py` | 152 | 5,095 | 2026-09-23 11:43 |
@@ -55,7 +69,7 @@ Gerado em: 2026-09-28 12:11:28
 | `app_home.py` | 432 | 14,993 | 2026-08-30 21:19 |
 | `backtest_bias_estabilidade.py` | 117 | 4,003 | 2026-09-23 13:13 |
 | `cache_candles.py` | 409 | 13,115 | 2026-09-26 08:53 |
-| `config.py` | 414 | 14,229 | 2026-09-27 21:19 |
+| `config.py` | 433 | 14,858 | 2026-09-28 14:46 |
 | `diag_orb_10h.py` | 112 | 4,274 | 2026-09-23 11:43 |
 | `ferramentas/_debug_regiao.py` | 14 | 390 | 2026-09-18 15:33 |
 | `ferramentas/mapear_regiao_ocr.py` | 86 | 3,249 | 2026-09-18 09:37 |
@@ -64,12 +78,11 @@ Gerado em: 2026-09-28 12:11:28
 | `gerar_snapshot_mtf_ia.py` | 272 | 9,457 | 2026-09-24 14:52 |
 | `main_pipeline.py` | 171 | 7,854 | 2026-09-24 14:52 |
 | `pages/1_⚡_Dashboard_Leilao_AoVivo.py` | 405 | 15,601 | 2026-09-23 13:13 |
-| `pages/2_🎯_Setup_Abertura.py` | 1,604 | 65,907 | 2026-09-23 13:13 |
-| `pages/3_⚡_Monitor_Abertura_Leilao_V3.2.py` | 544 | 19,618 | 2026-09-18 09:37 |
-| `pages/4_⚡_WINFUT_Intraday.py` | 744 | 28,319 | 2026-09-18 09:37 |
-| `pages/6.5_📈_Previsao_Abertura_WINFUT.py` | 456 | 15,930 | 2026-09-18 09:37 |
-| `pages/6.7_📈_Matriz_de_Influencia.py` | 206 | 9,322 | 2026-09-18 09:37 |
-| `pages/6_📡_Ativos_Monitorados.py` | 578 | 21,554 | 2026-09-18 09:37 |
+| `pages/2_🎯_Setup_Abertura.py` | 1,565 | 64,782 | 2026-09-28 14:46 |
+| `pages/3_⚡_Monitor_Abertura_Leilao.py` | 516 | 18,942 | 2026-09-28 14:46 |
+| `pages/4_⚡_WINFUT_Intraday.py` | 732 | 27,758 | 2026-09-28 14:46 |
+| `pages/5_📡_Ativos_Monitorados.py` | 546 | 20,667 | 2026-09-28 14:46 |
+| `pages/6_📈_Matriz_de_Influencia.py` | 206 | 9,322 | 2026-09-18 09:37 |
 | `pages/7.1_📊_SMC_Regras.py` | 742 | 28,222 | 2026-09-25 09:33 |
 | `pages/7.2_🤖_IA_SpikeImagem.py` | 107 | 5,669 | 2026-08-30 21:19 |
 | `pages/7.3_📥_Gerador_Profit_Pro.py` | 176 | 7,126 | 2026-08-30 21:19 |
@@ -80,9 +93,9 @@ Gerado em: 2026-09-28 12:11:28
 | `pages/8.2_🔢_Calculadora.py` | 96 | 4,720 | 2026-08-30 21:19 |
 | `pages/8.3_🔑_Status_Chaves.py` | 94 | 3,989 | 2026-08-30 21:19 |
 | `pages/9.5_📈_Historico_Macro.py` | 127 | 5,176 | 2026-08-30 21:19 |
-| `utils/KeyManager.py` | 101 | 3,666 | 2026-08-30 21:19 |
+| `utils/KeyManager.py` | 101 | 3,590 | 2026-09-28 14:07 |
 | `v2/__init__.py` | 0 | 0 | 2026-08-14 06:34 |
-| `v2/core/__init__.py` | 9 | 168 | 2026-08-26 11:54 |
+| `v2/core/__init__.py` | 2 | 88 | 2026-09-28 14:07 |
 | `v2/core/contracts/__init__.py` | 14 | 390 | 2026-08-14 06:34 |
 | `v2/core/contracts/decision_context.py` | 22 | 763 | 2026-08-14 06:34 |
 | `v2/core/contracts/market_context.py` | 39 | 1,179 | 2026-08-14 06:34 |
@@ -109,7 +122,7 @@ Gerado em: 2026-09-28 12:11:28
 | `v2/pages/2_analise_detalhada.py` | 309 | 14,042 | 2026-09-18 09:37 |
 | `v2/pages/3_page_cockpit_pregao.py` | 295 | 13,550 | 2026-09-18 09:37 |
 | `v2/pages/__init__.py` | 1 | 22 | 2026-08-14 06:34 |
-| `v2/tests/test_contracts.py` | 12 | 373 | 2026-08-14 06:34 |
+| `v2/tests/test_contracts.py` | 69 | 2,664 | 2026-09-28 14:58 |
 | `v2_gravar_sessao_win.py` | 65 | 2,379 | 2026-08-20 07:58 |
 | `v2_rodar_decisao_completa.py` | 64 | 1,957 | 2026-09-02 09:56 |
 | `win_abertura_sniper.py` | 568 | 21,795 | 2026-09-23 11:43 |

@@ -1,12 +1,29 @@
 # Arvore de Arquivos
 
-Gerado em: 2026-09-28 12:11:28
+Gerado em: 2026-09-29 08:09:14
 
 ```
 .
+|-- _backup_fase1
+|   |-- utils
+|   |   `-- KeyManager.py
+|   |-- v2
+|   |   `-- core
+|   |       `-- __init__.py
+|   `-- CalculadoraEstimativaAbertura.py
+|-- _backup_fase1_item3
+|   `-- CalculadoraEstimativaAbertura.py
+|-- _backup_fase2a
+|   `-- config.py
+|-- _backup_fase2bc
+|   |-- 2_🎯_Setup_Abertura.py
+|   |-- 3_⚡_Monitor_Abertura_Leilao.py
+|   `-- 6_📡_Ativos_Monitorados.py
+|-- _backup_fase2d
+|   `-- 4_⚡_WINFUT_Intraday.py
 |-- Coletas
 |   |-- cache
-|   |   `-- candles_WINV26_15m.json
+|   |   `-- candles_WINV26_5m.json
 |   |       (+2 arquivos semelhantes)
 |   |-- coleta_preco_teorico_historico
 |   |   `-- preco_teorico_2026-09-25.csv
@@ -15,11 +32,11 @@ Gerado em: 2026-09-28 12:11:28
 |   |   `-- 2026-09-28.json
 |   |       (+17 arquivos semelhantes)
 |   |-- Historico_Decisoes_V2
-|   |   `-- 20260928_120903.json
-|   |       (+428 arquivos semelhantes)
+|   |   `-- 20260928_150402.json
+|   |       (+463 arquivos semelhantes)
 |   |-- Historico_MT5
-|   |   `-- MT5_v2_2_20260928_120902_176612.json
-|   |       (+378 arquivos semelhantes)
+|   |   `-- MT5_v2_2_20260929_080415_248670.json
+|   |       (+414 arquivos semelhantes)
 |   |-- Analise_Tendencias.json
 |   |-- AnaliseGraficaSMC_MTF.json
 |   |-- AnaliseGraficaSMC_Regras.json
@@ -65,6 +82,11 @@ Gerado em: 2026-09-28 12:11:28
 |   `-- WIN_5min.png
 |-- docs
 |   |-- dump_completo
+|   |   |-- _backup_fase1.md
+|   |   |-- _backup_fase1_item3.md
+|   |   |-- _backup_fase2a.md
+|   |   |-- _backup_fase2bc.md
+|   |   |-- _backup_fase2d.md
 |   |   |-- _raiz.md
 |   |   |-- Coletas.md
 |   |   |-- ferramentas.md
@@ -107,11 +129,10 @@ Gerado em: 2026-09-28 12:11:28
 |-- pages
 |   |-- 1_⚡_Dashboard_Leilao_AoVivo.py
 |   |-- 2_🎯_Setup_Abertura.py
-|   |-- 3_⚡_Monitor_Abertura_Leilao_V3.2.py
+|   |-- 3_⚡_Monitor_Abertura_Leilao.py
 |   |-- 4_⚡_WINFUT_Intraday.py
-|   |-- 6.5_📈_Previsao_Abertura_WINFUT.py
-|   |-- 6.7_📈_Matriz_de_Influencia.py
-|   |-- 6_📡_Ativos_Monitorados.py
+|   |-- 5_📡_Ativos_Monitorados.py
+|   |-- 6_📈_Matriz_de_Influencia.py
 |   |-- 7.1_📊_SMC_Regras.py
 |   |-- 7.2_🤖_IA_SpikeImagem.py
 |   |-- 7.3_📥_Gerador_Profit_Pro.py
@@ -211,6 +232,7 @@ Gerado em: 2026-09-28 12:11:28
 |-- main_pipeline.py
 |-- MapearTendencia15Min.py
 |-- Motor_SMC_Regras.py
+|-- PROXIMOS_PASSOS.md
 |-- README.md
 |-- requirements.txt
 |-- Rodar_SMC_Regras.py
