@@ -104,7 +104,8 @@ def calcular_metricas() -> None:
 
     # ------------------------------------------------------------
     # 3. INDICADOR DE MERCADO EXTERNO
-    #    Fórmula: -(VIX_pct) + CRUDE_OIL_pct + IRON_ORE_2M_pct
+    #    Fórmula: -(VIX_pct) + CRUDE_OIL_pct + IRON_ORE_pct
+    #    fix51: usa F1 (front month); F2 nao esta disponivel no TV scanner.
     # ------------------------------------------------------------
     vix_obj = mapa.get("VIX", {})
     vix_close = vix_obj.get("close")
@@ -116,7 +117,7 @@ def calcular_metricas() -> None:
     crude_close = crude_obj.get("close")
     crude_pct = crude_obj.get("change_percent")
 
-    fef2_obj = mapa.get("IRON_ORE_2M", {})
+    fef2_obj = mapa.get("IRON_ORE", {})
     iron_fef2_close = fef2_obj.get("close")
     iron_fef2_pct = fef2_obj.get("change_percent")
 
@@ -241,7 +242,7 @@ def calcular_metricas() -> None:
     print(f"Spread WDO vs PTAX      : {spread_wdo_ptax_pts} pts ({spread_wdo_ptax_pct}%)")
     print(f"Inclinação DI (29-27)   : {inclinacao_di_bps} bps")
     print(f"VIX (Volatilidade)      : {vix_close} ({vix_pct}%)")
-    print(f"Minério FEF2 (2º Mês)   : {iron_fef2_close} ({iron_fef2_pct}%)")
+    print(f"Minério de Ferro (F1)   : {iron_fef2_close} ({iron_fef2_pct}%)")
     print("------------------------------------------------------------")
     print(f"IND. MERCADO EXTERNO    : {ind_mercado_externo}%")
     print(f"IND. ADRs BRASILEIRAS   : {ind_adrs_brasileiras}%")

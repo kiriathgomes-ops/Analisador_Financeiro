@@ -55,7 +55,6 @@ from config import (
     FILE_MT5_V2,
     FILE_LAST_TICK_CONGELADO,
     FINNHUB_API_KEY,
-    TICKER_FEF2,
     TICKERS_TRADINGVIEW,
     ATIVOS_FINNHUB,
     ATIVOS_MT5_B3,
@@ -663,7 +662,7 @@ def coletar_tradingview() -> List[dict]:
             for item in res.get("data", []):
                 ticker = item.get("s")
                 vals = item.get("d", [])
-                ticker_chave = "SGX:FEF2!" if ticker == TICKER_FEF2 else ticker
+                ticker_chave = ticker  # fix52: sem tratamento especial de FEF2
                 if len(vals) >= 5 and vals[0] is not None:
                     resultados.append({
                         "ativo": ticker_chave,

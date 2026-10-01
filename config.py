@@ -164,13 +164,6 @@ TICK_STALE_SEG = 120
 # ------------------------------------------------------------
 # 6. TICKERS — TRADINGVIEW SCANNER
 # ------------------------------------------------------------
-def _ticker_fef2() -> str:
-    """Minério de ferro 2º mês (SGX) — ano corrente."""
-    return f"SGX:FEFU{__import__('datetime').datetime.now().year}"
-
-
-TICKER_FEF2 = _ticker_fef2()
-
 TICKERS_TRADINGVIEW: List[str] = [
     # WIN/WDO NÃO vêm mais do TV — OHLC/last via MT5 (WIN_FUT / WDO_FUT)
     # Ajuste oficial continua em coletar_ajuste_oficial (B3_AJUSTE_*)
@@ -178,7 +171,6 @@ TICKERS_TRADINGVIEW: List[str] = [
     "BMFBOVESPA:DI1F2029",
     "TVC:VIX",
     "SGX:FEF1!",
-    TICKER_FEF2,
     "NYMEX:CL1!",
     "CME_MINI:ES1!",  # S&P 500 E-mini (preço real do futuro)
     "CME_MINI:NQ1!",  # Nasdaq 100 E-mini
@@ -278,7 +270,6 @@ MAPEAMENTO_TICKERS: Dict[str, str] = {
     "DI1_FUT": "DI1_FUT",
     "TVC:VIX": "VIX",
     "SGX:FEF1!": "IRON_ORE",
-    "SGX:FEF2!": "IRON_ORE_2M",
     "NYMEX:CL1!": "CRUDE_OIL",
     "NYSE:VALE": "VALE_ADR",
     "NYSE:PBR": "PETR_ADR",
