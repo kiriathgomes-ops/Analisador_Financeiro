@@ -351,6 +351,9 @@ O `Rodar_SMC_Regras.py` gera os 3 TFs e consolida via `calcular_confluencia_mtf`
    da gravacao de sessao. Nunca ler o JSON do relatorio esperando estado
    fresco do proximo ciclo.
 
+
+8. **Minerio de ferro (SGX)** - o indicador de mercado externo usa F1 (front month, SGX:FEF1!) como proxy. O TV scanner nao indexa o continuo do 2o vencimento (SGX:FEF2!), entao F2 nunca chegava no Validador. Fix51 (01/10/2026) removeu toda a infra de "2o mes" (funcao, constante e mapeamento).
+
 ### Dividas tecnicas conhecidas
 
 - `detectar_bos_choch` recebe `config` explicito, mas outros detectores
@@ -359,3 +362,4 @@ O `Rodar_SMC_Regras.py` gera os 3 TFs e consolida via `calcular_confluencia_mtf`
   funciona, mas nao e elegante
 - Alguns scripts na raiz fazem parte do pipeline, outros sao one-shot
   (diagnostico, fix). Distinguir pelo conteudo, nao pelo nome.
+- **VIX com change_percent instavel** - em 01/10/2026, o mesmo preco (16.33) apareceu como 0.0% e 0.98% em rodadas consecutivas. Provavelmente fonte (TVC:VIX) ou calculo do Validador. Investigar quando houver tempo.
