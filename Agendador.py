@@ -14,37 +14,66 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SCRIPT_PIPELINE = os.path.join(BASE_DIR, "main_pipeline.py")
 
 
+# Segundos de delay apos o minuto redondo (seguranca pra candle fechar no MT5)
+SEGUNDO_DISPARO = 5
+
+# Disparos regulares: a cada 5 min no segundo :05
+DISPAROS_REGULARES = [
+    h * 3600 + m * 60 + SEGUNDO_DISPARO
+    for h in range(24)
+    for m in range(0, 60, 5)
+]
+
+# Disparos especiais (adicionais): 1 min antes da abertura B3 e do ORB
+DISPAROS_ESPECIAIS = [
+    8 * 3600 + 59 * 60 + SEGUNDO_DISPARO,   # 08:59:05
+    9 * 3600 + 59 * 60 + SEGUNDO_DISPARO,   # 09:59:05
+]
+
+# Grade consolidada (ordenada, dedupada)
+DISPAROS = sorted(set(DISPAROS_REGULARES + DISPAROS_ESPECIAIS))
+
+
 def calcular_segundos_ate_proximo_ciclo():
-    """Calcula quantos segundos faltam até o próximo minuto terminado em 4 ou 9."""
+    """Calcula quantos segundos faltam ate o proximo disparo (grade + especiais)."""
     agora = datetime.now()
-    minuto_atual = agora.minute
-    segundo_atual = agora.second
-    microsegundo_atual = agora.microsecond
-
-    # Calcula os minutos necessários até o próximo múltiplo de 5 vindo do :04
-    # Os minutos de disparo são: 4, 9, 14, 19, 24, 29, 34, 39, 44, 49, 54, 59
-    minutos_para_esperar = (4 - (minuto_atual % 5)) % 5
-
-    # Se já passou do segundo 0 do minuto exato de execução, espera o próximo ciclo de 5 min
-    if minutos_para_esperar == 0 and (
-        segundo_atual > 0 or microsegundo_atual > 0
-    ):
-        minutos_para_esperar = 5
-
-    # Converte tudo para segundos exatos
-    segundos_restantes = (
-        (minutos_para_esperar * 60)
-        - segundo_atual
-        - (microsegundo_atual / 1_000_000.0)
+    agora_seg = (
+        agora.hour * 3600
+        + agora.minute * 60
+        + agora.second
+        + agora.microsecond / 1_000_000.0
     )
-    return max(0.0, segundos_restantes)
+
+    for t in DISPAROS:
+        if t > agora_seg:
+            return max(0.0, t - agora_seg)
+
+    # Passou de todos hoje -> pega o primeiro de amanha
+    return max(0.0, 86400 - agora_seg + DISPAROS[0])
 
 
 def iniciar_agendador():
     print("============================================================")
     print("⏰ AGENDADOR SINCRONIZADO INICIADO")
-    print("🎯 PONTOS DE EXECUÇÃO: :04 | :09 | :14 | :19 | :24 | :29 ...")
+    print(f"🎯 REGULAR: a cada 5 min no segundo :{SEGUNDO_DISPARO:02d}")
+    print(f"   Ex: 00:05 | 05:05 | 10:05 | ... | 55:05")
+    print(f"🎯 ESPECIAIS: 08:59:{SEGUNDO_DISPARO:02d} | 09:59:{SEGUNDO_DISPARO:02d}")
     print("============================================================")
+    print()
+    print("📅 Proximos 5 disparos:")
+    agora = datetime.now()
+    agora_seg = (
+        agora.hour * 3600 + agora.minute * 60 + agora.second
+        + agora.microsecond / 1_000_000.0
+    )
+    contador = 0
+    for t in DISPAROS:
+        if t > agora_seg and contador < 5:
+            h, rem = divmod(int(t), 3600)
+            m, s = divmod(rem, 60)
+            print(f"   {h:02d}:{m:02d}:{s:02d}")
+            contador += 1
+    print()
 
     while True:
         segundos_espera = calcular_segundos_ate_proximo_ciclo()
