@@ -50,7 +50,7 @@ def executar_smoke_test():
     modulos_pipeline = [
         ("Coletor.py (Ingestão Inbound)", "Coletor", "executar_pipeline_coleta"),
         ("Analise_Noticias.py (Lote Notícias)", "Analise_Noticias", "analisar_noticias_lote"),
-        ("Validador.py (Sanitização 32 Ativos)", "Validador", "executar_validacao"),
+        ("Validador.py (Sanitização 33 Ativos)", "Validador", "executar_validacao"),
         ("Calculadora.py (Spreads e DI)", "Calculadora", "calcular_metricas"),
         ("CalculadoraEstimativaAbertura.py", "CalculadoraEstimativaAbertura", "processar_calculos_operacionais"),
         ("Gerar_Resultado_Operacional_Abertura.py", "Gerar_Resultado_Operacional_Abertura", "processar_resultado_operacional"),

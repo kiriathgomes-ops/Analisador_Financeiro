@@ -1,9 +1,9 @@
 # ============================================================
 # ARQUIVO: Validador.py
-# DATA: 30/07/2026 | Atualizado 18/09/2026
+# DATA: 30/07/2026 | Atualizado 02/10/2026
 # AUTOR: Arquiteto de Sistemas
 # MOTIVO: Fase 3 - Validação, sanitização e padronização dos
-#         34 ativos (com WIN e WDO Ajustes separados).
+#         33 ativos (com WIN e WDO Ajustes separados).
 # DESCRICAO:
 #   Processa o arquivo JSON bruto oriundo da fase de coleta,
 #   aplica regras de negócio para consistência de dados,
