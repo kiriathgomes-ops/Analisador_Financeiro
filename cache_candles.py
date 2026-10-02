@@ -26,7 +26,7 @@ CACHE_DIR = BASE_DIR / "Coletas" / "cache"
 ARQUIVO_DIR = CACHE_DIR / "_arquivo"
 
 BRT = timezone(timedelta(hours=-3))
-MAX_CACHE_POR_TF = 1000
+MAX_CACHE_POR_TF = 1500
 QTD_REFRESH_INCREMENTAL = 60
 DIAS_RETENCAO = 30
 
