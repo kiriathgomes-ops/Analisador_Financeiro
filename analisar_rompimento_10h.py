@@ -284,7 +284,7 @@ def bloco_ativos(unif: dict) -> str:
         linha("USD_PTAX"),
         "",
         "[ Commodities ]",
-        linha("IRON_ORE_2M"),
+        linha("IRON_ORE"),
         linha("CRUDE_OIL"),
         linha("GOLD"),
         "",

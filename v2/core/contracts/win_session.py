@@ -98,7 +98,6 @@ class MarketContextWIN:
     indicador_adrs: Optional[float] = None
 
     iron_ore: SnapshotSimples = field(default_factory=SnapshotSimples)
-    iron_ore_2m: SnapshotSimples = field(default_factory=SnapshotSimples)
     crude_oil: SnapshotSimples = field(default_factory=SnapshotSimples)
     gold: SnapshotSimples = field(default_factory=SnapshotSimples)
 

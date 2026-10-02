@@ -146,7 +146,7 @@ def render_body():
         sp = _snapshot(ativos, "SP500_FUT")
         nq = _snapshot(ativos, "NASDAQ_FUT")
         oil = _snapshot(ativos, "CRUDE_OIL")
-        iron = _snapshot(ativos, "IRON_ORE_2M") if _snapshot(ativos, "IRON_ORE_2M")["preco"] > 0 else _snapshot(ativos, "IRON_ORE")
+        iron = _snapshot(ativos, "IRON_ORE")
         vix = _snapshot(ativos, "VIX")
 
         linhas = [

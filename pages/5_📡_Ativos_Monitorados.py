@@ -297,7 +297,7 @@ st.set_page_config(page_title="Quant Terminal - Ativos Monitorados", layout="wid
 CATEGORIAS = {
     "🇧🇷 Mercado Local (Futuros B3)": ["WIN_AJUSTE", "WDO_AJUSTE", "WIN_FUT", "WDO_FUT", "DI1_2027", "DI1_2029"],
     "🇺🇸 Drivers Globais & Risco": ["VIX", "SP500_FUT", "NASDAQ_FUT", "DXY", "USD_MXN"],
-    "🪵 Commodities Cíclicas": ["IRON_ORE", "IRON_ORE_2M", "CRUDE_OIL", "GOLD"],
+    "🪵 Commodities Cíclicas": ["IRON_ORE", "CRUDE_OIL", "GOLD"],
     "📈 ADRs Brasileiras (Sentiment NY)": ["EWZ", "VALE_ADR", "PETR_ADR", "ITUB_ADR", "BBAS_ADR", "BBD_ADR", "B3_ADR"],
     "🏦 Mercado à Vista (Ações Locais)": ["VALE3", "PETR4", "ITUB4", "BBAS3", "BBDC4", "B3SA3"],
 }

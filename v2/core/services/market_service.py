@@ -107,9 +107,7 @@ class MarketService:
         vix = self._snapshot_from_dict(get_ativo("VIX"))
         dxy = self._snapshot_from_dict(get_ativo("DXY"))
         ewz = self._snapshot_from_dict(get_ativo("EWZ"))
-        iron_ore = self._snapshot_from_dict(
-            get_ativo("IRON_ORE_2M") or get_ativo("IRON_ORE")
-        )
+        iron_ore = self._snapshot_from_dict(get_ativo("IRON_ORE"))
         crude_oil = self._snapshot_from_dict(get_ativo("CRUDE_OIL"))
         gold = self._snapshot_from_dict(get_ativo("GOLD"))
 

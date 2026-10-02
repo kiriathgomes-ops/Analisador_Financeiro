@@ -184,6 +184,6 @@ def executar_validacao() -> bool:
 # ------------------------------------------------------------
 if __name__ == "__main__":
     print("=" * 60)
-    print(" FASE 3: ENGINE DE VALIDAÇÃO E SANITIZAÇÃO DE DADOS (34 ATIVOS)")
+    print(" FASE 3: ENGINE DE VALIDAÇÃO E SANITIZAÇÃO DE DADOS (33 ATIVOS)")
     print("=" * 60)
     executar_validacao()

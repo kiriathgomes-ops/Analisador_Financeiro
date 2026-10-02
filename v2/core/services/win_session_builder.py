@@ -289,7 +289,6 @@ class WinSessionBuilder:
             b3=_snap(ativos, "B3_ADR"),
             indicador_adrs=_float(ind.get("indicador_adrs_brasileiras")),
             iron_ore=_snap(ativos, "IRON_ORE"),
-            iron_ore_2m=_snap(ativos, "IRON_ORE_2M"),
             crude_oil=_snap(ativos, "CRUDE_OIL"),
             gold=_snap(ativos, "GOLD"),
             di1_2027=_float((ativos.get("DI1_2027") or {}).get("preco")),

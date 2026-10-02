@@ -143,7 +143,7 @@ def calcular_ind_adrs_rom5(rom5: dict) -> Optional[float]:
 def calcular_ind_externo_rom5(rom5: dict) -> Optional[float]:
     vix = _get_var_rom5(rom5, "VIX")
     crude = _get_var_rom5(rom5, "CRUDE_OIL")
-    iron = _get_var_rom5(rom5, "IRON_ORE_2M")
+    iron = _get_var_rom5(rom5, "IRON_ORE")
     if vix is None or crude is None or iron is None:
         return None
     return round(-vix + crude + iron, 4)
