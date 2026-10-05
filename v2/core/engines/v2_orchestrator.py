@@ -185,6 +185,7 @@ class V2Orchestrator:
             "peso_smc": float(PESO_SMC),
             "peso_nm": float(PESO_NOVO_MOTOR),
             "confianca_final": None,
+            "motivo_saida": None,
             "passou_gate_confluencia": (
                 smc_conf >= CONFIANCA_MINIMA_CONFLUENCIA
             ),
@@ -198,17 +199,23 @@ class V2Orchestrator:
 
         if smc_dir == "NEUTRO":
             motivos.append("SMC sem direção definida (LATERAL/NEUTRO)")
+            self._debug_confluencia["motivo_saida"] = "smc_neutro"
+            self._debug_confluencia["confianca_final"] = 0.0
             return False, "NEUTRO", None, 0.0, motivos, riscos
 
         if smc_conf < CONFIANCA_MINIMA_CONFLUENCIA:
             motivos.append(
                 f"SMC com confiança baixa ({smc_conf:.0f}% < {CONFIANCA_MINIMA_CONFLUENCIA:.0f}%)"
             )
+            self._debug_confluencia["motivo_saida"] = "smc_conf_baixa"
+            self._debug_confluencia["confianca_final"] = float(smc_conf)
             return False, "NEUTRO", None, smc_conf, motivos, riscos
 
         if not novo_motor:
             motivos.append("NOVO_MOTOR indisponível — sem confluência")
             riscos.append("NOVO_MOTOR não retornou previsão")
+            self._debug_confluencia["motivo_saida"] = "nm_indisponivel"
+            self._debug_confluencia["confianca_final"] = float(smc_conf * 0.5)
             return False, "NEUTRO", None, smc_conf * 0.5, motivos, riscos
 
         nm_dir = novo_motor["direcao"]
@@ -231,6 +238,8 @@ class V2Orchestrator:
                 f"Motor interno divergente ({nm_dir} vs {nm_score_dir}). "
                 "Sem convicção — não operar."
             )
+            self._debug_confluencia["motivo_saida"] = "nm_divergencia_interna"
+            self._debug_confluencia["confianca_final"] = 0.0
             return False, "NEUTRO", None, 0.0, motivos, riscos
 
         # ---- Confluência SMC × NOVO_MOTOR ----
@@ -252,9 +261,11 @@ class V2Orchestrator:
                     f"⚠️ Confiança final {confianca_final:.1f}% < "
                     f"mínimo {CONFIANCA_MINIMA_FINAL:.0f}% — não opera"
                 )
+                self._debug_confluencia["motivo_saida"] = "confianca_final_abaixo_minimo"
                 return False, "NEUTRO", None, confianca_final, motivos, riscos
 
             motivos.append(f"✅ Confluência confirmada em {smc_dir}")
+            self._debug_confluencia["motivo_saida"] = "ok"
             return True, smc_dir, smc_dir, confianca_final, motivos, riscos
 
         # ---- Divergência SMC × NOVO_MOTOR ----
@@ -263,6 +274,8 @@ class V2Orchestrator:
             f"Motores divergem (SMC={smc_dir}, NovoMotor={nm_dir}). "
             "Aguardar alinhamento antes de operar."
         )
+        self._debug_confluencia["motivo_saida"] = "divergencia_smc_nm"
+        self._debug_confluencia["confianca_final"] = 0.0
         return False, "NEUTRO", None, 0.0, motivos, riscos
 
     # ------------------------------------------------------------
