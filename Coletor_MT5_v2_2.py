@@ -166,11 +166,16 @@ def obter_contratos(prefixo):
         else:
             volume = bid = ask = last = 0.0
 
+        # fix59: session_volume = volume total do dia (liquidez real).
+        # Melhor que tick.volume para ativos com negociacao esparsa (DI1).
+        session_volume = float(getattr(s, "session_volume", 0) or 0)
+
         return {
             "nome": nome,
             "simbolo": s,
             "expiracao": data_expiracao,
             "volume": volume,
+            "session_volume": session_volume,
             "bid": bid,
             "ask": ask,
             "last": last,
@@ -305,10 +310,15 @@ def selecionar_contrato(prefixo, criterio="expiracao"):
     #   WIN/WDO → front-month (menor expiracao futura), volume desempata.
     #   DI1     → maior volume (liquidez nao esta no vencimento mais
     #             proximo; pula p/ jan. do ano seguinte).
+    # fix59: usa session_volume (liquidez do dia) com fallback pra
+    # tick.volume. Para DI1, tick.volume e ruido (poucos negocios).
+    def _volume_efetivo(c):
+        return c.get("session_volume") or c["volume"]
+
     if criterio == "volume":
         validos.sort(
             key=lambda x: (
-                -x["volume"],
+                -_volume_efetivo(x),
                 x["expiracao"].timestamp(),
             )
         )
@@ -316,7 +326,7 @@ def selecionar_contrato(prefixo, criterio="expiracao"):
         validos.sort(
             key=lambda x: (
                 x["expiracao"].timestamp(),
-                -x["volume"],
+                -_volume_efetivo(x),
             )
         )
 
