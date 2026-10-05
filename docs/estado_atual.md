@@ -354,6 +354,16 @@ O `Rodar_SMC_Regras.py` gera os 3 TFs e consolida via `calcular_confluencia_mtf`
 
 8. **Minerio de ferro (SGX)** - o indicador de mercado externo usa F1 (front month, SGX:FEF1!) como proxy. O TV scanner nao indexa o continuo do 2o vencimento (SGX:FEF2!), entao F2 nunca chegava no Validador. Fix51 (01/10/2026) removeu toda a infra de "2o mes" (funcao, constante e mapeamento).
 
+
+9. **MT5 stale pos-fim de semana (05/10/2026)** - o terminal Genial perdeu conexao as 12:51 e so reconectou as 14:50 (levou ~2h). Durante esse tempo, `bid/ask/last/session_close` ficaram presos no fechamento de quinta (187k) enquanto o mercado estava em 209k.
+
+   Licao aprendida (registrada apos tentativa errada do fix58):
+   - NAO comparar brapi `settlement` (ajuste oficial do dia anterior) com MT5 `bid/ask` (preco atual). A divergencia entre eles e o GAP, nao um erro.
+   - Para validar consistencia: comparar brapi `settlement` com MT5 `session_close` (ambos sao ajustes do mesmo dia).
+   - Se MT5 estiver stale, `WIN_AJUSTE` deve vir do brapi e `WIN_FUT` continua do MT5 (preco vivo).
+
+   Fix defensivo pendente: detectar stale via `|session_close - settlement_brapi| > 500` e priorizar brapi no ajuste.
+
 ### Dividas tecnicas conhecidas
 
 - `detectar_bos_choch` recebe `config` explicito, mas outros detectores
