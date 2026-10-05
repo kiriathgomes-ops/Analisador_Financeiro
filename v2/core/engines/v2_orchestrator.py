@@ -186,6 +186,9 @@ class V2Orchestrator:
             "peso_nm": float(PESO_NOVO_MOTOR),
             "confianca_final": None,
             "motivo_saida": None,
+            "nm_magnitude": None,
+            "nm_direcao_score": None,
+            "nm_divergencia_interna": None,
             "passou_gate_confluencia": (
                 smc_conf >= CONFIANCA_MINIMA_CONFLUENCIA
             ),
@@ -223,6 +226,13 @@ class V2Orchestrator:
         nm_conf = novo_motor["confianca"]
         # fix57: guarda nm_conf pro payload
         self._debug_confluencia["nm_conf"] = float(nm_conf)
+        # fix62: nm_conf e magnitude (|score| clipado), nao confianca direcional.
+        # Mantido "nm_conf" por retrocompat de backtest; "nm_magnitude" e o nome honesto.
+        self._debug_confluencia["nm_magnitude"] = float(nm_conf)
+        self._debug_confluencia["nm_direcao_score"] = nm_score_dir
+        self._debug_confluencia["nm_divergencia_interna"] = bool(
+            novo_motor.get("divergencia_direcao")
+        )
         gap = novo_motor["gap_pontos"]
 
         motivos.append(f"SMC: {smc_dir} (conf. {smc_conf:.0f}%)")
