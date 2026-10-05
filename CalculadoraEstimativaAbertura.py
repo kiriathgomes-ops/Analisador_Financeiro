@@ -195,13 +195,15 @@ def processar_calculos_operacionais():
     )
 
     # --- PONTOS DE PIVÔ CLÁSSICOS (MANTIDOS INTEGRALMENTE PARA SUAS PAGES) ---
-    win_fut = ativos_dict.get("WIN_FUT", {})
-    high_d1 = win_fut.get("high", 0.0)
-    low_d1 = win_fut.get("low", 0.0)
-    close_d1 = win_fut.get("previous_close", 0.0) or win_fut.get("close", 0.0)
+    # fix60: pivots classicos devem vir do ULTIMO D1 FECHADO (WIN_AJUSTE = settlement B3).
+    # NAO usar WIN_FUT (preco ao vivo mistura H/L de hoje com C de ontem -> pivots desordenados).
+    win_ajuste = ativos_dict.get("WIN_AJUSTE", {})
+    high_d1 = win_ajuste.get("high", 0.0)
+    low_d1 = win_ajuste.get("low", 0.0)
+    close_d1 = win_ajuste.get("close", 0.0)
 
     pivots = {}
-    if high_d1 > 0 and low_d1 > 0 and close_d1 > 0:
+    if high_d1 > 0 and low_d1 > 0 and close_d1 > 0 and low_d1 <= close_d1 <= high_d1:
         pp = (high_d1 + low_d1 + close_d1) / 3
         pivots = {
             "PP": round(pp, 2),
@@ -210,6 +212,8 @@ def processar_calculos_operacionais():
             "S1": round((2 * pp) - high_d1, 2),
             "S2": round(pp - (high_d1 - low_d1), 2)
         }
+    else:
+        print(f"AVISO: Pivots nao calculados (H={high_d1} L={low_d1} C={close_d1} incoerentes ou ausentes)")
 
     # --- PONTOS DE PIVÔ INSTITUCIONAIS (SMC / VOLUME PROFILE) ---
     niveis_smc = carregar_niveis_institucionais_smc()
