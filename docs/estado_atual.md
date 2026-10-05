@@ -373,3 +373,38 @@ O `Rodar_SMC_Regras.py` gera os 3 TFs e consolida via `calcular_confluencia_mtf`
 - Alguns scripts na raiz fazem parte do pipeline, outros sao one-shot
   (diagnostico, fix). Distinguir pelo conteudo, nao pelo nome.
 - **VIX com change_percent instavel** - em 01/10/2026, o mesmo preco (16.33) apareceu como 0.0% e 0.98% em rodadas consecutivas. Provavelmente fonte (TVC:VIX) ou calculo do Validador. Investigar quando houver tempo.
+
+
+## 10. Pivots clássicos — fix60
+
+**Bug (05/10/2026):** pivots desordenados no `EstimativaAbertura.json`
+(`R2=208k, PP=203k, R1=200k, S2=198k, S1=195k` — ordem invertida).
+**Causa:** H/L vinham do `WIN_FUT` (MT5 ao vivo, mid-rally) e C vinha do
+`previous_close` do mesmo WIN_FUT (settlement de sexta). Mistura de dias.
+**Fix:** H/L/C agora vêm do `WIN_AJUSTE` (settlement B3, mesmo D1 fechado),
+consistente com `preco_base` do mesmo arquivo. Guarda `low <= close <= high`
+embutida — se incoerente, `pivots={}` + warning.
+**Impacto:** decision_engine consome pivots via `market_service._extrair_pivots`
+e `v2_orchestrator._ler_novo_motor`. Antes do fix60, decisões usaram pivots
+invertidos sem serem bloqueados (fallback `any(pivots.values())` não dispara
+com valores não-zero).
+
+## 11. Confluência — fix61/fix62
+
+**Bug (05/10/2026):** `Decisao_V2.json` mostrava `nm_conf=100` + `confianca_final=None`,
+sugerindo "NM aprovou com força máxima e algo misterioso barrou". Na verdade,
+5 early returns em `_verificar_confluencia` saíam sem preencher `confianca_final`,
+e `nm_conf` (que é `|score|` clipado em [0,100]) já tinha sido gravado antes do return.
+**Fix61:** campo `motivo_saida` preenchido em todos os 7 caminhos (`smc_neutro`,
+`smc_conf_baixa`, `nm_indisponivel`, `nm_divergencia_interna`, `confianca_final_abaixo_minimo`,
+`divergencia_smc_nm`, `ok`). `confianca_final` espelha o que a função de fato retornou.
+**Fix62:** `nm_conf` documentado como magnitude (não confiança direcional). Adicionados
+`nm_magnitude` (alias honesto), `nm_direcao_score` (direção do score agregado) e
+`nm_divergencia_interna` (bool). `nm_conf` mantido por retrocompat.
+
+### Débitos técnicos anotados
+- `market_service._extrair_pivots`: fallback `preco ± 150/300` é arbitrário — substituir por
+  pivots do último D1 fechado ou retornar `{}` explícito.
+- `Agendador.py` não suporta `--once`: só roda em loop contínuo. Considerar adicionar flag.
+- Entrypoint do orchestrator é `python -m v2.core.engines.v2_orchestrator` (não
+  `python v2/core/engines/v2_orchestrator.py` — quebra import de `config`).
