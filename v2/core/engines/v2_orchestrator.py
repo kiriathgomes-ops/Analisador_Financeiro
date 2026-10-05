@@ -50,6 +50,8 @@ class V2Orchestrator:
     def __init__(self):
         self.timestamp_inicio = time.time()
         self.erros_acumulados = []
+        # fix57: componentes da confluencia (debug/backtest)
+        self._debug_confluencia = {}
 
         self.contextos_status = {
             "market_ok": False,
@@ -172,6 +174,22 @@ class V2Orchestrator:
         smc_conf_bruta = smc["confianca"]
         _delta_mtf = MODIFICADOR_MTF.get(smc.get("veredito_mtf") or "", 0)
         smc_conf = max(0.0, min(100.0, smc_conf_bruta + _delta_mtf))
+
+        # fix57: inicializa debug da confluencia (preenchido adiante)
+        self._debug_confluencia = {
+            "smc_conf_bruto": float(smc_conf_bruta),
+            "mtf_veredito": smc.get("veredito_mtf"),
+            "mtf_delta": float(_delta_mtf),
+            "smc_conf_ajustado": float(smc_conf),
+            "nm_conf": None,
+            "peso_smc": float(PESO_SMC),
+            "peso_nm": float(PESO_NOVO_MOTOR),
+            "confianca_final": None,
+            "passou_gate_confluencia": (
+                smc_conf >= CONFIANCA_MINIMA_CONFLUENCIA
+            ),
+            "passou_gate_final": False,
+        }
         if _delta_mtf:
             motivos.append(
                 f"MTF [{smc.get('veredito_mtf')}]: confianca SMC "
@@ -196,6 +214,8 @@ class V2Orchestrator:
         nm_dir = novo_motor["direcao"]
         nm_score_dir = novo_motor.get("score_direcao", "NEUTRO")
         nm_conf = novo_motor["confianca"]
+        # fix57: guarda nm_conf pro payload
+        self._debug_confluencia["nm_conf"] = float(nm_conf)
         gap = novo_motor["gap_pontos"]
 
         motivos.append(f"SMC: {smc_dir} (conf. {smc_conf:.0f}%)")
@@ -217,6 +237,11 @@ class V2Orchestrator:
         if smc_dir == nm_dir and nm_dir != "NEUTRO":
             confianca_final = (smc_conf * PESO_SMC) + (nm_conf * PESO_NOVO_MOTOR)
             confianca_final = round(min(100.0, confianca_final), 1)
+            # fix57: guarda confianca_final e gate
+            self._debug_confluencia["confianca_final"] = float(confianca_final)
+            self._debug_confluencia["passou_gate_final"] = (
+                confianca_final >= CONFIANCA_MINIMA_FINAL
+            )
 
             # Gate adicional: confianca FINAL tambem precisa passar o minimo.
             # Com o MTF ativo (pode derrubar SMC em ate -40), o minimo final
@@ -340,6 +365,8 @@ class V2Orchestrator:
                         "alvos": smc["alvos"],
                     },
                     "novo_motor": novo_motor or {},
+                    # fix57: componentes da confluencia (backtest)
+                    "confluencia": getattr(self, "_debug_confluencia", {}),
                     "precificacao_teorica": {
                         "abertura_teorica": (novo_motor or {}).get("abertura_teorica_calculada", 0.0),
                     },
