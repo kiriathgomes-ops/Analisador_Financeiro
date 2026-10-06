@@ -182,6 +182,7 @@ class V2Orchestrator:
             "mtf_veredito": smc.get("veredito_mtf"),
             "mtf_delta": float(_delta_mtf),
             "smc_conf_ajustado": float(smc_conf),
+            "smc_direcao": smc_dir,
             "nm_conf": None,
             "peso_smc": float(PESO_SMC),
             "peso_nm": float(PESO_NOVO_MOTOR),
