@@ -35,7 +35,8 @@ LIMIARES_PCT = {
 def classificar_gap(
     preco_abertura: float,
     referencia_fechamento: float,
-    referencia_ajuste: float = None
+    referencia_ajuste: float = None,
+    fonte: str = "LEILAO_REAL",
 ) -> ClassificacaoGAP:
     """
     Classifica o GAP com base no preço de abertura projetado/real.
@@ -74,7 +75,7 @@ def classificar_gap(
         intensidade = "EXTREMO"
     
     # Log enxuto (facilita debug e ver o limiar aplicado)
-    print(f"[GAP] {gap_pontos:+.0f} pts ({gap_percentual:+.4f}%) -> {intensidade}")
+    print(f"[GAP] {gap_pontos:+.0f} pts ({gap_percentual:+.4f}%) -> {intensidade} [fonte={fonte}]")
     
     return ClassificacaoGAP(
         gap_pontos=gap_pontos,
@@ -82,5 +83,6 @@ def classificar_gap(
         gap_contra_fechamento=gap_pontos,
         gap_contra_ajuste=gap_ajuste if gap_ajuste is not None else 0.0,
         intensidade=intensidade,
-        classificacao=f"GAP {intensidade}"
+        classificacao=f"GAP {intensidade}",
+        fonte=fonte,
     )

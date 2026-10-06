@@ -109,6 +109,8 @@ class ClassificacaoGAP:
     gap_contra_ajuste: float = 0.0
     intensidade: str = "NEUTRO"
     classificacao: str = ""
+    # fix63: origem do gap — "LEILAO_REAL" | "TEORICA_FALLBACK" | "AJUSTE_FALLBACK"
+    fonte: str = "LEILAO_REAL"
 
 
 @dataclass

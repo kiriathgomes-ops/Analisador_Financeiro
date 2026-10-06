@@ -48,7 +48,17 @@ class PrevisaoAberturaOrquestrador:
             preco_atual = abertura_teorica
 
         # 1. GAP
-        gap = classificar_gap(abertura_teorica, fechamento_anterior, ajuste)
+        # fix63: mapeia a fonte da abertura para a fonte do gap
+        _mapa_fonte_gap = {
+            "OCR_LEILAO": "LEILAO_REAL",
+            "CALCULADO": "TEORICA_FALLBACK",
+            "AJUSTE": "AJUSTE_FALLBACK",
+        }
+        gap_fonte = _mapa_fonte_gap.get(
+            getattr(self.entrada, "fonte_abertura", None) or "CALCULADO",
+            "DESCONHECIDO",
+        )
+        gap = classificar_gap(abertura_teorica, fechamento_anterior, ajuste, fonte=gap_fonte)
 
         # 2. Análise de ajuste
         preco_para_ajuste = preco_atual if preco_atual else abertura_teorica
@@ -108,6 +118,7 @@ class PrevisaoAberturaOrquestrador:
                 "abertura_leilao_timestamp": self.entrada.abertura_leilao_timestamp,
                 "abertura_teorica_calculada": self.entrada.abertura_teorica_calculada,
                 "fonte_abertura": self.entrada.fonte_abertura,
+                "gap_fonte": gap_fonte,
                 "divergencia_direcao": div_flag,
                 "divergencia_detalhes": div_msg,
             },
@@ -205,6 +216,7 @@ class PrevisaoAberturaOrquestrador:
         abertura_leilao_timestamp = metadados.pop("abertura_leilao_timestamp", None)
         abertura_teorica_calculada = metadados.pop("abertura_teorica_calculada", None)
         fonte_abertura = metadados.pop("fonte_abertura", "DESCONHECIDA")
+        gap_fonte = metadados.pop("gap_fonte", "DESCONHECIDO")
         divergencia_direcao = metadados.pop("divergencia_direcao", False)
         divergencia_detalhes = metadados.pop("divergencia_detalhes", "")
 
@@ -216,6 +228,7 @@ class PrevisaoAberturaOrquestrador:
             "abertura_leilao_timestamp": abertura_leilao_timestamp,
             "abertura_teorica_calculada": abertura_teorica_calculada,
             "fonte_abertura": fonte_abertura,
+            "gap_fonte": gap_fonte,
             "faixa_provavel": [
                 self.resultado.faixa_provavel_inferior,
                 self.resultado.faixa_provavel_superior,
