@@ -76,7 +76,7 @@ if "Motor de Regras" in fonte_dados:
         niveis_mapeados[int(p)] = "clFucsia"
         
     # 4. Gatilhos operacionais adicionais se houverem
-    if regras_algo.get("entrada_sugeriga"):
+    if regras_algo.get("entrada_sugerida"):
         niveis_mapeados[int(regras_algo["entrada_sugerida"])] = "clBranco"
 
 else:
