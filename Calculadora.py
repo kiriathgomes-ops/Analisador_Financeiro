@@ -158,10 +158,17 @@ def calcular_metricas() -> None:
             }
 
             if isinstance(pct_val, (int, float)):
+                # fix66: defesa em profundidade — descarta variacao absurda
+                # (circuit breaker B3 e 10-15%; nada legitimo passa disso num dia)
+                if abs(pct_val) > 15.0:
+                    print(f"   ⚠️ {adr_id} com variacao absurda ({pct_val:+.2f}%) — ignorado do indicador")
+                    continue
                 soma_variacoes_adrs += pct_val
                 qtd_adrs_validas += 1
 
     # Indicador ADRs Brasileiras = soma das variações
+    # fix66: log quantos ADRs entraram (transparencia quando algum foi descartado)
+    print(f"   📊 ADRs usados no indicador: {qtd_adrs_validas}/{len(adrs_chaves)}")
     ind_adrs_brasileiras = round(soma_variacoes_adrs, 4) if qtd_adrs_validas > 0 else None
 
     # ------------------------------------------------------------

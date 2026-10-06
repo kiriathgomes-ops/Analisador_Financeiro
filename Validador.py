@@ -75,7 +75,10 @@ def validar_item(item: dict):
     dados = item.get("dados_reais")
 
     # 1. Validação do Status da Coleta e Estrutura dos Dados
-    if status_fonte != "OK" or not dados:
+    # fix66b: aceita OK e OK_* (ex: OK_TV_FALLBACK do fix66).
+    # Rejeita STALE, ERRO, None e qualquer status nao-OK.
+    _status_ok = isinstance(status_fonte, str) and status_fonte.startswith("OK")
+    if not _status_ok or not dados:
         return False, f"Status de coleta inválido: {status_fonte}", None
 
     close = dados.get("close")

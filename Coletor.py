@@ -204,6 +204,62 @@ def capturar_last_do_mt5() -> dict:
 
 
 # ------------------------------------------------------------
+# Fallback TradingView para ADRs (fix66)
+# ------------------------------------------------------------
+def _coletar_tv_adr(ticker_tv: str) -> Dict[str, Any]:
+    """
+    fix66: fallback TV para ADR quando Finnhub retorna dado stale/absurdo.
+
+    Usa o endpoint /symbol do TradingView (nao /global/scan).
+    Valida 3 sanidades antes de retornar:
+      - close > 0
+      - change nao-nulo
+      - abs(change) < 15 (circuit breaker B3)
+
+    Retorna dict no mesmo formato de coletar_finnhub,
+    ou None se TV tambem falhar.
+    """
+    url = (
+        f"https://scanner.tradingview.com/symbol?"
+        f"symbol={ticker_tv}&fields=close,change,change|1"
+    )
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            res = json.loads(resp.read().decode("utf-8"))
+        close_val = res.get("close")
+        change_val = res.get("change")
+
+        # Sanidade 1: close valido
+        if close_val is None or float(close_val) <= 0:
+            print(f"      [TV fallback] {ticker_tv}: close invalido ({close_val})")
+            return None
+
+        # Sanidade 2: change presente
+        if change_val is None:
+            print(f"      [TV fallback] {ticker_tv}: change ausente")
+            return None
+
+        change_f = float(change_val)
+
+        # Sanidade 3: variacao dentro do razoavel
+        if abs(change_f) > 15.0:
+            print(f"      [TV fallback] {ticker_tv}: variacao absurda ({change_f:.2f}%)")
+            return None
+
+        return {
+            "c": float(close_val),
+            "d": 0.0,
+            "dp": change_f,
+            "pc": 0.0,
+            "t": 0,
+        }
+    except Exception as e:
+        print(f"      [TV fallback] {ticker_tv}: erro {e}")
+        return None
+
+
+# ------------------------------------------------------------
 # Finnhub (paralelo)
 # ------------------------------------------------------------
 def coletar_finnhub() -> List[Dict[str, Any]]:
@@ -226,20 +282,69 @@ def coletar_finnhub() -> List[Dict[str, Any]]:
                     "dados_reais": None,
                 }
             if "c" in res and res["c"] != 0:
+                # fix66: valida sanidade antes de aceitar Finnhub
+                import time as _time
+                _c = float(res.get("c", 0) or 0)
+                _pc = float(res.get("pc", 0) or 0)
+                _dp = float(res.get("dp", 0) or 0)
+                _t = float(res.get("t", 0) or 0)
+                _idade_h = (_time.time() - _t) / 3600 if _t > 0 else 9999
+
+                _falhas = []
+                if _idade_h > 24:
+                    _falhas.append(f"stale({_idade_h:.1f}h)")
+                if abs(_dp) > 15.0:
+                    _falhas.append(f"dp_absurdo({_dp:+.2f}%)")
+                if _pc <= 0:
+                    _falhas.append("pc_invalido")
+                if _c <= 0:
+                    _falhas.append("c_invalido")
+
+                if _falhas:
+                    print(f"   ⚠️ Finnhub {cfg['ticker_coleta']} descartado: {', '.join(_falhas)} — tentando TV...")
+                    _tv = _coletar_tv_adr(cfg["ativo"])
+                    if _tv is not None:
+                        print(f"   ✅ TV fallback OK para {cfg['ticker_coleta']}: {_tv['dp']:+.2f}%")
+                        return {
+                            "ativo": cfg["ativo"],
+                            "fonte": "TRADINGVIEW_FALLBACK",
+                            "timestamp": timestamp,
+                            "status": "OK_TV_FALLBACK",
+                            "dados_reais": {
+                                "close": _tv["c"],
+                                "open": None,
+                                "high": None,
+                                "low": None,
+                                "change_percent": round(_tv["dp"], 2),
+                                "volume": None,
+                                "var_abs": 0.0,
+                                "fechamento_anterior": 0.0,
+                            },
+                        }
+                    print(f"   ❌ TV fallback falhou para {cfg['ticker_coleta']} — descartado")
+                    return {
+                        "ativo": cfg["ativo"],
+                        "fonte": "FINNHUB_STALE_SEM_TV",
+                        "timestamp": timestamp,
+                        "status": "STALE",
+                        "dados_reais": None,
+                    }
+
+                # Sanidade OK — Finnhub aceito
                 return {
                     "ativo": cfg["ativo"],
                     "fonte": "FINNHUB",
                     "timestamp": timestamp,
                     "status": "OK",
                     "dados_reais": {
-                        "close": float(res["c"]),
+                        "close": _c,
                         "open": None,
                         "high": None,
                         "low": None,
-                        "change_percent": round(float(res.get("dp", 0.0)), 2),
+                        "change_percent": round(_dp, 2),
                         "volume": None,
                         "var_abs": round(float(res.get("d", 0.0)), 2),
-                        "fechamento_anterior": float(res.get("pc", 0.0)),
+                        "fechamento_anterior": _pc,
                     },
                 }
             return {
