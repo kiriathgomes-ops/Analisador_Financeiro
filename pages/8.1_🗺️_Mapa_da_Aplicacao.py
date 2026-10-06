@@ -43,13 +43,23 @@ meta_mapa = mapa_fluxo.get("metadata", {})
 st.info(f"🧬 **Mapeamento Atualizado:** Gerado automaticamente em `{meta_mapa.get('gerado_em', 'N/A')}` para o ecossistema `{meta_mapa.get('projeto', 'N/A')}`.")
 
 # Captura o status da última execução real do pipeline para exibir em tela
-status_geral = log_pipeline.get("status_geral", "DESCONHECIDO")
-data_exec = log_pipeline.get("data_execucao", "N/A")
-
-if status_geral == "SUCESSO":
-    st.success(f"✅ **Último Ciclo do Pipeline:** SUCESSO (Executado em {data_exec})")
+# fix69: distingue "arquivo ausente" (feature inacabada) de "falha real"
+if not log_pipeline:
+    st.warning(
+        "⚠️ **Log do Pipeline indisponível** — `Pipeline_Log.json` não encontrado. "
+        "Este arquivo depende de uma feature de logging que ainda não foi implementada."
+    )
+    status_geral = "INDISPONIVEL"
+    data_exec = "N/A"
 else:
-    st.error(f"❌ **Último Ciclo do Pipeline:** FALHA ou INTERROMPIDO (Verifique o log em {data_exec})")
+    status_geral = log_pipeline.get("status_geral", "DESCONHECIDO")
+    data_exec = log_pipeline.get("data_execucao", "N/A")
+    if status_geral == "SUCESSO":
+        st.success(f"✅ **Último Ciclo do Pipeline:** SUCESSO (Executado em {data_exec})")
+    elif status_geral in ("FALHA", "INTERROMPIDO", "ERRO"):
+        st.error(f"❌ **Último Ciclo do Pipeline:** {status_geral} (Executado em {data_exec})")
+    else:
+        st.info(f"ℹ️ **Último Ciclo do Pipeline:** {status_geral} (Executado em {data_exec})")
 
 st.markdown("---")
 
