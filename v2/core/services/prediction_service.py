@@ -121,6 +121,12 @@ class PredictionService:
             gap_percentual=dados.get("gap", {}).get("percentual", 0.0),
             gap_intensidade=dados.get("gap", {}).get("intensidade", "N/A"),
             classificacao_gap=dados.get("gap", {}).get("classificacao", "N/A"),
+            # fix63b: gap_fonte pode vir nested (gap.fonte) ou top-level (gap_fonte)
+            gap_fonte=(
+                (dados.get("gap") or {}).get("fonte")
+                or dados.get("gap_fonte")
+                or "DESCONHECIDO"
+            ),
             direcao_prevista=dados.get("direcao_prevista", "NEUTRO"),
             score=score_obj.get("valor", 0.0),
             score_classificacao=score_obj.get("classificacao", "N/A"),

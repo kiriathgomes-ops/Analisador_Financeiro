@@ -150,6 +150,7 @@ class V2Orchestrator:
                 "abertura_leilao_timestamp": prediction.abertura_leilao_timestamp,
                 "abertura_teorica_calculada": prediction.abertura_teorica_calculada,
                 "fonte_abertura": prediction.fonte_abertura,
+                "gap_fonte": getattr(prediction, "gap_fonte", "DESCONHECIDO"),
 
                 # ---- Cenários probabilísticos ----
                 "cenario_principal_nome": prediction.cenario_principal_nome,
@@ -392,6 +393,7 @@ class V2Orchestrator:
                     "confluencia": getattr(self, "_debug_confluencia", {}),
                     "precificacao_teorica": {
                         "abertura_teorica": (novo_motor or {}).get("abertura_teorica_calculada", 0.0),
+                        "gap_fonte": (novo_motor or {}).get("gap_fonte", "DESCONHECIDO"),
                     },
                     "gap_pts": gap_pts,
                     "ajuste": win_ajuste,

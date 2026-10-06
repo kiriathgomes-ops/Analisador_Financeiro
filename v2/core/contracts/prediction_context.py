@@ -50,6 +50,8 @@ class PredictionContext:
     abertura_leilao_timestamp: Optional[str] = None
     abertura_teorica_calculada: Optional[float] = None
     fonte_abertura: str = "DESCONHECIDA"
+    # fix63b: origem do gap — "LEILAO_REAL" | "TEORICA_FALLBACK" | "AJUSTE_FALLBACK"
+    gap_fonte: str = "DESCONHECIDO"
 
     # ---- Campos novos: Cenários probabilísticos ----
     cenario_principal_nome: str = ""
