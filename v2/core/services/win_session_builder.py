@@ -228,11 +228,21 @@ class WinSessionBuilder:
         session: WinSession,
         estimativa: Dict,
     ) -> None:
-        win_est = (estimativa.get("estimativas_abertura") or {}).get("WIN_INDICE") or {}
+        # fix71: aceita singular e plural (coletor_dados.py ja aceita ambos)
+        win_est = (
+            (estimativa.get("estimativa_abertura") or {}).get("WIN_INDICE")
+            or (estimativa.get("estimativas_abertura") or {}).get("WIN_INDICE")
+            or {}
+        )
         pivots = (estimativa.get("pivot_points") or {}).get("WIN_FUT") or {}
 
         abertura_teorica = _float(win_est.get("abertura_teorica_pontos"))
-        base_ajuste = _float(win_est.get("pontos_ajuste_base"))
+        # fix71: JSON grava "preco_referencia_base"; "pontos_ajuste_base" e nome antigo
+        base_ajuste = _float(
+            win_est.get("preco_referencia_base")
+            if win_est.get("preco_referencia_base") is not None
+            else win_est.get("pontos_ajuste_base")
+        )
         var_pct = _float(win_est.get("variacao_teorica_pct"))
 
         gap_pts = None

@@ -165,7 +165,8 @@ def capturar_last_do_mt5() -> dict:
         with open(FILE_MT5, "r", encoding="utf-8") as f:
             dados = json.load(f)
 
-        contratos = dados.get("contratos", {})
+        # fix71: JSON MT5 v2.2 grava "contratos_vigentes"; "contratos" era do schema v1
+        contratos = dados.get("contratos_vigentes") or dados.get("contratos", {})
         timestamp = dados.get("timestamp", datetime.now().isoformat())
         mapeamento_contratos = {
             "WIN": ["WINQ26", "WINV26", "WINZ26"],

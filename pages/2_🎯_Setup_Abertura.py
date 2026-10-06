@@ -468,7 +468,14 @@ class SetupService:
         self.v2_invalidacao = d2.get("invalidacao")
         self.v2_motivos = d2.get("motivos") or []
 
-        cenario = self.decisao_v2_raw.get("opening_scenario") or {}
+        # fix71: "opening_scenario" nunca e gravado no Decisao_V2.json.
+        # TODO: integrar opening_scenario_engine no payload do orchestrator.
+        # Por ora, tenta multiplas fontes antes de desistir.
+        cenario = (
+            self.decisao_v2_raw.get("opening_scenario")
+            or self.decisao_v2_raw.get("decisao", {}).get("opening_scenario")
+            or {}
+        )
         self.v2_direcao_cenario = cenario.get("direcao_provavel")
         rel = cenario.get("relacao_com_ajuste") or {}
         self.v2_posicao_ajuste = rel.get("posicao") if isinstance(rel, dict) else None
