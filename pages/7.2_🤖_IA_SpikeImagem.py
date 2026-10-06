@@ -90,7 +90,7 @@ with col_insights:
     
     # Exibição dos Eventos de Estrutura de Curto Prazo (LTF) capturados
     st.markdown("**Últimos Eventos de Estrutura Registrados (LTF):**")
-    eventos_est = dados_smc_regras.get("eventos_structure", [])
+    eventos_est = dados_smc_regras.get("eventos_estrutura", [])
     
     if eventos_est:
         linhas_eventos = []
