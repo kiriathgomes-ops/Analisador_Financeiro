@@ -408,3 +408,24 @@ e `nm_conf` (que é `|score|` clipado em [0,100]) já tinha sido gravado antes d
 - `Agendador.py` não suporta `--once`: só roda em loop contínuo. Considerar adicionar flag.
 - Entrypoint do orchestrator é `python -m v2.core.engines.v2_orchestrator` (não
   `python v2/core/engines/v2_orchestrator.py` — quebra import de `config`).
+
+  ## 12. Gap — rotulado por fonte (fix63/fix63b)
+
+**Bug (06/10/2026):** leilão (OCR) indisponível → coletor preenche
+`abertura_projetada` com a teórica (`fonte_abertura=CALCULADO`), mas o
+`motor_previsao` não distinguia e calculava gap como se fosse do leilão.
+Operador via `[GAP] +10738 pts (+5.17%) -> EXTREMO` sem saber que esse gap
+foi fabricado da teórica (mesma fonte do `var_teorica_pct`).
+
+**Fix63:** campo `fonte` em `ClassificacaoGAP` (default `LEILAO_REAL`).
+`classificar_gap` propaga. `motor_previsao` mapeia `fonte_abertura` →
+`gap_fonte` (`OCR_LEILAO→LEILAO_REAL`, `CALCULADO→TEORICA_FALLBACK`,
+`AJUSTE→AJUSTE_FALLBACK`). Log passa a mostrar `[fonte=...]`.
+
+**Fix63b:** propagação até `Decisao_V2.json` — `PredictionContext` ganha
+`gap_fonte`, `prediction_service` lê do JSON (nested ou top-level),
+orchestrator expõe em `metadados.novo_motor` e `metadados.precificacao_teorica`.
+
+**Opção escolhida:** B (rotular, não silenciar). Gap continua calculado, score
+continua recebendo contribuição; operador e backtest passam a distinguir.
+
