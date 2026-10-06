@@ -43,51 +43,15 @@ class PredictionService:
                 print(f"⚠️ PredictionService: erro no NOVO_MOTOR: {e}")
 
         # ------------------------------------------------------------
-        # 2. Fallback condicional (Engine_Vies legado)
+        # 2. Fallback condicional (Engine_Vies legado) — REMOVIDO (fix70)
         # ------------------------------------------------------------
-        if ENGINE_VIES_COMO_FALLBACK and LEGADO_DISPONIVEL:
-            print("⚠️ PredictionService: usando fallback Engine_Vies (flag ativa)")
-            try:
-                dados_legado = executar_core()
-                if dados_legado:
-                    win = dados_legado.get("analise_operacional", {}).get("WIN_INDICE", {})
-                    vies = win.get("vies_final", "NEUTRO")
-                    score = win.get("score_numeric", 0)
-
-                    if "COMPRA" in vies.upper() and score > 1.0:
-                        direcao = "COMPRA"
-                    elif "VENDA" in vies.upper() and score < -1.0:
-                        direcao = "VENDA"
-                    else:
-                        return self._criar_contexto_neutro(
-                            motivo="Engine_Vies retornou NEUTRO ou score baixo"
-                        )
-
-                    score_norm = min(100, max(30, abs(score) * 20))
-                    return PredictionContext(
-                        timestamp=datetime.now(),
-                        ativo="WIN",
-                        abertura_projetada=0.0,
-                        faixa_provavel_inferior=0.0,
-                        faixa_provavel_superior=0.0,
-                        gap_pontos=0.0,
-                        gap_percentual=0.0,
-                        gap_intensidade="N/A",
-                        classificacao_gap="N/A",
-                        direcao_prevista=direcao,
-                        score=score_norm,
-                        score_classificacao="FORTE" if score_norm > 70 else "MODERADO",
-                        score_detalhes={"legado_score": score},
-                        analise_ajuste={},
-                        cenario_principal={},
-                        cenario_alternativo={},
-                        metadados={"fonte": "Engine_Vies (fallback)"},
-                        score_direcao=direcao,
-                        score_forca="FORTE" if score_norm > 70 else "MODERADO",
-                        score_magnitude=score_norm,
-                    )
-            except Exception as e:
-                print(f"⚠️ PredictionService: erro no fallback: {e}")
+        # fix70: bloco removido por ser codigo morto inalcancavel.
+        # ENGINE_VIES_COMO_FALLBACK = False sempre (config.py nao exporta
+        # a constante; ImportError na l.11-13 cai no default False).
+        # Alem disso, lia chave "analise_operacional" que foi renomeada
+        # para "estimativa_abertura" no calculador atual.
+        # Se um dia o fallback legado voltar a ser necessario, reaproveitar
+        # este bloco via commit 0ca5b5a (historico git) com a chave correta.
 
         # ------------------------------------------------------------
         # 3. Nenhuma fonte disponível
