@@ -4,14 +4,22 @@
 #   1. dict literal: "campo": ...
 #   2. dict assign:  ["campo"] = ...
 #   3. atributo:     .campo = ...  ou  campo: ... (em dataclass)
+#
+# v2: ignora a pasta ferramentas/ (evita falso positivo dos proprios scripts).
 
 import re
 import glob
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
-IGNORAR = ["__pycache__", ".git", ".bak", "Historico_",
-           "auditoria", "fix", "_grep", "_valida", "_check"]
+
+# Pastas/arquivos a ignorar (fix: inclui ferramentas/)
+IGNORAR = [
+    "__pycache__", ".git", ".bak", "Historico_",
+    "auditoria", "ferramentas",
+    "fix", "_grep", "_valida", "_check",
+]
+
 
 def deve_ignorar(p):
     return any(t in str(p).replace("\\", "/") for t in IGNORAR)
@@ -59,12 +67,13 @@ CAMPOS = [
     "status_geral",
 ]
 
+
 for c in CAMPOS:
     escritas = procurar_escrita(c)
     print(f"=== {c} ===")
     if not escritas:
-        print("  NENHUMA ESCRITA ENCONTRADA → BUG REAL (le campo que nunca e produzido)")
+        print("  NENHUMA ESCRITA ENCONTRADA -> BUG REAL (le campo que nunca e produzido)")
     else:
         for a in escritas[:8]:
-            print(f"  [{a['tipo']}] {a['arquivo']}:{a['linha']} → {a['texto'][:120]}")
+            print(f"  [{a['tipo']}] {a['arquivo']}:{a['linha']} -> {a['texto'][:120]}")
     print()
