@@ -429,3 +429,34 @@ orchestrator expõe em `metadados.novo_motor` e `metadados.precificacao_teorica`
 **Opção escolhida:** B (rotular, não silenciar). Gap continua calculado, score
 continua recebendo contribuição; operador e backtest passam a distinguir.
 
+## 13. Trilha C — análise descritiva (796 runs, 23/09 a 06/10)
+
+**Dados analisados:** 796 runs históricos (`Historico_Decisoes_V2`).
+
+**Descobertas:**
+- Divergência SMC×NM real é **25,3%** (não estrutural, episódica)
+- **Alinhamento pleno: 32,7%** dos runs
+- **Um motor neutro: 41,9%** (comportamento conservador esperado)
+- **Viés de VENDA no score NM: 48,7% VENDA vs 21,7% COMPRA**
+- Saturação em |score|=100: **8,4%** (minoria, não dominante)
+- Mediana do |score|: **25,9** — metade dos runs é FRACO
+
+**Simulação LIMIAR_DIRECAO (sem cotovelo claro):**
+| LIMIAR | % NEUTRO |
+|---|---|
+| 5 | 16,4% |
+| 10 (atual) | 29,7% |
+| 15 | 39,6% |
+| 20 | 46,2% |
+| 25 | 49,3% |
+| 30 | 53,3% |
+
+**Conclusão:** `LIMIAR_DIRECAO=10` não é obviamente errado, mas a curva suave indica que a escolha **precisa de dados de acurácia** (score alto acerta?). Não temos isso ainda.
+
+**Próximas sub-frentes:**
+- **C1** — Analisar viés de VENDA (qual componente empurra?)
+- **C2** — Coletar outcome (preço pós-abertura) e correlacionar com score
+- **C3** — Com C1+C2, escolher limiar empiricamente
+
+**Débito de nomenclatura (anotado):** `nm_magnitude`/`nm_direcao_score` (confluencia) e `score_magnitude`/`score_direcao` (novo_motor) apontam pro mesmo dado — unificar em fix futuro.
+
