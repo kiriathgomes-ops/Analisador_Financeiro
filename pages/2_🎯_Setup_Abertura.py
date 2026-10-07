@@ -826,6 +826,8 @@ def render_bloco_operacionais(service: SetupService, rom5: dict):
 
     aj = service.operacional_ajuste()
     ex = service.operacional_explosao()
+    # fix74: cenario do engine (disponivel pos-fix73) pra usar no card 2
+    d = service.decisao_v2()
 
     if ex.get("status") == "EXPLOSÃO":
         st.markdown(
@@ -884,6 +886,10 @@ def render_bloco_operacionais(service: SetupService, rom5: dict):
         status_ex = ex.get("status") or "—"
         st.markdown(f"**Status:** {status_ex}")
         st.markdown(f"**Direção:** `{ex.get('direcao') or '—'}` · **Força:** `{ex.get('forca') or '—'}`")
+        # fix74: cenario do engine (opening_scenario) — complementa a direcao do card
+        _cen = d.get("direcao_cenario") or "—"
+        _pos = d.get("posicao_ajuste") or "—"
+        st.caption(f"Cenário engine: `{_cen}` · Posição vs ajuste: `{_pos}`")
 
         e1, e2, e3 = st.columns(3)
 
