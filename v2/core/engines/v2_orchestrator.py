@@ -191,6 +191,9 @@ class V2Orchestrator:
             "nm_magnitude": None,
             "nm_direcao_score": None,
             "nm_divergencia_interna": None,
+            # fix75: nomes canonicos (mesmo valor, nomenclatura unificada)
+            "score_magnitude": None,
+            "score_direcao": None,
             "passou_gate_confluencia": (
                 smc_conf >= CONFIANCA_MINIMA_CONFLUENCIA
             ),
@@ -232,6 +235,9 @@ class V2Orchestrator:
         # Mantido "nm_conf" por retrocompat de backtest; "nm_magnitude" e o nome honesto.
         self._debug_confluencia["nm_magnitude"] = float(nm_conf)
         self._debug_confluencia["nm_direcao_score"] = nm_score_dir
+        # fix75: aliases canonicos (mesmo valor, nome unificado)
+        self._debug_confluencia["score_magnitude"] = float(nm_conf)
+        self._debug_confluencia["score_direcao"] = nm_score_dir
         self._debug_confluencia["nm_divergencia_interna"] = bool(
             novo_motor.get("divergencia_direcao")
         )

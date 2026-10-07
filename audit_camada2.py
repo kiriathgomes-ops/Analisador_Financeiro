@@ -230,6 +230,7 @@ def audit_decisao():
         print("  [confluencia - fix57]:")
         for k in ["smc_conf_bruto", "mtf_veredito", "mtf_delta",
                   "smc_conf_ajustado", "nm_conf", "peso_smc", "peso_nm",
+                  "score_magnitude", "score_direcao",  # fix75: canonicos
                   "confianca_final", "passou_gate_confluencia",
                   "passou_gate_final"]:
             print(f"    {k}: {conf_blk.get(k)}")
