@@ -827,6 +827,9 @@ def gerar_arquivo_unificado(coletas: List[dict]) -> None:
             "variacao_pct": float(dados.get("change_percent") or 0.0),
             "ticker_original": ativo_raw,
             "status": item.get("status", "OK"),
+            # fix76: propaga rastreabilidade (perdida antes do fix)
+            "fonte": item.get("fonte") or "DESCONHECIDA",
+            "timestamp_coleta": item.get("timestamp"),
         }
 
     estrutura = {
