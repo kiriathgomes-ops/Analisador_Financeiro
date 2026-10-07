@@ -493,4 +493,27 @@ continua recebendo contribuição; operador e backtest passam a distinguir.
   saturação). Calibração empírica de `LIMIAR_DIRECAO` aguarda mais 2-3
   dias de coleta.
 
-  
+  ## 16. Fantasmas estáveis do minerador (ruído conhecido)
+
+Os 9 campos abaixo aparecem como TYPO_REAL no `investigar_fantasmas.py` (v5)
+mas NÃO são bugs — são padrões que o detector (regex) não distingue:
+
+| Campo | Padrão real |
+|---|---|
+| `contratos` | fallback `contratos_vigentes or contratos` (fix71) |
+| `estimativas_abertura` | fallback singular+plural (fix71) |
+| `pontos_ajuste_base` | fallback `preco_referencia_base` (fix71) |
+| `preco_carregado_di` | fallback `preco_teorico_carregado` (fix71) |
+| `filtro_volume_aplicado` | corrigido p/ `filtro_volume_real_aplicado` (fix72) |
+| `opening_scenario` | lido do Historico_Aberturas (fix73) |
+| `direcao_provavel` | derivado de opening_scenario (fix73) |
+| `relacao_com_ajuste` | derivado de opening_scenario (fix73) |
+| `data_execucao` | Pipeline_Log.json nao existe (fix69 tratou UI) |
+
+**Decisão (07/10/2026):** manter visíveis em vez de whitelist.
+- Vantagem: se algum desses quebrar no futuro, aparece imediatamente
+- Custo: 9 linhas de ruído em cada rodada (aceitável)
+- Se crescerem, investigar; se estáveis, ignorar
+
+**Regra de ouro:** o `investigar_fantasmas.py` aponta candidatos;
+a validação final é sempre humana (grep direcionado + leitura do código).
