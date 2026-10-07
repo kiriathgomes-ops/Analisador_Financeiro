@@ -460,3 +460,37 @@ continua recebendo contribuição; operador e backtest passam a distinguir.
 
 **Débito de nomenclatura (anotado):** `nm_magnitude`/`nm_direcao_score` (confluencia) e `score_magnitude`/`score_direcao` (novo_motor) apontam pro mesmo dado — unificar em fix futuro.
 
+## 15. Primeira operação legítima pós-fix66 (07/10/2026)
+
+**Evento:** primeira vez que o orquestrador V2 emite sinal de operação
+(`operar=True`) com dados honestos, desde a descoberta do bug dos ADRs.
+
+**Log (07/10/2026, orquestrador rodando):**
+
+
+**Contexto:**
+- SMC: VENDA
+- NM: VENDA (score 35.6, forca FORTE)
+- Confluência: VENDA (concordância)
+- Confiança final: 74%
+- Gap: -488 pts, TEORICA_FALLBACK (leilão indisponível, TV cobriu)
+
+**Por que é marco:**
+- Antes do fix66, o score NM saturava em 100 (COMPRA forçada) e o SMC era
+  VENDA — sempre divergentes, sempre NEUTRO. Nunca operava.
+- Pós-fix66, o NM produziu score real (35.6, VENDA). Alinhou com o SMC.
+  Confluência passou o gate duplo (smc_conf >= mínima E confianca_final >= 45).
+- **Primeiro sinal operacional legítimo do sistema V2.**
+
+**Monitorar nos próximos dias:**
+- Win rate real dos sinais (acurácia do score vs outcome)
+- Frequência de `operar=True` (se ficar raro demais, `LIMIAR_DIRECAO=10`
+  pode estar alto; se ficar frequente demais, pode estar baixo)
+- Correlação SMC × NM em dias de operação vs dias neutros
+
+**Débito associado (Trilha C):**
+- Distribuição de `score_magnitude` já é honesta (45 runs em 06/10, 0%
+  saturação). Calibração empírica de `LIMIAR_DIRECAO` aguarda mais 2-3
+  dias de coleta.
+
+  
