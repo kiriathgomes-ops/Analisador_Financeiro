@@ -468,14 +468,27 @@ class SetupService:
         self.v2_invalidacao = d2.get("invalidacao")
         self.v2_motivos = d2.get("motivos") or []
 
-        # fix71: "opening_scenario" nunca e gravado no Decisao_V2.json.
-        # TODO: integrar opening_scenario_engine no payload do orchestrator.
-        # Por ora, tenta multiplas fontes antes de desistir.
-        cenario = (
-            self.decisao_v2_raw.get("opening_scenario")
-            or self.decisao_v2_raw.get("decisao", {}).get("opening_scenario")
-            or {}
-        )
+        # fix73: opening_scenario vive em Coletas/Historico_Aberturas/<data>.json
+        # (gravado por v2_gravar_sessao_win.py via session_history_service).
+        # A page lia do Decisao_V2.json, que nunca teve esse campo.
+        cenario = {}
+        try:
+            from datetime import date as _date
+            _hoje = _date.today().isoformat()
+            _hist, _ = carregar_json_absoluto(f"Historico_Aberturas/{_hoje}.json")
+            if _hist:
+                _ult = _hist.get("ultimo") or (_hist.get("atualizacoes") or [{}])[-1]
+                cenario = _ult.get("cenario", {}) or {}
+        except Exception:
+            cenario = {}
+
+        # Fallback: Decisao_V2 (caso o orchestrator propague no futuro)
+        if not cenario:
+            cenario = (
+                self.decisao_v2_raw.get("opening_scenario")
+                or self.decisao_v2_raw.get("decisao", {}).get("opening_scenario")
+                or {}
+            )
         self.v2_direcao_cenario = cenario.get("direcao_provavel")
         rel = cenario.get("relacao_com_ajuste") or {}
         self.v2_posicao_ajuste = rel.get("posicao") if isinstance(rel, dict) else None
