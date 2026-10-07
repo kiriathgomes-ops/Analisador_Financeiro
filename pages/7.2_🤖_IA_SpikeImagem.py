@@ -78,11 +78,11 @@ with col_insights:
     
     # Cruzamento com os metadados do motor para validar se houve Vela de Expansão (Inbalance Real)
     meta_regras = dados_smc_regras.get("metadados", {})
-    # fix71: "filtro_volume_aplicado" nunca e gravado no SMC.
-    # TODO: Motor_SMC_Regras deve expor esse campo no payload.
+    # fix72: Motor_SMC_Regras grava "filtro_volume_real_aplicado" (com "_real").
+    # Page lia "filtro_volume_aplicado" (sem "_real") — sempre False.
     filtro_vol = (
-        meta_regras.get("filtro_volume_aplicado")
-        or meta_regras.get("filtro_volume")
+        meta_regras.get("filtro_volume_real_aplicado")
+        or meta_regras.get("filtro_volume_aplicado")
         or False
     )
     
