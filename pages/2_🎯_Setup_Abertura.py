@@ -477,8 +477,15 @@ class SetupService:
             _hoje = _date.today().isoformat()
             _hist, _ = carregar_json_absoluto(f"Historico_Aberturas/{_hoje}.json")
             if _hist:
-                _ult = _hist.get("ultimo") or (_hist.get("atualizacoes") or [{}])[-1]
-                cenario = _ult.get("cenario", {}) or {}
+                # fix79: "cenario" vive em atualizacoes[-1].cenario.
+                # "ultimo" e um resumo achatado SEM "cenario" (bug fix73).
+                _atu = _hist.get("atualizacoes") or []
+                if _atu:
+                    cenario = (_atu[-1].get("cenario") or {})
+                if not cenario:
+                    # fallback: tentar "ultimo" (caso o schema mude)
+                    _ult = _hist.get("ultimo") or {}
+                    cenario = _ult.get("cenario", {}) or {}
         except Exception:
             cenario = {}
 
