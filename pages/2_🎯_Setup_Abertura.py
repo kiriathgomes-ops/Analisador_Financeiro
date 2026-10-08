@@ -468,34 +468,28 @@ class SetupService:
         self.v2_invalidacao = d2.get("invalidacao")
         self.v2_motivos = d2.get("motivos") or []
 
-        # fix73: opening_scenario vive em Coletas/Historico_Aberturas/<data>.json
-        # (gravado por v2_gravar_sessao_win.py via session_history_service).
-        # A page lia do Decisao_V2.json, que nunca teve esse campo.
-        cenario = {}
-        try:
-            from datetime import date as _date
-            _hoje = _date.today().isoformat()
-            _hist, _ = carregar_json_absoluto(f"Historico_Aberturas/{_hoje}.json")
-            if _hist:
-                # fix79: "cenario" vive em atualizacoes[-1].cenario.
-                # "ultimo" e um resumo achatado SEM "cenario" (bug fix73).
-                _atu = _hist.get("atualizacoes") or []
-                if _atu:
-                    cenario = (_atu[-1].get("cenario") or {})
-                if not cenario:
-                    # fallback: tentar "ultimo" (caso o schema mude)
-                    _ult = _hist.get("ultimo") or {}
-                    cenario = _ult.get("cenario", {}) or {}
-        except Exception:
-            cenario = {}
+        # fix83: opening_scenario agora vive no Decisao_V2.json
+        # (metadados.opening_scenario). Historico_Aberturas fica como fallback.
+        cenario = (
+            self.decisao_v2_raw.get("decisao", {})
+                .get("metadados", {})
+                .get("opening_scenario")
+            or self.decisao_v2_raw.get("opening_scenario")
+            or {}
+        )
 
-        # Fallback: Decisao_V2 (caso o orchestrator propague no futuro)
+        # Fallback legado: Historico_Aberturas (fix73/79)
         if not cenario:
-            cenario = (
-                self.decisao_v2_raw.get("opening_scenario")
-                or self.decisao_v2_raw.get("decisao", {}).get("opening_scenario")
-                or {}
-            )
+            try:
+                from datetime import date as _date
+                _hoje = _date.today().isoformat()
+                _hist, _ = carregar_json_absoluto(f"Historico_Aberturas/{_hoje}.json")
+                if _hist:
+                    _atu = _hist.get("atualizacoes") or []
+                    if _atu:
+                        cenario = (_atu[-1].get("cenario") or {})
+            except Exception:
+                cenario = {}
         self.v2_direcao_cenario = cenario.get("direcao_provavel")
         rel = cenario.get("relacao_com_ajuste") or {}
         self.v2_posicao_ajuste = rel.get("posicao") if isinstance(rel, dict) else None

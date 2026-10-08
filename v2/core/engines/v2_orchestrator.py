@@ -19,6 +19,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional, Dict, Any, Tuple
 
+# fix83: import do opening_scenario_engine
+from v2.core.services.win_session_builder import build_win_session
+from v2.core.engines.opening_scenario_engine import gerar_cenario_abertura
+
 from config import (
     FILE_DECISAO_V2,
     FILE_UNIFICADO,
@@ -297,6 +301,32 @@ class V2Orchestrator:
         return False, "NEUTRO", None, 0.0, motivos, riscos
 
     # ------------------------------------------------------------
+    # fix83: serializa OpeningScenario pro payload
+    # ------------------------------------------------------------
+    def _serializar_cenario(self) -> Optional[Dict[str, Any]]:
+        c = getattr(self, "_cenario_abertura", None)
+        if not c:
+            return None
+        try:
+            rel = getattr(c, "relacao_com_ajuste", None)
+            return {
+                "direcao_provavel": c.direcao_provavel,
+                "probabilidade_direcao": c.probabilidade_direcao,
+                "confianca_geral": c.confianca_geral,
+                "relacao_com_ajuste": {
+                    "posicao": rel.posicao if rel else None,
+                    "cenario_principal": rel.cenario_principal if rel else None,
+                    "probabilidade_cenario": rel.probabilidade_cenario if rel else None,
+                },
+                "cenario_alternativo": c.cenario_alternativo,
+                "niveis_observacao": c.niveis_observacao or {},
+                "contexto_resumo": c.contexto_resumo or [],
+            }
+        except Exception as e:
+            print(f"[AVISO] fix83: falha ao serializar cenario: {e}")
+            return None
+
+    # ------------------------------------------------------------
     # Consolidação principal
     # ------------------------------------------------------------
     def consolidar_decisao(self) -> dict:
@@ -336,6 +366,14 @@ class V2Orchestrator:
 
         operar, vies_final, direcao_motores, confianca, motivos, riscos = \
             self._verificar_confluencia(smc, novo_motor)
+
+        # fix83: gera OpeningScenario (direcao provavel + relacao com ajuste)
+        self._cenario_abertura = None
+        try:
+            _session = build_win_session()
+            self._cenario_abertura = gerar_cenario_abertura(_session)
+        except Exception as _e:
+            print(f"[AVISO] fix83: falha ao gerar cenario: {_e}")
 
         entrada = None
         stop = None
@@ -405,6 +443,8 @@ class V2Orchestrator:
                     "gap_pts": gap_pts,
                     "ajuste": win_ajuste,
                     "last": float(win_last or 0.0),
+                    # fix83: OpeningScenario (movido do Historico_Aberturas)
+                    "opening_scenario": self._serializar_cenario(),
                 },
             },
             "erros": self.erros_acumulados,
