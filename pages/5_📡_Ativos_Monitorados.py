@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Módulo: pages/6_📡_Ativos_Monitorados.py
-Versão: 2.3 - Fix race condition (rom-0 como fonte do "atual") + cosméticos
+Versão: 2.5 - Fix race condition + alinhamento ADRs/Mercado (modo condicional)
 Objetivo: Dashboard de integridade e monitoramento dos 32 ativos validados do ecossistema.
 """
 
@@ -27,6 +27,24 @@ NOMES_CURTOS = {
     "📈 ADRs Brasileiras (Sentiment NY)": "🇧🇷 ADRs NY",
     "🏦 Mercado à Vista (Ações Locais)": "📊 À Vista",
 }
+
+
+# ==============================================================================
+# PARES ADR ↔ B3 (fix alinhamento entre abas)
+# Cada slot da tela corresponde à MESMA empresa nas duas abas.
+# Ordem definida pela |var| do ADR no rom-0 (decrescente).
+# ==============================================================================
+PARES_ADR_B3 = [
+    ("PETR_ADR", "PETR4"),
+    ("VALE_ADR", "VALE3"),
+    ("ITUB_ADR", "ITUB4"),
+    ("BBAS_ADR", "BBAS3"),
+    ("BBD_ADR", "BBDC4"),
+    ("B3_ADR", "B3SA3"),
+]
+
+# EWZ não tem par em Mercado à Vista — vai pro último slot (só aba ADRs)
+EWZ_SEM_PAR = "EWZ"
 
 
 # ==============================================================================
@@ -72,7 +90,6 @@ def mini_velocimetro(
             tem_anterior = False
 
     # ---------- Δ ----------
-    # Threshold cosmético: 0.005 evita "Δ +0.00%" verde que parece bug
     if valor is not None and valor_anterior is not None:
         try:
             delta = float(valor) - float(valor_anterior)
@@ -400,7 +417,6 @@ def render_body():
 
     # ==========================================================================
     # TERMÔMETRO POR CATEGORIA
-    # ✅ Agora usa rom-0 (atual) vs rom-5 (anterior) — sem race
     # ==========================================================================
     st.markdown("### 🌡️ Termômetro de Sentimento por Categoria")
     st.caption(
@@ -414,7 +430,6 @@ def render_body():
         ids_cat = CATEGORIAS[nome_cat]
         ign_inv = "Drivers Globais" in nome_cat
 
-        # ✅ Atual = rom-0 (fix race). Fallback p/ Dados_Validados se rom-0 vazio
         media, qtd = calcular_media_categoria(
             ids_cat, ativos_lista, rom0_dict,
             ignorar_invertidos=ign_inv, usar_rom=True,
@@ -425,7 +440,6 @@ def render_body():
                 ignorar_invertidos=ign_inv, usar_rom=False,
             )
 
-        # ✅ Anterior = rom-5
         media_ant, _ = calcular_media_categoria(
             ids_cat, ativos_lista, rom5_dict,
             ignorar_invertidos=ign_inv, usar_rom=True,
@@ -443,6 +457,39 @@ def render_body():
             )
 
     st.markdown("---")
+
+    # ==========================================================================
+    # ORDEM GLOBAL DOS VELOCÍMETROS (fix alinhamento entre abas)
+    # ==========================================================================
+    def _abs_var_rom0(ativo_id: str) -> float:
+        v = buscar_valor(ativo_id, rom0_dict)
+        if v is None:
+            v = next(
+                (a.get("change_percent") for a in ativos_lista if a.get("ativo_id") == ativo_id),
+                None,
+            )
+        try:
+            return abs(float(v)) if v is not None else 0.0
+        except (TypeError, ValueError):
+            return 0.0
+
+    _pares_ord = sorted(
+        PARES_ADR_B3,
+        key=lambda p: _abs_var_rom0(p[0]),
+        reverse=True,
+    )
+
+    # Mapeia cada ativo (ADR e B3) → posição fixa
+    ORDEM_SLOT = {}
+    for pos, (adr_id, b3_id) in enumerate(_pares_ord):
+        ORDEM_SLOT[adr_id] = pos
+        ORDEM_SLOT[b3_id] = pos
+    ORDEM_SLOT[EWZ_SEM_PAR] = len(_pares_ord)  # último slot (só aba ADRs)
+
+    N_COLS_FIXO = len(_pares_ord) + 1  # 7 colunas
+
+    # Conjunto de ativos que participam do modo "alinhado"
+    ATIVOS_ALINHADOS = set(ORDEM_SLOT.keys())
 
     # ==========================================================================
     # SUB-ABAS POR CATEGORIA
@@ -483,8 +530,6 @@ def render_body():
                     ),
                 })
 
-                # ✅ Gauge por ativo: atual = rom-0, anterior = rom-5
-                # Fallback para o valor de Dados_Validados se rom-0 não tiver
                 v_atual = buscar_valor(ativo_id, rom0_dict)
                 if v_atual is None:
                     try:
@@ -503,26 +548,52 @@ def render_body():
             # -------- MINI VELOCÍMETROS POR ATIVO --------
             if variacoes_para_velocimetro:
                 st.markdown("##### 📊 Sentimento por Ativo")
-                variacoes_para_velocimetro.sort(key=lambda x: abs(x["valor"]), reverse=True)
 
-                top = variacoes_para_velocimetro[:6]
-                n_cols = min(len(top), 6)
-                cols_ativo = st.columns(n_cols)
+                # Detecta modo: se >=2 ativos da aba têm slot, usa ALINHADO
+                labels_aba = [item["label"] for item in variacoes_para_velocimetro]
+                tem_algum_slot = [l for l in labels_aba if l in ATIVOS_ALINHADOS]
 
-                for idx_a, item in enumerate(top):
-                    inv = item["label"] in ("VIX", "DXY")
-                    with cols_ativo[idx_a % n_cols]:
-                        mini_velocimetro(
-                            item["valor"],
-                            item["label"],
-                            f"{item['valor']:+.2f}%",
-                            inverter=inv,
-                            valor_anterior=item["valor_anterior"],
-                        )
+                if len(tem_algum_slot) >= 2:
+                    # ============ MODO ALINHADO (ADRs e Mercado à Vista) ============
+                    # Slot fixo por empresa → mesma posição entre abas
+                    _por_label = {item["label"]: item for item in variacoes_para_velocimetro}
+                    cols_ativo = st.columns(N_COLS_FIXO)
+
+                    for label, item in _por_label.items():
+                        slot = ORDEM_SLOT.get(label)
+                        if slot is None:
+                            continue
+                        inv = label in ("VIX", "DXY")
+                        with cols_ativo[slot]:
+                            mini_velocimetro(
+                                item["valor"],
+                                label,
+                                f"{item['valor']:+.2f}%",
+                                inverter=inv,
+                                valor_anterior=item["valor_anterior"],
+                            )
+                else:
+                    # ============ MODO LEGACY (Mercado Local, Drivers, Commodities) ============
+                    # Sort por |var|, top 6 — comportamento original
+                    variacoes_para_velocimetro.sort(key=lambda x: abs(x["valor"]), reverse=True)
+                    top = variacoes_para_velocimetro[:6]
+                    n_cols = min(len(top), 6)
+                    cols_ativo = st.columns(n_cols)
+
+                    for idx_a, item in enumerate(top):
+                        inv = item["label"] in ("VIX", "DXY")
+                        with cols_ativo[idx_a % n_cols]:
+                            mini_velocimetro(
+                                item["valor"],
+                                item["label"],
+                                f"{item['valor']:+.2f}%",
+                                inverter=inv,
+                                valor_anterior=item["valor_anterior"],
+                            )
 
                 st.markdown("")
 
-            # -------- TABELA DE DADOS (segue usando Dados_Validados) --------
+            # -------- TABELA DE DADOS --------
             if linhas_categoria:
                 df_cat = pd.DataFrame(linhas_categoria)
                 st.dataframe(df_cat.set_index("Identificador V2"), use_container_width=True)
