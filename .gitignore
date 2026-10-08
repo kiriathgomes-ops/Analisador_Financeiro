@@ -91,3 +91,6 @@ _*_fase*.py
 Ferramenta01.txt
 
 auditoria/
+
+# Cache pytest
+.pytest_cache/
