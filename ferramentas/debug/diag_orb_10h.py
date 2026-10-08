@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import MetaTrader5 as mt5
 import pandas as pd
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parent.parent.parent
 JSON_MT5 = ROOT / "Coletas" / "Dados_MT5_v2_2.json"
 
 def load_contrato():

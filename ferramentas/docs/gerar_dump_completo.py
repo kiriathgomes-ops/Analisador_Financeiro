@@ -20,7 +20,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-RAIZ = Path(__file__).resolve().parent
+RAIZ = Path(__file__).resolve().parent.parent.parent
 SAIDA = RAIZ / "docs" / "dump_completo"
 
 IGNORAR_DIRS = {

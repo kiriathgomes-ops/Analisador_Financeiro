@@ -18,7 +18,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-RAIZ = Path(__file__).resolve().parent
+RAIZ = Path(__file__).resolve().parent.parent.parent
 DOCS = RAIZ / "docs"
 
 # Diretorios ignorados (checados em QUALQUER nivel do path)

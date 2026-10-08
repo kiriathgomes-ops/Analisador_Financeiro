@@ -20,7 +20,7 @@ from pathlib import Path
 # ============================================================
 # CONFIGURAÇÃO DE CAMINHOS
 # ============================================================
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 ARQUIVO_SAIDA = BASE_DIR / "Coletas" / "Mapa_Fluxo.json"
 MAIN_PIPELINE = BASE_DIR / "main_pipeline.py"
 
