@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
 """
 Módulo: pages/7.1_📊_SMC_Regras.py
-Versão: 4.2 - Candlestick + Zonas SMC (POC/VWAP/OB/FVG/BSL/SSL)
-                  + Zoom inicial nas últimas pernadas
-                  + Auto-refresh de 5 min (sincronizado com o Agendador)
+Versão: 4.3 - Candlestick + Zonas SMC + Zoom + Auto-refresh + Rangebreaks
 Objetivo: Renderizar estruturas SMC/ICT em gráfico de candles reais (MT5)
          com todas as zonas institucionais sobrepostas.
          Exibe por padrão apenas os últimos N candles (pernadas recentes).
+         fix86: rangebreaks removem gaps de tempo fechado (noite + fim de semana).
 """
 
 import streamlit as st
@@ -46,6 +45,21 @@ OPCOES_CANDLES_POR_TF = {
 
 # Intervalo do auto-refresh em minutos (alinhado com Agendador.py)
 INTERVALO_REFRESH_MIN = 5
+
+
+# ==============================================================================
+# fix86: RANGEBREAKS — remove gaps de tempo fechado
+# ==============================================================================
+# Pregão B3 WIN: 09:00 → 18:30 (BRT). Fim de semana: sábado + domingo.
+# Aplicado no eixo X pra emendar os candles como no Profit/MT5.
+#
+# bounds=["sat", "mon"]      → esconde sábado 00:00 até segunda 00:00
+# bounds=[18.5, 9] em horas  → esconde de 18:30 até 09:00 (overnight)
+#   18.5 = 18:30  |  9 = 09:00
+RANGEBREAKS_B3 = [
+    dict(bounds=["sat", "mon"]),
+    dict(bounds=[18.5, 9], pattern="hour"),
+]
 
 
 # ==============================================================================
@@ -466,8 +480,12 @@ def render_grafico_candles(
         hovermode="x unified",
     )
 
-    # Remove rangeslider nativo
-    fig.update_xaxes(rangeslider_visible=False)
+    # fix86: remove gaps de tempo fechado (overnight + fim de semana)
+    # Assim os candles ficam emendados como no Profit/MT5.
+    fig.update_xaxes(
+        rangeslider_visible=False,
+        rangebreaks=RANGEBREAKS_B3,
+    )
 
     return fig
 
