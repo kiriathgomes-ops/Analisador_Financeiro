@@ -4,6 +4,7 @@
 # AGENDADOR SINCRONIZADO COM RELÓGIO (A CADA 5 MIN EM :04, :09, :14...)
 # ============================================================
 
+import argparse
 import os
 import subprocess
 import sys
@@ -52,7 +53,7 @@ def calcular_segundos_ate_proximo_ciclo():
     return max(0.0, 86400 - agora_seg + DISPAROS[0])
 
 
-def iniciar_agendador():
+def iniciar_agendador(once: bool = False):
     print("============================================================")
     print("⏰ AGENDADOR SINCRONIZADO INICIADO")
     print(f"🎯 REGULAR: a cada 5 min no segundo :{SEGUNDO_DISPARO:02d}")
@@ -74,6 +75,18 @@ def iniciar_agendador():
             print(f"   {h:02d}:{m:02d}:{s:02d}")
             contador += 1
     print()
+
+    # fix78: modo --once (debug) — executa 1 ciclo e sai
+    if once:
+        print(f"\n[{datetime.now().strftime('%H:%M:%S')}] 🚀 [--once] Disparando Main Pipeline (imediato)...")
+        try:
+            subprocess.run([sys.executable, SCRIPT_PIPELINE], check=True)
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] ✅ Ciclo unico concluido.")
+        except subprocess.CalledProcessError as e:
+            print(f"❌ Erro na execucao do pipeline: {e}")
+        except Exception as e:
+            print(f"⚠️ Falha inesperada: {e}")
+        return
 
     while True:
         segundos_espera = calcular_segundos_ate_proximo_ciclo()
@@ -101,4 +114,12 @@ def iniciar_agendador():
 
 
 if __name__ == "__main__":
-    iniciar_agendador()
+    _parser = argparse.ArgumentParser(
+        description="Agendador sincronizado do pipeline (grade :05s + especiais)"
+    )
+    _parser.add_argument(
+        "--once", action="store_true",
+        help="Executa 1 ciclo imediato e sai (modo debug)"
+    )
+    _args = _parser.parse_args()
+    iniciar_agendador(once=_args.once)
