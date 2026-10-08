@@ -560,3 +560,37 @@ natural dos 6 ADRs). Vale calibrar em versão futura, se desejado:
 - Opção C: manter como está (mercado real é volátil mesmo)
 
 **Decisão:** manter como está. Calibração só depois de mais dados (mín. 10 dias).
+
+
+## 18. Timezone MT5 — convenção do projeto (07/10/2026)
+
+### Configuracao
+
+| Fonte | Timezone |
+|---|---|
+| Windows (host) | **BRT (UTC-3)** |
+| MT5 Genial | **BRT (UTC-3)** — mesmo do host |
+| B3 pregao regular | 10:00 - 17:00 BRT |
+| WIN after-market | 17:00 - 18:30 BRT |
+
+### Quirk do `tick.time`
+
+O MT5 retorna `tick.time` como epoch calculado a partir do **horario local
+do servidor** (BRT), mas o epoch parece UTC quando lido pelo Python.
+Verificado em 07/10/2026 (tick WINV26 = 1791397872):
+
+```python
+from datetime import datetime, timezone, timedelta
+
+# ERRADO — parece UTC mas é BRT
+dt = datetime.fromtimestamp(tick.time, tz=timezone.utc)
+# → 18:31:12 "UTC" (iluso — na verdade é BRT)
+
+# CORRETO — ler como BRT
+dt_brt = datetime.fromtimestamp(tick.time, tz=timezone.utc).replace(tzinfo=None)
+# → 18:31:12 (BRT real)
+
+# Para UTC real: somar |offset|
+dt_utc = datetime.fromtimestamp(tick.time, tz=timezone.utc) + timedelta(hours=3)
+# → 21:31:12 UTC
+
