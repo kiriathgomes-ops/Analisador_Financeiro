@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 """
 Módulo: pages/7.1_📊_SMC_Regras.py
-Versão: 4.3 - Candlestick + Zonas SMC + Zoom + Auto-refresh + Rangebreaks
+Versão: 4.4 - Candlestick + Zonas SMC + Zoom + Auto-refresh + Rangebreaks
 Objetivo: Renderizar estruturas SMC/ICT em gráfico de candles reais (MT5)
          com todas as zonas institucionais sobrepostas.
          Exibe por padrão apenas os últimos N candles (pernadas recentes).
          fix86: rangebreaks removem gaps de tempo fechado (noite + fim de semana).
+         fix87: docstring movido pro topo de render_grafico_candles (bug visual).
 """
 
 import streamlit as st
@@ -150,10 +151,6 @@ def render_grafico_candles(
     timeframe_min: int = 5,
     tf_label: str = "M5",
 ) -> go.Figure:
-    # --- fix40: usa dados do dict, não globais (bug latente corrigido) ---
-    vies = dados.get("bias_direcional", "LATERAL")
-    confianca = dados.get("confianca_visual", 0)
-    preco_atual = dados.get("preco_atual", 0.0)
     """
     Gráfico de candlestick do WIN M5 com sobreposição:
     - POC / VWAP de ontem
@@ -169,6 +166,11 @@ def render_grafico_candles(
         timeframe_min: timeframe em minutos (1, 5, 15).
         tf_label: rótulo do TF para título (ex: "M5", "M15").
     """
+    # --- fix40: usa dados do dict, não globais (bug latente corrigido) ---
+    vies = dados.get("bias_direcional", "LATERAL")
+    confianca = dados.get("confianca_visual", 0)
+    preco_atual = dados.get("preco_atual", 0.0)
+
     # ---------- Coleta de dados do SMC ----------
     niveis = dados.get("niveis_institucionais", {}) or {}
     poc = niveis.get("poc_ontem", 0.0)
