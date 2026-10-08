@@ -34,6 +34,7 @@ import os
 import shutil
 import ssl
 import sys
+import time
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
@@ -400,6 +401,41 @@ def coletar_mt5_acoes_b3(mt5_ja_inicializado: bool = False) -> List[Dict[str, An
 # ------------------------------------------------------------
 # BACEN PTAX
 # ------------------------------------------------------------
+def _fetch_url_com_retry(
+    url: str,
+    ctx=None,
+    data: bytes = None,
+    tentativas: int = 3,
+    timeout: int = 10,
+    headers: dict = None,
+) -> bytes:
+    """
+    fix82: fetch URL com retry + backoff exponencial.
+
+    Backoff: 1s, 2s, 4s entre tentativas.
+    Retorna bytes do response. Levanta excecao se todas falharem.
+    """
+    headers = headers or {"User-Agent": "Mozilla/5.0"}
+    ultima_excecao = None
+    for tent in range(1, tentativas + 1):
+        try:
+            req = urllib.request.Request(url, data=data, headers=headers)
+            if ctx is not None:
+                with urllib.request.urlopen(req, context=ctx, timeout=timeout) as resp:
+                    return resp.read()
+            else:
+                with urllib.request.urlopen(req, timeout=timeout) as resp:
+                    return resp.read()
+        except Exception as e:
+            ultima_excecao = e
+            if tent < tentativas:
+                espera = 2 ** (tent - 1)  # 1, 2, 4
+                print(f"   [RETRY] tentativa {tent}/{tentativas} falhou ({type(e).__name__}), "
+                      f"aguardando {espera}s...")
+                time.sleep(espera)
+    raise ultima_excecao
+
+
 def coletar_bacen_ptax() -> dict:
     timestamp = datetime.now().isoformat()
     url_sgs = (
@@ -410,54 +446,58 @@ def coletar_bacen_ptax() -> dict:
     ctx.verify_mode = ssl.CERT_NONE
 
     try:
-        req = urllib.request.Request(url_sgs, headers={"User-Agent": "Mozilla/5.0"})
-        with urllib.request.urlopen(req, context=ctx, timeout=TIMEOUT_BACEN or 10) as resp:
-            res = json.loads(resp.read().decode("utf-8"))
-            if res:
-                valor = float(res[-1]["valor"].replace(",", "."))
-                return {
-                    "ativo": "USD_PTAX",
-                    "fonte": "BACEN_SGS_10813",
-                    "timestamp": timestamp,
-                    "status": "OK",
-                    "dados_reais": {
-                        "close": valor,
-                        "open": None,
-                        "high": None,
-                        "low": None,
-                        "change_percent": None,
-                        "volume": None,
-                    },
-                }
+        body = _fetch_url_com_retry(
+            url_sgs, ctx=ctx,
+            tentativas=3,
+            timeout=TIMEOUT_BACEN or 10,
+        )
+        res = json.loads(body.decode("utf-8"))
+        if res:
+            valor = float(res[-1]["valor"].replace(",", "."))
+            return {
+                "ativo": "USD_PTAX",
+                "fonte": "BACEN_SGS_10813",
+                "timestamp": timestamp,
+                "status": "OK",
+                "dados_reais": {
+                    "close": valor,
+                    "open": None,
+                    "high": None,
+                    "low": None,
+                    "change_percent": None,
+                    "volume": None,
+                },
+            }
     except Exception as e:
-        print(f"[AVISO] Bacen SGS: {e}. Fallback TV...")
+        print(f"[AVISO] Bacen SGS: {e} (apos retries). Fallback TV...")
 
     try:
         payload = {"symbols": {"tickers": ["FX_IDC:USDBRL"]}, "columns": ["close"]}
         data = json.dumps(payload).encode("utf-8")
-        req = urllib.request.Request(
+        body = _fetch_url_com_retry(
             "https://scanner.tradingview.com/global/scan",
             data=data,
+            tentativas=2,
+            timeout=10,
             headers={"Content-Type": "application/json", "User-Agent": "Mozilla/5.0"},
         )
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            res = json.loads(resp.read().decode("utf-8"))
-            vals = res.get("data", [])[0].get("d", [])
-            if vals and vals[0] is not None:
-                return {
-                    "ativo": "USD_PTAX",
-                    "fonte": "TRADINGVIEW_FALLBACK",
-                    "timestamp": timestamp,
-                    "status": "OK",
-                    "dados_reais": {
-                        "close": float(vals[0]),
-                        "open": None,
-                        "high": None,
-                        "low": None,
-                        "change_percent": None,
-                        "volume": None,
-                    },
-                }
+        res = json.loads(body.decode("utf-8"))
+        vals = res.get("data", [])[0].get("d", [])
+        if vals and vals[0] is not None:
+            return {
+                "ativo": "USD_PTAX",
+                "fonte": "TRADINGVIEW_FALLBACK",
+                "timestamp": timestamp,
+                "status": "OK",
+                "dados_reais": {
+                    "close": float(vals[0]),
+                    "open": None,
+                    "high": None,
+                    "low": None,
+                    "change_percent": None,
+                    "volume": None,
+                },
+            }
     except Exception:
         pass
 
