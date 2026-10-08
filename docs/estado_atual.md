@@ -517,3 +517,46 @@ mas NÃO são bugs — são padrões que o detector (regex) não distingue:
 
 **Regra de ouro:** o `investigar_fantasmas.py` aponta candidatos;
 a validação final é sempre humana (grep direcionado + leitura do código).
+
+
+## 17. Trilha C — análise de 181 runs honestos (07/10/2026)
+
+**Objetivo:** calibrar `LIMIAR_DIRECAO` com dados pós-fix66.
+
+### Números
+
+| Métrica | 796 contaminados | 181 honestos |
+|---|---|---|
+| Alinhamento SMC×NM | 32.7% | **66.4%** |
+| Confluência `ok` | 0% | **53.6%** |
+| Saturação em 100 | 8.4% | **0%** |
+| `gap_fonte=LEILAO_REAL` | — | **92.8%** |
+
+**Sistema saiu de "nunca opera" (0% ok) para "opera 53.6% do tempo".**
+
+### Limiar
+
+Distribuição do score é **bimodal**:
+- NEUTRO (06/10): 45 runs com score 0-7.4
+- VENDA (07/10): 136 runs com score 25.7-52.5
+
+**Não há valores entre 10 e 25.** Isso significa que `LIMIAR=10` está no "cotovelo" natural — qualquer valor entre 10 e 25 produz o mesmo resultado. **Manter 10.**
+
+### 0% COMPRA (07/10) — não é bug
+
+Análise confirmou: **6/6 ADRs batem com TradingView real** (VALE=-3.34,
+PETR=+0.80, ITUB=-4.04, BBAS=-2.78, BBD=-3.77, B3=-2.07). Mercado americano
+virou ao longo do dia (08:38 misto → 19:00 todo em queda).
+
+**Conclusão:** 0% COMPRA reflete mercado real. Score 40.8 VENDA é legítimo.
+
+### Ponto de design: `adrs` domina o score
+
+O componente `adrs` contribui ±38 tipicamente (6 ADRs × ±3% × 2.5).
+Os outros somam ~±15. **Isso não é bug — é design** (peso 0.25 e variação
+natural dos 6 ADRs). Vale calibrar em versão futura, se desejado:
+- Opção A: reduzir peso do `adrs` (0.25 → 0.15)
+- Opção B: normalizar (dividir por N=6 antes de multiplicar)
+- Opção C: manter como está (mercado real é volátil mesmo)
+
+**Decisão:** manter como está. Calibração só depois de mais dados (mín. 10 dias).
