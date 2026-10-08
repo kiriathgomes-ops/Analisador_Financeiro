@@ -121,9 +121,8 @@ class WinSessionBuilder:
         metricas = _carregar_json(self.coletas / "Metricas_Calculadas.json")
         noticias = _carregar_json(self.coletas / "Noticias_Impacto_Dia.json")
 
-        # Fallback: se v2.2 não existir, tenta formato antigo
-        if not mt5:
-            mt5 = _carregar_json(self.coletas / "Dados_MT5.json")
+        # fix81: fallback legado removido. Se v2.2 nao existir, mt5=None
+        # e _preencher_metadata/_preencher_precos tratam graciosamente.
 
         session = WinSession()
         self._preencher_metadata(session, mt5, unificados)

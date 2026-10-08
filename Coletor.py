@@ -51,7 +51,6 @@ from config import (
     FILE_ROM0,
     FILE_RAM,
     FILE_UNIFICADO,
-    FILE_MT5,
     FILE_MT5_V2,
     FILE_LAST_TICK_CONGELADO,
     FINNHUB_API_KEY,
@@ -75,7 +74,6 @@ ARQUIVOS_ROM = [str(p) for p in ARQUIVOS_ROM]
 FILE_ROM0 = str(FILE_ROM0)
 FILE_RAM = str(FILE_RAM)
 FILE_UNIFICADO = str(FILE_UNIFICADO)
-FILE_MT5 = str(FILE_MT5)
 FILE_MT5_V2 = str(FILE_MT5_V2)
 FILE_LAST_TICK_CONGELADO = str(FILE_LAST_TICK_CONGELADO)
 
@@ -114,9 +112,8 @@ def capturar_last_do_mt5() -> dict:
     """
     Extrai o 'last' dos contratos principais de WIN e WDO.
 
-    Prioridade:
-      1. Dados_MT5_v2_2.json
-      2. Dados_MT5.json (legado)
+    Fonte unica: Dados_MT5_v2_2.json
+    Sem fallback legado (fix81 — schema v1 removido).
     """
     resultado: dict = {}
 
@@ -155,53 +152,11 @@ def capturar_last_do_mt5() -> dict:
                 return resultado
 
         except Exception as e:
-            print(f"[AVISO] Falha ao ler Dados_MT5_v2_2.json: {e}. Tentando formato antigo...")
+            print(f"[AVISO] Falha ao ler Dados_MT5_v2_2.json: {e}. MT5 indisponivel.")
 
-    if not os.path.exists(FILE_MT5):
-        print("[AVISO] Nenhum arquivo MT5 encontrado (v2.2 nem v1).")
-        return resultado
-
-    try:
-        with open(FILE_MT5, "r", encoding="utf-8") as f:
-            dados = json.load(f)
-
-        # fix71: JSON MT5 v2.2 grava "contratos_vigentes"; "contratos" era do schema v1
-        contratos = dados.get("contratos_vigentes") or dados.get("contratos", {})
-        timestamp = dados.get("timestamp", datetime.now().isoformat())
-        mapeamento_contratos = {
-            "WIN": ["WINQ26", "WINV26", "WINZ26"],
-            "WDO": ["WDOQ26", "WDOV26", "WDOZ26", "WDOU26"],
-        }
-
-        for ativo, lista in mapeamento_contratos.items():
-            for contrato in lista:
-                if contrato in contratos:
-                    info = contratos[contrato]
-                    last = info.get("last")
-                    if last is not None and last > 0:
-                        resultado[ativo] = {
-                            "contrato": contrato,
-                            "last": float(last),
-                            "timestamp": timestamp,
-                            "fonte": "MT5_v1",
-                        }
-                        break
-
-        if "WIN" in resultado:
-            print(
-                f"   ✅ Last WIN via MT5 v1: "
-                f"{resultado['WIN']['last']} ({resultado['WIN']['contrato']})"
-            )
-        if "WDO" in resultado:
-            print(
-                f"   ✅ Last WDO via MT5 v1: "
-                f"{resultado['WDO']['last']} ({resultado['WDO']['contrato']})"
-            )
-        return resultado
-
-    except Exception as e:
-        print(f"[ERRO] Falha ao ler Dados_MT5.json: {e}")
-        return {}
+    # fix81: fallback legado (Dados_MT5.json) removido.
+    # Se v2.2 nao existir, retorna {} e loga indisponivel.
+    return resultado
 
 
 # ------------------------------------------------------------

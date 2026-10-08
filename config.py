@@ -65,7 +65,6 @@ for _d in (COLETAS_DIR, LOGS_DIR):
 # Coleta / unificado
 FILE_RAM = COLETAS_DIR / "Coleta_ram.json"
 FILE_UNIFICADO = COLETAS_DIR / "DadosAtivosUnificados.json"
-FILE_MT5 = COLETAS_DIR / "Dados_MT5.json"
 FILE_MT5_V2 = COLETAS_DIR / "Dados_MT5_v2_2.json"
 FILE_VALIDADOS = COLETAS_DIR / "Dados_Validados.json"
 
