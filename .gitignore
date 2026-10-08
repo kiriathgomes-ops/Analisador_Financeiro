@@ -9,6 +9,12 @@ Coletas/Historico*/
 
 
 
+# Fix scripts — arquivados em ferramentas/fixes/
+# Novos fixNN.py na raiz são ignorados (mantém a raiz limpa)
+/fix*.py
+
+
+
 
 # Backups
 * copy.py
