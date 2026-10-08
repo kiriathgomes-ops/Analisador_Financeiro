@@ -76,3 +76,22 @@ Nao colocar prazos nem estimativas aqui - este arquivo lista o QUE fazer,
 
 nao QUANDO.
 
+
+
+## Features futuras (roadmap)
+
+\- \[ ] **Motor de Visão IA** (OCR/análise de imagem SMC)
+  - Objetivo: gerar `Coletas/AnaliseGraficaSMC.json` a partir de imagens de gráfico
+  - Consumidores prontos: pages 7.2 (spike LTF), 7.3 (Profit Pro), 7.4 (SMC via IA)
+  - Estado atual: 3 pages órfãs aguardando o motor (ver item 19 do estado_atual.md)
+  - Escopo: OCR + classificação de padrões SMC + output no schema esperado
+  - Bloqueio: motor nunca foi implementado; páginas existem desde antes da V2
+  - Pendente: definir se será (a) integração com IA generativa multimodal,
+    (b) OCR clássico + parser, ou (c) remover as 3 pages
+
+\- \[ ] **Integrar `opening_scenario_engine` no payload do orchestrator**
+  - Hoje o engine gera cenários, mas o resultado só vai pro `Historico_Aberturas`
+  - Page 2 lê do `Historico_Aberturas` (fix73+fix79)
+  - Alternativa: expor `opening_scenario` também em `Decisao_V2.json`
+  - Ver item 15 do estado_atual.md (TODO deixado pelo fix71)
+

@@ -594,3 +594,32 @@ dt_brt = datetime.fromtimestamp(tick.time, tz=timezone.utc).replace(tzinfo=None)
 dt_utc = datetime.fromtimestamp(tick.time, tz=timezone.utc) + timedelta(hours=3)
 # → 21:31:12 UTC
 
+## 19. Motor de Visão IA — feature inacabada (07/10/2026)
+
+**Achado:** 3 pages do Streamlit leem `Coletas/AnaliseGraficaSMC.json`:
+- `pages/7.2_🤖_IA_SpikeImagem.py` — anomalias visuais / spikes LTF (1min)
+- `pages/7.3_📥_Gerador_Profit_Pro.py` — dropdown com 2 fontes (algó OU IA)
+- `pages/7.4_🤖_IA_Imagem.py` — insights SMC via Visão Computacional (5min)
+
+**Problema:** o arquivo **nunca é gerado** por nenhum script do projeto.
+Nenhum produtor em `Coletor.py`, `Motor_SMC_Regras.py` ou qualquer outro.
+Não existe constante `FILE_SMC_VISAO_IA` no `config.py` — cada page
+define localmente (hardcoded).
+
+**Diagnóstico:** feature planejada (Motor de Visão IA — OCR/análise de
+imagem de gráfico) que **nunca foi implementada**. As 3 pages foram
+criadas antecipando o output.
+
+**Comportamento atual:**
+- 7.2 / 7.3: `carregar_json_defensivo` retorna `{}` → empty state silencioso
+- 7.4: mostra `❌ Erro: O arquivo não foi encontrado... O motor contextual
+  de visão precisa ser executado pelo Orq...` — **alarme falso** (motor
+  nunca existiu)
+
+**Ação tomada:** documentado aqui + adicionado ao `melhorias.md` como
+feature futura. Nenhuma mudança de código (as 3 pages ficam navegáveis).
+
+**Ver também:** item 16 (fantasmas estáveis do minerador) — onde
+`AnaliseGraficaSMC.json` aparece como fantasma legítimo.
+
+
