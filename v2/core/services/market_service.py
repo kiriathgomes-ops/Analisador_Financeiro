@@ -74,17 +74,16 @@ class MarketService:
                     "s2": float(p.get("S2") or 0),
                 }
 
-        # Fallback quando pivots ausentes ou zerados
+        # fix77: sem fallback arbitrario. Se pivots ausentes/zerados,
+        # retorna {} e loga. O decision_engine tem fallback proprio
+        # (pivots.get("pp") or ajuste or last). NAO inventar niveis.
         if not any(pivots.values()):
-            preco = win_fut.preco or win_ajuste or 0.0
-            base = win_ajuste if win_ajuste else preco
-            pivots = {
-                "r2": preco + 300,
-                "r1": preco + 150,
-                "pp": base,
-                "s1": preco - 150,
-                "s2": preco - 300,
-            }
+            print(
+                "   [INFO] _extrair_pivots: pivots indisponiveis/zerados "
+                "(EstimativaAbertura.json sem pivot_points.WIN_FUT). "
+                "Retornando {}. decision_engine usara fallback interno."
+            )
+            return {}
         return pivots
 
     def build(self) -> Optional[MarketContext]:

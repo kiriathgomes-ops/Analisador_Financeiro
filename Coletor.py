@@ -1003,8 +1003,10 @@ def _montar_win_wdo_mt5(coletas: List[dict]) -> bool:
                 and (last_fut < bid or last_fut > ask)
             ):
                 mid = round((float(bid) + float(ask)) / 2.0, 1)
+                # fix77: aviso cosmico (defesa ja usa mid). Reduzido
+                # para INFO — nao e erro, e normal fora do pregao.
                 print(
-                    f"   ⚠️ {prefixo} last={last_fut} fora do spread "
+                    f"   [INFO] {prefixo} last={last_fut} fora do spread "
                     f"[{bid},{ask}] → mid={mid} (apenas FUT)"
                 )
                 last_fut = mid
