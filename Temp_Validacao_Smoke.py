@@ -81,6 +81,114 @@ def executar_smoke_test():
         print(f"❌ [FALHA CRÍTICA] Erro na malha interna de contratos V2 (v2/): {e}")
         falhas += 1
 
+    print("-" * 60)
+
+    # 4. VALIDACAO DE SCHEMAS JSON (fix80)
+    print("\U0001F50D BLOCO 4: SCHEMAS DOS JSONs CRITICOS")
+    import json as _json
+    from datetime import date as _date
+
+    def _ler_json(path):
+        try:
+            with open(path, encoding="utf-8") as f:
+                return _json.load(f)
+        except Exception:
+            return None
+
+    hoje = _date.today().isoformat()
+    hist_path = f"Coletas/Historico_Aberturas/{hoje}.json"
+
+    schemas_criticos = [
+        ("Coletas/DadosAtivosUnificados.json",
+         lambda d: isinstance(d.get("ativos"), dict)
+                   and len(d["ativos"]) >= 30
+                   and all(isinstance(v, dict) and v.get("fonte")
+                           for v in d["ativos"].values()),
+         "33+ ativos com 'fonte' (fix76)"),
+        ("Coletas/Dados_Validados.json",
+         lambda d: isinstance(d.get("ativos_validados"), list)
+                   and len(d["ativos_validados"]) >= 30
+                   and all(a.get("fonte") for a in d["ativos_validados"]),
+         "33+ validados com 'fonte'"),
+        ("Coletas/Decisao_V2.json",
+         lambda d: (d.get("decisao", {})
+                     .get("metadados", {})
+                     .get("confluencia", {})
+                     .get("score_magnitude")) is not None,
+         "confluencia.score_magnitude preenchido (fix75)"),
+        ("Coletas/Metricas_Calculadas.json",
+         lambda d: d.get("indicadores_compostos", {})
+                    .get("indicador_adrs_brasileiras") is not None,
+         "indicador_adrs_brasileiras presente"),
+    ]
+
+    if Path(hist_path).exists():
+        schemas_criticos.append(
+            (hist_path,
+             lambda d: bool(((d.get("atualizacoes") or [{}])[-1]
+                             .get("cenario", {}) or {})
+                            .get("direcao_provavel")),
+             "atualizacoes[-1].cenario.direcao_provavel (fix73/79)")
+        )
+
+    for arq, validador, descricao in schemas_criticos:
+        d = _ler_json(arq)
+        if d is None:
+            print(f"   \u23ED\uFE0F  SCHEMA: {arq:<38} -> [SKIP: sem arquivo]")
+            continue
+        try:
+            if validador(d):
+                print(f"   \u2705 SCHEMA: {arq:<38} -> [OK]")
+            else:
+                print(f"   \u274C SCHEMA: {arq:<38} -> [FALHA: {descricao}]")
+                falhas += 1
+        except Exception as e:
+            print(f"   \u274C SCHEMA: {arq:<38} -> [ERRO: {e}]")
+            falhas += 1
+
+    print("-" * 60)
+
+    # 5. VALIDACAO FUNCIONAL (fix80)
+    print("\U0001F50D BLOCO 5: FUNCOES CRITICAS")
+
+    # Teste A: leitura de cenario do Historico_Aberturas (replica fix73/79)
+    if Path(hist_path).exists():
+        try:
+            d = _ler_json(hist_path)
+            atu = d.get("atualizacoes") or []
+            if atu:
+                cen = atu[-1].get("cenario") or {}
+                if cen.get("direcao_provavel"):
+                    print(f"   \u2705 FUNC: cenario Historico_Aberturas -> [OK: {cen['direcao_provavel']}]")
+                else:
+                    print(f"   \u274C FUNC: cenario Historico_Aberturas -> [direcao_provavel vazio]")
+                    falhas += 1
+        except Exception as e:
+            print(f"   \u274C FUNC: cenario -> [ERRO: {e}]")
+            falhas += 1
+    else:
+        print(f"   \u23ED\uFE0F  FUNC: cenario -> [SKIP: {hist_path} nao existe]")
+
+    # Teste B: canonicos == aliases no payload (fix75)
+    try:
+        d = _ler_json("Coletas/Decisao_V2.json")
+        if d:
+            c = (d.get("decisao", {}).get("metadados", {})
+                  .get("confluencia", {}))
+            if (c.get("score_magnitude") == c.get("nm_magnitude")
+                and c.get("score_direcao") == c.get("nm_direcao_score")):
+                print(f"   \u2705 FUNC: canonicos == aliases (fix75) -> [OK]")
+            else:
+                print(f"   \u274C FUNC: canonicos != aliases -> [FALHA]")
+                falhas += 1
+        else:
+            print(f"   \u23ED\uFE0F  FUNC: canonicos -> [SKIP: sem Decisao_V2.json]")
+    except Exception as e:
+        print(f"   \u274C FUNC: canonicos vs aliases -> [ERRO: {e}]")
+        falhas += 1
+
+    print("-" * 60)
+
     # --- RELATÓRIO FINAL ---
     print("============================================================")
     if falhas == 0:
