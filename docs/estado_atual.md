@@ -623,3 +623,40 @@ feature futura. Nenhuma mudança de código (as 3 pages ficam navegáveis).
 `AnaliseGraficaSMC.json` aparece como fantasma legítimo.
 
 
+
+## 20. Abertura Teórica — Análise de coerência (08/10/2026)
+
+**Pergunta:** os valores de abertura teórica estão corretos?
+
+**Resposta:** sim, matematicamente corretos. `203435 = 204918 × (1 - 0,007236)`,
+fórmula respeitada. É **previsão** (feita às 08:14), não observação. Divergência
+de +0,62% vs OCR (09:00) é esperada pra um gap de 46min.
+
+### Descoberta colateral — `abertura_projetada` só existe desde 07/10
+
+Ao investigar cobertura de histórico:
+- **24 de 26 dias** (06/09 a 06/10): `niveis_observacao.abertura_projetada` **ausente**
+- **07/10 e 08/10**: campo presente
+
+**Causa raiz:** o **fix71** (aplicado em 07/10) corrigiu a leitura de
+`win_session_builder.py:231` — lia `estimativas_abertura` (plural) em vez de
+`estimativa_abertura` (singular). Pré-fix71, `abertura_teorica = None` e a
+linha `if abertura_teorica is not None:` (l.269) nunca escrevia o campo.
+
+**Código (win_session_builder.py:266-273):**
+```python
+obs = {}
+if session.precos.ajuste is not None:
+    obs["ajuste"] = session.precos.ajuste
+if abertura_teorica is not None:          # ← falso pré-fix71
+    obs["abertura_projetada"] = abertura_teorica
+if session.niveis.pivot_pp is not None:
+    obs["pp"] = session.niveis.pivot_pp
+session.cenario.niveis_observacao = obs
+
+Remove-Item _check_csv_leilao.py, _check_divergencia_teorica.py, _check_engine_niveis.py, _check_historico_schema.py, _check_ocr_leilao.py, _check_teorica.py, _diag_historico.py, _divergencia_historica.py, _divergencia_v2.py, _grep_amplo_leilao.py -ErrorAction SilentlyContinue
+
+
+
+
+
