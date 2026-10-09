@@ -94,3 +94,7 @@ auditoria/
 
 # Cache pytest
 .pytest_cache/
+
+# Dumps gerados (gerar_dump_completo.py)
+docs/dump_completo/
+
