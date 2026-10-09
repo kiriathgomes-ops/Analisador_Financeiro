@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 """
-Módulo: pages/5.1_WINFUT_Intraday.py
-Versão: 3.4 - Cockpit com Mini Velocímetros + Ponteiro Anterior + Auto-refresh (60s)
+Módulo: pages/4_⚡_WINFUT_Intraday.py
+Versão: 3.5 - Cockpit Intraday com fragments por seção
 Objetivo: Cockpit de Decisão Intraday para monitoramento de ativos direcionais do WIN.
 
 Notas:
-  - A cada 60s o corpo da página é re-renderizado via @st.fragment(run_every=60).
+  - Cada seção tem fragment independente:
+      • Macro/DI/Blue Chips/Score → 60s (dados em movimento durante o pregão)
+      • SMC/ICT                   → 300s (engine V2 atualiza com menos frequência)
   - Cada velocímetro mostra:
       • Ponteiro colorido  → valor ATUAL
       • Ponteiro branco    → valor ANTERIOR (coleta de 5 min atrás)
@@ -396,25 +398,10 @@ def calcular_score_intraday(
 
 
 # ==============================================================================
-# CORPO DA PÁGINA (AUTO-REFRESH A CADA 60s)
+# HELPERS DE CÁLCULO (usados por múltiplas seções)
 # ==============================================================================
-@st.fragment(run_every=60)
-def render_body():
-    st.caption(
-        f"Última atualização local: `{datetime.now().strftime('%H:%M:%S')}` · "
-        f"auto-refresh: 60s · "
-        f"⚪ ponteiro branco = valor de 5 min atrás"
-    )
-
-    decisao_v2, smc_regras, unificados, dados_mt5, dados_val, rom5 = carregar_dados_absolutos()
-    fontes_dados = [unificados, dados_val, dados_mt5, decisao_v2]
-
-    # ==============================================================================
-    # 1. MOTORES MACRO GLOBAIS E CÂMBIO
-    # ==============================================================================
-    st.subheader("1. Motores Macro e Correlações em Tempo Real")
-    st.caption("Ponteiro centrado em zero · ⚠️ DXY/WDO/VIX invertidos (subir = risco)")
-
+def _calc_macro(fontes_dados, rom5) -> dict:
+    """Calcula os ativos macro + vars anteriores (rom-5)."""
     ativos_macro = {
         "S&P 500 Futuro": {
             "preco": buscar_metrica(["SP500_FUT", "US500", "SP500", "S&P"], tipo_campo="ultimo", fontes=fontes_dados),
@@ -453,69 +440,33 @@ def render_body():
             "chave_rom5": "VIX",
         },
     }
+    return {"ativos_macro": ativos_macro}
 
-    col1, col2, col3, col4, col5, col6 = st.columns(6)
-    cols_macro = [col1, col2, col3, col4, col5, col6]
 
-    for i, (label, dados) in enumerate(ativos_macro.items()):
-        fmt_preco = f"{dados['preco']:,.2f}" if dados['preco'] < 1000 else f"{dados['preco']:,.0f}"
-        var_ant = buscar_metrica_rom5(dados["chave_rom5"], rom5)
-        with cols_macro[i]:
-            mini_velocimetro(
-                dados["var"],
-                label,
-                fmt_preco,
-                inverter=dados["inverter"],
-                valor_anterior=var_ant if var_ant != 0.0 else None,
-            )
-
-    st.markdown("---")
-
-    # ==============================================================================
-    # 2. CURVA DE JUROS DI
-    # ==============================================================================
-    st.subheader("2. Curva de Juros DI (Pressão sobre o Ibovespa)")
-
-    col_di1, col_di2, col_di3 = st.columns(3)
-
+def _calc_di(unificados, rom5) -> dict:
+    """Calcula taxa DI 27/29 + inclinação + anterior."""
     di27_taxa = unificados.get("ativos", {}).get("DI1_2027", {}).get("preco", 13.565)
     di29_taxa = unificados.get("ativos", {}).get("DI1_2029", {}).get("preco", 13.93)
     val_di_exibicao = (di29_taxa - di27_taxa) * 100.0
 
-    # Valor anterior (5 min atrás)
     di27_rom5 = buscar_metrica_rom5("DI1_2027", rom5, tipo_campo="ultimo")
     di29_rom5 = buscar_metrica_rom5("DI1_2029", rom5, tipo_campo="ultimo")
     val_di_anterior = None
     if di27_rom5 > 0 and di29_rom5 > 0:
-        val_di_anterior = (di29_rom5 - di27_rom5) * 100.0 / 10.0  # normalizado
+        val_di_anterior = (di29_rom5 - di27_rom5) * 100.0 / 10.0
 
-    impacto_texto = "Pressão Vendedora" if val_di_exibicao > 0 else "Suporte Comprador"
-    status_curva = "Empinamento (Step-up)" if val_di_exibicao > 0 else "Achatamento"
+    return {
+        "di27_taxa": di27_taxa,
+        "di29_taxa": di29_taxa,
+        "val_di_exibicao": val_di_exibicao,
+        "di27_rom5": di27_rom5,
+        "di29_rom5": di29_rom5,
+        "val_di_anterior": val_di_anterior,
+    }
 
-    with col_di1:
-        inclinacao_normalizada = val_di_exibicao / 10.0
-        mini_velocimetro(
-            inclinacao_normalizada,
-            "📈 Inclinação DI (29 vs 27)",
-            f"{val_di_exibicao:+.1f} bps",
-            inverter=True,
-            valor_anterior=val_di_anterior,
-        )
 
-    with col_di2:
-        st.metric("Status da Curva", status_curva)
-
-    with col_di3:
-        st.metric("Impacto Bolsa", impacto_texto)
-
-    st.markdown("---")
-
-    # ==============================================================================
-    # 3. BLUE CHIPS B3
-    # ==============================================================================
-    st.subheader("3. Peso das Ações Líderes na B3")
-    st.caption("Variação diária das 7 principais blue chips · 🟢 positivo = compra · 🔴 negativo = venda")
-
+def _calc_blue_chips(fontes_dados, rom5) -> dict:
+    """Calcula variações das blue chips + viés setorial (atual e anterior)."""
     acoes_b3 = {
         "VALE3": {
             "preco": buscar_metrica(["VALE3", "VALE"], tipo_campo="ultimo", fontes=fontes_dados),
@@ -544,6 +495,142 @@ def render_body():
         },
     }
 
+    valev3 = acoes_b3["VALE3"]["var"]
+    petr4 = acoes_b3["PETR4"]["var"]
+    itub4 = acoes_b3["ITUB4"]["var"]
+    bbdc4 = acoes_b3["BBDC4"]["var"]
+    bbas3 = acoes_b3["BBAS3"]["var"]
+
+    vies_commodities = (valev3 * 0.55) + (petr4 * 0.45)
+    vies_bancos = (itub4 * 0.45) + (bbdc4 * 0.30) + (bbas3 * 0.25)
+
+    valev3_ant = buscar_metrica_rom5("VALE3", rom5)
+    petr4_ant = buscar_metrica_rom5("PETR4", rom5)
+    itub4_ant = buscar_metrica_rom5("ITUB4", rom5)
+    bbdc4_ant = buscar_metrica_rom5("BBDC4", rom5)
+    bbas3_ant = buscar_metrica_rom5("BBAS3", rom5)
+
+    tem_dados_ant = any(v != 0.0 for v in [valev3_ant, petr4_ant, itub4_ant, bbdc4_ant, bbas3_ant])
+    if tem_dados_ant:
+        vies_commodities_ant = (valev3_ant * 0.55) + (petr4_ant * 0.45)
+        vies_bancos_ant = (itub4_ant * 0.45) + (bbdc4_ant * 0.30) + (bbas3_ant * 0.25)
+    else:
+        vies_commodities_ant = None
+        vies_bancos_ant = None
+
+    return {
+        "acoes_b3": acoes_b3,
+        "vies_commodities": vies_commodities,
+        "vies_bancos": vies_bancos,
+        "vies_commodities_ant": vies_commodities_ant,
+        "vies_bancos_ant": vies_bancos_ant,
+        "valev3_ant": valev3_ant,
+        "petr4_ant": petr4_ant,
+        "itub4_ant": itub4_ant,
+        "bbdc4_ant": bbdc4_ant,
+        "bbas3_ant": bbas3_ant,
+        "tem_dados_ant": tem_dados_ant,
+    }
+
+
+# ==============================================================================
+# CONSTANTES DE REFRESH POR FRAGMENT
+# ==============================================================================
+REFRESH_SEG_MERCADO = 60    # 1 min — seções 1, 2, 3, 5 (dados em movimento)
+REFRESH_SEG_ENGINE  = 300   # 5 min — seção 4 (engine V2 atualiza com menos frequência)
+
+
+# ==============================================================================
+# SEÇÃO 1 — MOTORES MACRO GLOBAIS E CÂMBIO
+# ==============================================================================
+@st.fragment(run_every=REFRESH_SEG_MERCADO)
+def _render_secao_1_macro():
+    st.caption(
+        f"Última atualização local: `{datetime.now().strftime('%H:%M:%S')}` · "
+        f"auto-refresh: 60s (mercado) / 300s (engine SMC) · "
+        f"⚪ ponteiro branco = valor de 5 min atrás"
+    )
+
+    decisao_v2, smc_regras, unificados, dados_mt5, dados_val, rom5 = carregar_dados_absolutos()
+    fontes_dados = [unificados, dados_val, dados_mt5, decisao_v2]
+
+    st.subheader("1. Motores Macro e Correlações em Tempo Real")
+    st.caption("Ponteiro centrado em zero · ⚠️ DXY/WDO/VIX invertidos (subir = risco)")
+
+    macro = _calc_macro(fontes_dados, rom5)
+    ativos_macro = macro["ativos_macro"]
+
+    col1, col2, col3, col4, col5, col6 = st.columns(6)
+    cols_macro = [col1, col2, col3, col4, col5, col6]
+
+    for i, (label, dados) in enumerate(ativos_macro.items()):
+        fmt_preco = f"{dados['preco']:,.2f}" if dados['preco'] < 1000 else f"{dados['preco']:,.0f}"
+        var_ant = buscar_metrica_rom5(dados["chave_rom5"], rom5)
+        with cols_macro[i]:
+            mini_velocimetro(
+                dados["var"],
+                label,
+                fmt_preco,
+                inverter=dados["inverter"],
+                valor_anterior=var_ant if var_ant != 0.0 else None,
+            )
+
+    st.markdown("---")
+
+
+# ==============================================================================
+# SEÇÃO 2 — CURVA DE JUROS DI
+# ==============================================================================
+@st.fragment(run_every=REFRESH_SEG_MERCADO)
+def _render_secao_2_di():
+    _, _, unificados, _, _, rom5 = carregar_dados_absolutos()
+
+    st.subheader("2. Curva de Juros DI (Pressão sobre o Ibovespa)")
+
+    di = _calc_di(unificados, rom5)
+    val_di_exibicao = di["val_di_exibicao"]
+    val_di_anterior = di["val_di_anterior"]
+
+    impacto_texto = "Pressão Vendedora" if val_di_exibicao > 0 else "Suporte Comprador"
+    status_curva = "Empinamento (Step-up)" if val_di_exibicao > 0 else "Achatamento"
+
+    col_di1, col_di2, col_di3 = st.columns(3)
+
+    with col_di1:
+        inclinacao_normalizada = val_di_exibicao / 10.0
+        mini_velocimetro(
+            inclinacao_normalizada,
+            "📈 Inclinação DI (29 vs 27)",
+            f"{val_di_exibicao:+.1f} bps",
+            inverter=True,
+            valor_anterior=val_di_anterior,
+        )
+
+    with col_di2:
+        st.metric("Status da Curva", status_curva)
+
+    with col_di3:
+        st.metric("Impacto Bolsa", impacto_texto)
+
+    st.markdown("---")
+
+
+# ==============================================================================
+# SEÇÃO 3 — BLUE CHIPS B3 + VIÉS SETORIAL
+# ==============================================================================
+@st.fragment(run_every=REFRESH_SEG_MERCADO)
+def _render_secao_3_blue_chips():
+    decisao_v2, smc_regras, unificados, dados_mt5, dados_val, rom5 = carregar_dados_absolutos()
+    fontes_dados = [unificados, dados_val, dados_mt5, decisao_v2]
+
+    st.subheader("3. Peso das Ações Líderes na B3")
+    st.caption("Variação diária das 7 principais blue chips · 🟢 positivo = compra · 🔴 negativo = venda")
+
+    bc = _calc_blue_chips(fontes_dados, rom5)
+    acoes_b3 = bc["acoes_b3"]
+    vies_commodities = bc["vies_commodities"]
+    vies_bancos = bc["vies_bancos"]
+
     col_a, col_b, col_c, col_d, col_e = st.columns(5)
     cols_acoes = [col_a, col_b, col_c, col_d, col_e]
 
@@ -558,36 +645,9 @@ def render_body():
                 valor_anterior=var_ant if var_ant != 0.0 else None,
             )
 
-    valev3 = acoes_b3["VALE3"]["var"]
-    petr4 = acoes_b3["PETR4"]["var"]
-    itub4 = acoes_b3["ITUB4"]["var"]
-    bbdc4 = acoes_b3["BBDC4"]["var"]
-    bbas3 = acoes_b3["BBAS3"]["var"]
-
-    vies_commodities = (valev3 * 0.55) + (petr4 * 0.45)
-    vies_bancos = (itub4 * 0.45) + (bbdc4 * 0.30) + (bbas3 * 0.25)
-
     st.caption(f"📊 **Viés de Setores:** Commodities (`{vies_commodities:+.2f}%`) | Financeiro/Bancos (`{vies_bancos:+.2f}%`)")
 
     st.markdown("##### 🏭 Viés Setorial Consolidado")
-
-    # ---- Valores ANTERIORES (recalculados a partir do rom-5) ----
-    valev3_ant = buscar_metrica_rom5("VALE3", rom5)
-    petr4_ant = buscar_metrica_rom5("PETR4", rom5)
-    itub4_ant = buscar_metrica_rom5("ITUB4", rom5)
-    bbdc4_ant = buscar_metrica_rom5("BBDC4", rom5)
-    bbas3_ant = buscar_metrica_rom5("BBAS3", rom5)
-
-    tem_dados_setores_ant = any(
-        v != 0.0 for v in [valev3_ant, petr4_ant, itub4_ant, bbdc4_ant, bbas3_ant]
-    )
-
-    if tem_dados_setores_ant:
-        vies_commodities_ant = (valev3_ant * 0.55) + (petr4_ant * 0.45)
-        vies_bancos_ant = (itub4_ant * 0.45) + (bbdc4_ant * 0.30) + (bbas3_ant * 0.25)
-    else:
-        vies_commodities_ant = None
-        vies_bancos_ant = None
 
     col_set1, col_set2 = st.columns(2)
 
@@ -597,7 +657,7 @@ def render_body():
             "⛏️ Commodities (Vale + Petro)",
             f"{vies_commodities:+.2f}%",
             inverter=False,
-            valor_anterior=vies_commodities_ant,
+            valor_anterior=bc["vies_commodities_ant"],
         )
 
     with col_set2:
@@ -606,14 +666,20 @@ def render_body():
             "🏦 Financeiro (Itaú + Bradesco + BB)",
             f"{vies_bancos:+.2f}%",
             inverter=False,
-            valor_anterior=vies_bancos_ant,
+            valor_anterior=bc["vies_bancos_ant"],
         )
 
     st.markdown("---")
 
-    # ==============================================================================
-    # 4. SINAIS TÉCNICOS SMC / ICT
-    # ==============================================================================
+
+# ==============================================================================
+# SEÇÃO 4 — SINAIS TÉCNICOS SMC / ICT (refresh 300s)
+# ==============================================================================
+@st.fragment(run_every=REFRESH_SEG_ENGINE)
+def _render_secao_4_smc():
+    decisao_v2, smc_regras, unificados, dados_mt5, dados_val, rom5 = carregar_dados_absolutos()
+    fontes_dados = [unificados, dados_val, dados_mt5, decisao_v2]
+
     st.subheader("4. Leitura SMC / ICT (Sinais Direcionais)")
 
     col_smc1, col_smc2 = st.columns(2)
@@ -658,10 +724,29 @@ def render_body():
 
     st.markdown("---")
 
-    # ==============================================================================
-    # 5. SCORE INTRADAY UNIFICADO
-    # ==============================================================================
+
+# ==============================================================================
+# SEÇÃO 5 — SCORE OPERACIONAL EM TEMPO REAL
+# ==============================================================================
+@st.fragment(run_every=REFRESH_SEG_MERCADO)
+def _render_secao_5_score():
+    decisao_v2, smc_regras, unificados, dados_mt5, dados_val, rom5 = carregar_dados_absolutos()
+    fontes_dados = [unificados, dados_val, dados_mt5, decisao_v2]
+
     st.subheader("5. Score Operacional em Tempo Real")
+
+    # Recalcula as variáveis que alimentam o score (vêm das seções 1, 2, 3)
+    macro = _calc_macro(fontes_dados, rom5)
+    ativos_macro = macro["ativos_macro"]
+
+    di = _calc_di(unificados, rom5)
+    val_di_exibicao = di["val_di_exibicao"]
+    di27_rom5 = di["di27_rom5"]
+    di29_rom5 = di["di29_rom5"]
+
+    bc = _calc_blue_chips(fontes_dados, rom5)
+    vies_commodities = bc["vies_commodities"]
+    vies_bancos = bc["vies_bancos"]
 
     sp500_var = ativos_macro["S&P 500 Futuro"]["var"]
     ewz_var = ativos_macro["EWZ (B3 em NY)"]["var"]
@@ -684,14 +769,13 @@ def render_body():
     tem_dados_ant = any(v != 0.0 for v in [sp500_var_ant, ewz_var_ant, wdo_var_ant])
 
     if tem_dados_ant:
-        vies_commodities_ant_score = (valev3_ant * 0.55) + (petr4_ant * 0.45)
-        vies_bancos_ant_score = (itub4_ant * 0.45) + (bbdc4_ant * 0.30) + (bbas3_ant * 0.25)
+        vies_commodities_ant_score = bc["vies_commodities_ant"] or 0.0
+        vies_bancos_ant_score = bc["vies_bancos_ant"] or 0.0
 
-        # DI anterior
         if di27_rom5 > 0 and di29_rom5 > 0:
             val_di_ant_pts = (di29_rom5 - di27_rom5) * 100.0
         else:
-            val_di_ant_pts = val_di_exibicao  # fallback
+            val_di_ant_pts = val_di_exibicao
 
         score_anterior = calcular_score_intraday(
             sp500_var=sp500_var_ant,
@@ -724,6 +808,17 @@ def render_body():
             st.error("🔴 **FORTE VIÉS VENDEDOR:** Pressão de Juros/Dólar e queda generalizada nas Blue Chips.")
         else:
             st.warning("🟡 **VIÉS NEUTRO / CONSOLIDADO:** Sinais divergentes. Priorize trades em regiões extremas de Liquidez/FVG.")
+
+
+# ==============================================================================
+# CORPO DA PÁGINA (SEM fragment raiz — cada seção tem o seu)
+# ==============================================================================
+def render_body():
+    _render_secao_1_macro()
+    _render_secao_2_di()
+    _render_secao_3_blue_chips()
+    _render_secao_4_smc()
+    _render_secao_5_score()
 
 
 # ==============================================================================
