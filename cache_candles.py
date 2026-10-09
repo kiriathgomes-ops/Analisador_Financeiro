@@ -9,6 +9,8 @@ Formato: JSON em Coletas/cache/candles_{CONTRATO}_{TF}m.json
 
 Rollover: cache é keyed no contrato real (WINV26). Quando muda, o cache
 antigo é movido para Coletas/cache/_arquivo/ e um novo é criado.
+
+fix88: fetch incremental dinâmico baseado em gap + sanity check pós-merge.
 """
 
 from __future__ import annotations
@@ -29,6 +31,10 @@ BRT = timezone(timedelta(hours=-3))
 MAX_CACHE_POR_TF = 1500
 QTD_REFRESH_INCREMENTAL = 60
 DIAS_RETENCAO = 30
+
+# fix88: thresholds de deteccao de gap
+GAP_MIN_PERMITIDO_MIN = 5     # gap > 5 min = suspeito (1 candle faltando)
+GAP_ALERTA_MIN = 30           # gap > 30 min = forca refresh maior
 
 if sys.platform == "win32":
     try:
@@ -111,41 +117,65 @@ def _salvar_cache(path: Path, contrato: str, tf_min: int, candles: List[Dict]) -
     tmp.replace(path)
 
 
-def _arquivar_cache(path: Path) -> Optional[Path]:
-    if not path.exists():
-        return None
-    ARQUIVO_DIR.mkdir(parents=True, exist_ok=True)
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    destino = ARQUIVO_DIR / f"{path.stem}_{ts}.json"
-    try:
-        shutil.move(str(path), str(destino))
-        print(f"[CACHE] Arquivado: {path.name} -> _arquivo/{destino.name}")
-        return destino
-    except Exception as e:
-        print(f"[CACHE] Falha ao arquivar {path.name}: {e}")
-        return None
-
-
-def _arquivar_contratos_antigos(contrato_atual: str, tf_min: int) -> int:
-    """Move caches de outros contratos da MESMA familia para _arquivo/."""
-    base = _base_symbol(contrato_atual)
-    arquivados = 0
-    if not CACHE_DIR.exists():
-        return 0
-    for arq in CACHE_DIR.glob(f"candles_{base}*_{tf_min}m.json"):
-        if f"_{contrato_atual}_" in arq.name:
-            continue
-        _arquivar_cache(arq)
-        arquivados += 1
-    return arquivados
-
-
 def _merge_candles(antigos: List[Dict], novos: List[Dict]) -> List[Dict]:
     mapa = {c["time"]: c for c in antigos if "time" in c}
     for c in novos:
         if "time" in c:
             mapa[c["time"]] = c
     return sorted(mapa.values(), key=lambda c: c["time"])
+
+
+def _detectar_gaps(candles: List[Dict], tf_min: int) -> List[float]:
+    """
+    fix88: retorna lista de gaps em minutos entre candles consecutivos.
+    Considera gap valido (overnight + fim de semana) como ignorado.
+    """
+    if len(candles) < 2:
+        return []
+
+    gaps = []
+    # Tolerancia: 2x o TF (pega faltando 1 candle)
+    tol = max(tf_min * 2, GAP_MIN_PERMITIDO_MIN)
+
+    for i in range(1, len(candles)):
+        try:
+            t1 = datetime.fromisoformat(candles[i - 1]["time"])
+            t2 = datetime.fromisoformat(candles[i]["time"])
+        except Exception:
+            continue
+
+        delta_min = (t2 - t1).total_seconds() / 60
+
+        if delta_min <= tol:
+            continue
+
+        # Ignora gaps de overnight (>= 12h) e fim de semana (>= 24h)
+        if delta_min >= 12 * 60:
+            continue
+
+        gaps.append(delta_min)
+
+    return gaps
+
+
+def _arquivar_contratos_antigos(contrato_atual: str, tf_min: int) -> int:
+    base = _base_symbol(contrato_atual)
+    if not CACHE_DIR.exists():
+        return 0
+
+    movidos = 0
+    for arq in CACHE_DIR.glob(f"candles_{base}*_{tf_min}m.json"):
+        if contrato_atual in arq.name:
+            continue
+        try:
+            ARQUIVO_DIR.mkdir(parents=True, exist_ok=True)
+            destino = ARQUIVO_DIR / arq.name
+            shutil.move(str(arq), str(destino))
+            movidos += 1
+            print(f"[CACHE] Arquivado: {arq.name}")
+        except Exception as e:
+            print(f"[CACHE] Erro arquivando {arq.name}: {e}")
+    return movidos
 
 
 def _limpar_arquivo_antigo(dias: int = DIAS_RETENCAO) -> int:
@@ -161,6 +191,7 @@ def _limpar_arquivo_antigo(dias: int = DIAS_RETENCAO) -> int:
         except Exception:
             continue
     return removidos
+
 
 def _fetch_mt5(
     simbolo_mt5: str, tf_min: int, qtd: int
@@ -185,6 +216,8 @@ def _obter_com_mt5_aberto(
     """
     Retorna (candles, contrato_real).
     Assume MT5 já inicializado pelo caller.
+
+    fix88: fetch incremental dinamico baseado em gap + sanity check pos-merge.
     """
     import MetaTrader5 as mt5
 
@@ -238,12 +271,37 @@ def _obter_com_mt5_aberto(
             _salvar_cache(path, contrato_real, tf_min, candles)
         return candles, contrato_real
 
-    # Fetch incremental
-    novos = _fetch_mt5(simbolo_mt5, tf_min, QTD_REFRESH_INCREMENTAL)
+    # fix88: fetch incremental DINAMICO baseado no gap entre ultimo candle e agora
+    try:
+        ultimo_cache = datetime.fromisoformat(antigos[-1]["time"])
+        gap_min = max(0.0, (datetime.now(BRT) - ultimo_cache).total_seconds() / 60.0)
+    except Exception:
+        gap_min = 0.0
+
+    # Se gap > QTD_REFRESH_INCREMENTAL, aumenta o fetch pra cobrir
+    qtd_incr = max(QTD_REFRESH_INCREMENTAL, int(gap_min) + 10)
+    qtd_incr = min(qtd_incr, MAX_CACHE_POR_TF)
+
+    if qtd_incr > QTD_REFRESH_INCREMENTAL:
+        print(f"[CACHE] Gap detectado ({gap_min:.0f} min) — fetch {qtd_incr} candles")
+
+    novos = _fetch_mt5(simbolo_mt5, tf_min, qtd_incr)
     if not novos:
         return antigos[-qtd:] if len(antigos) > qtd else antigos, contrato_real
 
     merged = _merge_candles(antigos, novos)
+
+    # fix88: sanity check pos-merge — se ainda tem gaps internos anomalos,
+    # forca refresh total pra limpar o cache.
+    gaps_detectados = _detectar_gaps(merged, tf_min)
+    if gaps_detectados:
+        total_gap = sum(gaps_detectados)
+        print(f"[CACHE] Pós-merge: {len(gaps_detectados)} gaps internos ({total_gap:.0f} min total) — refresh total")
+        candles = _fetch_mt5(simbolo_mt5, tf_min, qtd)
+        if candles:
+            _salvar_cache(path, contrato_real, tf_min, candles)
+            return candles[-qtd:] if len(candles) > qtd else candles, contrato_real
+
     if len(merged) > MAX_CACHE_POR_TF:
         merged = merged[-MAX_CACHE_POR_TF:]
 
