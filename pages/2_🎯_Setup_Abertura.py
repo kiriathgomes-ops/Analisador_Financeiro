@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Módulo: pages/2_🎯_Setup_Abertura.py
-Versão: 8.2 (fragments por aba: pré-market/setup @300s · abertura live @60s)
+Versão: 8.4 (velocímetros Merc Ext / ADRs com range ampliado — 15 / 30)
 Objetivo: Painel unificado de monitoramento de aberturas do pregão (WIN/WDO)
 """
 
@@ -177,9 +177,10 @@ def obter_max_min_vela_10h(win_last):
 
 
 # ==============================================================================
-# MINI VELOCÍMETRO (com parâmetro ESCALA opcional)
+# MINI VELOCÍMETRO (com parâmetros ESCALA e RANGE_MAX)
 # - escala=1.0 → padrão das páginas 3/4/6
-# - escala=2.0 → usado na seção de pressão (Mercado Externo / ADRs)
+# - escala=2.0 → seção de pressão (Mercado Externo / ADRs)
+# - range_max=10.0 → default; use 15.0 (Merc Ext) ou 30.0 (ADRs BR)
 # ==============================================================================
 def mini_velocimetro(
     valor: Optional[float],
@@ -188,33 +189,41 @@ def mini_velocimetro(
     inverter: bool = False,
     valor_anterior: Optional[float] = None,
     escala: float = 1.0,
+    range_max: float = 10.0,
 ) -> None:
-    # ---- Valor atual ----
+    # ---- Valor atual (mostra o valor real, posiciona a agulha no clamp) ----
+    valor_real = None
     if valor is None:
         real_exibicao = 0.0
         cor = "#8b949e"
         texto_valor = "—"
     else:
         try:
-            real_exibicao = max(-10.0, min(10.0, float(valor)))
+            valor_real = float(valor)
         except (TypeError, ValueError):
+            valor_real = None
+        if valor_real is None:
             real_exibicao = 0.0
-        real_cor = -real_exibicao if inverter else real_exibicao
-        if real_cor > 0.05:
-            cor = "#00cc44"
-        elif real_cor < -0.05:
-            cor = "#ff4b4b"
+            cor = "#8b949e"
+            texto_valor = "—"
         else:
-            cor = "#ffa500"
-        texto_valor = f"{real_exibicao:+.2f}%"
+            real_exibicao = max(-range_max, min(range_max, valor_real))
+            real_cor = -real_exibicao if inverter else real_exibicao
+            if real_cor > 0.05:
+                cor = "#00cc44"
+            elif real_cor < -0.05:
+                cor = "#ff4b4b"
+            else:
+                cor = "#ffa500"
+            texto_valor = f"{valor_real:+.2f}%"
 
     # ---- Valor anterior ----
     svg_anterior = ""
     texto_delta = ""
-    if valor_anterior is not None:
+    if valor_anterior is not None and valor_real is not None:
         try:
-            real_ant = max(-10.0, min(10.0, float(valor_anterior)))
-            angulo_ant = (real_ant / 10.0) * 90.0
+            real_ant = max(-range_max, min(range_max, float(valor_anterior)))
+            angulo_ant = (real_ant / range_max) * 90.0
             svg_anterior = (
                 f'<svg class="mini-needle-ant" '
                 f'style="transform: rotate({angulo_ant}deg);" '
@@ -223,7 +232,7 @@ def mini_velocimetro(
                 f'fill="rgba(220, 220, 255, 0.85)"/>'
                 f'</svg>'
             )
-            delta = real_exibicao - real_ant
+            delta = valor_real - float(valor_anterior)
             if abs(delta) < 0.005:
                 texto_delta = "Δ 0.00%"
             else:
@@ -231,7 +240,7 @@ def mini_velocimetro(
         except (TypeError, ValueError):
             pass
 
-    angulo = (real_exibicao / 10.0) * 90.0
+    angulo = (real_exibicao / range_max) * 90.0
 
     # ---- Escala (multiplica todas as dimensões) ----
     s = max(0.5, float(escala))
@@ -261,7 +270,6 @@ def mini_velocimetro(
     delta_mt = 3 * s
     sub_mt = 2 * s
 
-    # Altura do widget HTML (deve caber tudo)
     altura_widget = int(155 * s) if s <= 1.5 else int(150 * s + 30)
 
     html = f"""
@@ -464,8 +472,6 @@ class SetupService:
         self.v2_invalidacao = d2.get("invalidacao")
         self.v2_motivos = d2.get("motivos") or []
 
-        # fix83: opening_scenario agora vive no Decisao_V2.json
-        # (metadados.opening_scenario). Historico_Aberturas fica como fallback.
         cenario = (
             self.decisao_v2_raw.get("decisao", {})
                 .get("metadados", {})
@@ -474,7 +480,6 @@ class SetupService:
             or {}
         )
 
-        # Fallback legado: Historico_Aberturas (fix73/79)
         if not cenario:
             try:
                 from datetime import date as _date
@@ -925,6 +930,7 @@ def render_bloco_operacionais(service: SetupService, rom5: dict):
                 f"Ant {ind_adrs_ant:+.2f}%" if ind_adrs_ant is not None else "",
                 inverter=False,
                 valor_anterior=ind_adrs_ant,
+                range_max=30.0,
             )
         with e3:
             mini_velocimetro(
@@ -932,6 +938,7 @@ def render_bloco_operacionais(service: SetupService, rom5: dict):
                 f"Ant {ind_ext_ant:+.2f}%" if ind_ext_ant is not None else "",
                 inverter=False,
                 valor_anterior=ind_ext_ant,
+                range_max=15.0,
             )
 
         st.caption(ex.get("motivo") or "—")
@@ -969,6 +976,7 @@ def render_bloco_1_filtro_classificacao(service: SetupService, rom5: dict):
             inverter=False,
             valor_anterior=pen_m,
             escala=2.0,
+            range_max=15.0,
         )
         if ind_mercado is not None:
             intensidade = "FORTE_VENDA" if ind_mercado < -4.5 else ("FORTE_COMPRA" if ind_mercado > 4.5 else "MODERADO/LATERAL")
@@ -987,6 +995,7 @@ def render_bloco_1_filtro_classificacao(service: SetupService, rom5: dict):
             inverter=False,
             valor_anterior=pen_a,
             escala=2.0,
+            range_max=30.0,
         )
         if ind_adrs is not None:
             intensidade = "FORTE_COMPRA" if ind_adrs > 4.5 else ("FORTE_VENDA" if ind_adrs < -4.5 else "MODERADO/LATERAL")
@@ -1008,8 +1017,8 @@ def render_bloco_1_filtro_classificacao(service: SetupService, rom5: dict):
 # ==============================================================================
 # CONSTANTES DE REFRESH POR FRAGMENT
 # ==============================================================================
-REFRESH_SEG_DADOS = 300   # 5 min — JSONs do agendador (abas 1 e 2)
-REFRESH_SEG_LIVE  = 60    # 1 min — MT5 / preço ao vivo (aba 3)
+REFRESH_SEG_DADOS = 300
+REFRESH_SEG_LIVE  = 60
 
 
 # ==============================================================================
