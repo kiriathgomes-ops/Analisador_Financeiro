@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
 """
 Módulo: pages/7.1_📊_SMC_Regras.py
-Versão: 4.4 - Candlestick + Zonas SMC + Zoom + Auto-refresh + Rangebreaks
+Versão: 4.5 - Candlestick + Zonas SMC + Zoom + Auto-refresh + Rangebreaks + datetime
 Objetivo: Renderizar estruturas SMC/ICT em gráfico de candles reais (MT5)
          com todas as zonas institucionais sobrepostas.
          Exibe por padrão apenas os últimos N candles (pernadas recentes).
          fix86: rangebreaks removem gaps de tempo fechado (noite + fim de semana).
          fix87: docstring movido pro topo de render_grafico_candles (bug visual).
+         fix89: converte time (str ISO) -> datetime antes de plotar.
+                Plotly NAO aplica rangebreaks em strings — precisa de datetime real.
 """
 
 import streamlit as st
@@ -39,7 +41,7 @@ QTD_CANDLES_POR_TF = {
     15: 20,   # M15: 5h de leitura macro
 }
 OPCOES_CANDLES_POR_TF = {
-    1:  [30, 60, 120, 180, 240],
+    1:  [30, 60, 120, 240, 480, 960],   # M1: agora permite 2 dias (~960 min)
     5:  [30, 60, 100, 150, 200],
     15: [10, 20, 40, 60, 80],
 }
@@ -59,8 +61,26 @@ INTERVALO_REFRESH_MIN = 5
 #   18.5 = 18:30  |  9 = 09:00
 RANGEBREAKS_B3 = [
     dict(bounds=["sat", "mon"]),
+    # fix92: 18.5 = 18:30 (vão visível de ~6 min, invisível na prática)
+    # [18.6] deixava vão de 12 min (pior); [18.5] fecha em ~6 min.
     dict(bounds=[18.5, 9], pattern="hour"),
 ]
+
+
+# ==============================================================================
+# fix89: helper pra converter time (str ISO) -> datetime
+# ==============================================================================
+def _parse_dt(s):
+    """
+    fix90: converte string ISO -> datetime NAIVE (sem tzinfo).
+    Plotly rangebreaks com pattern='hour' nao funciona com datetime aware.
+    """
+    if isinstance(s, datetime):
+        return s.replace(tzinfo=None)
+    try:
+        return datetime.fromisoformat(str(s)).replace(tzinfo=None)
+    except Exception:
+        return s
 
 
 # ==============================================================================
@@ -191,21 +211,32 @@ def render_grafico_candles(
 
     # ---------- Busca candles do MT5 ----------
     # Sempre puxamos 200 para ter contexto, mas exibimos apenas os últimos N
-    candles, simbolo_ok = carregar_candles_mt5("WIN$", timeframe_min, 200)
+    # fix88: fetch dinamico — busca pelo menos o que o usuario quer ver
+    _qtd_fetch = max(200, qtd_visivel + 20)
+    candles, simbolo_ok = carregar_candles_mt5("WIN$", timeframe_min, _qtd_fetch)
+
+    # ---------- fix89: converte time (str ISO) -> datetime ----------
+    # Plotly NAO aplica rangebreaks em strings. Precisa de datetime nativo.
+    for c in candles:
+        c["_dt"] = _parse_dt(c.get("time"))
+    for s in swings:
+        s["_dt"] = _parse_dt(s.get("time"))
+    for e in eventos:
+        e["_dt"] = _parse_dt(e.get("time"))
 
     # ---------- FATIA APENAS AS ÚLTIMAS PERNADAS ----------
     if candles and qtd_visivel and qtd_visivel < len(candles):
         candles = candles[-qtd_visivel:]
 
         # Janela temporal visível (para filtrar swings e eventos fora do range)
-        t_min = candles[0]["time"]
-        t_max = candles[-1]["time"]
+        t_min = candles[0]["_dt"]
+        t_max = candles[-1]["_dt"]
 
-        # Filtra swings que caem dentro da janela visível
-        swings = [s for s in swings if t_min <= str(s.get("time", "")) <= t_max]
+        # Filtra swings que caem dentro da janela visível (datetime vs datetime)
+        swings = [s for s in swings if t_min <= s.get("_dt") <= t_max]
 
         # Filtra eventos (BOS/CHoCH) que caem dentro da janela visível
-        eventos = [e for e in eventos if t_min <= str(e.get("time", "")) <= t_max]
+        eventos = [e for e in eventos if t_min <= e.get("_dt") <= t_max]
 
     fig = go.Figure()
 
@@ -271,7 +302,8 @@ def render_grafico_candles(
 
     # ---------- 2. Candles ----------
     if candles:
-        x_vals = [c["time"] for c in candles]
+        # fix89: usa _dt (datetime) no eixo X — rangebreaks passa a funcionar
+        x_vals = [c["_dt"] for c in candles]
         fig.add_trace(go.Candlestick(
             x=x_vals,
             open=[c["open"] for c in candles],
@@ -295,9 +327,8 @@ def render_grafico_candles(
         x_min, x_max = 0, 1
 
     # ---------- 3. Níveis horizontais ----------
-
     if candles:
-        x_line = [x_min, x_max]
+        x_line = [x_min, x_max]   # datetime (nao string)
     else:
         x_line = [0, 1]
 
@@ -381,7 +412,7 @@ def render_grafico_candles(
 
         if swings_high:
             fig.add_trace(go.Scatter(
-                x=[s["time"] for s in swings_high],
+                x=[s["_dt"] for s in swings_high],
                 y=[s["preco"] for s in swings_high],
                 mode="markers",
                 name="Swing High",
@@ -391,7 +422,7 @@ def render_grafico_candles(
 
         if swings_low:
             fig.add_trace(go.Scatter(
-                x=[s["time"] for s in swings_low],
+                x=[s["_dt"] for s in swings_low],
                 y=[s["preco"] for s in swings_low],
                 mode="markers",
                 name="Swing Low",
@@ -405,8 +436,8 @@ def render_grafico_candles(
             tipo_ev = e.get("tipo", "")
             direcao = e.get("direcao", "")
             preco_ev = e.get("preco")
-            time_ev = e.get("time")
-            if preco_ev is None or time_ev is None:
+            dt_ev = e.get("_dt")
+            if preco_ev is None or dt_ev is None:
                 continue
 
             cor = "#00d4ff" if direcao == "ALTA" else "#ff6b6b"
@@ -414,7 +445,7 @@ def render_grafico_candles(
             label = f"{tipo_ev} {simbolo_seta}"
 
             fig.add_annotation(
-                x=time_ev, y=preco_ev,
+                x=dt_ev, y=preco_ev,
                 text=label,
                 showarrow=True,
                 arrowhead=2,
@@ -458,7 +489,7 @@ def render_grafico_candles(
             showgrid=True,
             gridcolor="#1f2937",
             rangeslider=dict(visible=False),
-            type="date" if candles else "-",
+            type="date",
         ),
         yaxis=dict(
             title="Pontos (WIN)",
@@ -482,8 +513,7 @@ def render_grafico_candles(
         hovermode="x unified",
     )
 
-    # fix86: remove gaps de tempo fechado (overnight + fim de semana)
-    # Assim os candles ficam emendados como no Profit/MT5.
+    # fix86 + fix89: rangebreaks em datetime (o "type: date" acima ajuda)
     fig.update_xaxes(
         rangeslider_visible=False,
         rangebreaks=RANGEBREAKS_B3,
