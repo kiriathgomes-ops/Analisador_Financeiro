@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Módulo: pages/6_📡_Ativos_Monitorados.py
-Versão: 2.5 - Fix race condition + alinhamento ADRs/Mercado (modo condicional)
+Módulo: pages/5_📡_Ativos_Monitorados.py
+Versão: 2.6 - Fragments por seção (KPIs/termômetro/abas @60s, rejeições @300s)
 Objetivo: Dashboard de integridade e monitoramento dos 32 ativos validados do ecossistema.
 """
 
@@ -255,7 +255,11 @@ def mini_velocimetro(
 # ==============================================================================
 # LOADERS DEFENSIVOS
 # ==============================================================================
-def carregar_json_defensivo(caminho):
+@st.cache_data(ttl=2)
+def carregar_json_defensivo(caminho_str: str):
+    """Cache 2s pra evitar I/O duplicado entre fragments do mesmo ciclo."""
+    from pathlib import Path
+    caminho = Path(caminho_str)
     if not caminho.exists():
         return {}
     try:
@@ -265,13 +269,14 @@ def carregar_json_defensivo(caminho):
         return {}
 
 
+@st.cache_data(ttl=2)
 def carregar_rom_dict(nome_arquivo: str) -> dict:
     """
     Lê um Coleta_rom-X.json e devolve {ticker_rom5: change_percent}.
     Suporta formato {"coletas": [...]}.
     """
     caminho = COLETAS_DIR / nome_arquivo
-    dados = carregar_json_defensivo(caminho)
+    dados = carregar_json_defensivo(str(caminho))
     resultado: dict = {}
 
     if isinstance(dados, dict):
@@ -292,6 +297,14 @@ def carregar_rom_dict(nome_arquivo: str) -> dict:
                 except (TypeError, ValueError):
                     continue
     return resultado
+
+
+def _carregar_tudo():
+    """Carrega payload + rom-0 + rom-5 num único ponto (consistência entre fragments)."""
+    payload_validado = carregar_json_defensivo(str(FILE_VALIDADOS))
+    rom0_dict = carregar_rom_dict("Coleta_rom-0.json")
+    rom5_dict = carregar_rom_dict("Coleta_rom-5.json")
+    return payload_validado, rom0_dict, rom5_dict
 
 
 def buscar_valor(ativo_id: str, rom_dict: dict):
@@ -352,16 +365,19 @@ def calcular_media_categoria(ids_categoria, ativos_validados, rom_dict, ignorar_
 
 
 # ==============================================================================
-# CORPO (auto-refresh a cada 60s)
+# CONSTANTES DE REFRESH POR FRAGMENT
 # ==============================================================================
-@st.fragment(run_every=60)
-def render_body():
-    # --- CARGA DOS DADOS (DENTRO do fragment!) ---
-    payload_validado = carregar_json_defensivo(FILE_VALIDADOS)
-    rom0_dict = carregar_rom_dict("Coleta_rom-0.json")   # ATUAL (fix race)
-    rom5_dict = carregar_rom_dict("Coleta_rom-5.json")   # 5min atrás
+REFRESH_SEG_MERCADO = 60     # dados de mercado, rom-0
+REFRESH_SEG_AUDITORIA = 300  # rejeições do Validador (muda com menos frequência)
 
-    # --- CABEÇALHO ---
+
+# ==============================================================================
+# SEÇÃO — CABEÇALHO + KPIs DE SAÚDE
+# ==============================================================================
+@st.fragment(run_every=REFRESH_SEG_MERCADO)
+def _render_cabecalho_kpis():
+    payload_validado, rom0_dict, rom5_dict = _carregar_tudo()
+
     st.markdown(
         "<h2 style='color:#00d4ff;'>📡 Status e Integridade de Ativos Monitorados</h2>",
         unsafe_allow_html=True,
@@ -384,7 +400,6 @@ def render_body():
     total_aprovados = metadata.get("total_aprovados", 0)
     total_rejeitados = metadata.get("total_rejeitados", 0)
 
-    # --- KPIs DE SAÚDE DOS DADOS ---
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Carga Útil Recebida", f"{total_recebidos} ativos")
     c2.metric(
@@ -412,12 +427,20 @@ def render_body():
 
     st.markdown("---")
 
+
+# ==============================================================================
+# SEÇÃO — TERMÔMETRO POR CATEGORIA
+# ==============================================================================
+@st.fragment(run_every=REFRESH_SEG_MERCADO)
+def _render_termometro_categorias():
+    payload_validado, rom0_dict, rom5_dict = _carregar_tudo()
+
+    if not payload_validado:
+        return
+
     ativos_lista = payload_validado.get("ativos_validados", [])
     ordem_categorias = list(CATEGORIAS.keys())
 
-    # ==========================================================================
-    # TERMÔMETRO POR CATEGORIA
-    # ==========================================================================
     st.markdown("### 🌡️ Termômetro de Sentimento por Categoria")
     st.caption(
         "Variação média dos ativos de cada grupo · 🟢 verde = favorável · 🔴 vermelho = pressão · "
@@ -457,6 +480,19 @@ def render_body():
             )
 
     st.markdown("---")
+
+
+# ==============================================================================
+# SEÇÃO — SUB-ABAS POR CATEGORIA (tabelas + gauges)
+# ==============================================================================
+@st.fragment(run_every=REFRESH_SEG_MERCADO)
+def _render_abas_categorias():
+    payload_validado, rom0_dict, rom5_dict = _carregar_tudo()
+
+    if not payload_validado:
+        return
+
+    ativos_lista = payload_validado.get("ativos_validados", [])
 
     # ==========================================================================
     # ORDEM GLOBAL DOS VELOCÍMETROS (fix alinhamento entre abas)
@@ -549,13 +585,11 @@ def render_body():
             if variacoes_para_velocimetro:
                 st.markdown("##### 📊 Sentimento por Ativo")
 
-                # Detecta modo: se >=2 ativos da aba têm slot, usa ALINHADO
                 labels_aba = [item["label"] for item in variacoes_para_velocimetro]
                 tem_algum_slot = [l for l in labels_aba if l in ATIVOS_ALINHADOS]
 
                 if len(tem_algum_slot) >= 2:
                     # ============ MODO ALINHADO (ADRs e Mercado à Vista) ============
-                    # Slot fixo por empresa → mesma posição entre abas
                     _por_label = {item["label"]: item for item in variacoes_para_velocimetro}
                     cols_ativo = st.columns(N_COLS_FIXO)
 
@@ -574,7 +608,6 @@ def render_body():
                             )
                 else:
                     # ============ MODO LEGACY (Mercado Local, Drivers, Commodities) ============
-                    # Sort por |var|, top 6 — comportamento original
                     variacoes_para_velocimetro.sort(key=lambda x: abs(x["valor"]), reverse=True)
                     top = variacoes_para_velocimetro[:6]
                     n_cols = min(len(top), 6)
@@ -600,15 +633,36 @@ def render_body():
             else:
                 st.caption("ℹ️ Nenhum ativo desta categoria foi processado nesta janela de execução.")
 
-    # --- RELATÓRIO DE REJEIÇÕES ---
+
+# ==============================================================================
+# SEÇÃO — RELATÓRIO DE REJEIÇÕES (refresh 300s)
+# ==============================================================================
+@st.fragment(run_every=REFRESH_SEG_AUDITORIA)
+def _render_rejeicoes():
+    payload_validado, _, _ = _carregar_tudo()
+
+    if not payload_validado:
+        return
+
     rejeicoes = payload_validado.get("relatorio_rejeicoes", [])
     if rejeicoes:
+        st.markdown("---")
         st.markdown("### 🚨 Relatório de Ativos Rejeitados / Fora do Ar")
         st.warning(
             "Os ativos abaixo falharam nos testes estritos de integridade quantitativa. "
             "O orquestrador isolou esses campos para proteger a pontuação final de viés."
         )
         st.table(pd.DataFrame(rejeicoes))
+
+
+# ==============================================================================
+# CORPO DA PÁGINA (SEM fragment raiz — cada seção tem o seu)
+# ==============================================================================
+def render_body():
+    _render_cabecalho_kpis()
+    _render_termometro_categorias()
+    _render_abas_categorias()
+    _render_rejeicoes()
 
 
 # ==============================================================================
