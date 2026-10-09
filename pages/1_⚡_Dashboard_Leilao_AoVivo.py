@@ -7,6 +7,8 @@
 #   - Abertura do LEILÃO (OCR via LeilaoService)
 #
 # Contexto macro + SMC + veredito operacional.
+#
+# v3.1 — Fragments por seção + votos do veredito coloridos
 # ============================================================
 
 import streamlit as st
@@ -42,7 +44,9 @@ st.markdown("Monitoramento em tempo real do preço teórico, fluxo de ordens e c
 # Helpers de carregamento
 # ------------------------------------------------------------
 
-def carregar_json(caminho: Path) -> dict:
+@st.cache_data(ttl=2)
+def carregar_json(caminho_str: str) -> dict:
+    caminho = Path(caminho_str)
     if not caminho.exists():
         return {}
     try:
@@ -60,7 +64,7 @@ def carregar_estimativa_calculada() -> dict:
       - preco_referencia_base: preço usado como base
       - variacao_teorica_pct: variação aplicada
     """
-    dados = carregar_json(ARQUIVO_JSON_ESTIMATIVA)
+    dados = carregar_json(str(ARQUIVO_JSON_ESTIMATIVA))
     est = (
         dados.get("estimativa_abertura", {}).get("WIN_INDICE")
         or dados.get("estimativas_abertura", {}).get("WIN_INDICE")
@@ -137,27 +141,29 @@ def carregar_historico_csv_recente(limite: int = 15) -> pd.DataFrame:
 
 
 # ------------------------------------------------------------
-# Fragmento em tempo real
+# Helpers de cálculo (compartilhados entre fragments)
 # ------------------------------------------------------------
 
-@st.fragment(run_every=1)
-def renderizar_dashboard_tempo_real():
-    # ---- Carrega dados ----
-    macro_data = carregar_json(ARQUIVO_JSON_MACRO).get("ativos", {})
-    smc_data = carregar_json(ARQUIVO_JSON_SMC)
-    smc_mtf = carregar_json(ARQUIVO_JSON_MTF)
+def _carregar_dados_base() -> dict:
+    """Carrega todos os dados-base num único ponto (consistência entre fragments)."""
+    macro_data = carregar_json(str(ARQUIVO_JSON_MACRO)).get("ativos", {})
+    smc_data = carregar_json(str(ARQUIVO_JSON_SMC))
+    smc_mtf = carregar_json(str(ARQUIVO_JSON_MTF))
     estimativa_calc = carregar_estimativa_calculada()
     leilao = carregar_leilao_ocr()
+    return {
+        "macro_data": macro_data,
+        "smc_data": smc_data,
+        "smc_mtf": smc_mtf,
+        "estimativa_calc": estimativa_calc,
+        "leilao": leilao,
+    }
 
-    # ---- Valores de referência ----
-    win_ajuste = macro_data.get("WIN_AJUSTE", {}).get("preco", 0)
-    win_fechamento = macro_data.get("WIN_LAST_TICK", {}).get("preco", 0)
-    poc_ontem = smc_data.get("niveis_institucionais", {}).get("poc_ontem", 0)
-    vies_smc = smc_data.get("bias_direcional", "NEUTRO")
 
-    # ---- Viés macro (simples) ----
-    ewz_var = macro_data.get("EWZ", {}).get("variacao_pct", 0)
-    sp500_var = macro_data.get("SP500_FUT", {}).get("variacao_pct", 0)
+def _calc_vies_macro(macro_data: dict) -> tuple:
+    """Retorna (score_macro, vies_macro_str)."""
+    ewz_var = macro_data.get("EWZ", {}).get("variacao_pct", 0) or 0
+    sp500_var = macro_data.get("SP500_FUT", {}).get("variacao_pct", 0) or 0
     score_macro = ((ewz_var * 2) + sp500_var) / 3
     if score_macro > 0.3:
         vies_macro = "ALTA 🟢"
@@ -165,14 +171,55 @@ def renderizar_dashboard_tempo_real():
         vies_macro = "BAIXA 🔴"
     else:
         vies_macro = "NEUTRO 🟡"
+    return score_macro, vies_macro
 
-    # ---- Valores das duas aberturas ----
-    abertura_leilao = float(leilao.get("preco") or 0.0)
-    abertura_calculada = float(estimativa_calc.get("abertura_teorica") or 0.0)
 
-    # ------------------------------------------------------------
-    # SEÇÃO 1 — Duas aberturas LADO A LADO
-    # ------------------------------------------------------------
+def _calc_aberturas(dados: dict) -> dict:
+    """Retorna dict com win_ajuste, abertura_leilao, abertura_calculada."""
+    macro_data = dados["macro_data"]
+    win_ajuste = macro_data.get("WIN_AJUSTE", {}).get("preco", 0) or 0
+    abertura_leilao = float((dados["leilao"].get("preco") or 0.0))
+    abertura_calculada = float(dados["estimativa_calc"].get("abertura_teorica") or 0.0)
+    return {
+        "win_ajuste": win_ajuste,
+        "abertura_leilao": abertura_leilao,
+        "abertura_calculada": abertura_calculada,
+    }
+
+
+def _cor_voto(direcao: str) -> str:
+    """Cor do voto: COMPRA=verde, VENDA=vermelho, NEUTRO=cinza."""
+    if direcao == "COMPRA":
+        return "#22c55e"
+    if direcao == "VENDA":
+        return "#ef4444"
+    return "#a3a3a3"
+
+
+# ------------------------------------------------------------
+# CONSTANTES DE REFRESH POR FRAGMENT
+# ------------------------------------------------------------
+REFRESH_SEG_LEILAO   = 5     # aberturas OCR — coração ao vivo
+REFRESH_SEG_VEREDITO = 60    # veredito operacional
+REFRESH_SEG_MACRO    = 300   # macro/SMC/MTF (engine V2 atualiza com menos frequência)
+REFRESH_SEG_HIST     = 60    # histórico CSV
+
+
+# ------------------------------------------------------------
+# FRAGMENT 1 — Aberturas Teóricas lado a lado (5s)
+# ------------------------------------------------------------
+
+@st.fragment(run_every=REFRESH_SEG_LEILAO)
+def _render_aberturas_teoricas():
+    dados = _carregar_dados_base()
+    ab = _calc_aberturas(dados)
+
+    win_ajuste = ab["win_ajuste"]
+    abertura_leilao = ab["abertura_leilao"]
+    abertura_calculada = ab["abertura_calculada"]
+    estimativa_calc = dados["estimativa_calc"]
+    leilao = dados["leilao"]
+
     st.markdown("## 💰 Aberturas Teóricas (Lado a Lado)")
 
     col_calc, col_leilao = st.columns(2)
@@ -233,9 +280,30 @@ def renderizar_dashboard_tempo_real():
 
     st.markdown("---")
 
-    # ------------------------------------------------------------
-    # SEÇÃO 2 — Métricas principais
-    # ------------------------------------------------------------
+
+# ------------------------------------------------------------
+# FRAGMENT 2 — Métricas + Macro/SMC/MTF (300s)
+# ------------------------------------------------------------
+
+@st.fragment(run_every=REFRESH_SEG_MACRO)
+def _render_metricas_contexto():
+    dados = _carregar_dados_base()
+    ab = _calc_aberturas(dados)
+
+    macro_data = dados["macro_data"]
+    smc_data = dados["smc_data"]
+    smc_mtf = dados["smc_mtf"]
+
+    win_ajuste = ab["win_ajuste"]
+    abertura_leilao = ab["abertura_leilao"]
+    abertura_calculada = ab["abertura_calculada"]
+
+    win_fechamento = macro_data.get("WIN_LAST_TICK", {}).get("preco", 0) or 0
+    poc_ontem = smc_data.get("niveis_institucionais", {}).get("poc_ontem", 0) or 0
+    vies_smc = smc_data.get("bias_direcional", "NEUTRO")
+    score_macro, vies_macro = _calc_vies_macro(macro_data)
+
+    # ---- Métricas principais ----
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
@@ -250,148 +318,175 @@ def renderizar_dashboard_tempo_real():
 
     st.markdown("---")
 
-    # ------------------------------------------------------------
-    # SEÇÃO 3 — Contexto e Veredito
-    # ------------------------------------------------------------
-    c_left, c_right = st.columns([1, 2])
+    # ---- Contexto Macro / SMC / MTF ----
+    st.subheader("🌐 Contexto Macro / SMC")
+    st.info(f"**Viés Macro:** {vies_macro}")
+    st.info(f"**Viés Estrutural SMC:** {vies_smc}")
+    st.text(f"Score Macro: {score_macro:+.3f}")
 
-    with c_left:
-        st.subheader("🌐 Contexto Macro / SMC")
-        st.info(f"**Viés Macro:** {vies_macro}")
-        st.info(f"**Viés Estrutural SMC:** {vies_smc}")
-        st.text(f"Score Macro: {score_macro:+.3f}")
+    # ---------- MTF: contexto multi-timeframe (fix32) ----------
+    _conf_mtf = (smc_mtf or {}).get("confluencia") or {}
+    if _conf_mtf:
+        _ver = _conf_mtf.get("veredito_mtf") or "—"
+        _dir = _conf_mtf.get("direcao_dominante") or "—"
+        _rac = _conf_mtf.get("racional") or ""
+        _b15 = _conf_mtf.get("bias_m15") or "—"
+        _b5 = _conf_mtf.get("bias_m5") or "—"
+        _b1 = _conf_mtf.get("bias_m1") or "—"
+        _c15 = _conf_mtf.get("confianca_m15")
+        _c5 = _conf_mtf.get("confianca_m5")
+        _c1 = _conf_mtf.get("confianca_m1")
 
-        # ---------- MTF: contexto multi-timeframe (fix32) ----------
-        _conf_mtf = (smc_mtf or {}).get("confluencia") or {}
-        if _conf_mtf:
-            _ver = _conf_mtf.get("veredito_mtf") or "—"
-            _dir = _conf_mtf.get("direcao_dominante") or "—"
-            _rac = _conf_mtf.get("racional") or ""
-            _b15 = _conf_mtf.get("bias_m15") or "—"
-            _b5 = _conf_mtf.get("bias_m5") or "—"
-            _b1 = _conf_mtf.get("bias_m1") or "—"
-            _c15 = _conf_mtf.get("confianca_m15")
-            _c5 = _conf_mtf.get("confianca_m5")
-            _c1 = _conf_mtf.get("confianca_m1")
+        st.markdown("#### 🧭 Multi-Timeframe (M15 / M5 / M1)")
 
-            st.markdown("#### 🧭 Multi-Timeframe (M15 / M5 / M1)")
+        def _cor_bias(_b):
+            _s = str(_b or "").upper()
+            if "ALTA" in _s or "COMPRA" in _s or "BULL" in _s:
+                return "#22c55e"
+            if "BAIXA" in _s or "VENDA" in _s or "BEAR" in _s:
+                return "#ef4444"
+            return "#a3a3a3"
 
-            def _cor_bias(_b):
-                _s = str(_b or "").upper()
-                if "ALTA" in _s or "COMPRA" in _s or "BULL" in _s:
-                    return "#22c55e"
-                if "BAIXA" in _s or "VENDA" in _s or "BEAR" in _s:
-                    return "#ef4444"
-                return "#a3a3a3"
+        def _card_bias(col, label, bias, conf):
+            _cor = _cor_bias(bias)
+            _conf = f"{conf}%" if conf is not None else "—"
+            with col:
+                st.markdown(
+                    f"<div style='padding:10px 14px;border-radius:8px;"
+                    f"background:rgba(255,255,255,0.03);"
+                    f"border-left:3px solid {_cor};'>"
+                    f"<div style='font-size:0.85rem;color:#9ca3af;'>{label}</div>"
+                    f"<div style='font-size:1.5rem;font-weight:700;color:{_cor};"
+                    f"line-height:1.2;margin-top:2px;'>{bias}</div>"
+                    f"<div style='font-size:0.8rem;color:#6b7280;margin-top:2px;'>"
+                    f"Confiança: {_conf}</div></div>",
+                    unsafe_allow_html=True,
+                )
 
-            def _card_bias(col, label, bias, conf):
-                _cor = _cor_bias(bias)
-                _conf = f"{conf}%" if conf is not None else "—"
-                with col:
-                    st.markdown(
-                        f"<div style='padding:10px 14px;border-radius:8px;"
-                        f"background:rgba(255,255,255,0.03);"
-                        f"border-left:3px solid {_cor};'>"
-                        f"<div style='font-size:0.85rem;color:#9ca3af;'>{label}</div>"
-                        f"<div style='font-size:1.5rem;font-weight:700;color:{_cor};"
-                        f"line-height:1.2;margin-top:2px;'>{bias}</div>"
-                        f"<div style='font-size:0.8rem;color:#6b7280;margin-top:2px;'>"
-                        f"Confiança: {_conf}</div></div>",
-                        unsafe_allow_html=True,
-                    )
+        _ccols = st.columns(3)
+        _card_bias(_ccols[0], "M15 (macro)", _b15, _c15)
+        _card_bias(_ccols[1], "M5 (médio)", _b5, _c5)
+        _card_bias(_ccols[2], "M1 (micro)", _b1, _c1)
 
-            _ccols = st.columns(3)
-            _card_bias(_ccols[0], "M15 (macro)", _b15, _c15)
-            _card_bias(_ccols[1], "M5 (médio)", _b5, _c5)
-            _card_bias(_ccols[2], "M1 (micro)", _b1, _c1)
+        _msg = f"**{_ver}** — direção dominante: `{_dir}`"
+        if _rac:
+            _msg += f"\n\n{_rac}"
 
-            _msg = f"**{_ver}** — direção dominante: `{_dir}`"
-            if _rac:
-                _msg += f"\n\n{_rac}"
+        if _ver == "ALINHADO_FORTE":
+            st.success(_msg)
+        elif _ver in ("REVERSAO_MICRO_MEDIO", "CONFLITO_MACRO"):
+            st.warning(_msg)
+        elif _ver == "DIVERGENTE":
+            st.error(_msg)
+        else:
+            st.info(_msg)
+    # ---------- fim MTF ----------
 
-            if _ver == "ALINHADO_FORTE":
-                st.success(_msg)
-            elif _ver in ("REVERSAO_MICRO_MEDIO", "CONFLITO_MACRO"):
-                st.warning(_msg)
-            elif _ver == "DIVERGENTE":
-                st.error(_msg)
-            else:
-                st.info(_msg)
-        # ---------- fim MTF ----------
+    st.markdown("---")
 
-    with c_right:
-        st.subheader("🎯 Veredito Operacional (Confluência)")
 
-        # Usa o preço do LEILÃO como base (mais realista)
-        preco_ref = abertura_leilao if abertura_leilao > 0 else abertura_calculada
-        gap_ajuste = preco_ref - win_ajuste if win_ajuste > 0 and preco_ref > 0 else 0
+# ------------------------------------------------------------
+# FRAGMENT 3 — Veredito Operacional (60s)
+# ------------------------------------------------------------
 
-        # ---- Normaliza direções pra COMPRA / VENDA / NEUTRO ----
-        def normalizar(v: str) -> str:
-            if not v:
-                return "NEUTRO"
-            s = str(v).upper()
-            if "ALTA" in s or "COMPRA" in s or "BULL" in s:
-                return "COMPRA"
-            if "BAIXA" in s or "VENDA" in s or "BEAR" in s:
-                return "VENDA"
+@st.fragment(run_every=REFRESH_SEG_VEREDITO)
+def _render_veredito():
+    dados = _carregar_dados_base()
+    ab = _calc_aberturas(dados)
+
+    macro_data = dados["macro_data"]
+    smc_data = dados["smc_data"]
+
+    win_ajuste = ab["win_ajuste"]
+    abertura_leilao = ab["abertura_leilao"]
+    abertura_calculada = ab["abertura_calculada"]
+
+    vies_smc = smc_data.get("bias_direcional", "NEUTRO")
+    _, vies_macro = _calc_vies_macro(macro_data)
+
+    st.subheader("🎯 Veredito Operacional (Confluência)")
+
+    # Usa o preço do LEILÃO como base (mais realista)
+    preco_ref = abertura_leilao if abertura_leilao > 0 else abertura_calculada
+    gap_ajuste = preco_ref - win_ajuste if win_ajuste > 0 and preco_ref > 0 else 0
+
+    # ---- Normaliza direções pra COMPRA / VENDA / NEUTRO ----
+    def normalizar(v: str) -> str:
+        if not v:
             return "NEUTRO"
+        s = str(v).upper()
+        if "ALTA" in s or "COMPRA" in s or "BULL" in s:
+            return "COMPRA"
+        if "BAIXA" in s or "VENDA" in s or "BEAR" in s:
+            return "VENDA"
+        return "NEUTRO"
 
-        dir_macro = normalizar(vies_macro)
-        dir_smc = normalizar(vies_smc)
-        dir_gap = "COMPRA" if gap_ajuste > 100 else "VENDA" if gap_ajuste < -100 else "NEUTRO"
+    dir_macro = normalizar(vies_macro)
+    dir_smc = normalizar(vies_smc)
+    dir_gap = "COMPRA" if gap_ajuste > 100 else "VENDA" if gap_ajuste < -100 else "NEUTRO"
 
-        # ---- Conta votos ----
-        votos = {"COMPRA": 0, "VENDA": 0, "NEUTRO": 0}
-        votos[dir_macro] += 1
-        votos[dir_smc] += 1
-        votos[dir_gap] += 1
+    # ---- Conta votos ----
+    votos = {"COMPRA": 0, "VENDA": 0, "NEUTRO": 0}
+    votos[dir_macro] += 1
+    votos[dir_smc] += 1
+    votos[dir_gap] += 1
 
-        # ---- Renderiza os 3 contextos ----
-        st.markdown(
-            f"**Macro:** `{dir_macro}` &nbsp;&nbsp; "
-            f"**SMC:** `{dir_smc}` &nbsp;&nbsp; "
-            f"**Gap Leilão:** `{dir_gap}` ({gap_ajuste:+.0f} pts)"
+    # ---- Renderiza os 3 contextos (votos coloridos) ----
+    _cor_macro = _cor_voto(dir_macro)
+    _cor_smc = _cor_voto(dir_smc)
+    _cor_gap = _cor_voto(dir_gap)
+
+    st.markdown(
+        f"**Macro:** <span style='color:{_cor_macro};font-weight:700;'>{dir_macro}</span>"
+        f" &nbsp;&nbsp; "
+        f"**SMC:** <span style='color:{_cor_smc};font-weight:700;'>{dir_smc}</span>"
+        f" &nbsp;&nbsp; "
+        f"**Gap Leilão:** <span style='color:{_cor_gap};font-weight:700;'>{dir_gap}</span>"
+        f" ({gap_ajuste:+.0f} pts)",
+        unsafe_allow_html=True,
+    )
+
+    # ---- Veredito por confluência ----
+    if preco_ref <= 0:
+        st.warning("⏳ Aguardando captura válida do preço teórico...")
+
+    elif votos["COMPRA"] == 3:
+        st.success(
+            "### 🟢 COMPRA A MERCADO\n"
+            "**Confluência total:** Macro + SMC + Gap alinhados em ALTA."
         )
 
-        # ---- Veredito por confluência ----
-        if preco_ref <= 0:
-            st.warning("⏳ Aguardando captura válida do preço teórico...")
+    elif votos["VENDA"] == 3:
+        st.error(
+            "### 🔴 VENDA A MERCADO\n"
+            "**Confluência total:** Macro + SMC + Gap alinhados em BAIXA."
+        )
 
-        elif votos["COMPRA"] == 3:
-            st.success(
-                "### 🟢 COMPRA A MERCADO\n"
-                "**Confluência total:** Macro + SMC + Gap alinhados em ALTA."
-            )
+    elif votos["COMPRA"] == 2:
+        st.info(
+            "### 🟡 COMPRA MODERADA\n"
+            "2 de 3 contextos em ALTA. Reduza tamanho ou aguarde confirmação."
+        )
 
-        elif votos["VENDA"] == 3:
-            st.error(
-                "### 🔴 VENDA A MERCADO\n"
-                "**Confluência total:** Macro + SMC + Gap alinhados em BAIXA."
-            )
+    elif votos["VENDA"] == 2:
+        st.info(
+            "### 🟡 VENDA MODERADA\n"
+            "2 de 3 contextos em BAIXA. Reduza tamanho ou aguarde confirmação."
+        )
 
-        elif votos["COMPRA"] == 2:
-            st.info(
-                "### 🟡 COMPRA MODERADA\n"
-                "2 de 3 contextos em ALTA. Reduza tamanho ou aguarde confirmação."
-            )
+    else:
+        st.warning(
+            "### ⚠️ NEUTRO / FINTA\n"
+            "Contextos divergentes. **Fique de fora** até alinhamento."
+        )
 
-        elif votos["VENDA"] == 2:
-            st.info(
-                "### 🟡 VENDA MODERADA\n"
-                "2 de 3 contextos em BAIXA. Reduza tamanho ou aguarde confirmação."
-            )
 
-        else:
-            st.warning(
-                "### ⚠️ NEUTRO / FINTA\n"
-                "Contextos divergentes. **Fique de fora** até alinhamento."
-            )
-                    
-    # ------------------------------------------------------------
-    # SEÇÃO 4 — Histórico recente do CSV
-    # ------------------------------------------------------------
-    st.markdown("---")
+# ------------------------------------------------------------
+# FRAGMENT 4 — Histórico CSV de capturas (60s)
+# ------------------------------------------------------------
+
+@st.fragment(run_every=REFRESH_SEG_HIST)
+def _render_historico_csv():
     st.subheader("📜 Histórico Recente de Capturas do Leilão")
 
     df_historico = carregar_historico_csv_recente(limite=15)
@@ -401,5 +496,17 @@ def renderizar_dashboard_tempo_real():
         st.info("O arquivo CSV será exibido assim que a coleta iniciar.")
 
 
-# Executa o bloco em tempo real
-renderizar_dashboard_tempo_real()
+# ------------------------------------------------------------
+# CORPO DA PÁGINA (sem fragment raiz — cada seção tem o seu)
+# ------------------------------------------------------------
+
+def render_body():
+    _render_aberturas_teoricas()
+    _render_metricas_contexto()
+    _render_veredito()
+    st.markdown("---")
+    _render_historico_csv()
+
+
+# Executa
+render_body()
