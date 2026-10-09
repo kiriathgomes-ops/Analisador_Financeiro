@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Módulo: pages/3.2_⚡_Monitor_Abertura_Leilao_V3.2.py
-Versão: 3.6.0 - Monitor de Leilão + Termômetro + Auto-refresh (60s)
+Módulo: pages/3_⚡_Monitor_Abertura_Leilao.py
+Versão: 3.7.0 - Monitor de Leilão + Termômetro + Fragments por seção
 Objetivo: Monitorar formação de preço, leilão, fluxo institucional externo e spreads de arbitragem B3 vs ADRs.
 """
 
@@ -31,7 +31,6 @@ st.set_page_config(
 # ==============================================================================
 
 # ✅ Direto: Ação B3 → chave do ADR no unificado/rom-5
-
 
 
 # ==============================================================================
@@ -331,24 +330,34 @@ def renderizar_cartao_futuro(titulo: str, data_ativo: dict, eh_dolar: bool = Fal
 
 
 # ==============================================================================
-# CORPO DA PÁGINA (AUTO-REFRESH 60s)
+# CONSTANTES DE REFRESH POR FRAGMENT
 # ==============================================================================
-@st.fragment(run_every=60)
-def render_body():
+REFRESH_SEG_DADOS = 300   # 5 min — JSONs do agendador (métricas, rom5, V2)
+REFRESH_SEG_LIVE  = 60    # 1 min — MT5 e spreads (sensível durante leilão)
+
+
+# ==============================================================================
+# CABEÇALHO (timestamp do último snapshot MT5 · refresh 60s)
+# ==============================================================================
+@st.fragment(run_every=REFRESH_SEG_LIVE)
+def _render_cabecalho():
     dados_mt5 = carregar_json_defensivo(FILE_MT5_V2)
-    dados_unificados = carregar_json_defensivo(FILE_UNIFICADO)
-    dados_v2 = carregar_json_defensivo(FILE_DECISAO_V2)
+    timestamp_snapshot = dados_mt5.get('timestamp', 'N/A')
+    st.markdown("<h2 style='color:#00d4ff;'>⚡ Monitor de Abertura e Leilão B3</h2>", unsafe_allow_html=True)
+    st.caption(
+        f"Último snapshot capturado pelo pipeline: `{timestamp_snapshot}` · "
+        f"auto-refresh: 60s (MT5) / 300s (macro) · ⚪ ponteiro branco = valor de 5 min atrás"
+    )
+
+
+# ==============================================================================
+# SEÇÃO 0 — TERMÔMETRO DE FLUXO ESTRANGEIRO (refresh 300s)
+# ==============================================================================
+@st.fragment(run_every=REFRESH_SEG_DADOS)
+def _render_secao_termometro():
     dados_metricas = carregar_json_defensivo(FILE_METRICAS)
     rom5 = carregar_rom5()
 
-    st.markdown("<h2 style='color:#00d4ff;'>⚡ Monitor de Abertura e Leilão B3</h2>", unsafe_allow_html=True)
-    timestamp_snapshot = dados_mt5.get('timestamp', 'N/A')
-    st.caption(
-        f"Último snapshot capturado pelo pipeline: `{timestamp_snapshot}` · "
-        f"auto-refresh: 60s · ⚪ ponteiro branco = valor de 5 min atrás"
-    )
-
-    # --- SEÇÃO 0: TERMÔMETRO DE FLUXO ESTRANGEIRO ---
     st.markdown("### 🏦 Termômetro Estatístico de Fluxo Estrangeiro")
     st.caption("Ponteiro centrado em zero · 🟢 positivo = favorável ao risco · 🔴 negativo = aversão ao risco")
 
@@ -413,7 +422,14 @@ def render_body():
 
     st.markdown("---")
 
-    # --- SEÇÃO 1: WIN E WDO ---
+
+# ==============================================================================
+# SEÇÃO 1 — STATUS DOS CONTRATOS VIGENTES (WIN/WDO · refresh 60s)
+# ==============================================================================
+@st.fragment(run_every=REFRESH_SEG_LIVE)
+def _render_secao_contratos():
+    dados_mt5 = carregar_json_defensivo(FILE_MT5_V2)
+
     st.markdown("### 📊 Status dos Contratos Vigentes")
 
     ativos_mt5 = dados_mt5.get("ativos", {})
@@ -428,7 +444,15 @@ def render_body():
 
     st.markdown("---")
 
-    # --- SEÇÃO 2: ARBITRAGEM ---
+
+# ==============================================================================
+# SEÇÃO 2 — ARBITRAGEM B3 vs ADRs (refresh 60s)
+# ==============================================================================
+@st.fragment(run_every=REFRESH_SEG_LIVE)
+def _render_secao_arbitragem():
+    dados_unificados = carregar_json_defensivo(FILE_UNIFICADO)
+    rom5 = carregar_rom5()
+
     st.markdown("### 🏦 Leilão do Mercado à Vista vs ADRs (Arbitragem)")
     st.caption("Análise de descasamento e spread para abertura das ações às 10:00h")
 
@@ -488,8 +512,16 @@ def render_body():
                     valor_anterior=spread_ant,
                 )
 
-    # --- SEÇÃO 3: TRAVA DE RISCO ---
     st.markdown("---")
+
+
+# ==============================================================================
+# SEÇÃO 3 — TRAVA DE RISCO V2 + NOTA (refresh 300s)
+# ==============================================================================
+@st.fragment(run_every=REFRESH_SEG_DADOS)
+def _render_secao_risco():
+    dados_v2 = carregar_json_defensivo(FILE_DECISAO_V2)
+
     st.markdown("### 🛡️ Alinhamento de Risco do Orquestrador V2")
 
     decisao_data = dados_v2.get("decisao", {})
@@ -508,9 +540,19 @@ def render_body():
         else:
             st.success("🟢 Zero travas quantitativas ou riscos extremos reportados pelo Orquestrador V2.")
 
-    # --- SEÇÃO 4: NOTA ---
     st.markdown("---")
     st.markdown("💡 **Nota de Trading:** Grandes descolamentos (maiores que ±0.50%) em papéis de alta liquidez como VALE3 e PETR4 costumam ser fechados rapidamente por robôs de arbitragem institucionais de alta frequência nas primeiras horas do pregão à vista brasileiro.")
+
+
+# ==============================================================================
+# CORPO DA PÁGINA (SEM fragment raiz — cada seção tem o seu)
+# ==============================================================================
+def render_body():
+    _render_cabecalho()
+    _render_secao_termometro()
+    _render_secao_contratos()
+    _render_secao_arbitragem()
+    _render_secao_risco()
 
 
 render_body()
