@@ -1,14 +1,11 @@
 # -*- coding: utf-8 -*-
 """
 Módulo: pages/7.1_📊_SMC_Regras.py
-Versão: 4.5 - Candlestick + Zonas SMC + Zoom + Auto-refresh + Rangebreaks + datetime
+Versão: 4.6 - Candlestick + Zonas SMC + Rangebreaks + Refresh por TF
 Objetivo: Renderizar estruturas SMC/ICT em gráfico de candles reais (MT5)
          com todas as zonas institucionais sobrepostas.
-         Exibe por padrão apenas os últimos N candles (pernadas recentes).
-         fix86: rangebreaks removem gaps de tempo fechado (noite + fim de semana).
-         fix87: docstring movido pro topo de render_grafico_candles (bug visual).
-         fix89: converte time (str ISO) -> datetime antes de plotar.
-                Plotly NAO aplica rangebreaks em strings — precisa de datetime real.
+         fix86/89/90/91/92: rangebreaks emendam overnight + fim de semana.
+         fix93: refresh independente por TF (M1=60s, M5/M15=300s) via st.fragment.
 """
 
 import streamlit as st
@@ -19,56 +16,46 @@ from datetime import datetime
 
 from config import FILE_SMC_REGRAS
 
-# 🔄 Auto-refresh (instalar: pip install streamlit-autorefresh)
-try:
-    from streamlit_autorefresh import st_autorefresh
-    AUTOREFRESH_DISPONIVEL = True
-except ImportError:
-    AUTOREFRESH_DISPONIVEL = False
-
 
 # ==============================================================================
-# CONFIGURAÇÕES DE VISUALIZAÇÃO (AJUSTE AQUI O PADRÃO)
+# CONFIGURAÇÕES DE VISUALIZAÇÃO
 # ==============================================================================
-QTD_CANDLES_PADRAO = 30              # Padrão (compat M5): 30 candles (~2.5h)
+QTD_CANDLES_PADRAO = 30
 OPCOES_CANDLES = [30, 60, 100, 150, 200]
 
-# Defaults por timeframe (fix40 — multi-TF visual)
-# chave = timeframe em minutos; valor = quantidade de candles inicial
 QTD_CANDLES_POR_TF = {
-    1:  60,   # M1:  1h de leitura micro
-    5:  30,   # M5:  2.5h (mantém o atual)
-    15: 20,   # M15: 5h de leitura macro
+    1:  60,
+    5:  30,
+    15: 20,
 }
 OPCOES_CANDLES_POR_TF = {
-    1:  [30, 60, 120, 240, 480, 960],   # M1: agora permite 2 dias (~960 min)
+    1:  [30, 60, 120, 240, 480, 960],
     5:  [30, 60, 100, 150, 200],
     15: [10, 20, 40, 60, 80],
 }
 
-# Intervalo do auto-refresh em minutos (alinhado com Agendador.py)
-INTERVALO_REFRESH_MIN = 5
+# fix93: intervalo de refresh por TF (em segundos)
+# M1 atualiza a cada minuto; M5/M15 a cada 5 min (alinhado com o Agendador)
+REFRESH_SEG_POR_TF = {
+    1:  60,    # 1 min
+    5:  300,   # 5 min
+    15: 300,   # 5 min
+}
 
 
 # ==============================================================================
-# fix86: RANGEBREAKS — remove gaps de tempo fechado
+# fix86/90/91/92: RANGEBREAKS — remove gaps de tempo fechado
 # ==============================================================================
-# Pregão B3 WIN: 09:00 → 18:30 (BRT). Fim de semana: sábado + domingo.
-# Aplicado no eixo X pra emendar os candles como no Profit/MT5.
-#
 # bounds=["sat", "mon"]      → esconde sábado 00:00 até segunda 00:00
 # bounds=[18.5, 9] em horas  → esconde de 18:30 até 09:00 (overnight)
-#   18.5 = 18:30  |  9 = 09:00
 RANGEBREAKS_B3 = [
     dict(bounds=["sat", "mon"]),
-    # fix92: 18.5 = 18:30 (vão visível de ~6 min, invisível na prática)
-    # [18.6] deixava vão de 12 min (pior); [18.5] fecha em ~6 min.
     dict(bounds=[18.5, 9], pattern="hour"),
 ]
 
 
 # ==============================================================================
-# fix89: helper pra converter time (str ISO) -> datetime
+# fix90: helper pra converter time (str ISO) -> datetime naive
 # ==============================================================================
 def _parse_dt(s):
     """
@@ -96,13 +83,14 @@ def carregar_json_defensivo(caminho):
         return {}
 
 
-@st.cache_data(ttl=60, show_spinner=False)
+@st.cache_data(ttl=30, show_spinner=False)
 def carregar_candles_mt5(symbol: str = "WIN$", timeframe_min: int = 5, qtd: int = 200):
     """
     fix41: usa cache_candles.obter_candles() em vez de puxar tudo do MT5.
+    fix93: TTL reduzido de 60s -> 30s (M1 refresh a cada 60s via fragment).
 
     O cache faz fetch incremental dos ultimos candles, entao essa funcao
-    fica barata mesmo com TTL de 60s — o M1 atualiza a cada minuto.
+    fica barata mesmo com TTL de 30s.
     """
     try:
         from cache_candles import obter_candles
@@ -119,32 +107,22 @@ st.set_page_config(page_title="Quant Terminal - SMC por Regras", layout="wide")
 
 
 # ==============================================================================
-# AUTO-REFRESH + CONTROLES NA SIDEBAR
+# SIDEBAR — informativa (fix93 removeu o autorefresh global)
 # ==============================================================================
 with st.sidebar:
     st.markdown("### ⚙️ Controles SMC")
-    auto_refresh = st.checkbox(
-        f"🔄 Auto-atualizar ({INTERVALO_REFRESH_MIN} min)",
-        value=True,
-        help="Atualiza a página automaticamente para buscar novos dados do pipeline.",
-        key="smc_auto_refresh_toggle",
+    st.caption("🔄 **Refresh automático por TF:**")
+    st.markdown(
+        "- **M1:** a cada **1 min**\n"
+        "- **M5:** a cada **5 min**\n"
+        "- **M15:** a cada **5 min**"
     )
-
-    if auto_refresh and AUTOREFRESH_DISPONIVEL:
-        st_autorefresh(
-            interval=INTERVALO_REFRESH_MIN * 60 * 1000,
-            key="smc_autorefresh_key",
-        )
-        st.caption(f"✅ Ativo — refresh a cada {INTERVALO_REFRESH_MIN} min")
-    elif auto_refresh and not AUTOREFRESH_DISPONIVEL:
-        st.warning("⚠️ Instale: `pip install streamlit-autorefresh`")
-    else:
-        st.caption("⏸️ Auto-refresh pausado")
+    st.caption("_(via st.fragment — só o gráfico atualiza, não a página toda)_")
 
 
 dados_smc = carregar_json_defensivo(FILE_SMC_REGRAS)
 
-# fix45: variaveis de conveniencia (removidas pelo fix42)
+# variaveis de conveniencia
 vies = dados_smc.get("bias_direcional", "LATERAL")
 confianca = dados_smc.get("confianca_visual", 0)
 preco_atual = dados_smc.get("preco_atual", 0.0)
@@ -152,7 +130,6 @@ preco_atual = dados_smc.get("preco_atual", 0.0)
 # --- CABEÇALHO ---
 st.markdown("<h2 style='color:#00d4ff;'>🧠 Smart Money Concepts (SMC) & ICT</h2>", unsafe_allow_html=True)
 
-# Mostra o timestamp do JSON + horário da última leitura
 ts_dados = dados_smc.get('timestamp', 'N/A')
 ts_pagina = datetime.now().strftime("%H:%M:%S")
 st.caption(f"Análise algorítmica pura (Sem IA) · Dados: **{ts_dados}** · Página lida às **{ts_pagina}**")
@@ -174,24 +151,14 @@ def render_grafico_candles(
     """
     Gráfico de candlestick do WIN M5 com sobreposição:
     - POC / VWAP de ontem
-    - Order Blocks (bandas horizontais)
-    - Fair Value Gaps abertos (zonas)
-    - BSL / SSL (linhas de liquidez)
+    - Order Blocks / FVGs / BSL / SSL
     - Entrada / Stop / Alvos
-    - Swing Highs / Lows (marcadores)
-    - BOS / CHoCH (anotações)
-
-    Parâmetros:
-        qtd_visivel: número de candles exibidos (foco nas últimas pernadas).
-        timeframe_min: timeframe em minutos (1, 5, 15).
-        tf_label: rótulo do TF para título (ex: "M5", "M15").
+    - Swing Highs/Lows / BOS / CHoCH
     """
-    # --- fix40: usa dados do dict, não globais (bug latente corrigido) ---
     vies = dados.get("bias_direcional", "LATERAL")
     confianca = dados.get("confianca_visual", 0)
     preco_atual = dados.get("preco_atual", 0.0)
 
-    # ---------- Coleta de dados do SMC ----------
     niveis = dados.get("niveis_institucionais", {}) or {}
     poc = niveis.get("poc_ontem", 0.0)
     vwap = niveis.get("vwap_ontem", 0.0)
@@ -209,14 +176,11 @@ def render_grafico_candles(
     swings = list(dados.get("swings_recentes", []) or [])
     eventos = list(dados.get("eventos_estrutura", []) or [])
 
-    # ---------- Busca candles do MT5 ----------
-    # Sempre puxamos 200 para ter contexto, mas exibimos apenas os últimos N
     # fix88: fetch dinamico — busca pelo menos o que o usuario quer ver
     _qtd_fetch = max(200, qtd_visivel + 20)
     candles, simbolo_ok = carregar_candles_mt5("WIN$", timeframe_min, _qtd_fetch)
 
-    # ---------- fix89: converte time (str ISO) -> datetime ----------
-    # Plotly NAO aplica rangebreaks em strings. Precisa de datetime nativo.
+    # fix89/90: converte time (str ISO) -> datetime naive
     for c in candles:
         c["_dt"] = _parse_dt(c.get("time"))
     for s in swings:
@@ -224,25 +188,16 @@ def render_grafico_candles(
     for e in eventos:
         e["_dt"] = _parse_dt(e.get("time"))
 
-    # ---------- FATIA APENAS AS ÚLTIMAS PERNADAS ----------
     if candles and qtd_visivel and qtd_visivel < len(candles):
         candles = candles[-qtd_visivel:]
-
-        # Janela temporal visível (para filtrar swings e eventos fora do range)
         t_min = candles[0]["_dt"]
         t_max = candles[-1]["_dt"]
-
-        # Filtra swings que caem dentro da janela visível (datetime vs datetime)
         swings = [s for s in swings if t_min <= s.get("_dt") <= t_max]
-
-        # Filtra eventos (BOS/CHoCH) que caem dentro da janela visível
         eventos = [e for e in eventos if t_min <= e.get("_dt") <= t_max]
 
     fig = go.Figure()
 
-    # ---------- 1. Zonas horizontais (shapes) — por baixo dos candles ----------
-
-    # Order Blocks
+    # ---------- 1. Zonas horizontais (shapes) ----------
     for ob in obs:
         tipo = ob.get("tipo", "")
         low = ob.get("low")
@@ -271,7 +226,6 @@ def render_grafico_candles(
             xanchor="left",
         )
 
-    # FVGs abertos
     for fvg in fvgs:
         if fvg.get("preenchido"):
             continue
@@ -302,7 +256,6 @@ def render_grafico_candles(
 
     # ---------- 2. Candles ----------
     if candles:
-        # fix89: usa _dt (datetime) no eixo X — rangebreaks passa a funcionar
         x_vals = [c["_dt"] for c in candles]
         fig.add_trace(go.Candlestick(
             x=x_vals,
@@ -310,7 +263,7 @@ def render_grafico_candles(
             high=[c["high"] for c in candles],
             low=[c["low"] for c in candles],
             close=[c["close"] for c in candles],
-            name="WIN M5",
+            name=f"WIN {tf_label}",
             increasing=dict(line=dict(color="#00ff88", width=1), fillcolor="#00ff88"),
             decreasing=dict(line=dict(color="#ff6b6b", width=1), fillcolor="#ff6b6b"),
             hovertext=[
@@ -322,17 +275,15 @@ def render_grafico_candles(
         x_min = x_vals[0]
         x_max = x_vals[-1]
     else:
-        # Fallback: sem candles do MT5 — usa range fictício
         st.warning(f"⚠️ Não foi possível buscar candles do MT5 ({simbolo_ok}). Exibindo apenas níveis.")
         x_min, x_max = 0, 1
 
     # ---------- 3. Níveis horizontais ----------
     if candles:
-        x_line = [x_min, x_max]   # datetime (nao string)
+        x_line = [x_min, x_max]
     else:
         x_line = [0, 1]
 
-    # POC
     if poc and poc > 0:
         fig.add_trace(go.Scatter(
             x=x_line, y=[poc, poc],
@@ -342,7 +293,6 @@ def render_grafico_candles(
             hovertemplate=f"<b>POC Ontem</b><br>{poc:,.0f} pts<extra></extra>",
         ))
 
-    # VWAP
     if vwap and vwap > 0:
         fig.add_trace(go.Scatter(
             x=x_line, y=[vwap, vwap],
@@ -352,7 +302,6 @@ def render_grafico_candles(
             hovertemplate=f"<b>VWAP Ontem</b><br>{vwap:,.1f} pts<extra></extra>",
         ))
 
-    # Entrada
     if entrada and entrada > 0:
         fig.add_trace(go.Scatter(
             x=x_line, y=[entrada, entrada],
@@ -362,7 +311,6 @@ def render_grafico_candles(
             hovertemplate=f"<b>Entrada</b><br>{entrada:,.0f}<extra></extra>",
         ))
 
-    # Stop
     if stop and stop > 0:
         fig.add_trace(go.Scatter(
             x=x_line, y=[stop, stop],
@@ -372,7 +320,6 @@ def render_grafico_candles(
             hovertemplate=f"<b>Stop</b><br>{stop:,.0f}<extra></extra>",
         ))
 
-    # Alvos
     for i, alvo in enumerate(alvos[:2]):
         if alvo and alvo > 0:
             fig.add_trace(go.Scatter(
@@ -383,7 +330,6 @@ def render_grafico_candles(
                 hovertemplate=f"<b>Alvo {i+1}</b><br>{alvo:,.0f}<extra></extra>",
             ))
 
-    # BSL
     for i, nivel in enumerate(bsl[:3]):
         fig.add_trace(go.Scatter(
             x=x_line, y=[nivel, nivel],
@@ -394,7 +340,6 @@ def render_grafico_candles(
             hovertemplate=f"<b>BSL</b><br>{nivel:,.0f}<extra></extra>",
         ))
 
-    # SSL
     for i, nivel in enumerate(ssl[:3]):
         fig.add_trace(go.Scatter(
             x=x_line, y=[nivel, nivel],
@@ -405,7 +350,7 @@ def render_grafico_candles(
             hovertemplate=f"<b>SSL</b><br>{nivel:,.0f}<extra></extra>",
         ))
 
-    # ---------- 4. Swing Highs / Lows (marcadores) ----------
+    # ---------- 4. Swing Highs / Lows ----------
     if candles and swings:
         swings_high = [s for s in swings if str(s.get("tipo", "")).startswith("HIGH")]
         swings_low = [s for s in swings if str(s.get("tipo", "")).startswith("LOW")]
@@ -430,7 +375,7 @@ def render_grafico_candles(
                 hovertemplate="<b>Swing Low</b><br>%{y:,.0f}<extra></extra>",
             ))
 
-    # ---------- 5. BOS / CHoCH (anotações) ----------
+    # ---------- 5. BOS / CHoCH ----------
     if candles and eventos:
         for e in eventos[-4:]:
             tipo_ev = e.get("tipo", "")
@@ -460,7 +405,7 @@ def render_grafico_candles(
                 borderpad=2,
             )
 
-    # ---------- 6. Preço atual (linha) ----------
+    # ---------- 6. Preço atual ----------
     if preco_atual and preco_atual > 0:
         fig.add_hline(
             y=preco_atual,
@@ -513,7 +458,6 @@ def render_grafico_candles(
         hovermode="x unified",
     )
 
-    # fix86 + fix89: rangebreaks em datetime (o "type: date" acima ajuda)
     fig.update_xaxes(
         rangeslider_visible=False,
         rangebreaks=RANGEBREAKS_B3,
@@ -523,7 +467,7 @@ def render_grafico_candles(
 
 
 # ==============================================================================
-# MULTI-TIMEFRAME VISUAL (fix40): M1 → M5 → M15 empilhados
+# RENDERIZAÇÃO POR TIMEFRAME (comum, sem decorator)
 # ==============================================================================
 def _carregar_dados_tf(tf_min: int) -> dict:
     """Carrega o JSON do SMC correspondente ao timeframe."""
@@ -549,7 +493,6 @@ def _render_bloco_tf(tf_min: int, tf_label: str) -> None:
         )
         return
 
-    # Cabeçalho com bias + confiança deste TF
     _bias_tf = dados_tf.get("bias_direcional", "LATERAL")
     _conf_tf = dados_tf.get("confianca_visual", 0)
     _cor = "#00ff88" if _bias_tf == "ALTA" else ("#ff6b6b" if _bias_tf == "BAIXA" else "#ccc")
@@ -561,7 +504,6 @@ def _render_bloco_tf(tf_min: int, tf_label: str) -> None:
         unsafe_allow_html=True,
     )
 
-    # Seletor de candles deste TF
     _opcoes = OPCOES_CANDLES_POR_TF.get(tf_min, [30, 60, 100])
     _default = QTD_CANDLES_POR_TF.get(tf_min, 30)
     _qtd = st.selectbox(
@@ -571,7 +513,6 @@ def _render_bloco_tf(tf_min: int, tf_label: str) -> None:
         key=f"smc_qtd_tf_{tf_min}",
     )
 
-    # Renderiza
     fig_tf = render_grafico_candles(
         dados_tf,
         qtd_visivel=_qtd,
@@ -586,27 +527,51 @@ def _render_bloco_tf(tf_min: int, tf_label: str) -> None:
     )
 
 
+# ==============================================================================
+# fix93: WRAPPERS com @st.fragment (refresh independente por TF)
+# ==============================================================================
+@st.fragment(run_every=REFRESH_SEG_POR_TF[1])
+def _bloco_m1():
+    """M1 atualiza a cada 60s."""
+    _render_bloco_tf(1, "M1")
+
+
+@st.fragment(run_every=REFRESH_SEG_POR_TF[5])
+def _bloco_m5():
+    """M5 atualiza a cada 300s (5 min)."""
+    _render_bloco_tf(5, "M5")
+
+
+@st.fragment(run_every=REFRESH_SEG_POR_TF[15])
+def _bloco_m15():
+    """M15 atualiza a cada 300s (5 min)."""
+    _render_bloco_tf(15, "M15")
+
+
+# ==============================================================================
+# RENDER PRINCIPAL
+# ==============================================================================
 st.markdown("---")
 st.markdown("## 📊 Visão Multi-Timeframe (M1 · M5 · M15)")
 st.caption(
     "Sequência **micro → médio → macro**. Cada gráfico mostra as zonas SMC "
-    "do timeframe correspondente, permitindo leitura visual da confluência."
+    "do timeframe correspondente. **M1 atualiza a cada 1 min; M5/M15 a cada 5 min.**"
 )
 
-# M1 (micro)
-_render_bloco_tf(1, "M1")
+_bloco_m1()
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# M5 (médio — mantém comportamento atual)
-_render_bloco_tf(5, "M5")
+_bloco_m5()
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# M15 (macro)
-_render_bloco_tf(15, "M15")
+_bloco_m15()
 
-# ---------- Sumário de distâncias ----------
+
+# ==============================================================================
+# SUMÁRIO DE DISTÂNCIAS
+# ==============================================================================
 st.markdown("##### 📌 Distâncias até o preço atual")
 d1, d2, d3, d4 = st.columns(4)
 
