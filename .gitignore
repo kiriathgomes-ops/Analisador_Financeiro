@@ -7,14 +7,9 @@ Coletas/*.csv
 Coletas/Historico*/
 !Coletas/config_regiao.json
 
-
-
 # Fix scripts — arquivados em ferramentas/fixes/
 # Novos fixNN.py na raiz são ignorados (mantém a raiz limpa)
 /fix*.py
-
-
-
 
 # Backups
 * copy.py
@@ -43,16 +38,11 @@ ferramentas/_debug_*.py
 
 # Dumps auto-gerados
 consolidado_projeto.txt
-dump_v2.txt
-
-# Backups gerados por fixN.py
-*.bak_*
 
 # Backups gerados por fixN.py
 *.bak_*
 
 # Excecao: configs criticos versionados
-!Coletas/config_regiao.json
 
 # Snapshots gerados para IA (runtime)
 Coletas/snapshot_rompimento_10h.txt
@@ -68,9 +58,6 @@ cleanup_fase*.py
 
 # Inventario auto-gerado
 Coletas/ArquivosApp.py
-
-# Dumps auto-gerados
-Coletas/App_Completo.txt
 
 Coletas/App_Completo.txt
 
@@ -97,4 +84,7 @@ auditoria/
 
 # Dumps gerados (gerar_dump_completo.py)
 docs/dump_completo/
+
+docs/arvore.md
+docs/inventario.md
 
