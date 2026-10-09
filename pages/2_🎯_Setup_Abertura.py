@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Módulo: pages/2_🎯_Setup_Abertura.py
-Versão: 8.1 (Gauges de pressão unificados no padrão SVG — escala 2.0x)
+Versão: 8.2 (fragments por aba: pré-market/setup @300s · abertura live @60s)
 Objetivo: Painel unificado de monitoramento de aberturas do pregão (WIN/WDO)
 """
 
@@ -68,10 +68,6 @@ RAIZ_PROJETO = ARQUIVO_ATUAL.parents[1] if ARQUIVO_ATUAL.parent.name == "pages" 
 
 if str(RAIZ_PROJETO) not in sys.path:
     sys.path.insert(0, str(RAIZ_PROJETO))
-
-
-# Mapa chave interna → ticker bruto no rom-5
-
 
 
 def carregar_json_absoluto(nome_arquivo):
@@ -715,6 +711,20 @@ def padrao_bola(padrao_str):
     return f"{mapa.get(partes[0], '⚪')} → {mapa.get(partes[1], '⚪')}"
 
 
+def _extrair_p(ativos_unif, chave):
+    """Extrai preço numérico de um ativo em DadosAtivosUnificados."""
+    item = ativos_unif.get(chave) or {}
+    v = item.get("preco")
+    return float(v) if isinstance(v, (int, float)) else None
+
+
+def _extrair_v(ativos_unif, chave):
+    """Extrai variação percentual numérica de um ativo em DadosAtivosUnificados."""
+    item = ativos_unif.get(chave) or {}
+    v = item.get("variacao_pct")
+    return float(v) if isinstance(v, (int, float)) else None
+
+
 # ==============================================================================
 # RENDERIZADORES DE BLOCOS
 # ==============================================================================
@@ -827,7 +837,6 @@ def render_bloco_operacionais(service: SetupService, rom5: dict):
 
     aj = service.operacional_ajuste()
     ex = service.operacional_explosao()
-    # fix74: cenario do engine (disponivel pos-fix73) pra usar no card 2
     d = service.decisao_v2()
 
     if ex.get("status") == "EXPLOSÃO":
@@ -887,7 +896,6 @@ def render_bloco_operacionais(service: SetupService, rom5: dict):
         status_ex = ex.get("status") or "—"
         st.markdown(f"**Status:** {status_ex}")
         st.markdown(f"**Direção:** `{ex.get('direcao') or '—'}` · **Força:** `{ex.get('forca') or '—'}`")
-        # fix74: cenario do engine (opening_scenario) — complementa a direcao do card
         _cen = d.get("direcao_cenario") or "—"
         _pos = d.get("posicao_ajuste") or "—"
         st.caption(f"Cenário engine: `{_cen}` · Posição vs ajuste: `{_pos}`")
@@ -898,7 +906,6 @@ def render_bloco_operacionais(service: SetupService, rom5: dict):
         ind_adrs = ex.get("ind_adrs")
         ind_ext = ex.get("ind_externo")
 
-        # Valores anteriores do rom-5
         score_ant = None
         ind_adrs_ant = calcular_ind_adrs_rom5(rom5)
         ind_ext_ant = calcular_ind_externo_rom5(rom5)
@@ -943,7 +950,6 @@ def render_bloco_1_filtro_classificacao(service: SetupService, rom5: dict):
     ind_mercado = service.ind_mercado_externo
     ind_adrs = service.ind_adrs
 
-    # Valores anteriores: preferir o "anterior" do JSON (já existe), com fallback pro rom-5
     pen_m = service.ind_mercado_externo_penultima or calcular_ind_externo_rom5(rom5)
     pen_a = service.ind_adrs_penultima or calcular_ind_adrs_rom5(rom5)
 
@@ -954,7 +960,6 @@ def render_bloco_1_filtro_classificacao(service: SetupService, rom5: dict):
     else:
         prioridade_mercado, prioridade_adrs = "Prioritário", "Secundário"
 
-    # ✅ Agora os dois gauges usam o MESMO estilo SVG (mini_velocimetro) com escala=2.0
     c1, c2 = st.columns(2)
     with c1:
         mini_velocimetro(
@@ -1001,226 +1006,198 @@ def render_bloco_1_filtro_classificacao(service: SetupService, rom5: dict):
 
 
 # ==============================================================================
-# CORPO DA PÁGINA (AUTO-REFRESH 60s)
+# CONSTANTES DE REFRESH POR FRAGMENT
 # ==============================================================================
-@st.fragment(run_every=60)
-def render_body():
-    # ---- Carregamento de dados ----
+REFRESH_SEG_DADOS = 300   # 5 min — JSONs do agendador (abas 1 e 2)
+REFRESH_SEG_LIVE  = 60    # 1 min — MT5 / preço ao vivo (aba 3)
+
+
+# ==============================================================================
+# ABA 1 — JANELA PRÉ-MARKET (macro, refresh 300s)
+# ==============================================================================
+@st.fragment(run_every=REFRESH_SEG_DADOS)
+def _render_tab1_pre_market():
+    unificados, _ = carregar_json_absoluto("DadosAtivosUnificados.json")
+    tendencias_dados, _ = carregar_json_absoluto("Analise_Tendencias.json")
+    rom5 = carregar_rom5()
+    ativos_unif = unificados.get("ativos", {})
+
+    win_last_v = _extrair_p(ativos_unif, "WIN_LAST_TICK") or _extrair_p(ativos_unif, "WIN_FECHAMENTO_B3")
+    win_ajuste_v = _extrair_p(ativos_unif, "WIN_AJUSTE")
+    win_fut_v = _extrair_p(ativos_unif, "WIN_FUT")
+
+    st.markdown("#### 📍 Mini Índice WIN")
+    c_w1, c_w2, c_w3, c_w4 = st.columns(4)
+    var_win = _extrair_v(ativos_unif, "WIN_FUT")
+
+    spread_win = None
+    if win_ajuste_v is not None and win_last_v is not None:
+        spread_win = win_ajuste_v - win_last_v
+
+    c_w1.metric("🎯 Ajuste", _fmt(win_ajuste_v, sufixo=" pts"))
+    c_w2.metric("📊 Futuro (Close)", _fmt(win_fut_v, sufixo=" pts"), f"{var_win:+.2f}%" if var_win is not None else None)
+    c_w3.metric("🕯️ Last (Candle)", _fmt(win_last_v, sufixo=" pts"))
+    c_w4.metric("📏 Spread (Ajuste - Last)", f"{spread_win:+,.0f} pts" if spread_win is not None else "—")
+    st.caption("💡 O 'Last' é o último tick negociado no pregão anterior (capturado via MT5).")
+    st.markdown("---")
+
+    st.markdown("### 🌐 Termômetro Macro (com %)")
+    st.caption("Ponteiro centrado em zero · 🟢 positivo = compra · 🔴 negativo = venda · ⚠️ VIX/DXY invertidos")
+
+    m1, m2, m3, m4, m5, m6 = st.columns(6)
+
+    with m1:
+        mini_velocimetro(
+            _extrair_v(ativos_unif, "SP500_FUT"), "🇺🇸 S&P500",
+            _fmt(_extrair_p(ativos_unif, "SP500_FUT"), casas=2),
+            inverter=False,
+            valor_anterior=_get_var_rom5(rom5, "SP500_FUT"),
+        )
+    with m2:
+        mini_velocimetro(
+            _extrair_v(ativos_unif, "NASDAQ_FUT"), "💻 Nasdaq",
+            _fmt(_extrair_p(ativos_unif, "NASDAQ_FUT"), casas=2),
+            inverter=False,
+            valor_anterior=_get_var_rom5(rom5, "NASDAQ_FUT"),
+        )
+    with m3:
+        mini_velocimetro(
+            _extrair_v(ativos_unif, "EWZ"), "🇧🇷 EWZ",
+            f"${_fmt(_extrair_p(ativos_unif, 'EWZ'), casas=2)}" if _extrair_p(ativos_unif, "EWZ") is not None else "",
+            inverter=False,
+            valor_anterior=_get_var_rom5(rom5, "EWZ"),
+        )
+    with m4:
+        mini_velocimetro(
+            _extrair_v(ativos_unif, "VIX"), "⚠️ VIX",
+            _fmt(_extrair_p(ativos_unif, "VIX"), casas=2),
+            inverter=True,
+            valor_anterior=_get_var_rom5(rom5, "VIX"),
+        )
+    with m5:
+        mini_velocimetro(
+            _extrair_v(ativos_unif, "DXY"), "💵 DXY",
+            _fmt(_extrair_p(ativos_unif, "DXY"), casas=2),
+            inverter=True,
+            valor_anterior=_get_var_rom5(rom5, "DXY"),
+        )
+    with m6:
+        mini_velocimetro(
+            _extrair_v(ativos_unif, "IRON_ORE"), "⛏️ Minério",
+            f"${_fmt(_extrair_p(ativos_unif, 'IRON_ORE'), casas=2)}" if _extrair_p(ativos_unif, "IRON_ORE") is not None else "",
+            inverter=False,
+            valor_anterior=_get_var_rom5(rom5, "IRON_ORE"),
+        )
+
+    st.markdown("---")
+    st.markdown("### 📌 4. Contexto Macro e Confluência")
+
+    st.markdown("##### ADRs Brasileiras")
+    a1, a2, a3, a4, a5, a6 = st.columns(6)
+
+    with a1:
+        mini_velocimetro(
+            _extrair_v(ativos_unif, "BBD_ADR"), "BBD",
+            _fmt(_extrair_p(ativos_unif, "BBD_ADR"), casas=2), inverter=False,
+            valor_anterior=_get_var_rom5(rom5, "BBD_ADR"),
+        )
+    with a2:
+        mini_velocimetro(
+            _extrair_v(ativos_unif, "ITUB_ADR"), "ITUB",
+            _fmt(_extrair_p(ativos_unif, "ITUB_ADR"), casas=2), inverter=False,
+            valor_anterior=_get_var_rom5(rom5, "ITUB_ADR"),
+        )
+    with a3:
+        mini_velocimetro(
+            _extrair_v(ativos_unif, "PETR_ADR"), "PETR",
+            _fmt(_extrair_p(ativos_unif, "PETR_ADR"), casas=2), inverter=False,
+            valor_anterior=_get_var_rom5(rom5, "PETR_ADR"),
+        )
+    with a4:
+        mini_velocimetro(
+            _extrair_v(ativos_unif, "VALE_ADR"), "VALE",
+            _fmt(_extrair_p(ativos_unif, "VALE_ADR"), casas=2), inverter=False,
+            valor_anterior=_get_var_rom5(rom5, "VALE_ADR"),
+        )
+    with a5:
+        mini_velocimetro(
+            _extrair_v(ativos_unif, "BBAS_ADR"), "BBAS",
+            _fmt(_extrair_p(ativos_unif, "BBAS_ADR"), casas=2), inverter=False,
+            valor_anterior=_get_var_rom5(rom5, "BBAS_ADR"),
+        )
+    with a6:
+        mini_velocimetro(
+            _extrair_v(ativos_unif, "B3_ADR"), "B3",
+            _fmt(_extrair_p(ativos_unif, "B3_ADR"), casas=2), inverter=False,
+            valor_anterior=_get_var_rom5(rom5, "B3_ADR"),
+        )
+
+    st.markdown("##### Macro & Taxas")
+    mt1, mt2, mt3 = st.columns(3)
+
+    with mt1:
+        mini_velocimetro(
+            _extrair_v(ativos_unif, "CRUDE_OIL"), "🛢️ Petróleo",
+            _fmt(_extrair_p(ativos_unif, "CRUDE_OIL"), casas=2), inverter=False,
+            valor_anterior=_get_var_rom5(rom5, "CRUDE_OIL"),
+        )
+    with mt2:
+        di27_val = _extrair_p(ativos_unif, "DI1_2027")
+        mini_velocimetro(
+            _extrair_v(ativos_unif, "DI1_2027"), "📈 DI 2027",
+            f"{_fmt(di27_val, casas=2)}%" if di27_val is not None else "",
+            inverter=True,
+            valor_anterior=_get_var_rom5(rom5, "DI1_2027"),
+        )
+    with mt3:
+        di29_val = _extrair_p(ativos_unif, "DI1_2029")
+        mini_velocimetro(
+            _extrair_v(ativos_unif, "DI1_2029"), "📈 DI 2029",
+            f"{_fmt(di29_val, casas=2)}%" if di29_val is not None else "",
+            inverter=True,
+            valor_anterior=_get_var_rom5(rom5, "DI1_2029"),
+        )
+
+    st.markdown("##### Confluência com Tendência (últimos 15min)")
+    ativos_tend = ["WIN_FUT", "WDO_FUT", "SP500_FUT", "NASDAQ_FUT", "VIX", "EWZ"]
+    cols_t = st.columns(6)
+    for idx, t_ativo in enumerate(ativos_tend):
+        t_alt = next((k for k, v in MAPEAMENTO_TICKERS.items() if v == t_ativo), "")
+        info_t = tendencias_dados.get(t_ativo) or tendencias_dados.get(t_alt) or {}
+        padrao = info_t.get("padrao_comportamento", "—") if isinstance(info_t, dict) else "—"
+        var_15 = None
+        if isinstance(info_t, dict):
+            var_15 = info_t.get("intervalo_5_para_0", {}).get("variacao_pct")
+        if var_15 is None:
+            var_15 = _extrair_v(ativos_unif, t_ativo)
+        with cols_t[idx]:
+            delta_str = f"{var_15:+.2f}%" if var_15 is not None else None
+            st.metric(
+                label=t_ativo,
+                value=padrao_bola(padrao) if padrao != "—" else "—",
+                delta=delta_str,
+                delta_color="normal" if (var_15 or 0) > 0 else "inverse" if (var_15 or 0) < 0 else "off",
+            )
+
+
+# ==============================================================================
+# ABA 2 — SETUP ABERTURA 09:00–09:15 (refresh 300s)
+# ==============================================================================
+@st.fragment(run_every=REFRESH_SEG_DADOS)
+def _render_tab2_setup_0900():
     unificados, _ = carregar_json_absoluto("DadosAtivosUnificados.json")
     decisao_v2, _ = carregar_json_absoluto("Decisao_V2.json")
     smc_regras, _ = carregar_json_absoluto("AnaliseGraficaSMC_Regras.json")
-    smc_mtf, _ = carregar_json_absoluto("AnaliseGraficaSMC_MTF.json")
     estimativas, _ = carregar_json_absoluto("EstimativaAbertura.json")
     if not estimativas:
         estimativas, _ = carregar_json_absoluto("Resultado_Calculadora.json")
 
-    noticias_impacto, _ = carregar_json_absoluto("Noticias_Impacto_Dia.json")
     noticias_0900, _ = carregar_json_absoluto("Noticias_Calendario_0900.json")
     metricas_calc, _ = carregar_json_absoluto("Metricas_Calculadas.json")
     resultado_op, _ = carregar_json_absoluto("Resultado_Calculadora_Operacional_Abertura.json")
     tendencias_dados, _ = carregar_json_absoluto("Analise_Tendencias.json")
     rom5 = carregar_rom5()
 
-    ativos_unif = unificados.get("ativos", {})
-
-    def get_p_num(chave):
-        if chave in ativos_unif:
-            v = ativos_unif[chave].get("preco")
-            if v is not None and isinstance(v, (int, float)):
-                return float(v)
-        return None
-
-    def get_v_num(chave):
-        if chave in ativos_unif:
-            v = ativos_unif[chave].get("variacao_pct")
-            if v is not None and isinstance(v, (int, float)):
-                return float(v)
-        return None
-
-    win_last_v = get_p_num("WIN_LAST_TICK")
-    # Fallback: se WIN_LAST_TICK nao existe (durante o pregao, pois o
-    # LastTick_Congelado.json so e gravado fora do pregao), usa o fechamento
-    # oficial da brapi (WIN_FECHAMENTO_B3), que e o mesmo valor conceitual.
-    if win_last_v is None:
-        win_last_v = get_p_num("WIN_FECHAMENTO_B3")
-    win_ajuste_v = get_p_num("WIN_AJUSTE")
-    win_fut_v = get_p_num("WIN_FUT")
-
-    # --- Título ---
-    st.markdown("<h2 style='color:#00d4ff;'>🎯 Painel Unificado de Abertura Pregão B3</h2>", unsafe_allow_html=True)
-    ts_decisao = decisao_v2.get("metadata", {}).get("timestamp", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-    st.caption(
-        f"Orquestração Ativa: V2 ({ts_decisao}) · "
-        f"auto-refresh: 60s · ⚪ ponteiro branco = valor de 5 min atrás"
-    )
-    st.info("🚀 **Fila de Execução V2:** Este painel consome a decisão oficial gerada pelo motor de confluência.")
-
-    tab_overnight, tab_0900, tab_1000 = st.tabs([
-        "🗓️ 1. Janela Pré-Market (Ajuste)",
-        "⚡ 2. Abertura 09:00h (Leilão WIN)",
-        "📊 3. Abertura 10:00h (Pregão À Vista)",
-    ])
-
-    # ============================================================
-    # ABA 1
-    # ============================================================
-    with tab_overnight:
-        st.markdown("#### 📍 Mini Índice WIN")
-        c_w1, c_w2, c_w3, c_w4 = st.columns(4)
-        var_win = get_v_num("WIN_FUT")
-
-        spread_win = None
-        if win_ajuste_v is not None and win_last_v is not None:
-            spread_win = win_ajuste_v - win_last_v
-
-        c_w1.metric("🎯 Ajuste", _fmt(win_ajuste_v, sufixo=" pts"))
-        c_w2.metric("📊 Futuro (Close)", _fmt(win_fut_v, sufixo=" pts"), f"{var_win:+.2f}%" if var_win is not None else None)
-        c_w3.metric("🕯️ Last (Candle)", _fmt(win_last_v, sufixo=" pts"))
-        c_w4.metric("📏 Spread (Ajuste - Last)", f"{spread_win:+,.0f} pts" if spread_win is not None else "—")
-        st.caption("💡 O 'Last' é o último tick negociado no pregão anterior (capturado via MT5).")
-        st.markdown("---")
-
-        st.markdown("### 🌐 Termômetro Macro (com %)")
-        st.caption("Ponteiro centrado em zero · 🟢 positivo = compra · 🔴 negativo = venda · ⚠️ VIX/DXY invertidos")
-
-        m1, m2, m3, m4, m5, m6 = st.columns(6)
-
-        with m1:
-            mini_velocimetro(
-                get_v_num("SP500_FUT"), "🇺🇸 S&P500",
-                _fmt(get_p_num("SP500_FUT"), casas=2),
-                inverter=False,
-                valor_anterior=_get_var_rom5(rom5, "SP500_FUT"),
-            )
-        with m2:
-            mini_velocimetro(
-                get_v_num("NASDAQ_FUT"), "💻 Nasdaq",
-                _fmt(get_p_num("NASDAQ_FUT"), casas=2),
-                inverter=False,
-                valor_anterior=_get_var_rom5(rom5, "NASDAQ_FUT"),
-            )
-        with m3:
-            mini_velocimetro(
-                get_v_num("EWZ"), "🇧🇷 EWZ",
-                f"${_fmt(get_p_num('EWZ'), casas=2)}" if get_p_num("EWZ") is not None else "",
-                inverter=False,
-                valor_anterior=_get_var_rom5(rom5, "EWZ"),
-            )
-        with m4:
-            mini_velocimetro(
-                get_v_num("VIX"), "⚠️ VIX",
-                _fmt(get_p_num("VIX"), casas=2),
-                inverter=True,
-                valor_anterior=_get_var_rom5(rom5, "VIX"),
-            )
-        with m5:
-            mini_velocimetro(
-                get_v_num("DXY"), "💵 DXY",
-                _fmt(get_p_num("DXY"), casas=2),
-                inverter=True,
-                valor_anterior=_get_var_rom5(rom5, "DXY"),
-            )
-        with m6:
-            mini_velocimetro(
-                get_v_num("IRON_ORE"), "⛏️ Minério",
-                f"${_fmt(get_p_num('IRON_ORE'), casas=2)}" if get_p_num("IRON_ORE") is not None else "",
-                inverter=False,
-                valor_anterior=_get_var_rom5(rom5, "IRON_ORE"),
-            )
-
-        st.markdown("---")
-        st.markdown("### 📌 4. Contexto Macro e Confluência")
-
-        st.markdown("##### ADRs Brasileiras")
-        a1, a2, a3, a4, a5, a6 = st.columns(6)
-
-        with a1:
-            mini_velocimetro(
-                get_v_num("BBD_ADR"), "BBD",
-                _fmt(get_p_num("BBD_ADR"), casas=2), inverter=False,
-                valor_anterior=_get_var_rom5(rom5, "BBD_ADR"),
-            )
-        with a2:
-            mini_velocimetro(
-                get_v_num("ITUB_ADR"), "ITUB",
-                _fmt(get_p_num("ITUB_ADR"), casas=2), inverter=False,
-                valor_anterior=_get_var_rom5(rom5, "ITUB_ADR"),
-            )
-        with a3:
-            mini_velocimetro(
-                get_v_num("PETR_ADR"), "PETR",
-                _fmt(get_p_num("PETR_ADR"), casas=2), inverter=False,
-                valor_anterior=_get_var_rom5(rom5, "PETR_ADR"),
-            )
-        with a4:
-            mini_velocimetro(
-                get_v_num("VALE_ADR"), "VALE",
-                _fmt(get_p_num("VALE_ADR"), casas=2), inverter=False,
-                valor_anterior=_get_var_rom5(rom5, "VALE_ADR"),
-            )
-        with a5:
-            mini_velocimetro(
-                get_v_num("BBAS_ADR"), "BBAS",
-                _fmt(get_p_num("BBAS_ADR"), casas=2), inverter=False,
-                valor_anterior=_get_var_rom5(rom5, "BBAS_ADR"),
-            )
-        with a6:
-            mini_velocimetro(
-                get_v_num("B3_ADR"), "B3",
-                _fmt(get_p_num("B3_ADR"), casas=2), inverter=False,
-                valor_anterior=_get_var_rom5(rom5, "B3_ADR"),
-            )
-
-        st.markdown("##### Macro & Taxas")
-        mt1, mt2, mt3 = st.columns(3)
-
-        with mt1:
-            mini_velocimetro(
-                get_v_num("CRUDE_OIL"), "🛢️ Petróleo",
-                _fmt(get_p_num("CRUDE_OIL"), casas=2), inverter=False,
-                valor_anterior=_get_var_rom5(rom5, "CRUDE_OIL"),
-            )
-        with mt2:
-            di27_val = get_p_num("DI1_2027")
-            mini_velocimetro(
-                get_v_num("DI1_2027"), "📈 DI 2027",
-                f"{_fmt(di27_val, casas=2)}%" if di27_val is not None else "",
-                inverter=True,
-                valor_anterior=_get_var_rom5(rom5, "DI1_2027"),
-            )
-        with mt3:
-            di29_val = get_p_num("DI1_2029")
-            mini_velocimetro(
-                get_v_num("DI1_2029"), "📈 DI 2029",
-                f"{_fmt(di29_val, casas=2)}%" if di29_val is not None else "",
-                inverter=True,
-                valor_anterior=_get_var_rom5(rom5, "DI1_2029"),
-            )
-
-        st.markdown("##### Confluência com Tendência (últimos 15min)")
-        ativos_tend = ["WIN_FUT", "WDO_FUT", "SP500_FUT", "NASDAQ_FUT", "VIX", "EWZ"]
-        cols_t = st.columns(6)
-        for idx, t_ativo in enumerate(ativos_tend):
-            t_alt = next((k for k, v in MAPEAMENTO_TICKERS.items() if v == t_ativo), "")
-            info_t = tendencias_dados.get(t_ativo) or tendencias_dados.get(t_alt) or {}
-            padrao = info_t.get("padrao_comportamento", "—") if isinstance(info_t, dict) else "—"
-            var_15 = None
-            if isinstance(info_t, dict):
-                var_15 = info_t.get("intervalo_5_para_0", {}).get("variacao_pct")
-            if var_15 is None:
-                var_15 = get_v_num(t_ativo)
-            with cols_t[idx]:
-                delta_str = f"{var_15:+.2f}%" if var_15 is not None else None
-                st.metric(
-                    label=t_ativo,
-                    value=padrao_bola(padrao) if padrao != "—" else "—",
-                    delta=delta_str,
-                    delta_color="normal" if (var_15 or 0) > 0 else "inverse" if (var_15 or 0) < 0 else "off",
-                )
-
-    # ============================================================
-    # ABA 2
-    # ============================================================
     dados_09h = {
         "noticias_0900": noticias_0900,
         "metricas": metricas_calc,
@@ -1233,357 +1210,392 @@ def render_body():
     }
     service_09h = SetupService(dados_09h)
 
-    with tab_0900:
-        st.header("Setup Abertura 09:00 – 09:15")
-        st.caption("Análise com IA e dados quantitativos")
+    st.header("Setup Abertura 09:00 – 09:15")
+    st.caption("Análise com IA e dados quantitativos")
 
-        if service_09h.janela_ok():
-            st.success("🟢 DENTRO DA JANELA (09:00 – 09:15)")
-        else:
-            st.warning(f"⏰ Fora da janela • {datetime.now().strftime('%H:%M:%S')}")
+    if service_09h.janela_ok():
+        st.success("🟢 DENTRO DA JANELA (09:00 – 09:15)")
+    else:
+        st.warning(f"⏰ Fora da janela • {datetime.now().strftime('%H:%M:%S')}")
 
-        render_bloco_decisao_v2(service_09h)
-        render_bloco_leilao(service_09h)
-        render_bloco_operacionais(service_09h, rom5)
-        render_bloco_1_filtro_classificacao(service_09h, rom5)
+    render_bloco_decisao_v2(service_09h)
+    render_bloco_leilao(service_09h)
+    render_bloco_operacionais(service_09h, rom5)
+    render_bloco_1_filtro_classificacao(service_09h, rom5)
 
-        st.markdown("---")
-        st.markdown("### 🔮 Projeção Estatística e Níveis de Pivô")
+    st.markdown("---")
+    st.markdown("### 🔮 Projeção Estatística e Níveis de Pivô")
 
-        pr_col1, pr_col2, pr_col3 = st.columns([1, 1, 1])
+    pr_col1, pr_col2, pr_col3 = st.columns([1, 1, 1])
 
-        var_teorica = service_09h.var_teorica_pct
+    var_teorica = service_09h.var_teorica_pct
 
-        with pr_col1:
-            mini_velocimetro(
-                var_teorica, "🔮 Variação Teórica",
-                f"{var_teorica:+.2f}%" if var_teorica is not None else "",
-                inverter=False,
-            )
-
-        ctx_aj = service_09h.contexto_ajuste()
-        gap_pts = ctx_aj.get("dist_pts")
-
-        with pr_col2:
-            gap_pct_equiv = (gap_pts / 1880.0) if gap_pts is not None else None
-            mini_velocimetro(
-                gap_pct_equiv, "📏 Gap vs Ajuste",
-                f"{gap_pts:+.0f} pts" if gap_pts is not None else "",
-                inverter=False,
-            )
-
-        with pr_col3:
-            risco_val = -10.0 if service_09h.tem_3estrelas else 0.0
-            mini_velocimetro(
-                risco_val, "📰 Risco Noticiário",
-                "ELEVADO" if service_09h.tem_3estrelas else "BAIXO",
-                inverter=True,
-            )
-
-        pivots_w = estimativas.get("pivot_points", {}).get("WIN_FUT") or decisao_v2.get("decisao", {}).get("metadados", {}).get("pivots") or {}
-
-        if pivots_w:
-            st.markdown("#### Níveis Técnicos de Suporte e Resistência (Floor Pivots)")
-            fl1, fl2 = st.columns(2)
-            r2 = pivots_w.get("R2") or pivots_w.get("r2")
-            r1 = pivots_w.get("R1") or pivots_w.get("r1")
-            pp = pivots_w.get("PP") or pivots_w.get("pp")
-            s1 = pivots_w.get("S1") or pivots_w.get("s1")
-            s2 = pivots_w.get("S2") or pivots_w.get("s2")
-
-            fl1.markdown(f"* **Resistência 2 (R2):** `{_fmt(r2)}`\n* **Resistência 1 (R1):** `{_fmt(r1)}`\n* **Ponto de Pivô (PP):** `{_fmt(pp)}`")
-            fl2.markdown(f"* **Suporte 1 (S1):** `{_fmt(s1)}`\n* **Suporte 2 (S2):** `{_fmt(s2)}`")
-        else:
-            st.caption("Níveis de pivô não disponíveis nos dados.")
-
-    # ============================================================
-    # ABA 3
-    # ============================================================
-    with tab_1000:
-        st.markdown("<h3 style='color:#00d4ff;'>🎯 Estratégia de Abertura das 10:00h</h3>", unsafe_allow_html=True)
-        st.caption("Foco exclusivo: Mini Índice (WINFUT)")
-
-        ativos = unificados.get("ativos", {})
-        win_last = ativos.get("WIN_FUT", {}).get("preco") or ativos.get("WIN_LAST_TICK", {}).get("preco")
-        win_ajuste = ativos.get("WIN_AJUSTE", {}).get("preco")
-
-        decisao_core = decisao_v2.get("decisao", {})
-        meta_smc = decisao_core.get("metadados", {}).get("smc", {})
-        meta_prec = decisao_core.get("metadados", {}).get("precificacao_teorica", {})
-
-        poc_ontem = meta_smc.get("poc_ontem") or smc_regras.get("niveis_institucionais", {}).get("poc_ontem")
-        vwap_ontem = meta_smc.get("vwap_ontem") or smc_regras.get("niveis_institucionais", {}).get("vwap_ontem")
-        ob_alinhado = meta_smc.get("ob_alinhado_com_poc")
-        preco_carregado = meta_prec.get("preco_carregado_di")
-
-        vies_final = decisao_core.get("vies_final") or smc_regras.get("bias_direcional")
-        confianca = decisao_core.get("confianca") or smc_regras.get("confianca_visual")
-
-        candle_high_10h, candle_low_10h = obter_max_min_vela_10h(win_last)
-
-        amplitude_range = None
-        if candle_high_10h is not None and candle_low_10h is not None:
-            amplitude_range = candle_high_10h - candle_low_10h
-
-        col_header1, col_header2, col_header3, col_header4 = st.columns(4)
-
-        with col_header1:
-            vies_str = str(vies_final or "—").upper()
-            conf_str = f"({confianca}%)" if confianca is not None else ""
-            if "COMPRA" in vies_str or vies_str == "ALTA":
-                st.success(f"Viés V2: COMPRA {conf_str}")
-            elif "VENDA" in vies_str or vies_str == "BAIXA":
-                st.error(f"Viés V2: VENDA {conf_str}")
-            else:
-                st.warning(f"Viés V2: {vies_str} {conf_str}")
-
-        with col_header2:
-            st.metric("Preço Atual (MT5)", _fmt(win_last, sufixo=" pts"))
-
-        with col_header3:
-            dist_ajuste = None
-            if win_last is not None and win_ajuste is not None:
-                dist_ajuste = win_last - win_ajuste
-            st.metric("Distância do Ajuste", f"{dist_ajuste:+.0f} pts" if dist_ajuste is not None else "—")
-
-        with col_header4:
-            ob_delta = "OB Alinhado 🟢" if ob_alinhado is True else None
-            st.metric("POC Ontem", _fmt(poc_ontem, sufixo=" pts"), delta=ob_delta)
-
-        t1, t2, t3 = st.columns(3)
-        t1.metric("VWAP Ontem", _fmt(vwap_ontem, casas=1, sufixo=" pts"))
-        t2.metric("Preço Carregado (DI)", _fmt(preco_carregado, sufixo=" pts"))
-        t3.metric("Amplitude Vela 10h", f"{amplitude_range:.0f} pts" if amplitude_range is not None else "—")
-
-        st.markdown("---")
-
-        col_sinal, col_metricas = st.columns([1.5, 1])
-
-        with col_sinal:
-            st.markdown("### 📡 Status do Sinal Operacional (Rompimento 10h)")
-
-            if amplitude_range is None:
-                st.markdown(
-                    "<div style='background-color:#1e2230; padding:15px; border-radius:8px;'>"
-                    "⚠️ <b>DADOS INDISPONÍVEIS:</b> Não foi possível obter a vela M5 das 10:00h via MT5.</div>",
-                    unsafe_allow_html=True,
-                )
-            elif amplitude_range > 700 or amplitude_range < 50:
-                st.markdown(
-                    f"<div style='background-color:rgba(255,107,107,0.15); padding:15px; border-radius:8px; border:1px solid #ff6b6b;'>"
-                    f"⚠️ <b>SINAL OPERACIONAL BLOQUEADO:</b> Amplitude fora do padrão "
-                    f"({amplitude_range:.0f} pts).</div>",
-                    unsafe_allow_html=True,
-                )
-            else:
-                vies_str = str(vies_final or "").upper()
-                if "COMPRA" in vies_str or vies_str == "ALTA":
-                    entrada = candle_high_10h + 5
-                    stop = candle_low_10h - 20
-                    alvo = entrada + amplitude_range
-                    st.markdown(
-                        f"<div style='background-color:rgba(0,212,255,0.1); padding:15px; border-radius:8px; border:1px solid #00d4ff;'>"
-                        f"🟢 <b>PREPARADO PARA COMPRA:</b><br>"
-                        f"• <b>Buy Stop:</b> {entrada:,.0f} pts<br>"
-                        f"• <b>Stop:</b> {stop:,.0f} pts<br>"
-                        f"• <b>Alvo:</b> {alvo:,.0f} pts</div>",
-                        unsafe_allow_html=True,
-                    )
-                elif "VENDA" in vies_str or vies_str == "BAIXA":
-                    entrada = candle_low_10h - 5
-                    stop = candle_high_10h + 20
-                    alvo = entrada - amplitude_range
-                    st.markdown(
-                        f"<div style='background-color:rgba(255,107,107,0.1); padding:15px; border-radius:8px; border:1px solid #ff6b6b;'>"
-                        f"🔴 <b>PREPARADO PARA VENDA:</b><br>"
-                        f"• <b>Sell Stop:</b> {entrada:,.0f} pts<br>"
-                        f"• <b>Stop:</b> {stop:,.0f} pts<br>"
-                        f"• <b>Alvo:</b> {alvo:,.0f} pts</div>",
-                        unsafe_allow_html=True,
-                    )
-                else:
-                    st.markdown(
-                        "<div style='background-color:#1e2230; padding:15px; border-radius:8px;'>"
-                        "⚖️ <b>AGUARDANDO:</b> Orquestrador V2 aponta neutralidade macro.</div>",
-                        unsafe_allow_html=True,
-                    )
-
-        with col_metricas:
-            st.markdown("### 📊 Métricas da Vela 10:00h (M5)")
-            c1, c2 = st.columns(2)
-            c1.metric("Máxima (10h)", _fmt(candle_high_10h, sufixo=" pts"))
-            c1.metric("Mínima (10h)", _fmt(candle_low_10h, sufixo=" pts"))
-            c2.metric("Amplitude", f"{amplitude_range:.0f} pts" if amplitude_range is not None else "—")
-            c2.metric("Ajuste Diário", _fmt(win_ajuste, sufixo=" pts"))
-
-        st.markdown("---")
-        # ---------- MTF: contexto multi-timeframe (fix28) ----------
-        if smc_mtf:
-            conf = smc_mtf.get("confluencia") or {}
-            _ver = conf.get("veredito_mtf") or "—"
-            _dir = conf.get("direcao_dominante") or "—"
-            _rac = conf.get("racional") or ""
-            _b15 = conf.get("bias_m15") or "—"
-            _b5 = conf.get("bias_m5") or "—"
-            _b1 = conf.get("bias_m1") or "—"
-            _c15 = conf.get("confianca_m15")
-            _c5 = conf.get("confianca_m5")
-            _c1 = conf.get("confianca_m1")
-
-            st.markdown("### 🧭 Contexto Multi-Timeframe (M15 / M5 / M1)")
-
-            def _cor_bias(_b):
-                _s = str(_b or "").upper()
-                if "ALTA" in _s or "COMPRA" in _s or "BULL" in _s:
-                    return "#22c55e"
-                if "BAIXA" in _s or "VENDA" in _s or "BEAR" in _s:
-                    return "#ef4444"
-                return "#a3a3a3"
-
-            def _card_bias(col, label, bias, conf):
-                _cor = _cor_bias(bias)
-                _conf = f"{conf}%" if conf is not None else "—"
-                with col:
-                    st.markdown(
-                        f"<div style='padding:10px 14px;border-radius:8px;"
-                        f"background:rgba(255,255,255,0.03);"
-                        f"border-left:3px solid {_cor};'>"
-                        f"<div style='font-size:0.85rem;color:#9ca3af;'>{label}</div>"
-                        f"<div style='font-size:1.5rem;font-weight:700;color:{_cor};"
-                        f"line-height:1.2;margin-top:2px;'>{bias}</div>"
-                        f"<div style='font-size:0.8rem;color:#6b7280;margin-top:2px;'>"
-                        f"Confiança: {_conf}</div></div>",
-                        unsafe_allow_html=True,
-                    )
-
-            _cols = st.columns(3)
-            _card_bias(_cols[0], "M15 (macro)", _b15, _c15)
-            _card_bias(_cols[1], "M5 (médio)", _b5, _c5)
-            _card_bias(_cols[2], "M1 (micro)", _b1, _c1)
-
-            _cor = {
-                "ALINHADO_FORTE": "success",
-                "PULLBACK": "info",
-                "REVERSAO_MICRO_MEDIO": "warning",
-                "CONFLITO_MACRO": "warning",
-                "DIVERGENTE": "error",
-                "NEUTRO": "info",
-                "SEM_DIRECAO": "info",
-            }.get(_ver, "info")
-
-            _msg = f"**{_ver}** — direção dominante: `{_dir}`"
-            if _rac:
-                _msg += f"\n\n{_rac}"
-
-            if _cor == "success":
-                st.success(_msg)
-            elif _cor == "warning":
-                st.warning(_msg)
-            elif _cor == "error":
-                st.error(_msg)
-            else:
-                st.info(_msg)
-        # ---------- fim MTF ----------
-
-        st.markdown("### 🧠 Filtros e Estruturas de Liquidez Ativas (SMC V2.6)")
-        col_ob, col_fvg, col_liq = st.columns(3)
-
-        with col_ob:
-            st.markdown("**Order Blocks Recentes**")
-            obs = meta_smc.get("order_blocks") or smc_regras.get("order_blocks", [])
-            if obs:
-                for ob in obs[:3]:
-                    tipo = ob.get("tipo", "OB")
-                    cor = "#00ff88" if tipo == "COMPRA" else "#ff6b6b"
-                    preco = ob.get("preco") or ob.get("high")
-                    low = ob.get("low")
-                    high = ob.get("high")
-                    st.markdown(
-                        f"• <span style='color:{cor};'>OB de {tipo}</span> em `{_fmt(preco)}` "
-                        f"(Níveis: {_fmt(low)}-{_fmt(high)})",
-                        unsafe_allow_html=True,
-                    )
-            else:
-                st.caption("Nenhum Order Block validado.")
-
-        with col_fvg:
-            st.markdown("**Fair Value Gaps Abertos**")
-            fvgs = meta_smc.get("fvgs") or smc_regras.get("fair_value_gaps", [])
-            fvgs_abertos = [f for f in fvgs if not f.get("preenchido", False)]
-            if fvgs_abertos:
-                for fvg in fvgs_abertos[:3]:
-                    tipo = fvg.get("tipo", "COMPRA")
-                    cor = "#00ff88" if tipo == "COMPRA" else "#ff6b6b"
-                    st.markdown(
-                        f"• <span style='color:{cor};'>FVG {tipo}</span> | "
-                        f"Zona: `{_fmt(fvg.get('inferior'))}` - `{_fmt(fvg.get('superior'))}`",
-                        unsafe_allow_html=True,
-                    )
-            else:
-                st.caption("Mercado eficiente.")
-
-        with col_liq:
-            st.markdown("**Piscinas de Liquidez Pendentes**")
-            liq = smc_regras.get("liquidez", {})
-            bsl = liq.get("bsl", [])
-            ssl = liq.get("ssl", [])
-            if bsl:
-                st.markdown(f"🔼 **BSL:** `{_fmt(bsl[0])}` pts — Alvo de caça comprador.")
-            if ssl:
-                st.markdown(f"🔽 **SSL:** `{_fmt(ssl[0])}` pts — Alvo de caça vendedor.")
-            if not bsl and not ssl:
-                st.caption("Sem topos ou fundos duplos mapeados.")
-
-        st.markdown("---")
-        st.markdown("### 📉 Visão Gráfica e Monitoramento de Rompimento")
-
-        fig = go.Figure()
-
-        if win_ajuste is not None:
-            fig.add_trace(go.Scatter(x=[0, 10], y=[win_ajuste, win_ajuste], mode="lines", name="Ajuste Oficial B3", line=dict(color="orange", dash="dash")))
-
-        if poc_ontem is not None:
-            fig.add_trace(go.Scatter(x=[0, 10], y=[poc_ontem, poc_ontem], mode="lines", name="POC Ontem", line=dict(color="#a855f7", dash="dot")))
-        if vwap_ontem is not None:
-            fig.add_trace(go.Scatter(x=[0, 10], y=[vwap_ontem, vwap_ontem], mode="lines", name="VWAP Ontem", line=dict(color="#9ca3af", dash="dot")))
-
-        if candle_high_10h is not None:
-            fig.add_trace(go.Scatter(
-                x=[2, 8], y=[candle_high_10h, candle_high_10h],
-                mode="lines+text", name="Máxima Mãe",
-                line=dict(color="#00d4ff", width=2),
-                text=[f"Gatilho Compra ({candle_high_10h:,.0f})"],
-                textposition="top center",
-            ))
-        if candle_low_10h is not None:
-            fig.add_trace(go.Scatter(
-                x=[2, 8], y=[candle_low_10h, candle_low_10h],
-                mode="lines+text", name="Mínima Mãe",
-                line=dict(color="#ff6b6b", width=2),
-                text=[f"Gatilho Venda ({candle_low_10h:,.0f})"],
-                textposition="bottom center",
-            ))
-
-        if win_last is not None:
-            fig.add_trace(go.Scatter(
-                x=[5], y=[win_last],
-                mode="markers+text", name="Preço Atual B3",
-                marker=dict(color="white", size=14, symbol="diamond"),
-                text=[f"WIN: {win_last:,.0f}"],
-                textposition="middle right",
-            ))
-
-        fig.update_layout(
-            title="Níveis Críticos para a Janela de Rompimento Institucional",
-            xaxis=dict(showgrid=False, showticklabels=False),
-            yaxis=dict(title="Pontuação Mini Índice (WIN)", autorange=True),
-            template="plotly_dark",
-            height=450,
-            margin=dict(l=20, r=20, t=40, b=20),
-            legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.02),
+    with pr_col1:
+        mini_velocimetro(
+            var_teorica, "🔮 Variação Teórica",
+            f"{var_teorica:+.2f}%" if var_teorica is not None else "",
+            inverter=False,
         )
 
-        st.plotly_chart(fig, use_container_width=True)
+    ctx_aj = service_09h.contexto_ajuste()
+    gap_pts = ctx_aj.get("dist_pts")
+
+    with pr_col2:
+        gap_pct_equiv = (gap_pts / 1880.0) if gap_pts is not None else None
+        mini_velocimetro(
+            gap_pct_equiv, "📏 Gap vs Ajuste",
+            f"{gap_pts:+.0f} pts" if gap_pts is not None else "",
+            inverter=False,
+        )
+
+    with pr_col3:
+        risco_val = -10.0 if service_09h.tem_3estrelas else 0.0
+        mini_velocimetro(
+            risco_val, "📰 Risco Noticiário",
+            "ELEVADO" if service_09h.tem_3estrelas else "BAIXO",
+            inverter=True,
+        )
+
+    pivots_w = estimativas.get("pivot_points", {}).get("WIN_FUT") or decisao_v2.get("decisao", {}).get("metadados", {}).get("pivots") or {}
+
+    if pivots_w:
+        st.markdown("#### Níveis Técnicos de Suporte e Resistência (Floor Pivots)")
+        fl1, fl2 = st.columns(2)
+        r2 = pivots_w.get("R2") or pivots_w.get("r2")
+        r1 = pivots_w.get("R1") or pivots_w.get("r1")
+        pp = pivots_w.get("PP") or pivots_w.get("pp")
+        s1 = pivots_w.get("S1") or pivots_w.get("s1")
+        s2 = pivots_w.get("S2") or pivots_w.get("s2")
+
+        fl1.markdown(f"* **Resistência 2 (R2):** `{_fmt(r2)}`\n* **Resistência 1 (R1):** `{_fmt(r1)}`\n* **Ponto de Pivô (PP):** `{_fmt(pp)}`")
+        fl2.markdown(f"* **Suporte 1 (S1):** `{_fmt(s1)}`\n* **Suporte 2 (S2):** `{_fmt(s2)}`")
+    else:
+        st.caption("Níveis de pivô não disponíveis nos dados.")
+
+
+# ==============================================================================
+# ABA 3 — ABERTURA 10:00 (live, refresh 60s)
+# ==============================================================================
+@st.fragment(run_every=REFRESH_SEG_LIVE)
+def _render_tab3_abertura_1000():
+    unificados, _ = carregar_json_absoluto("DadosAtivosUnificados.json")
+    decisao_v2, _ = carregar_json_absoluto("Decisao_V2.json")
+    smc_regras, _ = carregar_json_absoluto("AnaliseGraficaSMC_Regras.json")
+    smc_mtf, _ = carregar_json_absoluto("AnaliseGraficaSMC_MTF.json")
+
+    st.markdown("<h3 style='color:#00d4ff;'>🎯 Estratégia de Abertura das 10:00h</h3>", unsafe_allow_html=True)
+    st.caption("Foco exclusivo: Mini Índice (WINFUT)")
+
+    ativos = unificados.get("ativos", {})
+    win_last = ativos.get("WIN_FUT", {}).get("preco") or ativos.get("WIN_LAST_TICK", {}).get("preco")
+    win_ajuste = ativos.get("WIN_AJUSTE", {}).get("preco")
+
+    decisao_core = decisao_v2.get("decisao", {})
+    meta_smc = decisao_core.get("metadados", {}).get("smc", {})
+    meta_prec = decisao_core.get("metadados", {}).get("precificacao_teorica", {})
+
+    poc_ontem = meta_smc.get("poc_ontem") or smc_regras.get("niveis_institucionais", {}).get("poc_ontem")
+    vwap_ontem = meta_smc.get("vwap_ontem") or smc_regras.get("niveis_institucionais", {}).get("vwap_ontem")
+    ob_alinhado = meta_smc.get("ob_alinhado_com_poc")
+    preco_carregado = meta_prec.get("preco_carregado_di")
+
+    vies_final = decisao_core.get("vies_final") or smc_regras.get("bias_direcional")
+    confianca = decisao_core.get("confianca") or smc_regras.get("confianca_visual")
+
+    candle_high_10h, candle_low_10h = obter_max_min_vela_10h(win_last)
+
+    amplitude_range = None
+    if candle_high_10h is not None and candle_low_10h is not None:
+        amplitude_range = candle_high_10h - candle_low_10h
+
+    col_header1, col_header2, col_header3, col_header4 = st.columns(4)
+
+    with col_header1:
+        vies_str = str(vies_final or "—").upper()
+        conf_str = f"({confianca}%)" if confianca is not None else ""
+        if "COMPRA" in vies_str or vies_str == "ALTA":
+            st.success(f"Viés V2: COMPRA {conf_str}")
+        elif "VENDA" in vies_str or vies_str == "BAIXA":
+            st.error(f"Viés V2: VENDA {conf_str}")
+        else:
+            st.warning(f"Viés V2: {vies_str} {conf_str}")
+
+    with col_header2:
+        st.metric("Preço Atual (MT5)", _fmt(win_last, sufixo=" pts"))
+
+    with col_header3:
+        dist_ajuste = None
+        if win_last is not None and win_ajuste is not None:
+            dist_ajuste = win_last - win_ajuste
+        st.metric("Distância do Ajuste", f"{dist_ajuste:+.0f} pts" if dist_ajuste is not None else "—")
+
+    with col_header4:
+        ob_delta = "OB Alinhado 🟢" if ob_alinhado is True else None
+        st.metric("POC Ontem", _fmt(poc_ontem, sufixo=" pts"), delta=ob_delta)
+
+    t1, t2, t3 = st.columns(3)
+    t1.metric("VWAP Ontem", _fmt(vwap_ontem, casas=1, sufixo=" pts"))
+    t2.metric("Preço Carregado (DI)", _fmt(preco_carregado, sufixo=" pts"))
+    t3.metric("Amplitude Vela 10h", f"{amplitude_range:.0f} pts" if amplitude_range is not None else "—")
+
+    st.markdown("---")
+
+    col_sinal, col_metricas = st.columns([1.5, 1])
+
+    with col_sinal:
+        st.markdown("### 📡 Status do Sinal Operacional (Rompimento 10h)")
+
+        if amplitude_range is None:
+            st.markdown(
+                "<div style='background-color:#1e2230; padding:15px; border-radius:8px;'>"
+                "⚠️ <b>DADOS INDISPONÍVEIS:</b> Não foi possível obter a vela M5 das 10:00h via MT5.</div>",
+                unsafe_allow_html=True,
+            )
+        elif amplitude_range > 700 or amplitude_range < 50:
+            st.markdown(
+                f"<div style='background-color:rgba(255,107,107,0.15); padding:15px; border-radius:8px; border:1px solid #ff6b6b;'>"
+                f"⚠️ <b>SINAL OPERACIONAL BLOQUEADO:</b> Amplitude fora do padrão "
+                f"({amplitude_range:.0f} pts).</div>",
+                unsafe_allow_html=True,
+            )
+        else:
+            vies_str = str(vies_final or "").upper()
+            if "COMPRA" in vies_str or vies_str == "ALTA":
+                entrada = candle_high_10h + 5
+                stop = candle_low_10h - 20
+                alvo = entrada + amplitude_range
+                st.markdown(
+                    f"<div style='background-color:rgba(0,212,255,0.1); padding:15px; border-radius:8px; border:1px solid #00d4ff;'>"
+                    f"🟢 <b>PREPARADO PARA COMPRA:</b><br>"
+                    f"• <b>Buy Stop:</b> {entrada:,.0f} pts<br>"
+                    f"• <b>Stop:</b> {stop:,.0f} pts<br>"
+                    f"• <b>Alvo:</b> {alvo:,.0f} pts</div>",
+                    unsafe_allow_html=True,
+                )
+            elif "VENDA" in vies_str or vies_str == "BAIXA":
+                entrada = candle_low_10h - 5
+                stop = candle_high_10h + 20
+                alvo = entrada - amplitude_range
+                st.markdown(
+                    f"<div style='background-color:rgba(255,107,107,0.1); padding:15px; border-radius:8px; border:1px solid #ff6b6b;'>"
+                    f"🔴 <b>PREPARADO PARA VENDA:</b><br>"
+                    f"• <b>Sell Stop:</b> {entrada:,.0f} pts<br>"
+                    f"• <b>Stop:</b> {stop:,.0f} pts<br>"
+                    f"• <b>Alvo:</b> {alvo:,.0f} pts</div>",
+                    unsafe_allow_html=True,
+                )
+            else:
+                st.markdown(
+                    "<div style='background-color:#1e2230; padding:15px; border-radius:8px;'>"
+                    "⚖️ <b>AGUARDANDO:</b> Orquestrador V2 aponta neutralidade macro.</div>",
+                    unsafe_allow_html=True,
+                )
+
+    with col_metricas:
+        st.markdown("### 📊 Métricas da Vela 10:00h (M5)")
+        c1, c2 = st.columns(2)
+        c1.metric("Máxima (10h)", _fmt(candle_high_10h, sufixo=" pts"))
+        c1.metric("Mínima (10h)", _fmt(candle_low_10h, sufixo=" pts"))
+        c2.metric("Amplitude", f"{amplitude_range:.0f} pts" if amplitude_range is not None else "—")
+        c2.metric("Ajuste Diário", _fmt(win_ajuste, sufixo=" pts"))
+
+    st.markdown("---")
+
+    # ---------- MTF: contexto multi-timeframe (fix28) ----------
+    if smc_mtf:
+        conf = smc_mtf.get("confluencia") or {}
+        _ver = conf.get("veredito_mtf") or "—"
+        _dir = conf.get("direcao_dominante") or "—"
+        _rac = conf.get("racional") or ""
+        _b15 = conf.get("bias_m15") or "—"
+        _b5 = conf.get("bias_m5") or "—"
+        _b1 = conf.get("bias_m1") or "—"
+        _c15 = conf.get("confianca_m15")
+        _c5 = conf.get("confianca_m5")
+        _c1 = conf.get("confianca_m1")
+
+        st.markdown("### 🧭 Contexto Multi-Timeframe (M15 / M5 / M1)")
+
+        def _cor_bias(_b):
+            _s = str(_b or "").upper()
+            if "ALTA" in _s or "COMPRA" in _s or "BULL" in _s:
+                return "#22c55e"
+            if "BAIXA" in _s or "VENDA" in _s or "BEAR" in _s:
+                return "#ef4444"
+            return "#a3a3a3"
+
+        def _card_bias(col, label, bias, conf):
+            _cor = _cor_bias(bias)
+            _conf = f"{conf}%" if conf is not None else "—"
+            with col:
+                st.markdown(
+                    f"<div style='padding:10px 14px;border-radius:8px;"
+                    f"background:rgba(255,255,255,0.03);"
+                    f"border-left:3px solid {_cor};'>"
+                    f"<div style='font-size:0.85rem;color:#9ca3af;'>{label}</div>"
+                    f"<div style='font-size:1.5rem;font-weight:700;color:{_cor};"
+                    f"line-height:1.2;margin-top:2px;'>{bias}</div>"
+                    f"<div style='font-size:0.8rem;color:#6b7280;margin-top:2px;'>"
+                    f"Confiança: {_conf}</div></div>",
+                    unsafe_allow_html=True,
+                )
+
+        _cols = st.columns(3)
+        _card_bias(_cols[0], "M15 (macro)", _b15, _c15)
+        _card_bias(_cols[1], "M5 (médio)", _b5, _c5)
+        _card_bias(_cols[2], "M1 (micro)", _b1, _c1)
+
+        _cor = {
+            "ALINHADO_FORTE": "success",
+            "PULLBACK": "info",
+            "REVERSAO_MICRO_MEDIO": "warning",
+            "CONFLITO_MACRO": "warning",
+            "DIVERGENTE": "error",
+            "NEUTRO": "info",
+            "SEM_DIRECAO": "info",
+        }.get(_ver, "info")
+
+        _msg = f"**{_ver}** — direção dominante: `{_dir}`"
+        if _rac:
+            _msg += f"\n\n{_rac}"
+
+        if _cor == "success":
+            st.success(_msg)
+        elif _cor == "warning":
+            st.warning(_msg)
+        elif _cor == "error":
+            st.error(_msg)
+        else:
+            st.info(_msg)
+    # ---------- fim MTF ----------
+
+    st.markdown("### 🧠 Filtros e Estruturas de Liquidez Ativas (SMC V2.6)")
+    col_ob, col_fvg, col_liq = st.columns(3)
+
+    with col_ob:
+        st.markdown("**Order Blocks Recentes**")
+        obs = meta_smc.get("order_blocks") or smc_regras.get("order_blocks", [])
+        if obs:
+            for ob in obs[:3]:
+                tipo = ob.get("tipo", "OB")
+                cor = "#00ff88" if tipo == "COMPRA" else "#ff6b6b"
+                preco = ob.get("preco") or ob.get("high")
+                low = ob.get("low")
+                high = ob.get("high")
+                st.markdown(
+                    f"• <span style='color:{cor};'>OB de {tipo}</span> em `{_fmt(preco)}` "
+                    f"(Níveis: {_fmt(low)}-{_fmt(high)})",
+                    unsafe_allow_html=True,
+                )
+        else:
+            st.caption("Nenhum Order Block validado.")
+
+    with col_fvg:
+        st.markdown("**Fair Value Gaps Abertos**")
+        fvgs = meta_smc.get("fvgs") or smc_regras.get("fair_value_gaps", [])
+        fvgs_abertos = [f for f in fvgs if not f.get("preenchido", False)]
+        if fvgs_abertos:
+            for fvg in fvgs_abertos[:3]:
+                tipo = fvg.get("tipo", "COMPRA")
+                cor = "#00ff88" if tipo == "COMPRA" else "#ff6b6b"
+                st.markdown(
+                    f"• <span style='color:{cor};'>FVG {tipo}</span> | "
+                    f"Zona: `{_fmt(fvg.get('inferior'))}` - `{_fmt(fvg.get('superior'))}`",
+                    unsafe_allow_html=True,
+                )
+        else:
+            st.caption("Mercado eficiente.")
+
+    with col_liq:
+        st.markdown("**Piscinas de Liquidez Pendentes**")
+        liq = smc_regras.get("liquidez", {})
+        bsl = liq.get("bsl", [])
+        ssl = liq.get("ssl", [])
+        if bsl:
+            st.markdown(f"🔼 **BSL:** `{_fmt(bsl[0])}` pts — Alvo de caça comprador.")
+        if ssl:
+            st.markdown(f"🔽 **SSL:** `{_fmt(ssl[0])}` pts — Alvo de caça vendedor.")
+        if not bsl and not ssl:
+            st.caption("Sem topos ou fundos duplos mapeados.")
+
+    st.markdown("---")
+    st.markdown("### 📉 Visão Gráfica e Monitoramento de Rompimento")
+
+    fig = go.Figure()
+
+    if win_ajuste is not None:
+        fig.add_trace(go.Scatter(x=[0, 10], y=[win_ajuste, win_ajuste], mode="lines", name="Ajuste Oficial B3", line=dict(color="orange", dash="dash")))
+
+    if poc_ontem is not None:
+        fig.add_trace(go.Scatter(x=[0, 10], y=[poc_ontem, poc_ontem], mode="lines", name="POC Ontem", line=dict(color="#a855f7", dash="dot")))
+    if vwap_ontem is not None:
+        fig.add_trace(go.Scatter(x=[0, 10], y=[vwap_ontem, vwap_ontem], mode="lines", name="VWAP Ontem", line=dict(color="#9ca3af", dash="dot")))
+
+    if candle_high_10h is not None:
+        fig.add_trace(go.Scatter(
+            x=[2, 8], y=[candle_high_10h, candle_high_10h],
+            mode="lines+text", name="Máxima Mãe",
+            line=dict(color="#00d4ff", width=2),
+            text=[f"Gatilho Compra ({candle_high_10h:,.0f})"],
+            textposition="top center",
+        ))
+    if candle_low_10h is not None:
+        fig.add_trace(go.Scatter(
+            x=[2, 8], y=[candle_low_10h, candle_low_10h],
+            mode="lines+text", name="Mínima Mãe",
+            line=dict(color="#ff6b6b", width=2),
+            text=[f"Gatilho Venda ({candle_low_10h:,.0f})"],
+            textposition="bottom center",
+        ))
+
+    if win_last is not None:
+        fig.add_trace(go.Scatter(
+            x=[5], y=[win_last],
+            mode="markers+text", name="Preço Atual B3",
+            marker=dict(color="white", size=14, symbol="diamond"),
+            text=[f"WIN: {win_last:,.0f}"],
+            textposition="middle right",
+        ))
+
+    fig.update_layout(
+        title="Níveis Críticos para a Janela de Rompimento Institucional",
+        xaxis=dict(showgrid=False, showticklabels=False),
+        yaxis=dict(title="Pontuação Mini Índice (WIN)", autorange=True),
+        template="plotly_dark",
+        height=450,
+        margin=dict(l=20, r=20, t=40, b=20),
+        legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.02),
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+
+# ==============================================================================
+# CORPO DA PÁGINA (SEM fragment raiz — cada aba tem o seu)
+# ==============================================================================
+def render_body():
+    st.markdown("<h2 style='color:#00d4ff;'>🎯 Painel Unificado de Abertura Pregão B3</h2>", unsafe_allow_html=True)
+    st.caption(
+        "Orquestração Ativa: V2 · "
+        "auto-refresh por aba: pré-market/setup 300s · abertura 60s · "
+        "⚪ ponteiro branco = valor de 5 min atrás"
+    )
+    st.info("🚀 **Fila de Execução V2:** Este painel consome a decisão oficial gerada pelo motor de confluência.")
+
+    tab_overnight, tab_0900, tab_1000 = st.tabs([
+        "🗓️ 1. Janela Pré-Market (Ajuste)",
+        "⚡ 2. Abertura 09:00h (Leilão WIN)",
+        "📊 3. Abertura 10:00h (Pregão À Vista)",
+    ])
+
+    with tab_overnight:
+        _render_tab1_pre_market()
+
+    with tab_0900:
+        _render_tab2_setup_0900()
+
+    with tab_1000:
+        _render_tab3_abertura_1000()
 
 
 # ==============================================================================
