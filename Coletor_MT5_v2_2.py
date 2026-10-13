@@ -738,6 +738,75 @@ def coletar_ativo(nome_ativo, configuracao):
 # SALVAR JSON
 # ================================================================
 
+# ================================================================
+# ROTACAO DE HISTORICO (fix100)
+# ================================================================
+
+DIAS_RETENCAO_RAW = 7
+HISTORICO_ARQUIVO_DIR = os.path.join(HISTORICO_DIR, "arquivo")
+
+
+def _rotacionar_historico():
+    """
+    Mantem os ultimos DIAS_RETENCAO_RAW dias em Historico_MT5/ como arquivos brutos.
+    Arquivos mais antigos sao agrupados por mes em Historico_MT5/arquivo/YYYY-MM.zip.
+
+    - Idempotente: pode rodar multiplas vezes sem problema.
+    - Nao trava: se falhar, loga warning e segue.
+    - Nao deleta dados: tudo vai pro zip antes de ser removido.
+    """
+    import zipfile
+    import glob
+    from datetime import timedelta
+
+    try:
+        if not os.path.isdir(HISTORICO_DIR):
+            return
+
+        os.makedirs(HISTORICO_ARQUIVO_DIR, exist_ok=True)
+
+        limite_dt = datetime.now() - timedelta(days=DIAS_RETENCAO_RAW)
+        arquivos = glob.glob(os.path.join(HISTORICO_DIR, "MT5_v2_2_*.json"))
+
+        antigos_por_mes = {}
+        for arq in arquivos:
+            try:
+                mtime = datetime.fromtimestamp(os.path.getmtime(arq))
+            except OSError:
+                continue
+            if mtime >= limite_dt:
+                continue
+            mes = mtime.strftime("%Y-%m")
+            antigos_por_mes.setdefault(mes, []).append(arq)
+
+        for mes, lista in antigos_por_mes.items():
+            zip_path = os.path.join(HISTORICO_ARQUIVO_DIR, f"{mes}.zip")
+            try:
+                with zipfile.ZipFile(zip_path, "a", zipfile.ZIP_DEFLATED) as zf:
+                    nomes_existentes = set(zf.namelist())
+                    for arq in lista:
+                        nome = os.path.basename(arq)
+                        if nome in nomes_existentes:
+                            continue
+                        zf.write(arq, nome)
+
+                # So deleta originais se o zip foi criado/atualizado com sucesso
+                for arq in lista:
+                    try:
+                        os.remove(arq)
+                    except OSError as e:
+                        print(f"[ROTACAO] Aviso: nao removi {arq}: {e}")
+            except Exception as e:
+                print(f"[ROTACAO] Aviso: falha zipando {mes}: {e}")
+
+        if antigos_por_mes:
+            total = sum(len(v) for v in antigos_por_mes.values())
+            print(f"[ROTACAO] {total} arquivo(s) rotacionado(s) para {len(antigos_por_mes)} zip(s)")
+
+    except Exception as e:
+        print(f"[ROTACAO] Aviso: falha geral: {e}")
+
+
 def salvar_json(dados):
 
     # ------------------------------------------------------------
@@ -785,6 +854,9 @@ def salvar_json(dados):
             ensure_ascii=False,
             indent=4
         )
+
+    # fix100: rotacao automatica (mantem N dias brutos, zipa o resto por mes)
+    _rotacionar_historico()
 
     return arquivo_historico
 
