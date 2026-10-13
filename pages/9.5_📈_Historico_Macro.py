@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 """
 Módulo: pages/9.5_📈_Historico_Macro.py
-Versão: 2.1 - Dashboard analítico de série temporal e histórico macro/operacional do WIN.
+Versão: 2.2 - Extração de VIX do contexto_resumo (schema novo)
 """
 
 import json
+import re
 from pathlib import Path
 
 import streamlit as st
@@ -21,13 +22,12 @@ st.set_page_config(page_title="Quant Terminal - Histórico Macro", layout="wide"
 
 
 # ==============================================================================
-# CORES (semântica visual)
+# CORES
 # ==============================================================================
 VERDE = "#22c55e"
 VERMELHO = "#ef4444"
 CINZA = "#8b949e"
 BRANCO = "#e6edf3"
-AMARELO = "#fbbf24"
 
 
 def _cor_direcao(direcao: str) -> str:
@@ -52,6 +52,35 @@ def carregar_json_defensivo(caminho_path):
         return {}
 
 
+def _extrair_vix(ultimo_snapshot: dict):
+    """
+    Extrai o VIX (valor numérico) do snapshot.
+    Ordem de tentativas:
+      1. contexto.vix.preco (schema antigo, dict)
+      2. contexto_resumo (lista de strings — parse via regex "VIX 15.4 (...)")
+    Retorna float ou None.
+    """
+    # 1. Schema antigo (dict)
+    vix_old = (ultimo_snapshot.get("contexto") or {}).get("vix", {}).get("preco")
+    if isinstance(vix_old, (int, float)):
+        return float(vix_old)
+
+    # 2. Schema novo (lista de strings)
+    resumo = ultimo_snapshot.get("contexto_resumo") or []
+    if isinstance(resumo, list):
+        for linha in resumo:
+            if not isinstance(linha, str):
+                continue
+            m = re.search(r"VIX\s+([\d.,]+)", linha)
+            if m:
+                try:
+                    return float(m.group(1).replace(",", "."))
+                except ValueError:
+                    continue
+
+    return None
+
+
 # ==============================================================================
 # CABEÇALHO
 # ==============================================================================
@@ -64,7 +93,6 @@ st.caption("Análise estatística retroativa dos fechamentos, ajustes e cenário
 # ==============================================================================
 @st.fragment(run_every=300)
 def _render_historico():
-    # ---- Checagens defensivas ----
     if not HISTORICO_ABERTURAS_DIR.exists():
         st.warning(
             "⚠️ Diretório de histórico de aberturas V2 não encontrado no disco local. "
@@ -78,11 +106,10 @@ def _render_historico():
         st.info("ℹ️ Nenhuma sessão diária imutável foi persistida na pasta Historico_Aberturas/ ainda.")
         return
 
-    # ---- Processamento em lote ----
     linhas_serie = []
 
     for caminho in arquivos_historicos:
-        data_sessao = caminho.stem  # ex: 2026-08-30
+        data_sessao = caminho.stem
         dados_dia = carregar_json_defensivo(caminho)
         atualizacoes = dados_dia.get("atualizacoes", [])
 
@@ -92,7 +119,6 @@ def _render_historico():
             precos = ultimo_snapshot.get("precos", {})
             distancias = ultimo_snapshot.get("distancias", {})
             cenario = ultimo_snapshot.get("cenario", {})
-            contexto = ultimo_snapshot.get("contexto", {})
 
             linhas_serie.append({
                 "Data Sessão": data_sessao,
@@ -100,7 +126,7 @@ def _render_historico():
                 "Preço Ajuste B3": precos.get("ajuste"),
                 "Último MT5 (Last)": precos.get("last_mt5"),
                 "Desvio Ajuste (Pts)": distancias.get("last_vs_ajuste_pts"),
-                "VIX (Volatilidade)": contexto.get("vix", {}).get("preco"),
+                "VIX (Volatilidade)": _extrair_vix(ultimo_snapshot),
                 "Direção Cenário": cenario.get("direcao_provavel", "NEUTRO"),
                 "Confiança (%)": cenario.get("confianca_geral", 0.0),
             })
@@ -112,7 +138,7 @@ def _render_historico():
     df_historico = pd.DataFrame(linhas_serie).sort_values(by="Data Sessão", ascending=False)
 
     # =========================================================================
-    # KPIs NO TOPO
+    # KPIs
     # =========================================================================
     total_sessoes = len(df_historico)
     ultima = df_historico.iloc[0]
@@ -120,7 +146,6 @@ def _render_historico():
     ultima_direcao = ultima.get("Direção Cenário") or "—"
     ultima_conf = ultima.get("Confiança (%)")
 
-    # Desvio médio (últimos 5 dias úteis)
     ult5 = df_historico.head(5)
     desvios = pd.to_numeric(ult5["Desvio Ajuste (Pts)"], errors="coerce").dropna()
     desvio_medio = round(desvios.mean(), 0) if not desvios.empty else None
@@ -151,7 +176,7 @@ def _render_historico():
     st.markdown("---")
 
     # =========================================================================
-    # GRÁFICO — Last vs Ajuste
+    # GRÁFICO
     # =========================================================================
     st.markdown("### 📉 Curva Comparativa: Preço Last vs Ajuste Oficial B3")
     st.caption("Comportamento histórico e fechamento de spreads institucionais ao longo das sessões")
@@ -190,14 +215,13 @@ def _render_historico():
     st.markdown("---")
 
     # =========================================================================
-    # TABELA CONSOLIDADA (com cores na direção)
+    # TABELA
     # =========================================================================
     st.markdown("### 📋 Histórico Consolidado de Snapshots da Mesa")
     st.caption("Grade analítica com todas as variáveis gravadas em background pelo pipeline")
 
     df_show = df_historico.set_index("Data Sessão")
 
-    # Estilização: direção colorida
     def _estilizar(row):
         estilos = [''] * len(row)
         for i, col in enumerate(row.index):
@@ -215,9 +239,6 @@ def _render_historico():
 
     st.dataframe(df_style, use_container_width=True)
 
-    # =========================================================================
-    # RODAPÉ
-    # =========================================================================
     st.markdown("---")
     st.caption(
         "🔒 Módulo de inteligência histórica ativo — Em conformidade com o ecossistema de "
