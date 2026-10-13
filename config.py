@@ -90,15 +90,9 @@ FILE_RESULTADO_OPERACIONAL = COLETAS_DIR / "Resultado_Calculadora_Operacional_Ab
 # Decisões — V2 é a única fonte oficial (Engine_Vies movido para _legado/)
 FILE_DECISAO_V2 = COLETAS_DIR / "Decisao_V2.json"  # oficial V2
 
-# Pipeline / logs
-FILE_PIPELINE_LOG = COLETAS_DIR / "Pipeline_Log.json"
-FILE_TOKEN_USAGE = COLETAS_DIR / "token_usage.log"
-
 # SMC / visão
 FILE_SMC_REGRAS = COLETAS_DIR / "AnaliseGraficaSMC_Regras.json"
 FILE_SMC_MTF = COLETAS_DIR / "AnaliseGraficaSMC_MTF.json"
-FILE_SMC_M1 = COLETAS_DIR / "AnaliseGraficaSMC_Regras_M1.json"
-FILE_SMC_M15 = COLETAS_DIR / "AnaliseGraficaSMC_Regras_M15.json"
 
 # Modificador de confianca SMC por veredito multi-timeframe.
 # Aplicado ANTES de comparar com CONFIANCA_MINIMA_CONFLUENCIA (55).
@@ -411,13 +405,4 @@ def id_interno(ticker_bruto: str) -> str:
 def _as_str(p: Path) -> str:
     return str(p)
 
-
-# Aliases string (módulos legados que ainda usam os.path)
-BASE_DIR_STR = str(BASE_DIR)
-COLETAS_DIR_STR = str(COLETAS_DIR)
-FILE_UNIFICADO_STR = str(FILE_UNIFICADO)
-FILE_RAM_STR = str(FILE_RAM)
-FILE_ROM0_STR = str(FILE_ROM0)
-FILE_MT5_V2_STR = str(FILE_MT5_V2)
-FILE_DECISAO_V2_STR = str(FILE_DECISAO_V2)
 
