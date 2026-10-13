@@ -1,20 +1,13 @@
 # -*- coding: utf-8 -*-
 """
 Módulo: v2/pages/2_analise_detalhada.py
-Versão: 3.0 - Refatorado para o schema V3.2-VisaoC do orquestrador
+Versão: 3.2 — Detalhamento V2 com fragments + variações coloridas
 Objetivo: Detalhar contextos, pesos e indicadores que geraram a Decisão V2.
-
-Mudanças da v2.0 → v3.0:
-  - Lê DadosAtivosUnificados.json para dados brutos (S&P, VIX, ADRs)
-  - Lê Metricas_Calculadas.json para indicadores compostos e curva DI
-  - Lê EstimativaAbertura.json para var teórica e cost of carry
-  - Consome novo schema do Decisao_V2.json (metadados.novo_motor)
-  - Auto-refresh via @st.fragment(run_every=60)
-  - Fallbacks defensivos para todos os campos
 """
 
 import json
 from datetime import datetime
+from pathlib import Path
 
 import pandas as pd
 import streamlit as st
@@ -32,8 +25,10 @@ from config import (
 # ==============================================================================
 # LOADERS DEFENSIVOS
 # ==============================================================================
-def carregar_json(caminho) -> dict:
-    if not caminho or not caminho.exists():
+@st.cache_data(ttl=5)
+def carregar_json_cached(caminho_str: str) -> dict:
+    caminho = Path(caminho_str)
+    if not caminho.exists():
         return {}
     try:
         with open(caminho, "r", encoding="utf-8") as f:
@@ -62,28 +57,139 @@ def _snapshot(ativos: dict, chave: str) -> dict:
 
 
 # ==============================================================================
+# ESTILO DE VARIAÇÃO (verde >= 0, vermelho < 0)
+# ==============================================================================
+def _estilo_variacao(v) -> str:
+    if v is None:
+        return ""
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return ""
+    if f > 0.005:
+        return "color: #22c55e; font-weight: 700;"
+    if f < -0.005:
+        return "color: #ef4444; font-weight: 700;"
+    return "color: #e6edf3;"
+
+
+def _estilo_row_variacao(row):
+    """Aplica estilo só na coluna 'Variação' (e 'Cotação' fica sem cor)."""
+    estilos = []
+    for col, val in row.items():
+        if col == "Variação":
+            estilos.append(_estilo_variacao(val))
+        else:
+            estilos.append("")
+    return estilos
+
+
+# ==============================================================================
 # CONFIGURAÇÃO
 # ==============================================================================
 st.set_page_config(page_title="Quant Terminal - Análise Detalhada", layout="wide")
 
 
 # ==============================================================================
-# CORPO (auto-refresh 60s)
+# FRAGMENT 1 — DADOS DE MERCADO (refresh 60s)
 # ==============================================================================
 @st.fragment(run_every=60)
-def render_body():
-    # ---- Carga ----
-    dados_v2 = carregar_json(FILE_DECISAO_V2)
-    unificado = carregar_json(FILE_UNIFICADO)
-    metricas = carregar_json(FILE_METRICAS)
-    estimativa = carregar_json(FILE_ESTIMATIVA_ABERTURA)
-    tendencias = carregar_json(FILE_TENDENCIAS)
+def _render_secao_mercado():
+    unificado = carregar_json_cached(str(FILE_UNIFICADO))
+    metricas = carregar_json_cached(str(FILE_METRICAS))
+    ativos = (unificado.get("ativos", {}) or {}) if isinstance(unificado, dict) else {}
 
-    # ---- Cabeçalho ----
-    st.markdown(
-        "<h2 style='color:#00d4ff;'>🔬 Diagnóstico e Análise Detalhada da Decisão</h2>",
-        unsafe_allow_html=True,
-    )
+    # ====================================================================
+    # SEÇÃO 2 — COMPONENTES DO CÁLCULO (3 colunas)
+    # ====================================================================
+    st.markdown("### 🧩 Componentes do Cálculo Ponderado V2")
+
+    col_global, col_juros, col_adrs = st.columns(3)
+
+    # ---- Bloco A: Drivers Globais ----
+    with col_global:
+        st.markdown("#### 🌐 Drivers Globais & Commodities")
+        sp = _snapshot(ativos, "SP500_FUT")
+        nq = _snapshot(ativos, "NASDAQ_FUT")
+        oil = _snapshot(ativos, "CRUDE_OIL")
+        iron = _snapshot(ativos, "IRON_ORE")
+        vix = _snapshot(ativos, "VIX")
+
+        linhas = [
+            {"Indicador": "S&P 500 Futuro", "Preço/Taxa": f"{sp['preco']:,.2f}", "Variação": sp['var']},
+            {"Indicador": "Nasdaq Futuro", "Preço/Taxa": f"{nq['preco']:,.2f}", "Variação": nq['var']},
+            {"Indicador": "Petróleo Crude Oil", "Preço/Taxa": f"US$ {oil['preco']:,.2f}", "Variação": oil['var']},
+            {"Indicador": "Minério de Ferro", "Preço/Taxa": f"US$ {iron['preco']:,.2f}", "Variação": iron['var']},
+            {"Indicador": "VIX (Volatilidade)", "Preço/Taxa": f"{vix['preco']:,.2f}", "Variação": vix['var']},
+        ]
+        df = pd.DataFrame(linhas).set_index("Indicador")
+        df_style = df.style.apply(_estilo_row_variacao, axis=1).format(
+            {"Variação": "{:+.2f}%"}, na_rep="—"
+        )
+        st.table(df_style)
+
+    # ---- Bloco B: Curva de Juros e Câmbio ----
+    with col_juros:
+        st.markdown("#### 📉 Curva de Juros e Câmbio")
+        dxy = _snapshot(ativos, "DXY")
+        usdbrl = _snapshot(ativos, "USD_BRL")
+        ptax = _snapshot(ativos, "USD_PTAX")
+        di27 = _snapshot(ativos, "DI1_2027")
+        di29 = _snapshot(ativos, "DI1_2029")
+
+        inclin = metricas.get("curva_juros_b3", {}).get("inclinacao_29_27_bps") if metricas else None
+
+        linhas = [
+            {"Indicador": "Índice DXY (Dólar Global)", "Preço/Taxa": f"{dxy['preco']:,.3f}", "Variação": dxy['var']},
+            {"Indicador": "USD/BRL Spot (TV)", "Preço/Taxa": f"R$ {usdbrl['preco']:,.4f}", "Variação": usdbrl['var']},
+            {"Indicador": "USD PTAX Oficial", "Preço/Taxa": f"R$ {ptax['preco']:,.4f}", "Variação": None},
+            {"Indicador": "DI1 Futuro 2027", "Preço/Taxa": f"{di27['preco']:,.2f}%", "Variação": di27['var']},
+            {"Indicador": "DI1 Futuro 2029", "Preço/Taxa": f"{di29['preco']:,.2f}%", "Variação": di29['var']},
+            {"Indicador": "Inclinação da Curva", "Preço/Taxa": f"{_f(inclin):+.1f} bps" if inclin is not None else "—", "Variação": None},
+        ]
+        df = pd.DataFrame(linhas).set_index("Indicador")
+        df_style = df.style.apply(_estilo_row_variacao, axis=1).format(
+            {"Variação": "{:+.2f}%"}, na_rep="—"
+        )
+        st.table(df_style)
+
+    # ---- Bloco C: ADRs ----
+    with col_adrs:
+        st.markdown("#### 🏢 Performance de ADRs em NY")
+        vale = _snapshot(ativos, "VALE_ADR")
+        petr = _snapshot(ativos, "PETR_ADR")
+        itub = _snapshot(ativos, "ITUB_ADR")
+        bbd = _snapshot(ativos, "BBD_ADR")
+        bbas = _snapshot(ativos, "BBAS_ADR")
+
+        linhas = [
+            {"ADR": "VALE", "Cotação": f"US$ {vale['preco']:,.2f}", "Variação": vale['var']},
+            {"ADR": "PBR (Petrobras)", "Cotação": f"US$ {petr['preco']:,.2f}", "Variação": petr['var']},
+            {"ADR": "ITUB (Itaú)", "Cotação": f"US$ {itub['preco']:,.2f}", "Variação": itub['var']},
+            {"ADR": "BBD (Bradesco)", "Cotação": f"US$ {bbd['preco']:,.2f}", "Variação": bbd['var']},
+            {"ADR": "BDORY (BB)", "Cotação": f"US$ {bbas['preco']:,.2f}", "Variação": bbas['var']},
+        ]
+        df = pd.DataFrame(linhas).set_index("ADR")
+        df_style = df.style.apply(_estilo_row_variacao, axis=1).format(
+            {"Variação": "{:+.2f}%"}, na_rep="—"
+        )
+        st.table(df_style)
+
+    st.markdown("---")
+
+
+# ==============================================================================
+# FRAGMENT 2 — ENGINE V2 (refresh 300s)
+# ==============================================================================
+@st.fragment(run_every=300)
+def _render_secao_engine():
+    dados_v2 = carregar_json_cached(str(FILE_DECISAO_V2))
+    unificado = carregar_json_cached(str(FILE_UNIFICADO))
+    metricas = carregar_json_cached(str(FILE_METRICAS))
+    estimativa = carregar_json_cached(str(FILE_ESTIMATIVA_ABERTURA))
+    tendencias = carregar_json_cached(str(FILE_TENDENCIAS))
+
+    # ---- Timestamp ----
     ts = dados_v2.get("metadata", {}).get("timestamp", "N/A")
     st.caption(
         f"Detalhamento completo de pesos e scores contextuais · "
@@ -121,7 +227,6 @@ def render_body():
     c3.metric("Intensidade do Gap", gap_intens, delta=f"{gap_pct:+.4f}%")
     c4.metric("Fonte da Abertura", fonte_ab)
 
-    # Comportamento / aviso
     div_flag = novo_motor.get("divergencia_direcao", False)
     div_msg = novo_motor.get("divergencia_detalhes", "")
     if div_flag:
@@ -130,73 +235,6 @@ def render_body():
         cenario_nome = novo_motor.get("cenario_principal_nome") or "—"
         cenario_desc = novo_motor.get("cenario_desc") or "Aguardando dados..."
         st.info(f"📋 **Cenário principal:** `{cenario_nome}` — {cenario_desc}")
-
-    st.markdown("---")
-
-    # ====================================================================
-    # SEÇÃO 2 — COMPONENTES DO CÁLCULO (3 colunas)
-    # ====================================================================
-    st.markdown("### 🧩 Componentes do Cálculo Ponderado V2")
-
-    col_global, col_juros, col_adrs = st.columns(3)
-
-    # ---- Bloco A: Drivers Globais ----
-    with col_global:
-        st.markdown("#### 🌐 Drivers Globais & Commodities")
-        sp = _snapshot(ativos, "SP500_FUT")
-        nq = _snapshot(ativos, "NASDAQ_FUT")
-        oil = _snapshot(ativos, "CRUDE_OIL")
-        iron = _snapshot(ativos, "IRON_ORE")
-        vix = _snapshot(ativos, "VIX")
-
-        linhas = [
-            {"Indicador": "S&P 500 Futuro", "Preço/Taxa": f"{sp['preco']:,.2f}", "Variação": f"{sp['var']:+.2f}%"},
-            {"Indicador": "Nasdaq Futuro", "Preço/Taxa": f"{nq['preco']:,.2f}", "Variação": f"{nq['var']:+.2f}%"},
-            {"Indicador": "Petróleo Crude Oil", "Preço/Taxa": f"US$ {oil['preco']:,.2f}", "Variação": f"{oil['var']:+.2f}%"},
-            {"Indicador": "Minério de Ferro", "Preço/Taxa": f"US$ {iron['preco']:,.2f}", "Variação": f"{iron['var']:+.2f}%"},
-            {"Indicador": "VIX (Volatilidade)", "Preço/Taxa": f"{vix['preco']:,.2f}", "Variação": f"{vix['var']:+.2f}%"},
-        ]
-        st.table(pd.DataFrame(linhas).set_index("Indicador"))
-
-    # ---- Bloco B: Curva de Juros e Câmbio ----
-    with col_juros:
-        st.markdown("#### 📉 Curva de Juros e Câmbio")
-        dxy = _snapshot(ativos, "DXY")
-        usdbrl = _snapshot(ativos, "USD_BRL")
-        ptax = _snapshot(ativos, "USD_PTAX")
-        di27 = _snapshot(ativos, "DI1_2027")
-        di29 = _snapshot(ativos, "DI1_2029")
-
-        # Inclinação da curva (do metricas)
-        inclin = metricas.get("curva_juros_b3", {}).get("inclinacao_29_27_bps") if metricas else None
-
-        linhas = [
-            {"Indicador": "Índice DXY (Dólar Global)", "Preço/Taxa": f"{dxy['preco']:,.3f}", "Variação": f"{dxy['var']:+.2f}%"},
-            {"Indicador": "USD/BRL Spot (TV)", "Preço/Taxa": f"R$ {usdbrl['preco']:,.4f}", "Variação": f"{usdbrl['var']:+.2f}%"},
-            {"Indicador": "USD PTAX Oficial", "Preço/Taxa": f"R$ {ptax['preco']:,.4f}", "Variação": "—"},
-            {"Indicador": "DI1 Futuro 2027", "Preço/Taxa": f"{di27['preco']:,.2f}%", "Variação": f"{di27['var']:+.2f}%"},
-            {"Indicador": "DI1 Futuro 2029", "Preço/Taxa": f"{di29['preco']:,.2f}%", "Variação": f"{di29['var']:+.2f}%"},
-            {"Indicador": "Inclinação da Curva", "Preço/Taxa": f"{_f(inclin):+.1f} bps" if inclin is not None else "—", "Variação": "—"},
-        ]
-        st.table(pd.DataFrame(linhas).set_index("Indicador"))
-
-    # ---- Bloco C: ADRs ----
-    with col_adrs:
-        st.markdown("#### 🏢 Performance de ADRs em NY")
-        vale = _snapshot(ativos, "VALE_ADR")
-        petr = _snapshot(ativos, "PETR_ADR")
-        itub = _snapshot(ativos, "ITUB_ADR")
-        bbd = _snapshot(ativos, "BBD_ADR")
-        bbas = _snapshot(ativos, "BBAS_ADR")
-
-        linhas = [
-            {"ADR": "VALE", "Cotação": f"US$ {vale['preco']:,.2f}", "Variação": f"{vale['var']:+.2f}%"},
-            {"ADR": "PBR (Petrobras)", "Cotação": f"US$ {petr['preco']:,.2f}", "Variação": f"{petr['var']:+.2f}%"},
-            {"ADR": "ITUB (Itaú)", "Cotação": f"US$ {itub['preco']:,.2f}", "Variação": f"{itub['var']:+.2f}%"},
-            {"ADR": "BBD (Bradesco)", "Cotação": f"US$ {bbd['preco']:,.2f}", "Variação": f"{bbd['var']:+.2f}%"},
-            {"ADR": "BDORY (BB)", "Cotação": f"US$ {bbas['preco']:,.2f}", "Variação": f"{bbas['var']:+.2f}%"},
-        ]
-        st.table(pd.DataFrame(linhas).set_index("ADR"))
 
     st.markdown("---")
 
@@ -266,7 +304,6 @@ def render_body():
         else:
             st.success("🟢 Nenhuma trava ativa neste ciclo.")
 
-    # ---- Detalhes do NOVO_MOTOR ----
     with st.expander("🤖 Detalhes do NOVO_MOTOR (abertura + divergência + score)"):
         if novo_motor:
             m1, m2, m3, m4 = st.columns(4)
@@ -284,7 +321,6 @@ def render_body():
             if novo_motor.get("divergencia_detalhes"):
                 st.warning(novo_motor["divergencia_detalhes"])
 
-    # ---- Status dos contextos ----
     with st.expander("⚙️ Status dos 5 Contextos Operacionais"):
         ctx = dados_v2.get("contextos", {}) or {}
         c1, c2, c3, c4, c5 = st.columns(5)
@@ -295,7 +331,6 @@ def render_body():
         c4.metric("Vision", _status(ctx.get("vision_ok")))
         c5.metric("Session", _status(ctx.get("session_ok")))
 
-    # ---- Erros acumulados ----
     erros = dados_v2.get("erros", []) or []
     if erros:
         with st.expander(f"⚠️ Avisos do orquestrador ({len(erros)})"):
@@ -306,4 +341,19 @@ def render_body():
     st.caption("🔒 Terminal de Produção V2 — dados consolidados de múltiplas fontes (DadosAtivosUnificados, Metricas_Calculadas, Decisao_V2, EstimativaAbertura).")
 
 
+# ==============================================================================
+# CORPO
+# ==============================================================================
+def render_body():
+    st.markdown(
+        "<h2 style='color:#00d4ff;'>🔬 Diagnóstico e Análise Detalhada da Decisão</h2>",
+        unsafe_allow_html=True,
+    )
+    _render_secao_mercado()   # 60s
+    _render_secao_engine()    # 300s
+
+
+# ==============================================================================
+# EXECUÇÃO
+# ==============================================================================
 render_body()
