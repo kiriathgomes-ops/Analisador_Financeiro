@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Módulo: main_pipeline.py (Versão V2.1 - Ordem Corrigida)
+Módulo: main_pipeline.py (Versão V2.2 - Tendências no pipeline)
 Objetivo: Orquestrar e disparar as tarefas garantindo rigor na cadeia de dependência dos arquivos JSON.
+
+Correção v2.2:
+- Adiciona MapearTendencia15Min na FASE 3 (gera Analise_Tendencias.json após o Coletor)
+- Fix do bug onde o JSON de tendências ficava órfão (só era gerado manualmente)
 
 Correção v2.1:
 - Orquestrador Final Decisao_V2 roda ANTES do Relatório e da Gravação Histórica
@@ -43,6 +47,7 @@ import Gerar_Resultado_Operacional_Abertura
 import Gerar_Relatorio_Mensagem
 import v2_gravar_sessao_win
 import v2_rodar_decisao_completa
+import MapearTendencia15Min
 
 
 def run_sync_module(module_object, name: str):
@@ -120,13 +125,18 @@ async def main_pipeline_async():
         await asyncio.gather(task_coletor, task_noticias)
 
         # -------------------------------------------------------------
-        # FASE 3: Processamento, Sanitização e Motor SMC (Estrutura Básica)
+        # FASE 3: Processamento, Sanitização, Motor SMC e Tendências
         # -------------------------------------------------------------
         await loop.run_in_executor(pool, run_sync_module, Analise_Noticias, "Análise Quantitativa de Notícias")
         await loop.run_in_executor(pool, run_sync_module, Validador, "Validador de Dados (33 Ativos)")
 
         # 💡 AJUSTE CRÍTICO: Roda o SMC AQUI para gerar a POC/VWAP antes das calculadoras
         await loop.run_in_executor(pool, run_sync_module, Rodar_SMC_Regras, "Motor SMC & ICT Regras (POC / VWAP)")
+
+        # 🔧 FIX v2.2: Gera Analise_Tendencias.json (10m → 5m → 0m) após o Coletor
+        # ter gerado os rom-10/5/0. Consome os snapshots e produz o comparativo
+        # sequencial usado pela page 2 (Confluência com Tendência).
+        await loop.run_in_executor(pool, run_sync_module, MapearTendencia15Min, "Análise de Tendências (10m → 5m → 0m)")
 
         # -------------------------------------------------------------
         # FASE 4: Motores de Cálculo Em Paralelo (Consumindo Dados Validados + SMC)
@@ -155,7 +165,7 @@ async def main_pipeline_async():
         # -------------------------------------------------------------
         logging.info("📝 Gerando relatórios e registrando sessão...")
 
-        task_relatorio = loop.run_in_executor(pool, run_sync_module, Gerar_Relatorio_Mensagem, "Relatório em Markdown")
+        task_relatorio = loop.run_in_executor(pool, run_sync_module, Gerar_Relatorio_Mensagem, "Relatórioem Markdown")
         task_sessao = loop.run_in_executor(pool, run_sync_module, v2_gravar_sessao_win, "Gravação Histórica da Sessão")
 
         await asyncio.gather(task_relatorio, task_sessao)
@@ -168,4 +178,5 @@ if __name__ == "__main__":
     try:
         asyncio.run(main_pipeline_async())
     except Exception as e:
-        logging.critical(f"💥 Falha fatal na execução do pipeline: {e}")
+        logging.error(f"❌ Falha fatal no pipeline: {e}", exc_info=True)
+        sys.exit(1)
