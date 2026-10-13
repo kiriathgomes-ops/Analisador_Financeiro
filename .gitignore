@@ -77,7 +77,14 @@ _*_fase*.py
 
 Ferramenta01.txt
 
-auditoria/
+# Auditoria (dados ficam fora do git, scripts versionados)
+/auditoria/
+ferramentas/auditoria/arquivo_morto/
+ferramentas/auditoria/*.json
+ferramentas/auditoria/*.bak
+
+# Backups de fix scripts
+ferramentas/fixes/backups/
 
 # Cache pytest
 .pytest_cache/
@@ -87,7 +94,3 @@ docs/dump_completo/
 
 docs/arvore.md
 docs/inventario.md
-
-
-# Arquivo morto de limpezas
-ferramentas/auditoria/arquivo_morto/
