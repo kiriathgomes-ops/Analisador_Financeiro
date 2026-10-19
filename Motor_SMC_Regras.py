@@ -3,7 +3,7 @@
 """
 Motor_SMC_Regras.py
 ===================
-Motor de regras SMC/ICT SEM IA — Versão 2.2 (Exportando timestamps e com memória expandida)
+Motor de regras SMC/ICT SEM IA — Versão 3.1 (Mitigação de Liquidez BSL/SSL)
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ import sys
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -56,20 +56,11 @@ class ConfigSMC:
     fvg_min_pontos: float = 20.0
     eq_tol_pontos: float = 15.0
     
-    # --- ALTERAÇÃO AQUI ---
-    # Aumentamos a quantidade máxima de níveis guardados no JSON final.
-    # O motor vai varrer o histórico passado e trazer mais OBs (como os do dia 14)
-    # sem descartar os mais recentes.
     max_niveis: int = 20
     max_fvgs: int = 15
     max_obs: int = 15
+    lookback: int = 500
     
-    lookback: int = 500  # fallback
-    
-    # --- ALTERAÇÃO AQUI ---
-    # Aumentamos o lookback de 120 para 1500 no M5, e ajustamos os outros TFs.
-    # 1500 velas de 5min equivalem a ~18 dias de pregão. 
-    # Isso permite enxergar o OB do dia 14 e mantê-lo na memória até hoje (dia 16).
     lookback_map: Dict[str, int] = field(
         default_factory=lambda: {
             "1m": 1000,
@@ -109,9 +100,6 @@ class ConfigSMC:
 
 CONFIG = ConfigSMC()
 
-# ============================================================
-# DATACLASSES
-# ============================================================
 @dataclass
 class Candle:
     time: str
@@ -144,6 +132,7 @@ class OrderBlock:
     high: float
     low: float
     preco_ref: float
+    abertura: float
     idx: int
     time: str = ""
     validado_por: str = ""
@@ -156,9 +145,6 @@ class EventoEstrutura:
     idx: int
     time: str = ""
 
-# ============================================================
-# HELPERS
-# ============================================================
 def _to_float(v: Any, default: float = 0.0) -> float:
     try:
         if v is None: return default
@@ -405,12 +391,22 @@ def detectar_order_blocks(candles: List[Candle], swings: List[Swing], eventos_es
         if not e_candle_expansao(candle_saida, media_vol, media_corpo, config): continue
 
         if s.tipo.startswith("LOW"):
-            if any(c.close > cand.high for c in candles[i + 1 : min(i + 4, n)]):
-                obs_brutos.append(OrderBlock(tipo="COMPRA", high=ob_cand.high, low=ob_cand.low, preco_ref=round((ob_cand.high + ob_cand.low) / 2, 1), idx=ob_cand.idx, time=ob_cand.time))
+            if any(c.close > ob_cand.high for c in candles[i + 1 : min(i + 11, n)]):
+                obs_brutos.append(OrderBlock(
+                    tipo="COMPRA", high=ob_cand.high, low=ob_cand.low, 
+                    preco_ref=round((ob_cand.high + ob_cand.low) / 2, 1), 
+                    abertura=ob_cand.open, 
+                    idx=ob_cand.idx, time=ob_cand.time
+                ))
 
         if s.tipo.startswith("HIGH"):
-            if any(c.close < cand.low for c in candles[i + 1 : min(i + 4, n)]):
-                obs_brutos.append(OrderBlock(tipo="VENDA", high=ob_cand.high, low=ob_cand.low, preco_ref=round((ob_cand.high + ob_cand.low) / 2, 1), idx=ob_cand.idx, time=ob_cand.time))
+            if any(c.close < ob_cand.low for c in candles[i + 1 : min(i + 11, n)]):
+                obs_brutos.append(OrderBlock(
+                    tipo="VENDA", high=ob_cand.high, low=ob_cand.low, 
+                    preco_ref=round((ob_cand.high + ob_cand.low) / 2, 1), 
+                    abertura=ob_cand.open, 
+                    idx=ob_cand.idx, time=ob_cand.time
+                ))
 
     obs_validados: List[OrderBlock] = []
     for ob in obs_brutos:
@@ -425,43 +421,85 @@ def detectar_order_blocks(candles: List[Candle], swings: List[Swing], eventos_es
         for ob in obs_brutos: ob.validado_por = "FALLBACK"
         obs_validados = obs_brutos
 
+    obs_nao_mitigados: List[OrderBlock] = []
+    for ob in obs_validados:
+        mitigado = False
+        for c in candles[ob.idx + 1:]:
+            if ob.tipo == "COMPRA" and c.close < ob.low:
+                mitigado = True
+                break
+            if ob.tipo == "VENDA" and c.close > ob.high:
+                mitigado = True
+                break
+        if not mitigado:
+            obs_nao_mitigados.append(ob)
+
     dist_dedup = _dedup_dist_para(ativo, config)
     unicos: List[OrderBlock] = []
-    for ob in obs_validados:
+    for ob in obs_nao_mitigados:
         if not any(abs(ob.preco_ref - u.preco_ref) < dist_dedup and ob.tipo == u.tipo for u in unicos):
             unicos.append(ob)
 
     return unicos
 
-def detectar_liquidez(swings: List[Swing], config: ConfigSMC = CONFIG) -> Dict[str, List[float]]:
+def detectar_liquidez(swings: List[Swing], candles: List[Candle], config: ConfigSMC = CONFIG) -> Dict[str, List[float]]:
     tol = config.eq_tol_pontos
-    bsl, ssl = [], []
-    highs, lows = _so_highs(swings), _so_lows(swings)
+    highs = _so_highs(swings)
+    lows = _so_lows(swings)
+
+    # Listas com (preco, idx)
+    bsl_raw = []
+    ssl_raw = []
 
     for i in range(len(highs)):
         for j in range(i + 1, len(highs)):
             if abs(highs[i].preco - highs[j].preco) <= tol:
                 nivel = round((highs[i].preco + highs[j].preco) / 2, 1)
-                if not any(abs(nivel - x) <= tol for x in bsl): bsl.append(nivel)
+                idx_formacao = max(highs[i].idx, highs[j].idx)
+                if not any(abs(nivel - x[0]) <= tol for x in bsl_raw): 
+                    bsl_raw.append((nivel, idx_formacao))
 
     for i in range(len(lows)):
         for j in range(i + 1, len(lows)):
             if abs(lows[i].preco - lows[j].preco) <= tol:
                 nivel = round((lows[i].preco + lows[j].preco) / 2, 1)
-                if not any(abs(nivel - x) <= tol for x in ssl): ssl.append(nivel)
+                idx_formacao = max(lows[i].idx, lows[j].idx)
+                if not any(abs(nivel - x[0]) <= tol for x in ssl_raw): 
+                    ssl_raw.append((nivel, idx_formacao))
 
     for s in highs:
         if s.tipo == "HIGH_EQ":
             nivel = round(s.preco, 1)
-            if not any(abs(nivel - x) <= tol for x in bsl): bsl.append(nivel)
+            if not any(abs(nivel - x[0]) <= tol for x in bsl_raw): 
+                bsl_raw.append((nivel, s.idx))
     for s in lows:
         if s.tipo == "LOW_EQ":
             nivel = round(s.preco, 1)
-            if not any(abs(nivel - x) <= tol for x in ssl): ssl.append(nivel)
+            if not any(abs(nivel - x[0]) <= tol for x in ssl_raw): 
+                ssl_raw.append((nivel, s.idx))
 
-    bsl.sort(reverse=True)
-    ssl.sort()
-    return {"bsl": bsl[:6], "ssl": ssl[:6]}
+    # Filtro de Mitigação da Liquidez (Se o preço fechou além, remove)
+    bsl_ativos = []
+    for nivel, idx in bsl_raw:
+        mitigado = False
+        for c in candles[idx + 1:]:
+            if c.close > nivel: # Se fechou acima do BSL
+                mitigado = True
+                break
+        if not mitigado: bsl_ativos.append(nivel)
+
+    ssl_ativos = []
+    for nivel, idx in ssl_raw:
+        mitigado = False
+        for c in candles[idx + 1:]:
+            if c.close < nivel: # Se fechou abaixo do SSL
+                mitigado = True
+                break
+        if not mitigado: ssl_ativos.append(nivel)
+
+    bsl_ativos.sort(reverse=True)
+    ssl_ativos.sort()
+    return {"bsl": bsl_ativos[:6], "ssl": ssl_ativos[:6]}
 
 def _calcular_atr(candles: List[Candle], periodo: int = 20) -> float:
     if len(candles) < 2: return 0.0
@@ -478,13 +516,13 @@ def calcular_entrada_stop_alvos(bias: str, obs: List[OrderBlock], fvgs_abertos: 
     entrada, stop, alvos = None, None, []
     if bias == "ALTA":
         ob = next((o for o in reversed(obs) if o.tipo == "COMPRA"), None)
-        if ob: entrada = round(ob.high, 0)
+        if ob: entrada = round(ob.abertura, 0)
         else:
             fvg = next((f for f in reversed(fvgs_abertos) if f.tipo == "COMPRA"), None)
             entrada = round(fvg.superior, 0) if fvg else round(preco_atual, 0)
     elif bias == "BAIXA":
         ob = next((o for o in reversed(obs) if o.tipo == "VENDA"), None)
-        if ob: entrada = round(ob.low, 0)
+        if ob: entrada = round(ob.abertura, 0)
         else:
             fvg = next((f for f in reversed(fvgs_abertos) if f.tipo == "VENDA"), None)
             entrada = round(fvg.inferior, 0) if fvg else round(preco_atual, 0)
@@ -560,9 +598,6 @@ def analisar_smc(dados_candles: Any, ativo: str = "WIN", timeframe: str = "5m", 
     inst_niveis = calcular_poc_vwap(candles, ativo, config)
     poc, vwap = inst_niveis["poc"], inst_niveis["vwap"]
 
-    # --- ALTERAÇÃO AQUI ---
-    # O lookback_efetivo agora usa o mapa de 1500 velas (definido na ConfigSMC)
-    # para o M5, em vez de cortar em 120 velas.
     lookback_efetivo = config.lookback_map.get(timeframe, config.lookback)
     candles = aplicar_lookback(candles, lookback_efetivo)
 
@@ -573,7 +608,7 @@ def analisar_smc(dados_candles: Any, ativo: str = "WIN", timeframe: str = "5m", 
     eventos, bias = detectar_bos_choch(candles, swings, config)
     fvgs = detectar_fvg(candles, config)
     obs = detectar_order_blocks(candles, swings, eventos, ativo, config)
-    liq = detectar_liquidez(swings, config)
+    liq = detectar_liquidez(swings, candles, config) # Agora passa os candles
 
     if bias in ("ALTA", "BAIXA"):
         bos = any(e.tipo == "BOS" and e.direcao == bias for e in eventos[-3:])
@@ -599,7 +634,7 @@ def analisar_smc(dados_candles: Any, ativo: str = "WIN", timeframe: str = "5m", 
         estruturas.append(f"{s.preco:.0f}: {label}")
 
     for ob in obs:
-        estruturas.append(f"{ob.preco_ref:.0f}: OB {ob.tipo} ({ob.low:.0f}-{ob.high:.0f}) [{ob.validado_por}]")
+        estruturas.append(f"{ob.abertura:.0f}: OB {ob.tipo} ({ob.low:.0f}-{ob.high:.0f}) [{ob.validado_por}]")
 
     for fvg in fvgs_abertos:
         estruturas.append(f"{(fvg.superior + fvg.inferior) / 2:.0f}: FVG {fvg.tipo} ({fvg.inferior:.0f}-{fvg.superior:.0f})")
@@ -612,13 +647,13 @@ def analisar_smc(dados_candles: Any, ativo: str = "WIN", timeframe: str = "5m", 
     if bias == "BAIXA":
         res = next((o for o in reversed(obs) if o.tipo == "VENDA"), None)
         fvg_v = next((f for f in reversed(fvgs_abertos) if f.tipo == "VENDA"), None)
-        zona = res.preco_ref if res else (fvg_v.superior if fvg_v else preco_atual)
+        zona = res.abertura if res else (fvg_v.superior if fvg_v else preco_atual)
         alvo = liq["ssl"][0] if liq["ssl"] else preco_atual * 0.99
         cenarios.append(f"Cenário Vendedor: rejeição em {zona:.0f} visando {alvo:.0f}.")
     elif bias == "ALTA":
         dem = next((o for o in reversed(obs) if o.tipo == "COMPRA"), None)
         fvg_c = next((f for f in reversed(fvgs_abertos) if f.tipo == "COMPRA"), None)
-        zona = dem.preco_ref if dem else (fvg_c.inferior if fvg_c else preco_atual)
+        zona = dem.abertura if dem else (fvg_c.inferior if fvg_c else preco_atual)
         alvo = liq["bsl"][0] if liq["bsl"] else preco_atual * 1.01
         cenarios.append(f"Cenário Comprador: defesa em {zona:.0f} visando {alvo:.0f}.")
     else:
@@ -635,7 +670,7 @@ def analisar_smc(dados_candles: Any, ativo: str = "WIN", timeframe: str = "5m", 
         "preco_atual": preco_atual, "timeframes_identificados": timeframe,
         "bias_direcional": bias, "direcao_estrutura": bias, "bos": bos, "choch": choch, "confianca_visual": conf,
         "niveis_institucionais": {"poc_ontem": poc, "vwap_ontem": vwap, "ob_alinhado_com_poc": ob_confluente},
-        "order_blocks": [{"tipo": o.tipo, "preco": o.preco_ref, "high": o.high, "low": o.low, "validado_por": o.validado_por, "time": o.time} for o in obs],
+        "order_blocks": [{"tipo": o.tipo, "preco": o.preco_ref, "abertura": o.abertura, "high": o.high, "low": o.low, "validado_por": o.validado_por, "time": o.time} for o in obs],
         "fair_value_gaps": [{"tipo": f.tipo, "superior": f.superior, "inferior": f.inferior, "preenchido": f.preenchido, "time": f.time} for f in fvgs_abertos],
         "liquidez": liq,
         "eventos_estrutura": [{"tipo": e.tipo, "direcao": e.direcao, "preco": e.preco, "time": e.time} for e in eventos[-6:]],
@@ -646,7 +681,7 @@ def analisar_smc(dados_candles: Any, ativo: str = "WIN", timeframe: str = "5m", 
         "entrada_sugerida": entrada, "stop_sugerido": stop, "alvos": alvos,
         "metadados": {
             "n_candles": len(candles), "n_swings": len(swings), "n_fvgs_abertos": len(fvgs_abertos), "n_obs": len(obs),
-            "filtro_volume_real_aplicado": True, "versao_motor": "2.2",
+            "filtro_volume_real_aplicado": True, "versao_motor": "3.1",
             "config": asdict(config),
             "_debug_confianca": {
                 "bias_ativo": bias in ("ALTA", "BAIXA"), "bos_ativo": bos, "choch_ativo": choch,
@@ -684,7 +719,7 @@ def _candidatos_simbolo(symbol: str) -> List[str]:
             add(f"WIN{m}{ano:02d}"); add(f"WIN{m}{ano + 1:02d}")
     return candidatos
 
-def carregar_mt5(symbol: str = "WIN$", timeframe_min: int = 5, qtd: int = 300, validar_pregao: bool = False) -> Tuple[List[Dict[str, Any]], str]:
+def carregar_mt5(symbol: str = "WIN$", timeframe_min: int = 5, qtd: int = 2000, validar_pregao: bool = False) -> Tuple[List[Dict[str, Any]], str]:
     try: import MetaTrader5 as mt5
     except ImportError as e: raise RuntimeError("MetaTrader5 não instalado.") from e
     if not mt5.initialize(): raise RuntimeError(f"Falha ao inicializar MT5: {mt5.last_error()}")
@@ -722,7 +757,7 @@ def main():
     parser = argparse.ArgumentParser(description="Motor SMC/ICT — análise de candles")
     parser.add_argument("--ativo", default="WIN$", help="Símbolo MT5 (ex: WIN$, WDO$)")
     parser.add_argument("--tf", type=int, default=5, help="Timeframe em minutos (1, 5, 15)")
-    parser.add_argument("--qtd", type=int, default=2000, help="Quantidade de candles") # Aumentado pra 2000
+    parser.add_argument("--qtd", type=int, default=2000, help="Quantidade de candles")
     parser.add_argument("--historico", action="store_true", help="Salva cópia em Historico_SMC/")
     parser.add_argument("--validar-pregao", action="store_true", help="Só roda se estiver no pregão")
     args = parser.parse_args()
