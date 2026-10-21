@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Módulo: main_pipeline.py (Versão V2.2 - Tendências no pipeline)
+Módulo: main_pipeline.py (Versão V2.3 - Tendências reativadas no pipeline)
 Objetivo: Orquestrar e disparar as tarefas garantindo rigor na cadeia de dependência dos arquivos JSON.
+
+Correção v2.3:
+- Descomenta a execução do MapearTendencia15Min na FASE 3 (estava desativado).
 
 Correção v2.2:
 - Adiciona MapearTendencia15Min na FASE 3 (gera Analise_Tendencias.json após o Coletor)
-- Fix do bug onde o JSON de tendências ficava órfão (só era gerado manualmente)
 
 Correção v2.1:
 - Orquestrador Final Decisao_V2 roda ANTES do Relatório e da Gravação Histórica
-- Relatório e Sessão passam a ler o Decisao_V2.json já atualizado no ciclo atual
 """
 
 import asyncio
@@ -133,7 +134,7 @@ async def main_pipeline_async():
         # 💡 AJUSTE CRÍTICO: Roda o SMC AQUI para gerar a POC/VWAP antes das calculadoras
         await loop.run_in_executor(pool, run_sync_module, Rodar_SMC_Regras, "Motor SMC & ICT Regras (POC / VWAP)")
 
-        # 🔧 FIX v2.2: Gera Analise_Tendencias.json (10m → 5m → 0m) após o Coletor
+        # 🔧 FIX v2.3: Gera Analise_Tendencias.json (10m → 5m → 0m) após o Coletor
         # ter gerado os rom-10/5/0. Consome os snapshots e produz o comparativo
         # sequencial usado pela page 2 (Confluência com Tendência).
         await loop.run_in_executor(pool, run_sync_module, MapearTendencia15Min, "Análise de Tendências (10m → 5m → 0m)")
@@ -180,3 +181,4 @@ if __name__ == "__main__":
     except Exception as e:
         logging.error(f"❌ Falha fatal no pipeline: {e}", exc_info=True)
         sys.exit(1)
+        
