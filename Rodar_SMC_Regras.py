@@ -9,7 +9,7 @@ import json
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 BASE_DIR = Path(__file__).resolve().parent
 if str(BASE_DIR) not in sys.path:
@@ -32,16 +32,9 @@ if sys.platform == "win32":
     except AttributeError:
         pass
 
-
-# ---------------------------------------------------------------------------
-# CONFIG MTF
-# ---------------------------------------------------------------------------
 ATIVO = "WIN$"
 
-# --- ALTERAÇÃO AQUI ---
-# Aumentamos a quantidade (qtd) de candles puxados do MT5.
-# O 5m agora puxa 2000 candles (~18 dias de mercado) em vez de 300.
-# Isso permite que o motor encontre OBs e FVGs de dias anteriores (ex: dia 14/out).
+# Memória expandida para garantir que o MT5 baixe muitos dias de histórico
 TIMEFRAMES: Dict[str, Dict[str, Any]] = {
     "15m": {"min": 15, "qtd": 1000, "arquivo": "AnaliseGraficaSMC_Regras_M15.json"},
     "5m":  {"min": 5,  "qtd": 2000, "arquivo": "AnaliseGraficaSMC_Regras.json"},
@@ -50,95 +43,11 @@ TIMEFRAMES: Dict[str, Dict[str, Any]] = {
 
 ARQUIVO_MTF = BASE_DIR / "Coletas" / "AnaliseGraficaSMC_MTF.json"
 
-
-# ---------------------------------------------------------------------------
-# COLETA MT5 (uma conexao, N TFs)
-# ---------------------------------------------------------------------------
-def carregar_multi_mt5(symbol: str, tf_spec: Dict[str, Dict[str, Any]]) -> Dict[str, Tuple[List[Dict[str, Any]], str]]:
-    """Abre MT5 uma vez, puxa rates de cada TF, fecha. Retorna {tf_label: (candles, simbolo_real)}."""
-    try:
-        import MetaTrader5 as mt5
-    except ImportError as e:
-        raise RuntimeError("MetaTrader5 nao instalado.") from e
-
-    if not mt5.initialize():
-        raise RuntimeError(f"Falha ao inicializar MT5: {mt5.last_error()}")
-
-    tf_map = {1: mt5.TIMEFRAME_M1, 5: mt5.TIMEFRAME_M5, 15: mt5.TIMEFRAME_M15}
-
-    try:
-        candidatos = _candidatos_simbolo(symbol)
-        simbolo_ok = None
-        for sym in candidatos:
-            info = mt5.symbol_info(sym)
-            if info is None:
-                continue
-            if not info.visible:
-                mt5.symbol_select(sym, True)
-            r = mt5.copy_rates_from_pos(sym, mt5.TIMEFRAME_M5, 0, 5)
-            if r is not None and len(r) > 0:
-                simbolo_ok = sym
-                break
-
-        if simbolo_ok is None:
-            raise RuntimeError(f"Sem dados MT5 para simbolo: {symbol}")
-
-        print(f"   [OK] Simbolo MT5: {simbolo_ok}")
-
-        resultados: Dict[str, Tuple[List[Dict[str, Any]], str]] = {}
-        for tf_label, spec in tf_spec.items():
-            tf = tf_map.get(spec["min"], mt5.TIMEFRAME_M5)
-            rates = mt5.copy_rates_from_pos(simbolo_ok, tf, 0, spec["qtd"])
-            if rates is None or len(rates) == 0:
-                print(f"   [AVISO] {tf_label}: sem rates")
-                resultados[tf_label] = ([], simbolo_ok)
-                continue
-
-            candles = []
-            for r in rates:
-                v_real = 0.0
-                try:
-                    if "real_volume" in r.dtype.names:
-                        v_real = float(r["real_volume"])
-                except Exception:
-                    pass
-                if v_real <= 0:
-                    try:
-                        if "tick_volume" in r.dtype.names:
-                            v_real = float(r["tick_volume"])
-                    except Exception:
-                        pass
-
-                from datetime import timezone
-                dt_brt = datetime.fromtimestamp(r["time"], tz=timezone.utc).replace(tzinfo=BRT)
-                candles.append({
-                    "time": dt_brt.isoformat(),
-                    "open": float(r["open"]),
-                    "high": float(r["high"]),
-                    "low": float(r["low"]),
-                    "close": float(r["close"]),
-                    "volume": v_real,
-                })
-
-            print(f"   [OK] {tf_label}: {len(candles)} candles")
-            resultados[tf_label] = (candles, simbolo_ok)
-
-        return resultados
-    finally:
-        mt5.shutdown()
-
-
-# ---------------------------------------------------------------------------
-# CONFLUENCIA MTF (Mantido igual)
-# ---------------------------------------------------------------------------
 def _direcao(bias: str) -> str:
-    if bias in ("ALTA", "BAIXA"):
-        return bias
+    if bias in ("ALTA", "BAIXA"): return bias
     return "LATERAL"
 
-def calcular_confluencia_mtf(
-    r15: Dict[str, Any], r5: Dict[str, Any], r1: Dict[str, Any]
-) -> Dict[str, Any]:
+def calcular_confluencia_mtf(r15: Dict[str, Any], r5: Dict[str, Any], r1: Dict[str, Any]) -> Dict[str, Any]:
     tfs_presentes = []
     if r15 and r15.get("bias_direcional"): tfs_presentes.append("15m")
     if r5 and r5.get("bias_direcional"): tfs_presentes.append("5m")
@@ -229,7 +138,6 @@ def _salvar_mtf(resultados: Dict[str, Dict[str, Any]], ativo_real: str) -> Path:
         json.dump(payload, f, indent=2, ensure_ascii=False)
     return ARQUIVO_MTF
 
-
 def executar() -> int:
     print("=" * 62)
     print(" SMC Multi-Timeframe (M1 / M5 / M15)")
@@ -278,7 +186,6 @@ def executar() -> int:
     print(f"  racional              : {confluencia['racional']}")
     print("=" * 62)
     return 0
-
 
 if __name__ == "__main__":
     sys.exit(executar())

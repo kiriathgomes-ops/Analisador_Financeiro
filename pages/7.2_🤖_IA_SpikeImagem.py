@@ -1,113 +1,194 @@
 # -*- coding: utf-8 -*-
 """
 Módulo: pages/7.2_🤖_IA_SpikeImagem.py
-Versão: 2.0 - Otimizado para Produção V2
-Objetivo: Renderizar a análise de anomalias visuais e Spikes institucionais no tempo gráfico de 1min.
+Versão: 3.5 - Vision AI (Spike) Autônomo: Limpa imagens, analisa e salva JSON com UI refinada
+Objetivo: Usar Groq Vision para ler gráficos M5 e M15, gerar relatório SMC e código Profit.
 """
 
+import os
 import streamlit as st
 import json
-import pandas as pd
-from pathlib import Path
-from datetime import datetime
+import re
+import base64
+import io
+import requests
+from datetime import datetime, timezone, timedelta
+from PIL import Image
 
-# Importação de caminhos centralizados do config.py da V2
-from config import COLETAS_DIR, FILE_WIN_1MIN, FILE_SMC_REGRAS
+# Importa o gerenciador de chaves e o limpador de imagens
+from utils.KeyManager import key_manager
+from Limpar_Imagens_TradingView import limpar_e_processar_imagens
+from config import COLETAS_DIR
 
-# Definição do caminho do arquivo de resultado da Visão IA (Mapeado via ecossistema)
-FILE_SMC_VISAO_IA = COLETAS_DIR / "AnaliseGraficaSMC.json"
+# Caminhos
+IMG_15M = COLETAS_DIR / "WIN_15min.png"
+IMG_5M = COLETAS_DIR / "WIN_5min.png"
+ARQUIVO_IA = COLETAS_DIR / "AnaliseSpike_IA.json"
+BRT = timezone(timedelta(hours=-3))
 
-def carregar_json_defensivo(caminho):
-    if not caminho.exists():
-        return {}
-    try:
-        with open(caminho, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except:
-        return {}
+st.set_page_config(page_title="Quant Terminal - IA Spike Vision", layout="wide")
 
-# Configuração da página Streamlit
-st.set_page_config(page_title="Quant Terminal - IA Spike Imagem", layout="wide")
+st.markdown("<h2 style='color:#00d4ff;'>🐶 IA Spike Vision — Análise SMC por Imagem</h2>", unsafe_allow_html=True)
+st.caption("O Spike busca os prints novos na pasta Downloads, lê os gráficos e cospe o código NTSL.")
 
-st.markdown("<h2 style='color:#00d4ff;'>🤖 IA Spike Imagem — Detecção de Anomalias LTF</h2>", unsafe_allow_html=True)
-st.caption("Monitoramento quantitativo de picos de volume e volatilidade no tempo gráfico de 1 Minuto (LTF)")
+# --- VERIFICAÇÃO DE SEGURANÇA ---
+status_chaves = key_manager.verificar_presenca_credenciais()
+if not status_chaves.get("GROQ_API_KEY"):
+    st.error("⚠️ Chave `GROQ_API_KEY` não encontrada no arquivo `.env`. O Spike não pode caçar sem a coleira.")
+    st.stop()
 
-st.info("⚡ **Módulo de Volatilidade:** Esta tela monitora movimentos abruptos (Spikes) e desequilíbrios de curtíssimo prazo capturados em background pelo pipeline V2.")
+chave_mascarada = key_manager.obter_chave_mascarada("GROQ_API_KEY")
+st.success(f"🔒 **Conexão Segura (KeyManager):** Groq API {chave_mascarada}")
 
-# --- CARGA DOS DADOS DE SUPORTE V2 ---
-dados_visao = carregar_json_defensivo(FILE_SMC_VISAO_IA)
-dados_smc_regras = carregar_json_defensivo(FILE_SMC_REGRAS)
+# Recupera a string pura para usar no requests
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
-# --- DIVISION DESIGN: GRÁFICO DE 1MIN VS DIAGNÓSTICO DE SPIKE ---
-col_grafico, col_insights = st.columns([1.2, 1], gap="large")
+def preparar_imagem(caminho_img):
+    img = Image.open(caminho_img)
+    if img.mode == "RGBA":
+        img = img.convert("RGB")
+    img.thumbnail((1000, 1000)) 
+    buffer = io.BytesIO()
+    img.save(buffer, format="JPEG", quality=85)
+    b64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+    return f"data:image/jpeg;base64,{b64}"
 
-with col_grafico:
-    st.markdown("### 📉 Gráfico de Execução Rápida (WIN 1 Minuto)")
+# --- EXECUÇÃO DA ANÁLISE ---
+if st.button("🚀 Acordar o Spike (Limpar + Analisar + Salvar)", type="primary", use_container_width=True):
     
-    # Exibe a imagem do gráfico de 1 minuto para o trader auditar o Spike visualmente
-    if FILE_WIN_1MIN.exists():
-        st.image(str(FILE_WIN_1MIN), caption="WIN_1min.png — Captura de momentum e fluxo em tempo real", use_container_width=True)
-    else:
-        st.warning("⚠️ Imagem 'WIN_1min.png' não encontrada na pasta Coletas/. Executando carregamento defensivo.")
-        st.markdown(
-            "<div style='background-color:#161b24; padding:60px 20px; text-align:center; border-radius:8px; border:1px solid #2a3a4a; color:#8b949e;'>",
-            unsafe_allow_html=True
-        )
-        st.markdown("Aguardando nova captura de anomalia visual pelo orquestrador.")
-        st.markdown("</div>", unsafe_allow_html=True)
+    with st.spinner("🧹 Buscando os prints mais recentes na sua pasta Downloads..."):
+        limpar_e_processar_imagens()
+    
+    if not (IMG_15M.exists() and IMG_5M.exists()):
+        st.error("❌ O Spike não encontrou as imagens. Verifique se você tirou os prints do TradingView.")
+        st.stop()
 
-with col_insights:
-    st.markdown("### 🚨 Diagnóstico de Momentum e Fluxo")
-    
-    # KPIs Rápidos do Motor de Regras LTF
-    preco_atual = dados_smc_regras.get("preco_atual", 0.0)
-    bias_ltf = dados_smc_regras.get("bias_direcional", "NEUTRO")
-    confianca_ltf = dados_smc_regras.get("confianca_visual", 0)
-    
-    c1, c2 = st.columns(2)
-    c1.metric("Preço de Tela (WIN)", f"{preco_atual:,.0f} pts")
-    
-    if bias_ltf == "ALTA":
-        c2.markdown("<div style='background-color:rgba(0, 255, 136, 0.1); padding:8px; border-radius:6px; text-align:center; border:1px solid #00ff88;'><span style='font-size:0.85rem; color:#ccc;'>MOMENTUM LTF</span><br><b style='color:#00ff88; font-size:1.1rem;'>🐂 COMPRA ACELERADA</b></div>", unsafe_allow_html=True)
-    elif bias_ltf == "BAIXA":
-        c2.markdown("<div style='background-color:rgba(255, 107, 107, 0.1); padding:8px; border-radius:6px; text-align:center; border:1px solid #ff6b6b;'><span style='font-size:0.85rem; color:#ccc;'>MOMENTUM LTF</span><br><b style='color:#ff6b6b; font-size:1.1rem;'>Bearish / Venda Forte</b></div>", unsafe_allow_html=True)
-    else:
-        c2.markdown("<div style='background-color:rgba(255, 255, 255, 0.05); padding:8px; border-radius:6px; text-align:center; border:1px solid #888;'><span style='font-size:0.85rem; color:#ccc;'>MOMENTUM LTF</span><br><b style='color:#ccc; font-size:1.1rem;'>⚖️ Acumulação / Range</b></div>", unsafe_allow_html=True)
-        
-    st.markdown("---")
-    
-    # Cruzamento com os metadados do motor para validar se houve Vela de Expansão (Inbalance Real)
-    meta_regras = dados_smc_regras.get("metadados", {})
-    # fix72: Motor_SMC_Regras grava "filtro_volume_real_aplicado" (com "_real").
-    # Page lia "filtro_volume_aplicado" (sem "_real") — sempre False.
-    filtro_vol = (
-        meta_regras.get("filtro_volume_real_aplicado")
-        or meta_regras.get("filtro_volume_aplicado")
-        or False
-    )
-    
-    st.markdown("**Auditoria do Motor Contextual (Filtro Institucional):**")
-    if filtro_vol:
-        st.success("✅ **Filtro de Deslocamento de Volume Ativo:** O movimento atual foi validado acima da média móvel institucional (Vela de Expansão Realizada).")
-    else:
-        st.info("⚖️ **Volume Normal:** Oscilação dentro da média aritmética. Sem atuação de grandes lotes (ruído de varejo).")
-        
-    st.markdown("---")
-    
-    # Exibição dos Eventos de Estrutura de Curto Prazo (LTF) capturados
-    st.markdown("**Últimos Eventos de Estrutura Registrados (LTF):**")
-    eventos_est = dados_smc_regras.get("eventos_estrutura", [])
-    
-    if eventos_est:
-        linhas_eventos = []
-        for ev in eventos_est[-4:]:  # Exibe os 4 mais recentes para não poluir
-            linhas_eventos.append({
-                "Horário": ev.get("time", "N/A")[-8:],
-                "Evento": f"⚠️ {ev.get('tipo')}" if ev.get('tipo') == "CHoCH" else f"🔷 {ev.get('tipo')}",
-                "Direção": "🔼 ALTA" if ev.get("direcao") == "ALTA" else "🔽 BAIXA",
-                "Preço": f"{ev.get('preco'):,.0f} pts"
-            })
-        df_ev = pd.DataFrame(linhas_eventos)
-        st.table(df_ev.set_index("Horário"))
-    else:
-        st.caption("Sem quebras de estrutura (BOS/CHoCH) registradas no histórico recente de 1min.")
+    with st.spinner("🐶 Spike está farejando os gráficos... (aguarde ~3 segundos)"):
+        try:
+            img15_b64 = preparar_imagem(IMG_15M)
+            img5_b64 = preparar_imagem(IMG_5M)
+
+            prompt = """
+            Você é o "Spike", um trader especialista em Smart Money Concepts (SMC) e ICT.
+            Analise as duas imagens: a primeira é o gráfico de 15 minutos (Macro) e a segunda é de 5 minutos (Médio) do WINFUT.
+
+            Sua missão:
+            1. Identificar o Viés Macro (M15) e Médio (M5).
+            2. Encontrar Order Blocks (OB) e Fair Value Gaps (FVG) que estão abertos.
+            3. Identificar Liquidez (BSL / SSL).
+            4. Escrever um relatório rápido (máximo 3 parágrafos).
+            5. Extrair os PREÇOS EXATOS.
+
+            IMPORTANTE: Responda APENAS um JSON válido, no seguinte formato:
+            {
+                "bias_macro": "ALTA" | "BAIXA" | "LATERAL",
+                "bias_medio": "ALTA" | "BAIXA" | "LATERAL",
+                "relatorio": "Seu texto aqui...",
+                "niveis_ob": [
+                    {"tipo": "COMPRA", "preco": 210500, "texto": "OB C-15"},
+                    {"tipo": "VENDA", "preco": 212000, "texto": "OB V-5"}
+                ],
+                "niveis_fvg": [
+                    {"tipo": "COMPRA", "preco": 210200, "texto": "FVG C-5"}
+                ],
+                "bsl": [213000],
+                "ssl": [208000]
+            }
+            """
+
+            url = "https://api.groq.com/openai/v1/chat/completions"
+            headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
+            payload = {
+                "model": "qwen/qwen3.8-27b",
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": prompt},
+                            {"type": "image_url", "image_url": {"url": img15_b64}},
+                            {"type": "image_url", "image_url": {"url": img5_b64}}
+                        ]
+                    }
+                ],
+                "temperature": 0.1,
+                "response_format": {"type": "json_object"}
+            }
+
+            response = requests.post(url, headers=headers, json=payload, timeout=25)
+            
+            if response.status_code == 200:
+                dados_api = response.json()
+                texto_resposta = dados_api['choices'][0]['message']['content']
+                texto_limpo = re.sub(r'```json|```', '', texto_resposta).strip()
+                dados = json.loads(texto_limpo)
+
+                # --- GERANDO CÓDIGO NTSL ---
+                linhas_ntsl = []
+                for ob in dados.get("niveis_ob", []):
+                    cor = "clVerde" if ob["tipo"] == "COMPRA" else "clVermelho"
+                    linhas_ntsl.append(f'HorizontalLineCustom({ob["preco"]}, {cor}, 2, 0, "{ob["texto"]}", 10, tpTopLeft, 0, 0, 0, 0, 0);')
+                for fvg in dados.get("niveis_fvg", []):
+                    linhas_ntsl.append(f'HorizontalLineCustom({fvg["preco"]}, clAmarelo, 1, 1, "{fvg["texto"]}", 10, tpTopLeft, 0, 0, 0, 0, 0);')
+                for bsl in dados.get("bsl", []):
+                    linhas_ntsl.append(f'HorizontalLineCustom({bsl}, clAzul, 1, 1, "BSL", 10, tpTopLeft, 0, 0, 0, 0, 0);')
+                for ssl in dados.get("ssl", []):
+                    linhas_ntsl.append(f'HorizontalLineCustom({ssl}, clFucsia, 1, 1, "SSL", 10, tpTopLeft, 0, 0, 0, 0, 0);')
+
+                script_ntsl = "Inicio\n    " + "\n    ".join(linhas_ntsl) + "\nFim;"
+
+                # --- SALVANDO O JSON ---
+                payload_salvar = {
+                    "timestamp": datetime.now(BRT).isoformat(),
+                    "fonte": "Spike_IA_Groq",
+                    "dados_analise": dados,
+                    "codigo_ntsl_gerado": script_ntsl
+                }
+                ARQUIVO_IA.parent.mkdir(exist_ok=True)
+                with open(ARQUIVO_IA, "w", encoding="utf-8") as f:
+                    json.dump(payload_salvar, f, indent=2, ensure_ascii=False)
+
+                # --- RENDERIZANDO RESULTADOS NA TELA ---
+                st.success(f"✅ Spike terminou a análise! Relatório salvo em `{ARQUIVO_IA.name}`")
+                
+                st.markdown("### 📸 Prints Analisados")
+                c_img1, c_img2 = st.columns(2)
+                c_img1.image(str(IMG_15M), caption="M15 (Macro)", use_container_width=True)
+                c_img2.image(str(IMG_5M), caption="M5 (Médio)", use_container_width=True)
+
+                st.markdown("---")
+                
+                # Cores baseadas no viés
+                cor_macro = "#00ff88" if dados["bias_macro"] == "ALTA" else "#ff6b6b" if dados["bias_macro"] == "BAIXA" else "#ffa500"
+                cor_medio = "#00ff88" if dados["bias_medio"] == "ALTA" else "#ff6b6b" if dados["bias_medio"] == "BAIXA" else "#ffa500"
+                
+                # Bordas para o relatório (pega a cor do M15 como base)
+                borda_relatorio = cor_macro
+
+                c1, c2 = st.columns(2)
+                c1.markdown(f"<div style='background:#161b24; padding:15px; border-radius:8px; text-align:center; border-left:5px solid {cor_macro};'><h3 style='margin:0;'>M15 (Macro): <span style='color:{cor_macro};'>{dados['bias_macro']}</span></h3></div>", unsafe_allow_html=True)
+                c2.markdown(f"<div style='background:#161b24; padding:15px; border-radius:8px; text-align:center; border-left:5px solid {cor_medio};'><h3 style='margin:0;'>M5 (Médio): <span style='color:{cor_medio};'>{dados['bias_medio']}</span></h3></div>", unsafe_allow_html=True)
+
+                # 🔥 CARD CUSTOMIZADO DO RELATÓRIO (Substituindo o st.info)
+                st.markdown("### 📝 Relatório do Spike")
+                st.markdown(
+                    f"<div style='background-color: #161b24; padding: 20px; border-radius: 8px; "
+                    f"border-left: 5px solid {borda_relatorio}; color: #e6edf3; "
+                    f"line-height: 1.6; font-size: 1.05rem; font-family: sans-serif; box-shadow: 0 4px 6px rgba(0,0,0,0.3);'>"
+                    f"{dados['relatorio']}"
+                    f"</div>",
+                    unsafe_allow_html=True
+                )
+
+                st.markdown("<br>", unsafe_allow_html=True)
+                st.markdown("### 📥 Código NTSL (Pronto para o Profit)")
+                st.code(script_ntsl, language="pascal")
+                st.caption("💡 Copie o código acima e cole no seu indicador no Profit Pro.")
+
+            else:
+                st.error(f"❌ Erro na API da Groq: {response.status_code}")
+                st.text(response.text)
+
+        except requests.exceptions.Timeout:
+            st.error("❌ O Spike demorou muito para responder. Tente novamente.")
+        except Exception as e:
+            st.error(f"❌ O Spike se distraiu com um esquilo e deu erro: {e}")
