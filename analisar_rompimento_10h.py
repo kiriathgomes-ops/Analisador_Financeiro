@@ -4,21 +4,20 @@
 analisar_rompimento_10h.py
 ==========================
 Le os JSONs do pipeline + a vela M5 de 10:00 do MT5 e monta um snapshot
-pronto para copiar/colar no prompt de analise (PromptIA/Prompt_Rompimento_10h.txt).
+pronto para o Spike Desk ou para copiar/colar no ChatGPT.
 
 Uso:
-    python analisar_rompimento_10h.py
-    python analisar_rompimento_10h.py --force     # gera snapshot mesmo fora de 10:00
+    python analisar_rompimento_10h.py            # Roda silencioso (uso no pipeline)
+    python analisar_rompimento_10h.py --abrir    # Roda e abre o Notepad (uso manual)
+    python analisar_rompimento_10h.py --force --abrir
     python analisar_rompimento_10h.py --vela-manual "186850,187100,186720,187050"
-
-Saida:
-    Coletas/snapshot_rompimento_10h.txt
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import sys
 from datetime import datetime, time as dt_time, timedelta, timezone
 from pathlib import Path
 
@@ -27,7 +26,7 @@ COLETAS_DIR = BASE_DIR / "Coletas"
 PROMPT_PATH = BASE_DIR / "PromptIA" / "Prompt_Rompimento_10h.txt"
 SAIDA_PATH = COLETAS_DIR / "snapshot_rompimento_10h.txt"
 
-BRT = timezone(timedelta(hours=-3)) # ✅ FIX: Fuso horário de Brasília
+BRT = timezone(timedelta(hours=-3)) # Fuso horário de Brasília
 
 ARQUIVOS = {
     "ativos":       COLETAS_DIR / "DadosAtivosUnificados.json",
@@ -127,38 +126,29 @@ def fmt_pct(valor):
 
 
 def obter_vela_10h():
-    """Busca a vela M5 de 10:00 no MT5 (usando fuso BRT). Retorna dict ou None."""
+    """Busca a vela M5 de 10:00 no MT5. Retorna dict ou None."""
     try:
         import MetaTrader5 as mt5
     except ImportError:
-        print("[AVISO] MetaTrader5 nao instalado. Use --vela-manual.")
         return None
 
     if not mt5.initialize():
-        print(f"[AVISO] MT5 nao inicializou: {mt5.last_error()}")
         return None
 
     try:
         simbolos = _descobrir_contrato_vigente()
         hoje = datetime.now(BRT).date()
 
-        # ✅ FIX: Busca APENAS o dia de hoje. Não usa mais dias anteriores.
         for simbolo in simbolos:
             info = mt5.symbol_info(simbolo)
-            if info is None:
-                continue
-            if not info.visible:
-                mt5.symbol_select(simbolo, True)
+            if info is None: continue
+            if not info.visible: mt5.symbol_select(simbolo, True)
 
-            rates = mt5.copy_rates_from_pos(simbolo, mt5.TIMEFRAME_M5, 0, 500)
-            if rates is None or len(rates) == 0:
-                continue
+            rates = mt5.copy_rates_from_pos(simbolo, mt5.TIMEFRAME_M5, 0, 1000)
+            if rates is None or len(rates) == 0: continue
 
             for r in rates:
-                # Converte o timestamp UTC do MT5 para BRT
                 dt = datetime.fromtimestamp(r["time"], tz=timezone.utc).astimezone(BRT)
-                
-                # Verifica se é a vela de hoje às 10:00
                 if dt.date() == hoje and dt.hour == 10 and dt.minute == 0:
                     agora = datetime.now(BRT)
                     em_formacao = agora.time() < dt_time(10, 5)
@@ -173,8 +163,6 @@ def obter_vela_10h():
                         "status": "EM_FORMACAO" if em_formacao else "FECHADA",
                     }
 
-        print("[AVISO] Vela 10:00 de HOJE nao encontrada no MT5.")
-        print("        O mercado pode estar em leilão/halt ou o candle ainda não foi gerado.")
         return None
     finally:
         mt5.shutdown()
@@ -184,7 +172,7 @@ def vela_manual(csv: str):
     try:
         partes = [float(x.strip()) for x in csv.split(",")]
         if len(partes) != 4:
-            raise ValueError("Esperado 4 valores: open,high,low,close")
+            return None
         return {
             "simbolo": "MANUAL",
             "time": datetime.now(BRT).isoformat(),
@@ -195,8 +183,7 @@ def vela_manual(csv: str):
             "volume": 0.0,
             "status": "MANUAL",
         }
-    except Exception as e:
-        print(f"[ERRO] --vela-manual invalido: {e}")
+    except Exception:
         return None
 
 
@@ -404,6 +391,7 @@ def montar_snapshot(vela: dict) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--force", action="store_true")
+    parser.add_argument("--abrir", action="store_true", help="Abre o Notepad ao final")
     parser.add_argument("--vela-manual", type=str, default=None)
     args = parser.parse_args()
 
@@ -425,12 +413,13 @@ def main() -> int:
     else:
         print("  Vela    : [AUSENTE / MERCADO EM HALT]")
     
-    try:
-        import subprocess; subprocess.Popen(["notepad.exe", str(SAIDA_PATH)])
-        print("  [OK] Notepad aberto.")
-    except:
-        pass
+    if args.abrir:
+        try:
+            import subprocess; subprocess.Popen(["notepad.exe", str(SAIDA_PATH)])
+            print("  [OK] Notepad aberto.")
+        except:
+            pass
     return 0
 
 if __name__ == "__main__":
-    import sys; sys.exit(main())
+    sys.exit(main())

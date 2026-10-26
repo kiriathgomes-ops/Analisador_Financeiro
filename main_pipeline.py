@@ -1,17 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Módulo: main_pipeline.py (Versão V2.3 - Tendências reativadas no pipeline)
+Módulo: main_pipeline.py (Versão V2.4 - Snapshot do ORB no Pipeline)
 Objetivo: Orquestrar e disparar as tarefas garantindo rigor na cadeia de dependência dos arquivos JSON.
 
-Correção v2.3:
-- Descomenta a execução do MapearTendencia15Min na FASE 3 (estava desativado).
-
-Correção v2.2:
-- Adiciona MapearTendencia15Min na FASE 3 (gera Analise_Tendencias.json após o Coletor)
-
-Correção v2.1:
-- Orquestrador Final Decisao_V2 roda ANTES do Relatório e da Gravação Histórica
+Correção v2.4:
+- Adiciona a geração do Snapshot de Rompimento 10h na Fase 3 (para o Spike Desk).
 """
 
 import asyncio
@@ -49,6 +43,7 @@ import Gerar_Relatorio_Mensagem
 import v2_gravar_sessao_win
 import v2_rodar_decisao_completa
 import MapearTendencia15Min
+import analisar_rompimento_10h
 
 
 def run_sync_module(module_object, name: str):
@@ -56,10 +51,6 @@ def run_sync_module(module_object, name: str):
     Executor dinâmico para módulos síncronos.
     Tenta invocar .main(), .executar(), .run(). Caso o script execute o código
     diretamente no bloco `if __name__ == '__main__'`, ele roda via subprocess.
-
-    Quando roda via subprocess, captura stdout/stderr e exibe o traceback real
-    do script filho em caso de falha (evita "returned non-zero exit status 1"
-    sem contexto).
     """
     start = time.perf_counter()
     logging.info(f"🚀 Iniciando: {name}")
@@ -73,7 +64,6 @@ def run_sync_module(module_object, name: str):
         else:
             script_path = getattr(module_object, "__file__", None)
             if script_path:
-                # Captura stdout/stderr para exibir erro real do script filho
                 result = subprocess.run(
                     [sys.executable, script_path],
                     capture_output=True,
@@ -131,13 +121,14 @@ async def main_pipeline_async():
         await loop.run_in_executor(pool, run_sync_module, Analise_Noticias, "Análise Quantitativa de Notícias")
         await loop.run_in_executor(pool, run_sync_module, Validador, "Validador de Dados (33 Ativos)")
 
-        # 💡 AJUSTE CRÍTICO: Roda o SMC AQUI para gerar a POC/VWAP antes das calculadoras
+        # Roda o SMC AQUI para gerar a POC/VWAP antes das calculadoras
         await loop.run_in_executor(pool, run_sync_module, Rodar_SMC_Regras, "Motor SMC & ICT Regras (POC / VWAP)")
 
-        # 🔧 FIX v2.3: Gera Analise_Tendencias.json (10m → 5m → 0m) após o Coletor
-        # ter gerado os rom-10/5/0. Consome os snapshots e produz o comparativo
-        # sequencial usado pela page 2 (Confluência com Tendência).
+        # Gera Analise_Tendencias.json
         await loop.run_in_executor(pool, run_sync_module, MapearTendencia15Min, "Análise de Tendências (10m → 5m → 0m)")
+        
+        # 🔧 FIX v2.4: Gera o Snapshot do ORB 10h para o Spike Desk (silencioso)
+        await loop.run_in_executor(pool, run_sync_module, analisar_rompimento_10h, "Snapshot Rompimento 10h")
 
         # -------------------------------------------------------------
         # FASE 4: Motores de Cálculo Em Paralelo (Consumindo Dados Validados + SMC)
@@ -166,7 +157,7 @@ async def main_pipeline_async():
         # -------------------------------------------------------------
         logging.info("📝 Gerando relatórios e registrando sessão...")
 
-        task_relatorio = loop.run_in_executor(pool, run_sync_module, Gerar_Relatorio_Mensagem, "Relatórioem Markdown")
+        task_relatorio = loop.run_in_executor(pool, run_sync_module, Gerar_Relatorio_Mensagem, "Relatório em Markdown")
         task_sessao = loop.run_in_executor(pool, run_sync_module, v2_gravar_sessao_win, "Gravação Histórica da Sessão")
 
         await asyncio.gather(task_relatorio, task_sessao)
@@ -181,4 +172,3 @@ if __name__ == "__main__":
     except Exception as e:
         logging.error(f"❌ Falha fatal no pipeline: {e}", exc_info=True)
         sys.exit(1)
-        
