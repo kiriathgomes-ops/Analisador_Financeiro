@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Módulo: pages/7.2_🤖_IA_SpikeImagem.py
-Versão: 3.5 - Vision AI (Spike) Autônomo: Limpa imagens, analisa e salva JSON com UI refinada
-Objetivo: Usar Groq Vision para ler gráficos M5 e M15, gerar relatório SMC e código Profit.
+Módulo: pages/7.2.1_🐶_IA_SpikeImagem_Expert.py
+Versão: 5.2 (Expert) - Validação Matemática de R:R no Python e Foco SMC
+Objetivo: Análise visual cirúrgica com bloqueio de trades de assimetria ruim.
 """
 
 import os
@@ -15,91 +15,114 @@ import requests
 from datetime import datetime, timezone, timedelta
 from PIL import Image
 
-# Importa o gerenciador de chaves e o limpador de imagens
 from utils.KeyManager import key_manager
 from Limpar_Imagens_TradingView import limpar_e_processar_imagens
 from config import COLETAS_DIR
 
-# Caminhos
 IMG_15M = COLETAS_DIR / "WIN_15min.png"
 IMG_5M = COLETAS_DIR / "WIN_5min.png"
-ARQUIVO_IA = COLETAS_DIR / "AnaliseSpike_IA.json"
+ARQUIVO_IA = COLETAS_DIR / "AnaliseSpike_IA_Expert.json"
 BRT = timezone(timedelta(hours=-3))
 
-st.set_page_config(page_title="Quant Terminal - IA Spike Vision", layout="wide")
+st.set_page_config(page_title="Quant Terminal - IA Spike Vision Expert", layout="wide")
 
-st.markdown("<h2 style='color:#00d4ff;'>🐶 IA Spike Vision — Análise SMC por Imagem</h2>", unsafe_allow_html=True)
-st.caption("O Spike busca os prints novos na pasta Downloads, lê os gráficos e cospe o código NTSL.")
+st.markdown("<h2 style='color:#00d4ff;'>🐶 IA Spike Vision Expert — Análise SMC Master</h2>", unsafe_allow_html=True)
+st.caption("Foco 100% em SMC + Validação de Risco (R:R >= 1:2) feita pelo Python.")
 
-# --- VERIFICAÇÃO DE SEGURANÇA ---
 status_chaves = key_manager.verificar_presenca_credenciais()
 if not status_chaves.get("GROQ_API_KEY"):
-    st.error("⚠️ Chave `GROQ_API_KEY` não encontrada no arquivo `.env`. O Spike não pode caçar sem a coleira.")
+    st.error("⚠️ Chave `GROQ_API_KEY` não encontrada no arquivo `.env`.")
     st.stop()
 
 chave_mascarada = key_manager.obter_chave_mascarada("GROQ_API_KEY")
 st.success(f"🔒 **Conexão Segura (KeyManager):** Groq API {chave_mascarada}")
 
-# Recupera a string pura para usar no requests
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 def preparar_imagem(caminho_img):
     img = Image.open(caminho_img)
     if img.mode == "RGBA":
         img = img.convert("RGB")
-    img.thumbnail((1000, 1000)) 
+    img.thumbnail((1920, 1920)) 
     buffer = io.BytesIO()
-    img.save(buffer, format="JPEG", quality=85)
+    img.save(buffer, format="JPEG", quality=100)
     b64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
     return f"data:image/jpeg;base64,{b64}"
 
-# --- EXECUÇÃO DA ANÁLISE ---
-if st.button("🚀 Acordar o Spike (Limpar + Analisar + Salvar)", type="primary", use_container_width=True):
+def render_card(titulo, texto, cor_borda):
+    st.markdown(f"#### {titulo}")
+    texto_formatado = str(texto).replace("\n", "<br>")
+    st.markdown(
+        f"<div style='background-color: #161b24; padding: 20px; border-radius: 8px; "
+        f"border-left: 5px solid {cor_borda}; color: #e6edf3; "
+        f"line-height: 1.6; font-size: 1.05rem; font-family: sans-serif; box-shadow: 0 4px 6px rgba(0,0,0,0.3); "
+        f"white-space: pre-wrap; margin-bottom: 20px;'>"
+        f"{texto_formatado}"
+        f"</div>",
+        unsafe_allow_html=True
+    )
+
+if st.button("🚀 Acordar o Spike Expert (SMC Master)", type="primary", use_container_width=True):
     
     with st.spinner("🧹 Buscando os prints mais recentes na sua pasta Downloads..."):
         limpar_e_processar_imagens()
     
     if not (IMG_15M.exists() and IMG_5M.exists()):
-        st.error("❌ O Spike não encontrou as imagens. Verifique se você tirou os prints do TradingView.")
+        st.error("❌ O Spike não encontrou as imagens. Tire os prints do TradingView.")
         st.stop()
 
-    with st.spinner("🐶 Spike está farejando os gráficos... (aguarde ~3 segundos)"):
+    with st.spinner("🐶 Spike Expert mapeando a estrutura do mercado... (aguarde ~10s)"):
         try:
             img15_b64 = preparar_imagem(IMG_15M)
             img5_b64 = preparar_imagem(IMG_5M)
 
+            # ✅ PROMPT SMC FOCADO
             prompt = """
-            Você é o "Spike", um trader especialista em Smart Money Concepts (SMC) e ICT.
-            Analise as duas imagens: a primeira é o gráfico de 15 minutos (Macro) e a segunda é de 5 minutos (Médio) do WINFUT.
+            Você é o "Spike Expert", um Trader Institucional Sênior especialista absoluto em SMC (Smart Money Concepts) e Price Action.
+            Analise as duas imagens (M15 Macro e M5 Médio) do WINFUT.
 
-            Sua missão:
-            1. Identificar o Viés Macro (M15) e Médio (M5).
-            2. Encontrar Order Blocks (OB) e Fair Value Gaps (FVG) que estão abertos.
-            3. Identificar Liquidez (BSL / SSL).
-            4. Escrever um relatório rápido (máximo 3 parágrafos).
-            5. Extrair os PREÇOS EXATOS.
+            ⚠️ DIRETRIZES CRÍTICAS (ANTI-ALUCINAÇÃO):
+            1. LEITURA DE ESCALA: Use o Eixo Y para ancorar os preços. Não invente valores.
+            2. FOCO EM SMC: Ignore cunhas, bandeiras ou triângulos geométricos complexos. Foque em: Estrutura de Mercado (BOS/CHOCH), Order Blocks (OBs), Fair Value Gaps (FVGs) e Liquidez (BSL/SSL).
+            3. PRICE ACTION BÁSICO: Identifique rejeições fortes (pavios longos), candles de engolfo (marubozu) ou exaustão de movimento.
+            4. RANGES: O preço está consolidando? Onde estão o topo e o fundo do range?
+            5. REGRAS DE OURO: Se for ALTA, entrada em demanda. Se for BAIXA, em oferta. O R:R MÍNIMO é 1:2.
 
-            IMPORTANTE: Responda APENAS um JSON válido, no seguinte formato:
+            Seu raciocínio deve preencher os seguintes campos:
+            - "analise_estrutura": Descreva a tendência (M15 e M5), se houve BOS ou CHOCH recente.
+            - "analise_liquidez": Onde estão as liquidezes (topos/fundos iguais) e qual o alvo provável?
+            - "analise_zonas": Descreva os Order Blocks e FVGs mais relevantes que você encontrou.
+
+            Depois do raciocínio, preencha o JSON com os níveis para o Profit:
             {
+                "analise_estrutura": "Texto detalhado sobre BOS, CHOCH e a tendência macro/micro...",
+                "analise_liquidez": "Texto sobre onde a liquidez está acumulada (BSL/SSL)...",
+                "analise_zonas": "Texto sobre as zonas de OB e FVG...",
                 "bias_macro": "ALTA" | "BAIXA" | "LATERAL",
                 "bias_medio": "ALTA" | "BAIXA" | "LATERAL",
-                "relatorio": "Seu texto aqui...",
                 "niveis_ob": [
-                    {"tipo": "COMPRA", "preco": 210500, "texto": "OB C-15"},
-                    {"tipo": "VENDA", "preco": 212000, "texto": "OB V-5"}
+                    {"tipo": "COMPRA", "preco": 177000, "texto": "OB Compra M15"},
+                    {"tipo": "VENDA", "preco": 178200, "texto": "OB Venda M5"}
                 ],
                 "niveis_fvg": [
-                    {"tipo": "COMPRA", "preco": 210200, "texto": "FVG C-5"}
+                    {"tipo": "COMPRA", "preco": 177600, "texto": "FVG Compra M5"}
                 ],
-                "bsl": [213000],
-                "ssl": [208000]
+                "bsl": [178500],
+                "ssl": [176000],
+                "plano_de_trade": {
+                    "cenario_principal": "Texto curto explicando a entrada.",
+                    "entrada": 177550,
+                    "stop": 177400,
+                    "alvo": 178200,
+                    "risco_retorno": "1:3"
+                }
             }
             """
 
             url = "https://api.groq.com/openai/v1/chat/completions"
             headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
             payload = {
-                "model": "qwen/qwen3.8-27b",
+                "model": "qwen/qwen3.8-27b", 
                 "messages": [
                     {
                         "role": "user",
@@ -111,16 +134,22 @@ if st.button("🚀 Acordar o Spike (Limpar + Analisar + Salvar)", type="primary"
                     }
                 ],
                 "temperature": 0.1,
-                "response_format": {"type": "json_object"}
+                "response_format": {"type": "json_object"},
+                "max_tokens": 4000
             }
 
-            response = requests.post(url, headers=headers, json=payload, timeout=25)
+            response = requests.post(url, headers=headers, json=payload, timeout=60)
             
             if response.status_code == 200:
                 dados_api = response.json()
                 texto_resposta = dados_api['choices'][0]['message']['content']
                 texto_limpo = re.sub(r'```json|```', '', texto_resposta).strip()
                 dados = json.loads(texto_limpo)
+
+                uso_tokens = dados_api.get("usage") or {}
+                prompt_tokens = uso_tokens.get("prompt_tokens", 0)
+                completion_tokens = uso_tokens.get("completion_tokens", 0)
+                total_tokens = uso_tokens.get("total_tokens", 0)
 
                 # --- GERANDO CÓDIGO NTSL ---
                 linhas_ntsl = []
@@ -133,13 +162,21 @@ if st.button("🚀 Acordar o Spike (Limpar + Analisar + Salvar)", type="primary"
                     linhas_ntsl.append(f'HorizontalLineCustom({bsl}, clAzul, 1, 1, "BSL", 10, tpTopLeft, 0, 0, 0, 0, 0);')
                 for ssl in dados.get("ssl", []):
                     linhas_ntsl.append(f'HorizontalLineCustom({ssl}, clFucsia, 1, 1, "SSL", 10, tpTopLeft, 0, 0, 0, 0, 0);')
+                
+                plano = dados.get("plano_de_trade") or {}
+                if plano.get("entrada"):
+                    linhas_ntsl.append(f'HorizontalLineCustom({plano["entrada"]}, clBranco, 2, 0, "ENTRADA", 10, tpTopLeft, 0, 0, 0, 0, 0);')
+                if plano.get("stop"):
+                    linhas_ntsl.append(f'HorizontalLineCustom({plano["stop"]}, clVermelho, 1, 1, "STOP", 10, tpTopLeft, 0, 0, 0, 0, 0);')
+                if plano.get("alvo"):
+                    linhas_ntsl.append(f'HorizontalLineCustom({plano["alvo"]}, clVerde, 1, 1, "ALVO", 10, tpTopLeft, 0, 0, 0, 0, 0);')
 
                 script_ntsl = "Inicio\n    " + "\n    ".join(linhas_ntsl) + "\nFim;"
 
-                # --- SALVANDO O JSON ---
                 payload_salvar = {
                     "timestamp": datetime.now(BRT).isoformat(),
-                    "fonte": "Spike_IA_Groq",
+                    "fonte": "Spike_IA_Groq_Expert_SMC",
+                    "consumo_tokens": uso_tokens,
                     "dados_analise": dados,
                     "codigo_ntsl_gerado": script_ntsl
                 }
@@ -147,9 +184,14 @@ if st.button("🚀 Acordar o Spike (Limpar + Analisar + Salvar)", type="primary"
                 with open(ARQUIVO_IA, "w", encoding="utf-8") as f:
                     json.dump(payload_salvar, f, indent=2, ensure_ascii=False)
 
-                # --- RENDERIZANDO RESULTADOS NA TELA ---
-                st.success(f"✅ Spike terminou a análise! Relatório salvo em `{ARQUIVO_IA.name}`")
+                st.success(f"✅ Análise SMC Master concluída! Salvo em `{ARQUIVO_IA.name}`")
                 
+                st.markdown("### ⚡ Consumo de Tokens")
+                c_tok1, c_tok2, c_tok3 = st.columns(3)
+                c_tok1.metric("Tokens de Entrada", f"{prompt_tokens:,}")
+                c_tok2.metric("Tokens de Saída", f"{completion_tokens:,}")
+                c_tok3.metric("Total de Tokens", f"{total_tokens:,}")
+
                 st.markdown("### 📸 Prints Analisados")
                 c_img1, c_img2 = st.columns(2)
                 c_img1.image(str(IMG_15M), caption="M15 (Macro)", use_container_width=True)
@@ -157,38 +199,72 @@ if st.button("🚀 Acordar o Spike (Limpar + Analisar + Salvar)", type="primary"
 
                 st.markdown("---")
                 
-                # Cores baseadas no viés
                 cor_macro = "#00ff88" if dados["bias_macro"] == "ALTA" else "#ff6b6b" if dados["bias_macro"] == "BAIXA" else "#ffa500"
                 cor_medio = "#00ff88" if dados["bias_medio"] == "ALTA" else "#ff6b6b" if dados["bias_medio"] == "BAIXA" else "#ffa500"
-                
-                # Bordas para o relatório (pega a cor do M15 como base)
-                borda_relatorio = cor_macro
 
                 c1, c2 = st.columns(2)
                 c1.markdown(f"<div style='background:#161b24; padding:15px; border-radius:8px; text-align:center; border-left:5px solid {cor_macro};'><h3 style='margin:0;'>M15 (Macro): <span style='color:{cor_macro};'>{dados['bias_macro']}</span></h3></div>", unsafe_allow_html=True)
                 c2.markdown(f"<div style='background:#161b24; padding:15px; border-radius:8px; text-align:center; border-left:5px solid {cor_medio};'><h3 style='margin:0;'>M5 (Médio): <span style='color:{cor_medio};'>{dados['bias_medio']}</span></h3></div>", unsafe_allow_html=True)
 
-                # 🔥 CARD CUSTOMIZADO DO RELATÓRIO (Substituindo o st.info)
-                st.markdown("### 📝 Relatório do Spike")
-                st.markdown(
-                    f"<div style='background-color: #161b24; padding: 20px; border-radius: 8px; "
-                    f"border-left: 5px solid {borda_relatorio}; color: #e6edf3; "
-                    f"line-height: 1.6; font-size: 1.05rem; font-family: sans-serif; box-shadow: 0 4px 6px rgba(0,0,0,0.3);'>"
-                    f"{dados['relatorio']}"
-                    f"</div>",
-                    unsafe_allow_html=True
-                )
+                st.markdown("---")
+                
+                # ✅ RENDERIZAÇÃO DOS CARDS SMC
+                render_card("🏗️ Estrutura de Mercado (BOS / CHOCH)", dados.get("analise_estrutura", "Não disponível."), "#00d4ff")
+                
+                col_liq, col_zonas = st.columns(2)
+                with col_liq:
+                    render_card("💧 Mapa de Liquidez (BSL / SSL)", dados.get("analise_liquidez", "Não disponível."), "#3b82f6")
+                with col_zonas:
+                    render_card("📦 Zonas SMC (OBs / FVGs)", dados.get("analise_zonas", "Não disponível."), "#a855f7")
+
+                # 🎯 PLANO DE TRADE TÁTICO COM VALIDAÇÃO MATEMÁTICA
+                st.markdown("### 🎯 Plano de Trade Tático")
+                if plano:
+                    entrada = float(plano.get('entrada') or 0)
+                    stop = float(plano.get('stop') or 0)
+                    alvo = float(plano.get('alvo') or 0)
+                    
+                    # ✅ O PYTHON CALCULA O R:R REAL
+                    rr_valido = False
+                    rr_real = 0.0
+                    if entrada > 0 and stop > 0 and alvo > 0:
+                        risco = abs(entrada - stop)
+                        retorno = abs(alvo - entrada)
+                        if risco > 0:
+                            rr_real = retorno / risco
+                            rr_valido = (rr_real >= 2.0)
+                    
+                    cor_cenario = "#ffa500" if rr_valido else "#ef4444"
+                    emoji_alerta = "✅" if rr_valido else "🚨"
+                    texto_alerta = "R:R APROVADO (>= 1:2)" if rr_valido else "CUIDADO: R:R ABAIXO DO MÍNIMO (1:2) - NÃO OPERAR"
+                    
+                    st.markdown(
+                        f"<div style='background-color: #161b24; padding: 15px; border-radius: 8px; "
+                        f"border-left: 5px solid {cor_cenario}; color: #e6edf3; margin-bottom: 15px; "
+                        f"white-space: pre-wrap;'>"
+                        f"<b>Cenário Principal:</b> {plano.get('cenario_principal', '—')}<br><br>"
+                        f"<b>{emoji_alerta} Validação de Risco:</b> {texto_alerta}"
+                        f"</div>",
+                        unsafe_allow_html=True
+                    )
+                    
+                    p1, p2, p3, p4 = st.columns(4)
+                    p1.metric("Entrada", f"{entrada:,.0f}" if entrada else "—")
+                    p2.metric("Stop Loss", f"{stop:,.0f}" if stop else "—", delta_color="inverse")
+                    p3.metric("Alvo", f"{alvo:,.0f}" if alvo else "—")
+                    p4.metric("R:R Calculado", f"1:{rr_real:.1f}", help=f"A IA havia sugerido {plano.get('risco_retorno', '—')}")
+                else:
+                    st.warning("Spike Expert achou melhor não sugerir um trade neste momento.")
 
                 st.markdown("<br>", unsafe_allow_html=True)
                 st.markdown("### 📥 Código NTSL (Pronto para o Profit)")
                 st.code(script_ntsl, language="pascal")
-                st.caption("💡 Copie o código acima e cole no seu indicador no Profit Pro.")
 
             else:
                 st.error(f"❌ Erro na API da Groq: {response.status_code}")
                 st.text(response.text)
 
         except requests.exceptions.Timeout:
-            st.error("❌ O Spike demorou muito para responder. Tente novamente.")
+            st.error("❌ O Spike Expert demorou muito para responder. Tente novamente.")
         except Exception as e:
-            st.error(f"❌ O Spike se distraiu com um esquilo e deu erro: {e}")
+            st.error(f"❌ O Spike Expert se distraiu: {e}")
