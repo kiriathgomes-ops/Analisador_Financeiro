@@ -155,9 +155,6 @@ def processar_calculos_operacionais():
     ativos_dict = {item["ativo_id"]: item for item in dados_json.get("ativos_validados", [])}
 
     # --- PREÇO BASE DE REFERÊNCIA (sempre o ajuste oficial) ---
-    # O ajuste oficial da B3 é estável durante o dia e é o padrão institucional
-    # para cálculo de gap de abertura. NÃO usar WIN_FUT.close (preço atual),
-    # que muda a cada tick e faz a "abertura teórica" variar.
     preco_base = ativos_dict.get("WIN_AJUSTE", {}).get("close", 0.0)
 
     if preco_base <= 0:
@@ -195,12 +192,12 @@ def processar_calculos_operacionais():
     )
 
     # --- PONTOS DE PIVÔ CLÁSSICOS (MANTIDOS INTEGRALMENTE PARA SUAS PAGES) ---
-    # fix60: pivots classicos devem vir do ULTIMO D1 FECHADO (WIN_AJUSTE = settlement B3).
-    # NAO usar WIN_FUT (preco ao vivo mistura H/L de hoje com C de ontem -> pivots desordenados).
     win_ajuste = ativos_dict.get("WIN_AJUSTE", {})
-    high_d1 = win_ajuste.get("high", 0.0)
-    low_d1 = win_ajuste.get("low", 0.0)
-    close_d1 = win_ajuste.get("close", 0.0)
+    
+    # ✅ FIX: Uso do 'or 0.0' para evitar que valores None quebrem o script
+    high_d1 = win_ajuste.get("high") or 0.0
+    low_d1 = win_ajuste.get("low") or 0.0
+    close_d1 = win_ajuste.get("close") or 0.0
 
     pivots = {}
     if high_d1 > 0 and low_d1 > 0 and close_d1 > 0 and low_d1 <= close_d1 <= high_d1:

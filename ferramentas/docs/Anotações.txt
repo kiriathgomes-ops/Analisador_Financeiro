@@ -1,0 +1,6 @@
+python ferramentas/auditoria/diagnostico.py --full      # diagnóstico do app
+python ferramentas/auditoria/limpar_lixo.py             # limpeza (dry-run)
+python ferramentas/gerar_guia_execucao.py               # regenera o guia
+
+
+O guia tá em docs/GUIA_EXECUCAO.md e o diagnóstico em docs/diagnostico_2026-10-13.md.

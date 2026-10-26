@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 # analise_trilha_c_v2.py — Analise profunda dos runs historicos (Trilha C).
 #
+# Filtro v2.1: Ignora arquivos anteriores ao fix66 (06/10/2026 16:31:42).
+#
 # Melhorias sobre v1:
 #   - Parseia "motivos" para extrair SMC direcao + confianca
 #   - Reconstroi score_signed (direcao x magnitude)
@@ -13,9 +15,16 @@ import glob
 import re
 from collections import Counter, defaultdict
 from statistics import mean, median
+from pathlib import Path
 
-ARQS = sorted(glob.glob("Coletas/Historico_Decisoes_V2/*.json"))
-print(f"Total de runs: {len(ARQS)}\n")
+# 🔧 FILTRO FIX66: Corta qualquer arquivo gerado antes de 06/10/2026 16:31:42
+CUTOFF_FIX66 = "20261006_163142"
+ARQS = sorted([
+    a for a in glob.glob("Coletas/Historico_Decisoes_V2/*.json")
+    if Path(a).name[:15] >= CUTOFF_FIX66
+])
+
+print(f"Total de runs (pós-fix66): {len(ARQS)}\n")
 
 re_smc = re.compile(r"SMC:\s*(\w+)\s*\(conf\.\s*(\d+)%\)")
 re_nm = re.compile(r"NOVO_MOTOR:\s*(\w+)\s*\(score\s*([\d.]+),\s*gap\s*([+-]?\d+)\s*pts\)")
@@ -47,8 +56,8 @@ for arq in ARQS:
 
     registros.append({
         "arq": arq,
-        "nome": arq.split("\\")[-1],
-        "data": arq.split("\\")[-1][:8],
+        "nome": Path(arq).name,
+        "data": Path(arq).name[:8],
         "smc_dir": smc_dir,
         "smc_conf": smc_conf,
         "nm_dir_motivo": nm_dir_motivo,
@@ -83,8 +92,12 @@ matriz = Counter()
 for r in registros:
     if r["smc_dir"] and r["nm_dir_motivo"]:
         matriz[(r["smc_dir"], r["nm_dir_motivo"])] += 1
-for (s, n), v in sorted(matriz.items(), key=lambda x: -x[1]):
-    print(f"  SMC={s:<8} NM={n:<8} → {v:>3} ({100*v/sum(matriz.values()):.1f}%)")
+if matriz:
+    total = sum(matriz.values())
+    for (s, n), v in sorted(matriz.items(), key=lambda x: -x[1]):
+        print(f"  SMC={s:<8} NM={n:<8} → {v:>3} ({100*v/total:.1f}%)")
+else:
+    print("  Nenhum dado de SMC/NM nos motivos.")
 print()
 
 # ---- 3. Distribuicao de SMC confianca ----
@@ -138,16 +151,22 @@ for r in registros:
     if r["motivo_saida"] and r["nm_mag_payload"] is not None:
         por_motivo[r["motivo_saida"]].append(float(r["nm_mag_payload"]))
 
-for motivo, mags in sorted(por_motivo.items(), key=lambda x: -len(x[1])):
-    if mags:
-        print(f"  {motivo}: N={len(mags)} mag_media={mean(mags):.1f} mag_mediana={median(mags):.1f}")
+if por_motivo:
+    for motivo, mags in sorted(por_motivo.items(), key=lambda x: -len(x[1])):
+        if mags:
+            print(f"  {motivo}: N={len(mags)} mag_media={mean(mags):.1f} mag_mediana={median(mags):.1f}")
+else:
+    print("  Nenhum motivo de saida encontrado.")
 print()
 
 # ---- 6. gap_fonte ----
 print("=== 6. Distribuicao de gap_fonte ===")
-fontes = Counter(r["gap_fonte"] for r in registros)
-for k, v in fontes.most_common():
-    print(f"  {k}: {v} ({100*v/len(registros):.1f}%)")
+fontes = Counter(r["gap_fonte"] for r in registros if r["gap_fonte"])
+if fontes:
+    for k, v in fontes.most_common():
+        print(f"  {k}: {v} ({100*v/len(registros):.1f}%)")
+else:
+    print("  Nenhuma fonte de gap registrada.")
 print()
 
 # ---- 7. % NEUTRO hipotetico com limiares alternativos ----

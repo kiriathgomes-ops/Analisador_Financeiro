@@ -1,96 +1,90 @@
-# Dados de coleta (gerados pelo pipeline)
+# =================================================================
+# 1. DADOS DE COLETA (Gerados dinamicamente pelo pipeline - Pesados)
+# =================================================================
 Coletas/*.json
 Coletas/*.md
 Coletas/*.png
 Coletas/*.jpg
 Coletas/*.csv
+Coletas/*.txt
 Coletas/Historico*/
+Coletas/cache/
+Coletas/coleta_preco_teorico_historico/
+Coletas/snapshot_*
+Coletas/ArquivosApp.py
+Coletas/App_Completo.txt
+Coletas/config_regiao.json
 !Coletas/config_regiao.json
 
-# Fix scripts — arquivados em ferramentas/fixes/
-# Novos fixNN.py na raiz são ignorados (mantém a raiz limpa)
-/fix*.py
+# =================================================================
+# 2. SEGREDOS E CREDENCIAIS (Jamais versionar)
+# =================================================================
+.env
+*.env
+.streamlit/secrets.toml
 
-# Backups
+# =================================================================
+# 3. SCRIPTS TEMPORÁRIOS DE TESTE E DEBUG (Criados nesta sessão)
+# =================================================================
+/teste_*.py
+/_teste_*.py
+/_test_*.py      # <-- NOVO: Pega os _test_premarket, _test_pepita_rr, etc.
+/_trilha_*.py    # <-- NOVO: Pega o _trilha_c_v2.py
+temp_*.py        # <-- NOVO: Pega o temp_calcular_rr, temp_winrate, etc.
+tmp_*.py
+/_debug_*.py
+ferramentas/_debug_*.py
+cleanup_fase*.py
+
+# =================================================================
+# 4. FIXES, BACKUPS E ARQUIVOS LEGADOS
+# =================================================================
+/fix*.py
 * copy.py
 * copy *.py
 *_old*
 *_backup*
-
-# Logs e cache
-*.log
-__pycache__/
-*.pyc
-.venv/
-.env
-_legado/
-dump_v2.txt
-_debug_leilao.py
-dump_v2.py
-
-# Historico de coletas (dados gerados pelo OCR)
-Coletas/coleta_preco_teorico_historico/
-
-# Scripts de debug/teste local
-_teste_*.py
-_debug_*.py
-ferramentas/_debug_*.py
-
-# Dumps auto-gerados
-consolidado_projeto.txt
-
-# Backups gerados por fixN.py
-*.bak_*
-
-# Excecao: configs criticos versionados
-
-# Snapshots gerados para IA (runtime)
-Coletas/snapshot_rompimento_10h.txt
-
-# Pasta de limpeza local
-lixeira_analise/
-
-# Cache incremental de candles (fix41)
-Coletas/cache/
-
-# Scripts de cleanup one-shot
-cleanup_fase*.py
-
-# Inventario auto-gerado
-Coletas/ArquivosApp.py
-
-Coletas/App_Completo.txt
-
-0_*.txt
-
-# Notas pessoais
-*Novotrab*
-Coletas/snapshot_mtf_ia.txt
-Coletas/snapshot_mtf_scripts.json
-tmp_*.py
-
-# Notas pessoais de trabalho
-NOTAS.md
-
+*_bak_*
 _backup_*
 _*_fase*.py
+_legado/
+ferramentas/fixes/backups/
 
+# =================================================================
+# 5. CACHES PYTHON E SISTEMA
+# =================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log
+
+# =================================================================
+# 6. LIXO LOCAL, NOTAS E DUMPS
+# =================================================================
+dump_v2.txt
+dump_v2.py
+consolidado_projeto.txt
+docs/dump_completo/
+docs/arvore.md
+docs/inventario.md
+NOTAS.md
+*Novotrab*
 Ferramenta01.txt
+0_*.txt
 
-# Auditoria (dados ficam fora do git, scripts versionados)
+# =================================================================
+# 7. AUDITORIA E LIXEIRA
+# =================================================================
 /auditoria/
 ferramentas/auditoria/arquivo_morto/
 ferramentas/auditoria/*.json
 ferramentas/auditoria/*.bak
-
-# Backups de fix scripts
-ferramentas/fixes/backups/
-
-# Cache pytest
-.pytest_cache/
-
-# Dumps gerados (gerar_dump_completo.py)
-docs/dump_completo/
-
-docs/arvore.md
-docs/inventario.md
+lixeira_analise/

@@ -1,20 +1,21 @@
 # -*- coding: utf-8 -*-
 """
 Módulo: pages/7.3_📥_Gerador_Profit_Pro.py
-Versão: 5.4 - Exportação NTSL com projeção de linha até o presente (EndDate=0)
+Versão: 6.3 - Master Script NTSL com espessura por TF e sufixos nos textos
 """
 
 import json
-import re
 from datetime import datetime
 from pathlib import Path
 
-import pandas as pd
 import streamlit as st
 
-from config import COLETAS_DIR, FILE_DECISAO_V2, FILE_SMC_REGRAS
+from config import COLETAS_DIR, FILE_DECISAO_V2
 
-FILE_SMC_VISAO_IA = COLETAS_DIR / "AnaliseGraficaSMC.json"
+# Arquivos do Motor SMC para cada Timeframe
+FILE_SMC_M5 = COLETAS_DIR / "AnaliseGraficaSMC_Regras.json"
+FILE_SMC_M1 = COLETAS_DIR / "AnaliseGraficaSMC_Regras_M1.json"
+FILE_SMC_M15 = COLETAS_DIR / "AnaliseGraficaSMC_Regras_M15.json"
 
 def carregar_json_defensivo(caminho_path: Path) -> dict:
     if not caminho_path.exists():
@@ -26,187 +27,156 @@ def carregar_json_defensivo(caminho_path: Path) -> dict:
         return {}
 
 def obter_tempo_ntsl(data_iso: str) -> tuple[str, str]:
-    """
-    Converte string ISO para o formato do NTSL.
-    Retorna (data_string, hora_string).
-    Ex: "2026-10-13T10:30:00" -> ("ELDate(2026, 10, 13)", "1030")
-    """
-    if not data_iso:
-        return "0", "0"
+    if not data_iso: return "0", "0"
     try:
         dt = datetime.fromisoformat(data_iso)
         data_str = f"ELDate({dt.year}, {dt.month}, {dt.day})"
         hora_str = dt.strftime("%H%M")
-        # Se for meia-noite, envia 0 para preencher o dia inteiro
-        if hora_str == "0000":
-            hora_str = "0"
+        if hora_str == "0000": hora_str = "0"
         return data_str, hora_str
     except ValueError:
         return "0", "0"
 
-st.set_page_config(page_title="Quant Terminal - Gerador Multi-Levels", layout="wide")
-st.markdown("<h2 style='color:#00d4ff;'>📥 Gerador ProfitPro - Níveis (NTSL)</h2>", unsafe_allow_html=True)
-st.caption("Exportador dinâmico via `HorizontalLineCustom` com marcação temporal (ELDate).")
+def formatar_linha_ntsl(preco, cor, line_width, estilo, texto, data_str, hora_str, variacao):
+    if data_str != "0":
+        param_tempo = f", {data_str}, 0, {variacao}, {hora_str}, 0"
+    else:
+        param_tempo = ", 0, 0, 0, 0, 0"
+        
+    # Agora recebe line_width dinâmico
+    return f"        HorizontalLineCustom({int(preco)}, {cor}, {line_width}, {estilo}, \"{texto}\", 10, tpTopLeft{param_tempo});"
 
-fonte_dados = st.selectbox(
-    "🧠 Selecione a matriz de dados:",
-    ["Motor de Regras Algorítmico (AnaliseGraficaSMC_Regras.json)", "Visão Inteligência Artificial (AnaliseGraficaSMC.json)"]
-)
-
-st.markdown("### 🎛️ Filtros de Exportação")
-c1, c2, c3, c4 = st.columns(4)
-with c1: exp_ob = st.checkbox("Order Blocks (OB)", value=True)
-with c2: exp_fvg = st.checkbox("Fair Value Gaps (FVG)", value=True)
-with c3: exp_liq = st.checkbox("Liquidez (BSL/SSL)", value=True)
-with c4: exp_pivots = st.checkbox("Pivôs, POC e VWAP", value=True)
-
-st.markdown("---")
-
-regras_algo = carregar_json_defensivo(FILE_SMC_REGRAS)
-visao_ia = carregar_json_defensivo(FILE_SMC_VISAO_IA)
-decisao_v2 = carregar_json_defensivo(FILE_DECISAO_V2)
-
-niveis_mapeados = {}
-
-if "Motor de Regras" in fonte_dados:
-    st.markdown("### 📊 Níveis Identificados: Motor Matemático MT5")
+def construir_bloco_ntsl(dados_tf: dict, tipo_desejado: str, cor: str, estilo: int, line_width: int, tf_suf: str) -> list[str]:
+    linhas = []
     
-    # 1. Order Blocks
-    if exp_ob:
-        for ob in regras_algo.get("order_blocks", []):
-            high = ob.get("high", 0)
-            low = ob.get("low", 0)
-            if high > 0 and low > 0:
-                preco_central = int((high + low) / 2)
-                variacao = int((high - low) / 2)
-                cor = "clVerde" if ob.get("tipo") == "COMPRA" else "clVermelho"
-                texto = "OB COMPRA" if ob.get("tipo") == "COMPRA" else "OB VENDA"
-                data_ntsl, hora_ntsl = obter_tempo_ntsl(ob.get("time", ""))
-                
-                niveis_mapeados[f"OB_{preco_central}"] = {
-                    "preco": preco_central, "variacao": variacao, "cor": cor, "texto": texto, "estilo": 0, "data": data_ntsl, "hora": hora_ntsl
-                }
+    if tipo_desejado in ["OB_COMPRA", "OB_VENDA"]:
+        for ob in dados_tf.get("order_blocks", []):
+            if tipo_desejado == "OB_COMPRA" and ob.get("tipo") != "COMPRA": continue
+            if tipo_desejado == "OB_VENDA" and ob.get("tipo") != "VENDA": continue
+            
+            preco_abertura = ob.get("abertura")
+            if preco_abertura is None or preco_abertura == 0:
+                high, low = ob.get("high", 0), ob.get("low", 0)
+                preco_abertura = int((high + low) / 2) if high > 0 and low > 0 else 0
 
-    # 2. Fair Value Gaps
-    if exp_fvg:
-        for i, fvg in enumerate(regras_algo.get("fair_value_gaps", [])):
-            sup = fvg.get("superior", 0)
-            inf = fvg.get("inferior", 0)
+            if preco_abertura > 0:
+                variacao = 0 
+                # Texto encurtado: "OB C-1" ou "OB V-15"
+                texto = f"OB C-{tf_suf}" if ob.get("tipo") == "COMPRA" else f"OB V-{tf_suf}"
+                dt, hr = obter_tempo_ntsl(ob.get("time", ""))
+                linhas.append(formatar_linha_ntsl(int(preco_abertura), cor, line_width, estilo, texto, dt, hr, variacao))
+
+    elif tipo_desejado == "FVG":
+        for fvg in dados_tf.get("fair_value_gaps", []):
+            sup, inf = fvg.get("superior", 0), fvg.get("inferior", 0)
             if sup > 0 and inf > 0:
                 preco_central = int((sup + inf) / 2)
                 variacao = int((sup - inf) / 2)
-                data_ntsl, hora_ntsl = obter_tempo_ntsl(fvg.get("time", ""))
+                dt, hr = obter_tempo_ntsl(fvg.get("time", ""))
+                texto = f"FVG-{tf_suf}"
+                linhas.append(formatar_linha_ntsl(preco_central, cor, line_width, estilo, texto, dt, hr, variacao))
+
+    elif tipo_desejado in ["BSL", "SSL"]:
+        liq = dados_tf.get("liquidez", {})
+        lista = liq.get("bsl", []) if tipo_desejado == "BSL" else liq.get("ssl", [])
+        for p in lista:
+            if p > 0:
+                texto = f"{tipo_desejado}-{tf_suf}"
+                linhas.append(formatar_linha_ntsl(int(p), cor, line_width, estilo, texto, "0", "0", 0))
                 
-                niveis_mapeados[f"FVG_{i}"] = {
-                    "preco": preco_central, "variacao": variacao, "cor": "clAmarelo", "texto": "FVG", "estilo": 1, "data": data_ntsl, "hora": hora_ntsl
-                }
+    return linhas
 
-    # 3. Liquidez
-    if exp_liq:
-        liq = regras_algo.get("liquidez", {})
-        for p in liq.get("bsl", []):
-            if p > 0:
-                niveis_mapeados[f"BSL_{p}"] = {"preco": int(p), "variacao": 0, "cor": "clAzul", "texto": "BSL", "estilo": 1, "data": "0", "hora": "0"}
-        for p in liq.get("ssl", []):
-            if p > 0:
-                niveis_mapeados[f"SSL_{p}"] = {"preco": int(p), "variacao": 0, "cor": "clFucsia", "texto": "SSL", "estilo": 1, "data": "0", "hora": "0"}
+st.set_page_config(page_title="Quant Terminal - Master NTSL", layout="wide")
+st.markdown("<h2 style='color:#00d4ff;'>📥 Gerador ProfitPro - Master Script</h2>", unsafe_allow_html=True)
+st.warning("⚠️ **IMPORTANTE:** No Profit Pro, crie como **INDICADOR** e não como Estratégia. Se criar como estratégia, os botões de ligar/desligar vão aparecer escritos no gráfico.")
 
-else:
-    st.markdown("### 🤖 Níveis Identificados: Visão IA")
-    estruturas = visao_ia.get("estruturas_coletadas", [])
-    for i, est in enumerate(estruturas):
-        match = re.match(r"^([\d\.]+)", est.strip())
-        if match:
-            try:
-                preco_limpo = int(match.group(1).replace(".", ""))
-                est_lower = est.lower()
-                if "compra" in est_lower or "low" in est_lower or "suporte" in est_lower:
-                    cor, texto = "clVerde", "IA Suporte"
-                elif "venda" in est_lower or "high" in est_lower or "resistencia" in est_lower:
-                    cor, texto = "clVermelho", "IA Resist."
-                elif "fvg" in est_lower:
-                    cor, texto = "clAmarelo", "IA FVG"
-                else:
-                    cor, texto = "clBranco", "IA Nível"
-                    
-                niveis_mapeados[f"IA_{i}"] = {"preco": preco_limpo, "variacao": 0, "cor": cor, "texto": texto, "estilo": 1, "data": "0", "hora": "0"}
-            except Exception:
-                continue
+dados_m1 = carregar_json_defensivo(FILE_SMC_M1)
+dados_m5 = carregar_json_defensivo(FILE_SMC_M5)
+dados_m15 = carregar_json_defensivo(FILE_SMC_M15)
+decisao_v2 = carregar_json_defensivo(FILE_DECISAO_V2)
 
-if exp_pivots:
-    dec = decisao_v2.get("decisao", {})
-    meta = dec.get("metadados", {})
-    smc_meta = meta.get("smc", {})
-    pivots = meta.get("pivots", {})
+# Montagem dos Inputs
+linhas_input = ["input"]
+for tf in ["1Min", "5Min", "15Min"]:
+    linhas_input.append(f"    Habilitar{tf}(true);")
+    for tipo in ["FVG", "SSL", "BSL", "OB"]:
+        linhas_input.append(f"    Habilitar{tipo}_{tf}(true);")
+linhas_input.append("    HabilitarPivo_POC(true);")
+linhas_input.append("    HabilitarVWAP(true);")
 
-    poc = smc_meta.get("poc_ontem")
-    if poc:
-        niveis_mapeados["POC"] = {"preco": int(poc), "variacao": 0, "cor": "clPurpura", "texto": "POC Ontem", "estilo": 1, "data": "0", "hora": "0"}
-        
-    vwap = smc_meta.get("vwap_ontem")
-    if vwap:
-        niveis_mapeados["VWAP"] = {"preco": int(vwap), "variacao": 0, "cor": "clCinza", "texto": "VWAP Ontem", "estilo": 1, "data": "0", "hora": "0"}
+linhas_inicio = ["Inicio"]
 
-    for k, v in pivots.items():
-        if v:
-            niveis_mapeados[f"PIV_{k}"] = {"preco": int(v), "variacao": 0, "cor": "clBranco", "texto": f"Pivô {k.upper()}", "estilo": 2, "data": "0", "hora": "0"}
+def gerar_bloco_se(condicao, linhas_codigo):
+    if not linhas_codigo: return []
+    bloco = [f"    Se {condicao} entao", "    Inicio"]
+    bloco.extend(linhas_codigo)
+    bloco.extend(["    Fim;", ""])
+    return bloco
 
-if niveis_mapeados:
-    linhas_codigo = []
-    niveis_ordenados = sorted(niveis_mapeados.values(), key=lambda x: x["preco"])
+# --- Processamento dos Timeframes ---
+# Lista com: (Nome, Dados, Espessura, Sufixo)
+timeframes_config = [
+    ("1Min", dados_m1, 1, "1"),
+    ("5Min", dados_m5, 2, "5"),
+    ("15Min", dados_m15, 3, "15")
+]
 
-    for item in niveis_ordenados:
-        p, var, cor, txt, est, dt, hr = item["preco"], item["variacao"], item["cor"], item["texto"], item["estilo"], item["data"], item["hora"]
-        
-        # Monta os parâmetros opcionais
-        # Se tem data: StartDate=dt, EndDate=0 (até o presente), PriceVariation=var, StartTime=hr, EndTime=0 (até o fim)
-        if dt != "0":
-            param_tempo = f", {dt}, 0, {var}, {hr}, 0"
-        # Se não tem data, mas tem preenchimento (PriceVariation)
-        elif var > 0:
-            param_tempo = f", 0, 0, {var}"
-        # Se não tem data e nem preenchimento
-        else:
-            param_tempo = ""
+for tf_nome, dados, width, tf_suf in timeframes_config:
+    linhas_inicio.append(f"    // --- {tf_nome} (Espessura {width}) ---")
+    linhas_inicio.append(f"    Se Habilitar{tf_nome} entao")
+    linhas_inicio.append("    Inicio")
+    linhas_inicio.append("")
 
-        # HorizontalLineCustom(Price, Color, LineWidth, Style, Text, FontSize, TextPosition, StartDate, EndDate, PriceVariation, StartTime, EndTime)
-        linha_ntsl = (
-            f"HorizontalLineCustom({p}, {cor}, 1, {est}, \"{txt}\", "
-            f"10, tpTopRight{param_tempo});"
-        )
-        linhas_codigo.append(linha_ntsl)
+    linhas_ob_c = construir_bloco_ntsl(dados, "OB_COMPRA", "clVerde", 0, width, tf_suf)
+    linhas_ob_v = construir_bloco_ntsl(dados, "OB_VENDA", "clVermelho", 0, width, tf_suf)
+    linhas_fvg  = construir_bloco_ntsl(dados, "FVG", "clAmarelo", 1, width, tf_suf)
+    linhas_bsl  = construir_bloco_ntsl(dados, "BSL", "clAzul", 1, width, tf_suf)
+    linhas_ssl  = construir_bloco_ntsl(dados, "SSL", "clFucsia", 1, width, tf_suf)
 
-    script_final = f"""{{
-    Script NTSL gerado pelo Quant Terminal V2
-    Fonte: {fonte_dados}
-    Total de Niveis: {len(niveis_ordenados)}
-    Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}
+    linhas_ob = linhas_ob_c + linhas_ob_v
     
-    Nota: As linhas de OB/FVG estendem até o presente (EndDate=0) e duram todo o dia (EndTime=0).
-}}
-Inicio
-{chr(10).join(linhas_codigo)}
-Fim;"""
+    linhas_inicio.extend(gerar_bloco_se(f"HabilitarOB_{tf_nome}", linhas_ob))
+    linhas_inicio.extend(gerar_bloco_se(f"HabilitarFVG_{tf_nome}", linhas_fvg))
+    linhas_inicio.extend(gerar_bloco_se(f"HabilitarBSL_{tf_nome}", linhas_bsl))
+    linhas_inicio.extend(gerar_bloco_se(f"HabilitarSSL_{tf_nome}", linhas_ssl))
 
-    st.markdown(f"#### 📜 Código NTSL Gerado ({len(niveis_ordenados)} Níveis Ativos)")
-    st.code(script_final, language="pascal")
-    
-    st.info("💡 Dica: Copie o código acima e cole no editor de indicadores do Profit Pro.")
+    linhas_inicio.append("    Fim;")
+    linhas_inicio.append("")
 
-    with st.expander("🔍 Visualizar Tabela de Auditoria dos Níveis Injetados"):
-        linhas_auditoria = []
-        for item in niveis_ordenados:
-            data_str = str(item["data"]) if item["data"] != "0" else "Início do Gráfico"
-            hora_str = str(item["hora"]) if item["hora"] != "0" else "Todo o dia"
-            linhas_auditoria.append({
-                "Preço": f"{item['preco']:,.0f}",
-                "Texto": item["texto"],
-                "Cor": item["cor"].replace("cl", ""),
-                "Zona (Var)": item["variacao"],
-                "Data": data_str,
-                "Hora": hora_str
-            })
-        st.table(pd.DataFrame(linhas_auditoria))
+# --- Processamento de POC, VWAP e Pivôs (Fora dos TFs, espessura 1) ---
+dec = decisao_v2.get("decisao", {})
+meta = dec.get("metadados", {})
+smc_meta = meta.get("smc", {})
+pivots = meta.get("pivots", {})
 
-else:
-    st.warning("⚠️ Nenhum nível válido foi selecionado ou encontrado nos arquivos JSON.")
+linhas_poc = []
+poc = smc_meta.get("poc_ontem")
+if poc:
+    linhas_poc.append(formatar_linha_ntsl(int(poc), "clPurpura", 1, 1, "POC Ontem", "0", "0", 0))
+
+for k, v in pivots.items():
+    if v:
+        linhas_poc.append(formatar_linha_ntsl(int(v), "clBranco", 1, 2, f"Pivô {k.upper()}", "0", "0", 0))
+
+linhas_vwap = []
+vwap = smc_meta.get("vwap_ontem")
+if vwap:
+    linhas_vwap.append(formatar_linha_ntsl(int(vwap), "clCinza", 1, 1, "VWAP Ontem", "0", "0", 0))
+
+linhas_inicio.append("    // --- Níveis Institucionais e Pivôs ---")
+linhas_inicio.extend(gerar_bloco_se("HabilitarPivo_POC", linhas_poc))
+linhas_inicio.extend(gerar_bloco_se("HabilitarVWAP", linhas_vwap))
+
+linhas_inicio.append("Fim;")
+
+script_final = "\n".join(linhas_input) + "\n\n" + "\n".join(linhas_inicio)
+
+st.markdown(f"#### 📜 Código NTSL Master Gerado")
+st.code(script_final, language="pascal")
+
+with st.expander("🔍 Resumo do que foi injetado no código"):
+    st.markdown(f"""
+    - **M1:** {len(dados_m1.get('order_blocks', []))} OBs, {len(dados_m1.get('fair_value_gaps', []))} FVGs. (Espessura 1)
+    - **M5:** {len(dados_m5.get('order_blocks', []))} OBs, {len(dados_m5.get('fair_value_gaps', []))} FVGs. (Espessura 2)
+    - **M15:** {len(dados_m15.get('order_blocks', []))} OBs, {len(dados_m15.get('fair_value_gaps', []))} FVGs. (Espessura 3)
+    """)

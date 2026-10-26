@@ -1,8 +1,15 @@
 # -*- coding: utf-8 -*-
 """
 Módulo: pages/7_🔬_Analise_Tendencia.py
-Versão: 3.6 — Momentum multi-janela + AGORA + 2 gauges (ADRs + Merc Externo)
-Objetivo: Mapear velocidade e direção dos ativos usando as 12 coletas rolantes.
+Versão: 3.8.1 — Histograma colorido por sinal + inversão visual p/ ativos inversos
+Objetivo: Mapear velocidade e direção dos ativos via 12 coletas rolantes.
+
+Mudança vs. 3.8:
+  - "Ouro" adicionado ao ATIVOS_INVERSOS (safe haven, sobe com aversão a risco)
+  - _mini_histograma_svg recebe flag `inverter`. Ativos inversos são plotados
+    com sinal negado: DXY +0.5% → barra vermelha (ruim p/ WIN). Alinha o
+    histograma com o Status e o Δ Agora, sem ambiguidade visual.
+  - Tooltip mostra "+X.XXX% (inverso)" quando aplicável.
 """
 
 import json
@@ -18,6 +25,10 @@ from config import COLETAS_DIR
 
 
 st.set_page_config(page_title="Quant Terminal - Análise de Tendência", layout="wide")
+
+
+# v3.8.1 — bump quando JANELAS, formato de dados ou cálculo mudar.
+_CACHE_VERSION = "v3.8.1"
 
 
 # ==============================================================================
@@ -60,14 +71,15 @@ CATEGORIAS = {
     ],
 }
 
-ATIVOS_INVERSOS = {"DXY", "VIX", "WDO", "USDBRL", "DI1 2027", "DI1 2029"}
+# v3.8.1 — "Ouro" incluído (safe haven, sobe com aversão a risco → ruim p/ WIN)
+ATIVOS_INVERSOS = {"DXY", "VIX", "WDO", "USDBRL", "DI1 2027", "DI1 2029", "Ouro"}
 
-# Ordem visual: mais antigo → mais recente (0 = agora)
-JANELAS = [55, 30, 15, 5, 0]
+# 12 janelas, ordem "mais antigo → mais recente" (55m → Agora)
+JANELAS = [55, 50, 45, 40, 35, 30, 25, 20, 15, 10, 5, 0]
 
 
 # ==============================================================================
-# CHAVES DOS INDICADORES COMPOSTOS (mesma fórmula da Calculadora.py)
+# CHAVES DOS INDICADORES COMPOSTOS
 # ==============================================================================
 ADRS_COMPOSTO_KEYS = [
     ["NYSE:VALE", "VALE_ADR"],
@@ -83,9 +95,6 @@ CRUDE_KEYS = ["NYMEX:CL1!", "CRUDE_OIL"]
 IRON_KEYS = ["SGX:FEF1!", "IRON_ORE"]
 
 
-# ==============================================================================
-# LABEL DAS JANELAS
-# ==============================================================================
 def _label_janela(j: int) -> str:
     return "Agora" if j == 0 else f"{j}m"
 
@@ -94,7 +103,7 @@ def _label_janela(j: int) -> str:
 # LOADERS
 # ==============================================================================
 @st.cache_data(ttl=30)
-def carregar_coleta_rom(minutos: int) -> dict:
+def carregar_coleta_rom(minutos: int, _ver: str = _CACHE_VERSION) -> dict:
     caminho = COLETAS_DIR / f"Coleta_rom-{minutos}.json"
     if not caminho.exists():
         return {}
@@ -127,12 +136,12 @@ def carregar_coleta_rom(minutos: int) -> dict:
 
 
 @st.cache_data(ttl=30)
-def carregar_todas_coletas() -> dict:
-    return {j: carregar_coleta_rom(j) for j in JANELAS}
+def carregar_todas_coletas(_ver: str = _CACHE_VERSION) -> dict:
+    return {j: carregar_coleta_rom(j, _ver) for j in JANELAS}
 
 
 # ==============================================================================
-# LOOKUP
+# LOOKUP / MOMENTUM / COMPOSTOS
 # ==============================================================================
 def _buscar_valor(coleta: dict, chaves: list) -> Optional[float]:
     for chave in chaves:
@@ -141,15 +150,15 @@ def _buscar_valor(coleta: dict, chaves: list) -> Optional[float]:
     return None
 
 
-# ==============================================================================
-# MOMENTUM
-# ==============================================================================
 def _calc_momentum(coletas: dict) -> dict:
     resultado: dict = {}
     for nome_cat, ativos in CATEGORIAS.items():
         resultado[nome_cat] = {}
         for nome_ativo, chaves in ativos:
-            valores = {j: _buscar_valor(coletas[j], chaves) for j in JANELAS}
+            valores = {
+                j: _buscar_valor(coletas.get(j, {}) or {}, chaves)
+                for j in JANELAS
+            }
             resultado[nome_cat][nome_ativo] = valores
     return resultado
 
@@ -170,9 +179,6 @@ def _momentum_categoria(momentum_cat: dict, inverso_por_ativo: set) -> dict:
     return {j: _media_janela(momentum_cat, j, inverso_por_ativo) for j in JANELAS}
 
 
-# ==============================================================================
-# INDICADORES COMPOSTOS
-# ==============================================================================
 def _calc_adrs_br(coleta: dict) -> Optional[float]:
     vals = []
     for chaves in ADRS_COMPOSTO_KEYS:
@@ -197,7 +203,7 @@ def _calc_compostos(coletas: dict) -> dict:
     adrs_por_janela = {}
     externo_por_janela = {}
     for j in JANELAS:
-        coleta = coletas.get(j, {})
+        coleta = coletas.get(j, {}) or {}
         adrs_por_janela[j] = _calc_adrs_br(coleta)
         externo_por_janela[j] = _calc_mercado_externo(coleta)
     return {
@@ -248,15 +254,15 @@ def _status_momentum(valores: dict, inverso: bool = False) -> str:
 
     if inverso:
         mapa_inverso = {
-            "🚀 Acelerando alta":        "⚠️ Acelerando alta — ruim p/ WIN",
-            "📈 Alta consistente":       "⚠️ Alta consistente — ruim p/ WIN",
-            "📈 Alta perdendo força":    "🟡 Alta perdendo força — aliviando",
-            "📉 Acelerando baixa":       "✅ Acelerando baixa — bom p/ WIN",
-            "📉 Baixa consistente":      "✅ Baixa consistente — bom p/ WIN",
-            "⚠️ Baixa desacelerando":    "🟡 Baixa desacelerando — atenção",
-            "🔄 Revertendo p/ alta":     "⚠️ Revertendo p/ alta — ruim p/ WIN",
-            "🔄 Revertendo p/ baixa":    "✅ Revertendo p/ baixa — bom p/ WIN",
-            "⚖️ Misto":                  "⚖️ Misto",
+            "🚀 Acelerando alta":     "⚠️ Acelerando alta — ruim p/ WIN",
+            "📈 Alta consistente":    "⚠️ Alta consistente — ruim p/ WIN",
+            "📈 Alta perdendo força": "🟡 Alta perdendo força — aliviando",
+            "📉 Acelerando baixa":    "✅ Acelerando baixa — bom p/ WIN",
+            "📉 Baixa consistente":   "✅ Baixa consistente — bom p/ WIN",
+            "⚠️ Baixa desacelerando": "🟡 Baixa desacelerando — atenção",
+            "🔄 Revertendo p/ alta":  "⚠️ Revertendo p/ alta — ruim p/ WIN",
+            "🔄 Revertendo p/ baixa": "✅ Revertendo p/ baixa — bom p/ WIN",
+            "⚖️ Misto":               "⚖️ Misto",
         }
         return mapa_inverso.get(base, base)
 
@@ -293,7 +299,147 @@ def _cor_valor(v, inverso: bool = False) -> str:
 
 
 # ==============================================================================
-# MINI VELOCÍMETRO (com range_max parametrizável)
+# HISTOGRAMA SVG INLINE (com inversão)
+# ==============================================================================
+def _mini_histograma_svg(
+    valores_dict: dict,
+    largura: int = 220,
+    altura: int = 44,
+    inverter: bool = False,
+) -> str:
+    """
+    SVG de 12 barras, uma por janela. Zero-line no centro.
+
+    Se `inverter=True` (ativos inversos ao WIN), o sinal é negado ANTES de
+    plotar — assim DXY +0.5% vira barra vermelha (ruim p/ WIN).
+    O tooltip mostra o valor BRUTO + "(inverso)" para não enganar.
+
+    Escala vertical: normalizada ao maior |valor| da própria série (após
+    inversão). None → barra cinza minúscula.
+    """
+    vals_brutos = [valores_dict.get(j) for j in JANELAS]
+    # valores plotados: brutos, ou negados se inverso
+    vals_plot = [(-v if (v is not None and inverter) else v) for v in vals_brutos]
+
+    n = len(vals_plot)
+    abs_vals = [abs(v) for v in vals_plot if v is not None]
+    max_abs = max(abs_vals) if abs_vals else 1.0
+    if max_abs == 0:
+        max_abs = 1.0
+
+    gap = 2
+    bar_w = (largura - (n - 1) * gap) / n
+    meio_y = altura / 2
+    altura_bar = (altura / 2) - 3
+
+    parts = []
+    for i, v_plot in enumerate(vals_plot):
+        x = i * (bar_w + gap)
+        label = _label_janela(JANELAS[i])
+        v_bruto = vals_brutos[i]
+
+        if v_bruto is None or v_plot is None:
+            parts.append(
+                f'<rect x="{x:.1f}" y="{meio_y - 1:.1f}" width="{bar_w:.1f}" '
+                f'height="2" fill="#4b5563"/>'
+                f'<title>{label}: —</title>'
+            )
+            continue
+
+        h = max(1.0, (abs(v_plot) / max_abs) * altura_bar)
+        cor = "#22c55e" if v_plot >= 0 else "#ef4444"
+        y = (meio_y - h) if v_plot >= 0 else meio_y
+
+        sufixo = " (inverso)" if inverter else ""
+        tooltip = f"{label}: {v_bruto:+.3f}%{sufixo}"
+
+        parts.append(
+            f'<rect x="{x:.1f}" y="{y:.1f}" width="{bar_w:.1f}" height="{h:.1f}" '
+            f'fill="{cor}" rx="1"/>'
+            f'<title>{tooltip}</title>'
+        )
+
+    parts.append(
+        f'<line x1="0" y1="{meio_y}" x2="{largura}" y2="{meio_y}" '
+        f'stroke="#4b5563" stroke-width="0.5"/>'
+    )
+
+    return (
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{largura}" height="{altura}" '
+        f'viewBox="0 0 {largura} {altura}" style="display:block;">'
+        f'{"".join(parts)}</svg>'
+    )
+
+
+# ==============================================================================
+# RENDER DE TABELA (HTML puro)
+# ==============================================================================
+COL_SPARK = "Evolução"
+COL_DELTA = "Δ Agora"
+COL_STATUS = "Status"
+
+_TABLE_STYLE = (
+    "width:100%;border-collapse:collapse;font-family:Arial,sans-serif;"
+    "font-size:13px;color:#e6edf3;"
+)
+_TH_STYLE = "text-align:left;padding:6px 8px;color:#8b949e;font-weight:600;border-bottom:1px solid #30363d;"
+_TD_STYLE = "padding:4px 8px;border-bottom:1px solid #1a1a1a;vertical-align:middle;"
+
+
+def _render_tabela_histograma(
+    linhas: list,
+    status_txts: list,
+    inv_flags: list,
+    col_nome: str,
+    largura_svg: int = 220,
+):
+    if not linhas:
+        st.info("Sem dados.")
+        return
+
+    rows = []
+    rows.append(
+        f'<tr>'
+        f'<th style="{_TH_STYLE}">{col_nome}</th>'
+        f'<th style="{_TH_STYLE}">Evolução (55m → Agora)</th>'
+        f'<th style="{_TH_STYLE};text-align:right;">{COL_DELTA}</th>'
+        f'<th style="{_TH_STYLE}">{COL_STATUS}</th>'
+        f'</tr>'
+    )
+
+    for i, linha in enumerate(linhas):
+        inv = inv_flags[i] if i < len(inv_flags) else False
+        nome = linha[col_nome]
+        serie = linha[COL_SPARK]
+        valores_dict = {j: serie[idx] for idx, j in enumerate(JANELAS)}
+        delta = linha[COL_DELTA]
+        status = linha[COL_STATUS]
+
+        svg = _mini_histograma_svg(valores_dict, largura=largura_svg, altura=44, inverter=inv)
+
+        cor_delta = _cor_valor(delta, inv)
+        delta_txt = f"{delta:+.3f}%" if delta is not None else "—"
+        # marca visualmente o Δ quando é inverso
+        if inv and delta is not None:
+            delta_txt += " ⟲"
+
+        cor_status = _cor_status(status, inv)
+
+        rows.append(
+            f'<tr>'
+            f'<td style="{_TD_STYLE};font-weight:700;">{nome}</td>'
+            f'<td style="{_TD_STYLE}">{svg}</td>'
+            f'<td style="{_TD_STYLE};text-align:right;color:{cor_delta};font-weight:700;">{delta_txt}</td>'
+            f'<td style="{_TD_STYLE};color:{cor_status};font-weight:700;">{status}</td>'
+            f'</tr>'
+        )
+
+    html = f'<table style="{_TABLE_STYLE}">{"".join(rows)}</table>'
+    st.markdown(html, unsafe_allow_html=True)
+
+
+# ==============================================================================
+# MINI VELOCÍMETRO (intacto)
 # ==============================================================================
 def mini_velocimetro(
     valor,
@@ -375,8 +521,10 @@ def mini_velocimetro(
 # ==============================================================================
 st.markdown("<h2 style='color:#00d4ff;'>🔬 Análise de Tendência — Momentum Multi-Janela</h2>", unsafe_allow_html=True)
 st.caption(
-    "Velocidade e direção dos ativos em 5 janelas rolantes (55m → 30m → 15m → 5m → Agora) · "
-    "atualiza a cada 60s · ⚠️ VIX/DXY/DI têm status adaptado pro impacto no WIN"
+    "Histograma das 12 coletas rolantes (55m → 50m → … → Agora) · "
+    "🟢 verde = favorável p/ WIN · 🔴 vermelho = desfavorável · "
+    "ativos com ⟲ têm o sinal invertido (DXY/VIX/WDO/DI/Ouro) · "
+    "hover mostra o valor bruto · atualiza a cada 60s"
 )
 
 
@@ -390,9 +538,7 @@ def _render_dashboard():
 
     st.caption(f"🕒 Última leitura local: {datetime.now().strftime('%H:%M:%S')}")
 
-    # =========================================================================
-    # 1) TERMÔMETRO DE MOMENTUM POR CATEGORIA
-    # =========================================================================
+    # 1) Termômetro por categoria
     st.markdown("### 🌡️ Termômetro de Momentum por Categoria")
     st.caption("Média das variações no 'Agora' (com sinal ajustado pros inversos) — impacto agregado no WIN")
 
@@ -403,96 +549,59 @@ def _render_dashboard():
         with cols_cat[idx]:
             mini_velocimetro(media_agora, nome_curto, "" if media_agora is None else f"{media_agora:+.3f}%")
 
-    # =========================================================================
-    # 2) TABELA DE EVOLUÇÃO DAS CATEGORIAS
-    # =========================================================================
-    st.markdown("##### 📋 Evolução das Categorias (55m → 30m → 15m → 5m → Agora)")
-    st.caption("Mesma lógica da grade por ativo, agregada por categoria · cores = impacto no WIN")
+    # 2) Tabela de evolução das categorias
+    st.markdown("##### 📋 Evolução das Categorias (55m → Agora)")
+    st.caption("Histograma = média das 12 coletas por categoria · Δ Agora = valor atual · cores = impacto no WIN")
 
-    linhas_cat = []
+    linhas_cat, status_txts_cat, inv_flags_cat = [], [], []
     for nome_cat in CATEGORIAS.keys():
         medias = _momentum_categoria(momentum[nome_cat], ATIVOS_INVERSOS)
         status_txt = _status_momentum(medias, inverso=False)
         nome_curto = nome_cat.split(" ", 1)[-1]
-        linha = {"Categoria": nome_curto}
-        for j in JANELAS:
-            linha[_label_janela(j)] = medias.get(j)
-        linha["Status"] = status_txt
-        linhas_cat.append(linha)
+        linhas_cat.append({
+            "Categoria": nome_curto,
+            COL_SPARK: [medias.get(j) for j in JANELAS],
+            COL_DELTA: medias.get(0),
+            COL_STATUS: status_txt,
+        })
+        status_txts_cat.append(status_txt)
+        inv_flags_cat.append(False)  # categorias já têm sinal ajustado na média
 
-    df_cat = pd.DataFrame(linhas_cat)
-    status_txts_cat = [r["Status"] for r in linhas_cat]
-    cols_janelas = [_label_janela(j) for j in JANELAS]
-
-    def _estilizar_cat(row):
-        i_row = row.name
-        estilos = [''] * len(row)
-        for i, col in enumerate(row.index):
-            if col in cols_janelas:
-                v = row[col]
-                if pd.notna(v):
-                    estilos[i] = f"color: {_cor_valor(v, inverso=False)}; font-weight:700;"
-            elif col == "Status":
-                estilos[i] = f"color: {_cor_status(status_txts_cat[i_row])}; font-weight:700;"
-        return estilos
-
-    format_map = {c: "{:+.3f}%" for c in cols_janelas}
-    df_cat_style = df_cat.style.apply(_estilizar_cat, axis=1).format(format_map, na_rep="—")
-
-    st.dataframe(df_cat_style, use_container_width=True, hide_index=True)
+    _render_tabela_histograma(linhas_cat, status_txts_cat, inv_flags_cat, "Categoria")
 
     st.markdown("---")
 
-    # =========================================================================
-    # 3) ABAS POR CATEGORIA (detalhe por ativo)
-    # =========================================================================
-    st.markdown("### 📊 Detalhe por Categoria (55m → 30m → 15m → 5m → Agora + status)")
-    st.caption("Da esquerda (mais antigo) pra direita (mais recente) · cores = impacto no WIN")
+    # 3) Abas por categoria
+    st.markdown("### 📊 Detalhe por Categoria — evolução visual por ativo")
+    st.caption("Histograma das 12 coletas por ativo · Δ Agora = último valor · ⟲ = ativo inverso (sinal plotado invertido)")
 
     abas = st.tabs(list(CATEGORIAS.keys()))
 
     for idx_aba, nome_cat in enumerate(CATEGORIAS.keys()):
         with abas[idx_aba]:
-            linhas = []
+            linhas, status_txts, inv_flags = [], [], []
+
             for nome_ativo, valores in momentum[nome_cat].items():
                 inverso = nome_ativo in ATIVOS_INVERSOS
                 texto_status = _status_momentum(valores, inverso=inverso)
-                linha = {"Ativo": nome_ativo}
-                for j in JANELAS:
-                    linha[_label_janela(j)] = valores.get(j)
-                linha["Status"] = texto_status
-                linhas.append(linha)
+                linhas.append({
+                    "Ativo": nome_ativo,
+                    COL_SPARK: [valores.get(j) for j in JANELAS],
+                    COL_DELTA: valores.get(0),
+                    COL_STATUS: texto_status,
+                })
+                status_txts.append(texto_status)
+                inv_flags.append(inverso)
 
             if not linhas:
                 st.info("Sem dados dessa categoria nas coletas atuais.")
                 continue
 
-            df = pd.DataFrame(linhas)
-            inv_flags = [row["Ativo"] in ATIVOS_INVERSOS for row in linhas]
-            status_txts = [row["Status"] for row in linhas]
-
-            def _estilizar(row):
-                i_row = row.name
-                inv = inv_flags[i_row]
-                estilos = [''] * len(row)
-                for i, col in enumerate(row.index):
-                    if col in cols_janelas:
-                        v = row[col]
-                        if pd.notna(v):
-                            estilos[i] = f"color: {_cor_valor(v, inv)}; font-weight:700;"
-                    elif col == "Status":
-                        estilos[i] = f"color: {_cor_status(status_txts[i_row], inv)}; font-weight:700;"
-                return estilos
-
-            df_style = df.style.apply(_estilizar, axis=1).format(format_map, na_rep="—")
-
-            st.dataframe(df_style, use_container_width=True, hide_index=True)
+            _render_tabela_histograma(linhas, status_txts, inv_flags, "Ativo")
 
     st.markdown("---")
 
-    # =========================================================================
-    # 4) INDICADORES COMPOSTOS — ADRs BR e Mercado Externo
-    # =========================================================================
+    # 4) Indicadores compostos
     st.markdown("### 🎯 Indicadores Compostos (Calculadora Fase 4)")
     st.caption(
         "ADRs Brasileiras = soma das 6 ADRs · Mercado Externo = −VIX + Petróleo + Minério · "
@@ -501,7 +610,6 @@ def _render_dashboard():
 
     composto = _calc_compostos(coletas)
 
-    # ---- 2 gauges ----
     adrs_agora = composto["ADRs BR"].get(0)
     ext_agora = composto["Merc. Externo"].get(0)
 
@@ -515,42 +623,24 @@ def _render_dashboard():
                          "" if ext_agora is None else f"{ext_agora:+.2f}%",
                          range_max=15.0)
 
-    # ---- Tabela de evolução dos 2 compostos ----
-    st.markdown("##### 📋 Evolução dos Compostos (55m → 30m → 15m → 5m → Agora)")
+    st.markdown("##### 📋 Evolução dos Compostos (55m → Agora)")
 
-    linhas_comp = []
+    linhas_comp, status_txts_comp, inv_flags_comp = [], [], []
     for nome_comp in ("ADRs BR", "Merc. Externo"):
         valores = composto[nome_comp]
         status_txt = _status_momentum(valores, inverso=False)
-        linha = {"Composto": nome_comp}
-        for j in JANELAS:
-            linha[_label_janela(j)] = valores.get(j)
-        linha["Status"] = status_txt
-        linhas_comp.append(linha)
+        linhas_comp.append({
+            "Composto": nome_comp,
+            COL_SPARK: [valores.get(j) for j in JANELAS],
+            COL_DELTA: valores.get(0),
+            COL_STATUS: status_txt,
+        })
+        status_txts_comp.append(status_txt)
+        inv_flags_comp.append(False)  # compostos já embutem o sinal correto na fórmula
 
-    df_comp = pd.DataFrame(linhas_comp)
-    status_txts_comp = [r["Status"] for r in linhas_comp]
-
-    def _estilizar_comp(row):
-        i_row = row.name
-        estilos = [''] * len(row)
-        for i, col in enumerate(row.index):
-            if col in cols_janelas:
-                v = row[col]
-                if pd.notna(v):
-                    estilos[i] = f"color: {_cor_valor(v, inverso=False)}; font-weight:700;"
-            elif col == "Status":
-                estilos[i] = f"color: {_cor_status(status_txts_comp[i_row])}; font-weight:700;"
-        return estilos
-
-    df_comp_style = df_comp.style.apply(_estilizar_comp, axis=1).format(format_map, na_rep="—")
-
-    st.dataframe(df_comp_style, use_container_width=True, hide_index=True)
+    _render_tabela_histograma(linhas_comp, status_txts_comp, inv_flags_comp, "Composto")
 
 
-# ==============================================================================
-# CORPO
-# ==============================================================================
 def render_body():
     _render_dashboard()
 

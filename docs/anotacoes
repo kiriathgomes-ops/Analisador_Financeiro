@@ -1,0 +1,61 @@
+Categoria: 🇧🇷 Futuros & Taxas B3
+
+WIN — é o próprio ativo, não é inverso
+
+WDO — dólar futuro. Dólar sobe = WIN cai. INVERSO ✓ (já está)
+
+DI1 2027 — DI futuro (juros). Juros sobem = bolsa cai. INVERSO ✓ (já está)
+
+DI1 2029 — idem. INVERSO ✓ (já está)
+
+Categoria: 🌍 Drivers Globais & Risco
+
+S&P500 — S&P sobe = risco on = WIN sobe. DIRETO (não inverso)
+
+Nasdaq — idem. DIRETO
+
+VIX — medo. VIX sobe = bolsa cai. INVERSO ✓ (já está)
+
+DXY — dólar índice. DXY sobe = dólar forte = bolsa BR cai. INVERSO ✓ (já está)
+
+EWZ — ETF Brasil em NY (em USD). EWZ sobe = Brasil bem. DIRETO (não inverso, apesar do nome parecer "dólar")
+
+Categoria: 🪵 Commodities Cíclicas
+
+Minério — minério sobe = VALE sobe = WIN sobe. DIRETO
+
+Petróleo — petróleo sobe = PETR sobe = WIN sobe. DIRETO
+
+Ouro — ouro é safe haven. Ouro sobe = risco off = bolsa cai. INVERSO ← NÃO ESTÁ NA LISTA!
+
+Categoria: 📈 ADRs Brasileiras
+
+VALE ADR, PETR ADR, ITUB ADR, BBAS ADR, BBD ADR, B3 ADR — todos são ações brasileiras negociadas em NY. DIRETO (sobem com WIN)
+
+Categoria: 🏦 Mercado à Vista
+
+VALE3, PETR4, ITUB4, BBAS3, BBDC4, B3SA3 — ações brasileiras. DIRETO
+
+Então:
+
+OURO deve ser INVERSO — é o principal que está faltando
+
+USDBRL está na lista mas não está na page (não tem ativo com esse nome em CATEGORIAS, mas pode existir em coletas). Fica por defesa.
+
+Ativos que estão na lista atual mas não na page:
+
+USDBRL — não está mapeado, mas pode estar em CATEGORIAS futuramente. Mantém.
+
+Ativos que deveriam ser inversos e não estão:
+
+Ouro — safe haven, sobe com medo/incerteza → WIN cai. INVERSO
+
+E tem mais? Vamos pensar:
+
+Não: S&P500, Nasdaq, EWZ, Minério, Petróleo, ADRs BR, Mercado à Vista
+
+Sim: WDO, DI1 2027, DI1 2029, VIX, DXY, Ouro
+
+Defensivo na lista: USDBRL (não está mapeado mas mantém)
+
+Então a mudança é adicionar "Ouro" à lista ATIVOS_INVERSOS.

@@ -1,14 +1,17 @@
 # -*- coding: utf-8 -*-
 """
 Módulo: v2/core/engines/v2_orchestrator.py
-Versão: 3.2 - Visão C (bloqueia operação quando NOVO_MOTOR tem divergência interna)
+Versão: 3.4.1 - Stale Gate + Pepita Reportada
 
 Lógica:
-  - SMC (Motor_SMC_Regras) fornece direção técnica + níveis operacionais.
+  - SMC fornece direção técnica + níveis operacionais.
   - NOVO_MOTOR fornece direção macro + gap + cenário + aberturas.
-  - Visão C: se o NOVO_MOTOR tiver divergência interna (gap vs score agregado),
-    o orquestrador bloqueia a operação (NEUTRO) mesmo que SMC concorde.
-  - Só opera quando SMC e NOVO_MOTOR concordam E sem divergência interna.
+  - Visão C: divergência interna do NOVO_MOTOR bloqueia.
+  - Pepita (v3.3): SMC conf ajustada < 85% bloqueia.
+  - Stale (v3.4): SMC sobre candle com idade > 15 min bloqueia.
+  - v3.4.1: pepita_passou é calculado antes do gate stale. Quando stale
+    dispara, o campo reflete o que a Pepita TERIA decidido (True/False),
+    não o default enganoso. Quando não stale, comportamento idêntico.
 """
 
 import os
@@ -19,7 +22,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional, Dict, Any, Tuple
 
-# fix83: import do opening_scenario_engine
 from v2.core.services.win_session_builder import build_win_session
 from v2.core.engines.opening_scenario_engine import gerar_cenario_abertura
 
@@ -48,13 +50,13 @@ MAPA_DIRECAO = {
 PESO_SMC = 0.60
 PESO_NOVO_MOTOR = 0.40
 CONFIANCA_MINIMA_CONFLUENCIA = 55.0
+CONFIANCA_MINIMA_SMC_PEPITA = 85.0
 
 
 class V2Orchestrator:
     def __init__(self):
         self.timestamp_inicio = time.time()
         self.erros_acumulados = []
-        # fix57: componentes da confluencia (debug/backtest)
         self._debug_confluencia = {}
 
         self.contextos_status = {
@@ -65,9 +67,6 @@ class V2Orchestrator:
             "session_ok": False,
         }
 
-    # ------------------------------------------------------------
-    # Helpers
-    # ------------------------------------------------------------
     def _carregar_json_defensivo(self, caminho_path) -> dict:
         if not caminho_path.exists():
             self.erros_acumulados.append(f"Arquivo ausente: {caminho_path.name}")
@@ -84,18 +83,22 @@ class V2Orchestrator:
             return "NEUTRO"
         return MAPA_DIRECAO.get(str(bruta).upper().strip(), "NEUTRO")
 
-    # ------------------------------------------------------------
-    # Leitura dos motores
-    # ------------------------------------------------------------
     def _ler_smc(self, smc_dados: dict, mtf_dados: Optional[dict] = None) -> Dict[str, Any]:
         if not smc_dados:
             return {
                 "direcao": "NEUTRO", "confianca": 0, "entrada": None,
                 "stop": None, "alvos": [], "poc": 0.0, "vwap": 0.0,
                 "ob_alinhado": False, "order_blocks": [], "fvgs": [],
+                "veredito_mtf": None,
+                "stale": False, "stale_motivo": None, "candle_idade_min": None,
             }
 
         niveis = smc_dados.get("niveis_institucionais", {}) or {}
+        metadados = smc_dados.get("metadados", {}) or {}
+        stale = smc_dados.get("stale", metadados.get("stale", False))
+        stale_motivo = smc_dados.get("stale_motivo", metadados.get("stale_motivo"))
+        candle_idade_min = smc_dados.get("candle_idade_min", metadados.get("candle_idade_min"))
+
         return {
             "direcao": self._normalizar_direcao(smc_dados.get("bias_direcional")),
             "confianca": float(smc_dados.get("confianca_visual", 0) or 0),
@@ -110,10 +113,12 @@ class V2Orchestrator:
             "veredito_mtf": (
                 ((mtf_dados or {}).get("confluencia") or {}).get("veredito_mtf")
             ),
+            "stale": bool(stale),
+            "stale_motivo": stale_motivo,
+            "candle_idade_min": candle_idade_min,
         }
 
     def _ler_novo_motor(self) -> Optional[Dict[str, Any]]:
-        """Chama o NOVO_MOTOR via PredictionService e propaga TODOS os campos."""
         try:
             from v2.core.services.prediction_service import PredictionService
             svc = PredictionService()
@@ -122,41 +127,26 @@ class V2Orchestrator:
                 return None
 
             return {
-                # ---- Direção base ----
                 "direcao": self._normalizar_direcao(prediction.direcao_prevista),
                 "confianca": float(prediction.score or 0.0),
-
-                # ---- Gap ----
                 "gap_pontos": float(prediction.gap_pontos or 0.0),
                 "gap_pct": float(prediction.gap_percentual or 0.0),
                 "gap_intensidade": prediction.gap_intensidade,
-
-                # ---- Faixa ----
                 "faixa_inf": float(prediction.faixa_provavel_inferior or 0.0),
                 "faixa_sup": float(prediction.faixa_provavel_superior or 0.0),
                 "abertura_projetada": float(prediction.abertura_projetada or 0.0),
-
-                # ---- Cenários (legado simplificado) ----
                 "cenario_nome": (prediction.cenario_principal or {}).get("nome"),
                 "cenario_desc": (prediction.cenario_principal or {}).get("descricao"),
-
-                # ---- Score direcional ----
                 "score_direcao": prediction.score_direcao,
                 "score_forca": prediction.score_forca,
                 "score_magnitude": float(prediction.score_magnitude or 0.0),
-
-                # ---- Divergência ----
                 "divergencia_direcao": bool(prediction.divergencia_direcao),
                 "divergencia_detalhes": prediction.divergencia_detalhes,
-
-                # ---- Aberturas ----
                 "abertura_leilao_real": prediction.abertura_leilao_real,
                 "abertura_leilao_timestamp": prediction.abertura_leilao_timestamp,
                 "abertura_teorica_calculada": prediction.abertura_teorica_calculada,
                 "fonte_abertura": prediction.fonte_abertura,
                 "gap_fonte": getattr(prediction, "gap_fonte", "DESCONHECIDO"),
-
-                # ---- Cenários probabilísticos ----
                 "cenario_principal_nome": prediction.cenario_principal_nome,
                 "cenario_principal_probabilidade": prediction.cenario_principal_probabilidade,
                 "cenario_alternativo_nome": prediction.cenario_alternativo_nome,
@@ -166,9 +156,6 @@ class V2Orchestrator:
             self.erros_acumulados.append(f"Falha no NOVO_MOTOR: {str(e)}")
             return None
 
-    # ------------------------------------------------------------
-    # Confluência (com Visão C)
-    # ------------------------------------------------------------
     def _verificar_confluencia(
         self, smc: Dict[str, Any], novo_motor: Optional[Dict[str, Any]]
     ) -> Tuple[bool, str, Optional[str], float, list, list]:
@@ -180,7 +167,10 @@ class V2Orchestrator:
         _delta_mtf = MODIFICADOR_MTF.get(smc.get("veredito_mtf") or "", 0)
         smc_conf = max(0.0, min(100.0, smc_conf_bruta + _delta_mtf))
 
-        # fix57: inicializa debug da confluencia (preenchido adiante)
+        # v3.4.1: calcula pepita ANTES de qualquer gate, para reportar corretamente
+        # mesmo quando outro gate (stale, smc_neutro) disparar primeiro.
+        pepita_avaliada = bool(smc_conf >= CONFIANCA_MINIMA_SMC_PEPITA)
+
         self._debug_confluencia = {
             "smc_conf_bruto": float(smc_conf_bruta),
             "mtf_veredito": smc.get("veredito_mtf"),
@@ -195,13 +185,19 @@ class V2Orchestrator:
             "nm_magnitude": None,
             "nm_direcao_score": None,
             "nm_divergencia_interna": None,
-            # fix75: nomes canonicos (mesmo valor, nomenclatura unificada)
             "score_magnitude": None,
             "score_direcao": None,
             "passou_gate_confluencia": (
                 smc_conf >= CONFIANCA_MINIMA_CONFLUENCIA
             ),
             "passou_gate_final": False,
+            "pepita_minimo": float(CONFIANCA_MINIMA_SMC_PEPITA),
+            "pepita_smc_conf_bruto": float(smc_conf_bruta),
+            "pepita_smc_conf_ajustado": float(smc_conf),
+            "pepita_passou": pepita_avaliada,
+            "smc_stale": bool(smc.get("stale", False)),
+            "smc_stale_motivo": smc.get("stale_motivo"),
+            "candle_idade_min": smc.get("candle_idade_min"),
         }
         if _delta_mtf:
             motivos.append(
@@ -209,11 +205,47 @@ class V2Orchestrator:
                 f"{smc_conf_bruta:.0f}% -> {smc_conf:.0f}% ({_delta_mtf:+d})"
             )
 
+        # ============================================================
+        # v3.4 — STALE GATE
+        # ============================================================
+        if smc.get("stale"):
+            idade_txt = (
+                f"{smc.get('candle_idade_min')}min"
+                if smc.get("candle_idade_min") is not None
+                else "?"
+            )
+            pepita_txt = "passaria" if pepita_avaliada else "reprovaria"
+            motivos.append(
+                f"🚫 SMC STALE: {smc.get('stale_motivo') or 'candle antigo'} "
+                f"(idade={idade_txt}; Pepita {pepita_txt})"
+            )
+            riscos.append(
+                "SMC está sobre candle congelado (fora do pregão ou MT5 travado). "
+                "Decisão não operacional."
+            )
+            self._debug_confluencia["motivo_saida"] = "smc_stale"
+            self._debug_confluencia["confianca_final"] = 0.0
+            return False, "NEUTRO", None, 0.0, motivos, riscos
+
         if smc_dir == "NEUTRO":
             motivos.append("SMC sem direção definida (LATERAL/NEUTRO)")
             self._debug_confluencia["motivo_saida"] = "smc_neutro"
             self._debug_confluencia["confianca_final"] = 0.0
             return False, "NEUTRO", None, 0.0, motivos, riscos
+
+        if not pepita_avaliada:
+            motivos.append(
+                f"🚫 PEPITA: SMC conf. {smc_conf:.0f}% "
+                f"(bruto {smc_conf_bruta:.0f}%, MTF {_delta_mtf:+d}) "
+                f"< mínimo {CONFIANCA_MINIMA_SMC_PEPITA:.0f}%"
+            )
+            riscos.append(
+                "Confiança SMC abaixo do limiar de lucratividade (Pepita). "
+                "Histórico: sistema cego = -30 pts/trade, WR 48%."
+            )
+            self._debug_confluencia["motivo_saida"] = "pepita_smc_abaixo_minimo"
+            self._debug_confluencia["confianca_final"] = float(smc_conf)
+            return False, "NEUTRO", None, smc_conf, motivos, riscos
 
         if smc_conf < CONFIANCA_MINIMA_CONFLUENCIA:
             motivos.append(
@@ -233,13 +265,9 @@ class V2Orchestrator:
         nm_dir = novo_motor["direcao"]
         nm_score_dir = novo_motor.get("score_direcao", "NEUTRO")
         nm_conf = novo_motor["confianca"]
-        # fix57: guarda nm_conf pro payload
         self._debug_confluencia["nm_conf"] = float(nm_conf)
-        # fix62: nm_conf e magnitude (|score| clipado), nao confianca direcional.
-        # Mantido "nm_conf" por retrocompat de backtest; "nm_magnitude" e o nome honesto.
         self._debug_confluencia["nm_magnitude"] = float(nm_conf)
         self._debug_confluencia["nm_direcao_score"] = nm_score_dir
-        # fix75: aliases canonicos (mesmo valor, nome unificado)
         self._debug_confluencia["score_magnitude"] = float(nm_conf)
         self._debug_confluencia["score_direcao"] = nm_score_dir
         self._debug_confluencia["nm_divergencia_interna"] = bool(
@@ -250,7 +278,6 @@ class V2Orchestrator:
         motivos.append(f"SMC: {smc_dir} (conf. {smc_conf:.0f}%)")
         motivos.append(f"NOVO_MOTOR: {nm_dir} (score {nm_conf:.1f}, gap {gap:+.0f} pts)")
 
-        # ---- VISÃO C: divergência interna do NOVO_MOTOR bloqueia ----
         if novo_motor.get("divergencia_direcao"):
             motivos.append(
                 f"⚠️ NOVO_MOTOR em CONFLITO INTERNO: "
@@ -264,20 +291,14 @@ class V2Orchestrator:
             self._debug_confluencia["confianca_final"] = 0.0
             return False, "NEUTRO", None, 0.0, motivos, riscos
 
-        # ---- Confluência SMC × NOVO_MOTOR ----
         if smc_dir == nm_dir and nm_dir != "NEUTRO":
             confianca_final = (smc_conf * PESO_SMC) + (nm_conf * PESO_NOVO_MOTOR)
             confianca_final = round(min(100.0, confianca_final), 1)
-            # fix57: guarda confianca_final e gate
             self._debug_confluencia["confianca_final"] = float(confianca_final)
             self._debug_confluencia["passou_gate_final"] = (
                 confianca_final >= CONFIANCA_MINIMA_FINAL
             )
 
-            # Gate adicional: confianca FINAL tambem precisa passar o minimo.
-            # Com o MTF ativo (pode derrubar SMC em ate -40), o minimo final
-            # e mais baixo (CONFIANCA_MINIMA_FINAL=45) para nao bloquear
-            # operacoes legitimas que ja passaram no gate do SMC.
             if confianca_final < CONFIANCA_MINIMA_FINAL:
                 motivos.append(
                     f"⚠️ Confiança final {confianca_final:.1f}% < "
@@ -290,7 +311,6 @@ class V2Orchestrator:
             self._debug_confluencia["motivo_saida"] = "ok"
             return True, smc_dir, smc_dir, confianca_final, motivos, riscos
 
-        # ---- Divergência SMC × NOVO_MOTOR ----
         motivos.append(f"⚠️ DIVERGÊNCIA: SMC diz {smc_dir}, NOVO_MOTOR diz {nm_dir}")
         riscos.append(
             f"Motores divergem (SMC={smc_dir}, NovoMotor={nm_dir}). "
@@ -300,9 +320,6 @@ class V2Orchestrator:
         self._debug_confluencia["confianca_final"] = 0.0
         return False, "NEUTRO", None, 0.0, motivos, riscos
 
-    # ------------------------------------------------------------
-    # fix83: serializa OpeningScenario pro payload
-    # ------------------------------------------------------------
     def _serializar_cenario(self) -> Optional[Dict[str, Any]]:
         c = getattr(self, "_cenario_abertura", None)
         if not c:
@@ -326,9 +343,6 @@ class V2Orchestrator:
             print(f"[AVISO] fix83: falha ao serializar cenario: {e}")
             return None
 
-    # ------------------------------------------------------------
-    # Consolidação principal
-    # ------------------------------------------------------------
     def consolidar_decisao(self) -> dict:
         ativos_dados = self._carregar_json_defensivo(FILE_UNIFICADO)
         smc_dados = self._carregar_json_defensivo(FILE_SMC_REGRAS)
@@ -367,7 +381,6 @@ class V2Orchestrator:
         operar, vies_final, direcao_motores, confianca, motivos, riscos = \
             self._verificar_confluencia(smc, novo_motor)
 
-        # fix83: gera OpeningScenario (direcao provavel + relacao com ajuste)
         self._cenario_abertura = None
         try:
             _session = build_win_session()
@@ -398,7 +411,7 @@ class V2Orchestrator:
         payload_decisao = {
             "metadata": {
                 "timestamp": datetime.now().isoformat(),
-                "versao": "V3.2-VisaoC",
+                "versao": "V3.4.1-StaleGate",
                 "fonte": "v2_orchestrator",
                 "latencia_ms": round((time.time() - self.timestamp_inicio) * 1000, 2),
             },
@@ -434,7 +447,6 @@ class V2Orchestrator:
                         "alvos": smc["alvos"],
                     },
                     "novo_motor": novo_motor or {},
-                    # fix57: componentes da confluencia (backtest)
                     "confluencia": getattr(self, "_debug_confluencia", {}),
                     "precificacao_teorica": {
                         "abertura_teorica": (novo_motor or {}).get("abertura_teorica_calculada", 0.0),
@@ -443,7 +455,6 @@ class V2Orchestrator:
                     "gap_pts": gap_pts,
                     "ajuste": win_ajuste,
                     "last": float(win_last or 0.0),
-                    # fix83: OpeningScenario (movido do Historico_Aberturas)
                     "opening_scenario": self._serializar_cenario(),
                 },
             },
@@ -462,7 +473,8 @@ class V2Orchestrator:
 
         print(
             f"✅ [V2 ORCHESTRATOR] Decisão consolidada: "
-            f"{vies_final} ({confianca:.0f}%) | operar={operar}"
+            f"{vies_final} ({confianca:.0f}%) | operar={operar} | "
+            f"motivo={self._debug_confluencia.get('motivo_saida')}"
         )
         return payload_decisao
 

@@ -32,7 +32,8 @@ def carregar_e_mapear_coleta(nome_arquivo):
         # Iterar sobre a lista 'coletas' do JSON
         for item in dados.get("coletas", []):
             ativo = item.get("ativo")
-            dados_reais = item.get("dados_reais", {})
+            # ✅ FIX: O 'or {}' garante que se vier None, vira dicionário vazio
+            dados_reais = item.get("dados_reais") or {}
             close = dados_reais.get("close")
 
             if ativo and close is not None:
