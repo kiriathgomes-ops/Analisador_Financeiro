@@ -1,65 +1,64 @@
+# ============================================================
+# ARQUIVO: v2/core/services/vision_service.py
+# VERSÃO: 2.0 — Lê o SMC Real do JSON em vez de adivinhar
+# ============================================================
+
+import json
 from pathlib import Path
 from datetime import datetime
 from typing import Optional
-
 from ..contracts import VisionContext
 
+
 class VisionService:
-    def __init__(self, market_context=None):
+    def __init__(self, market_context=None, coletas_dir: Optional[Path] = None):
         self.market = market_context
+        if coletas_dir is None:
+            self.coletas_dir = Path(__file__).resolve().parent.parent.parent.parent / "Coletas"
+        else:
+            self.coletas_dir = Path(coletas_dir)
+
+    def _carregar_json(self, nome: str) -> dict:
+        caminho = self.coletas_dir / nome
+        if not caminho.exists():
+            return {}
+        try:
+            with open(caminho, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return {}
 
     def get_vision(self, ativo: str = "WIN") -> Optional[VisionContext]:
-        if not self.market or not self.market.tendencia_win_padrao:
+        # ✅ Lê o resultado do Motor_SMC_Regras em vez de adivinhar pela tendência
+        smc = self._carregar_json("AnaliseGraficaSMC_Regras.json")
+        
+        if not smc:
             return VisionContext(
-                timestamp=datetime.now(),
-                ativo=ativo,
-                direcao_estrutura="NEUTRO",
-                bos=False,
-                choch=False,
-                liquidity_zones=[],
-                order_blocks=[],
-                fair_value_gaps=[],
-                suportes=[],
-                resistencias=[],
-                entrada_sugerida=None,
-                stop_sugerido=None,
-                alvos=[],
-                confianca_visual=0,
-                metadados={"fonte": "sem_dados"}
+                timestamp=datetime.now(), ativo=ativo, direcao_estrutura="NEUTRO",
+                bos=False, choch=False,
+                metadados={"fonte": "smc_ausente"}
             )
 
-        padrao = self.market.tendencia_win_padrao
-        if padrao == "Alta_E_Alta":
-            direcao, bos, choch, conf = "COMPRA", True, False, 80
-        elif padrao == "Baixa_E_Baixa":
-            direcao, bos, choch, conf = "VENDA", True, False, 80
-        elif padrao in ["Alta_E_Estavel", "Estavel_E_Alta"]:
-            direcao, bos, choch, conf = "COMPRA", False, False, 50
-        elif padrao in ["Baixa_E_Estavel", "Estavel_E_Baixa"]:
-            direcao, bos, choch, conf = "VENDA", False, False, 50
-        elif "Alta_E_Baixa" in padrao or "Baixa_E_Alta" in padrao:
-            direcao, bos, choch, conf = "NEUTRO", False, True, 30
-        else:
-            direcao, bos, choch, conf = "NEUTRO", False, False, 20
-
-        ajuste = self.market.win_ajuste if ativo == "WIN" else self.market.wdo_ajuste
-        suportes = [ajuste - 150, ajuste - 300] if ajuste else []
-        resistencias = [ajuste + 150, ajuste + 300] if ajuste else []
+        bias = smc.get("bias_direcional", "LATERAL")
+        direcao = "COMPRA" if bias == "ALTA" else "VENDA" if bias == "BAIXA" else "NEUTRO"
+        
+        # Extrai liquidez do JSON
+        liq = smc.get("liquidez", {}) or {}
+        bsl = liq.get("bsl", [])
+        ssl = liq.get("ssl", [])
 
         return VisionContext(
             timestamp=datetime.now(),
             ativo=ativo,
             direcao_estrutura=direcao,
-            bos=bos,
-            choch=choch,
-            liquidity_zones=[],
-            order_blocks=[],
-            fair_value_gaps=[],
-            suportes=suportes,
-            resistencias=resistencias,
-            entrada_sugerida=None,
-            stop_sugerido=None,
-            alvos=[],
-            confianca_visual=conf,
-            metadados={"fonte": "tendencia_15min", "padrao": padrao}
+            bos=smc.get("bos", False),
+            choch=smc.get("choch", False),
+            liquidity_zones=bsl + ssl,
+            order_blocks=smc.get("order_blocks", []),
+            fair_value_gaps=smc.get("fair_value_gaps", []),
+            entrada_sugerida=smc.get("entrada_sugerida"),
+            stop_sugerido=smc.get("stop_sugerido"),
+            alvos=smc.get("alvos", []),
+            confianca_visual=smc.get("confianca_visual", 0),
+            metadados={"fonte": "AnaliseGraficaSMC_Regras.json", "bias_original": bias}
         )

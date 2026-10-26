@@ -1,17 +1,12 @@
 from typing import Dict, Any, Optional
 from ..contracts import MarketContext, PredictionContext, NewsContext, VisionContext
+from v2.config import PESOS_CONFLUENCE
+
 
 class ConfluenceEngine:
     def __init__(self, pesos: Optional[Dict[str, float]] = None):
-        self.pesos = pesos or {
-            "market_externo": 1.0,
-            "adrs": 0.8,
-            "tendencia": 2.0,
-            "prediction": 2.5,
-            "gap": 0.5,
-            "news": 0.6,
-            "vision": 1.8,
-        }
+        # ✅ Puxa os pesos do v2/config.py
+        self.pesos = pesos or PESOS_CONFLUENCE
 
     def _normalizar_direcao(self, direcao: str) -> int:
         return 1 if direcao.upper() == "COMPRA" else -1 if direcao.upper() == "VENDA" else 0

@@ -1,16 +1,13 @@
 # ============================================================
 # ARQUIVO: v2/core/engines/decision_engine.py
-# VERSÃO: 2.1 — Entrada/Stop/Alvo reais usando ajuste + pivôs + gap + SMC
+# VERSÃO: 2.2 — Pivôs Reais e Trava de Segurança (Sem Fantasmas)
 # ============================================================
 
 from __future__ import annotations
-
 from datetime import datetime
 from typing import Any, Dict, Optional
-
 from v2.core.contracts.market_context import MarketContext
 from v2.core.contracts.decision_context import DecisionContext
-# Se DecisionContext estiver em contracts/__init__ ou decision_context.py, ajuste o import
 
 
 class DecisionEngine:
@@ -18,23 +15,13 @@ class DecisionEngine:
         self.ativo = ativo
 
     def _obter_pivots(self, market: MarketContext) -> Dict[str, float]:
+        # ✅ Retorna apenas pivôs REAIS. Se não tiver, retorna {}.
         pivots = (market.metadados or {}).get("pivots") or {}
         if pivots and any(v is not None for v in pivots.values()):
             return {k: float(v) for k, v in pivots.items() if v is not None}
-
-        preco = market.win_fut.preco if self.ativo == "WIN" else market.wdo_fut.preco
-        ajuste = market.win_ajuste if self.ativo == "WIN" else market.wdo_ajuste
-        base = ajuste or preco or 0.0
-        return {
-            "r2": base + 300,
-            "r1": base + 150,
-            "pp": base,
-            "s1": base - 150,
-            "s2": base - 300,
-        }
+        return {}
 
     def _niveis_smc(self, vision) -> Dict[str, Any]:
-        """Extrai níveis do VisionContext / Motor SMC Regras se existirem."""
         if vision is None:
             return {}
         return {
@@ -86,13 +73,9 @@ class DecisionEngine:
                 ativo=self.ativo,
                 vies_final=vies,
                 confianca=confianca,
-                entrada=None,
-                stop_loss=None,
-                alvo_1=None,
-                alvo_2=None,
+                entrada=None, stop_loss=None, alvo_1=None, alvo_2=None,
                 invalidacao="Confiança insuficiente (< 40%)",
-                motivos=motivos,
-                riscos=riscos,
+                motivos=motivos, riscos=riscos,
                 metadados={"pivots": pivots, "smc": smc, "gap_pts": gap_pts},
             )
 
@@ -109,9 +92,8 @@ class DecisionEngine:
             invalidacao = f"Fechamento além do stop {stop:.0f}"
             motivos.append("Níveis SMC/Vision utilizados")
 
-        # Fallback: lógica clássica com pivôs + ajuste
-        elif vies == "COMPRA" and confianca >= 55:
-            # Entrada preferencialmente no reteste do PP ou R1 próximo
+        # Fallback: lógica clássica com pivôs (SÓ SE PIVOTS EXISTIREM)
+        elif vies == "COMPRA" and confianca >= 55 and pivots:
             base = pivots.get("pp") or ajuste or last
             r1 = pivots.get("r1")
             s1 = pivots.get("s1")
@@ -129,7 +111,7 @@ class DecisionEngine:
             if gap_pts and gap_pts > 150:
                 riscos.append(f"Gap projetado alto (+{gap_pts:.0f} pts) — cuidado com preenchimento")
 
-        elif vies == "VENDA" and confianca >= 55:
+        elif vies == "VENDA" and confianca >= 55 and pivots:
             base = pivots.get("pp") or ajuste or last
             s1 = pivots.get("s1")
             r1 = pivots.get("r1")
@@ -147,6 +129,19 @@ class DecisionEngine:
             if gap_pts and gap_pts < -150:
                 riscos.append(f"Gap projetado alto ({gap_pts:.0f} pts) — cuidado com preenchimento")
 
+        # ✅ TRAVA DE SEGURANÇA: Se não conseguiu achar entrada nem no SMC nem nos pivôs, ABORTA.
+        else:
+            return DecisionContext(
+                timestamp=datetime.now(),
+                ativo=self.ativo,
+                vies_final="NEUTRO",
+                confianca=confianca,
+                entrada=None, stop_loss=None, alvo_1=None, alvo_2=None,
+                invalidacao="Sem níveis técnicos (Pivôs ou SMC) para definir entrada",
+                motivos=motivos, riscos=riscos + ["Nenhum pivô ou SMC disponível para calcular a operação"],
+                metadados={"pivots": pivots, "smc": smc, "gap_pts": gap_pts},
+            )
+
         return DecisionContext(
             timestamp=datetime.now(),
             ativo=self.ativo,
@@ -157,13 +152,6 @@ class DecisionEngine:
             alvo_1=round(alvo1) if alvo1 is not None else None,
             alvo_2=round(alvo2) if alvo2 is not None else None,
             invalidacao=invalidacao,
-            motivos=motivos,
-            riscos=riscos,
-            metadados={
-                "pivots": pivots,
-                "smc": smc,
-                "gap_pts": gap_pts,
-                "ajuste": ajuste,
-                "last": last,
-            },
+            motivos=motivos, riscos=riscos,
+            metadados={"pivots": pivots, "smc": smc, "gap_pts": gap_pts, "ajuste": ajuste, "last": last},
         )
