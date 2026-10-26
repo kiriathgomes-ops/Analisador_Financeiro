@@ -64,3 +64,16 @@ Então a mudança é adicionar "Ouro" à lista ATIVOS_INVERSOS.
 
 
 python -m vulture . --exclude .venv,Coletas,.git,__pycache__ --min-confidence 80
+
+
+Não existe uma "senha" ou frase mágica obrigatória, porque o Spike é uma Inteligência Artificial (LLM). Ele entende linguagem natural.
+
+Mas, para garantir que ele foque exatamente no Operacional 3 e não se perca nos outros, você pode usar estas frases-chave (é só copiar e colar):
+
+"Qual a análise do Operacional 3?"
+
+"Como está o setup do Rompimento 10h?"
+
+"O Op 3 está bloqueado ou liberado hoje?"
+
+"O que o ORB está dizendo?"
