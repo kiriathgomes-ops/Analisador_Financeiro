@@ -1,6 +1,6 @@
 # ============================================================
 # ARQUIVO: Coletor.py
-# VERSÃO: 2.8 (Turbo) - Coleta Contínua (Pré, Regular e Pós-Market)
+# VERSÃO: 2.9 (Turbo) - Sessão Inteligente (Pré, Regular e Pós-Market)
 # ============================================================
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ import sys
 import time
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
+from datetime import datetime, time as dt_time
 from typing import Any, Dict, List, Optional
 
 import MetaTrader5 as mt5
@@ -100,13 +100,25 @@ def _coletar_tv_adr(ticker_tv: str) -> Dict[str, Any]:
         post_close = res.get("postmarket_close")
         post_change = res.get("postmarket_change")
 
-        # Prioridade: Pós-Market > Pré-Market > Regular
-        if post_close is not None and float(post_close) > 0 and post_change is not None:
-            final_close, final_change, tipo = post_close, post_change, "POST"
-        elif pre_close is not None and float(pre_close) > 0 and pre_change is not None:
-            final_close, final_change, tipo = pre_close, pre_change, "PRE"
-        else:
+        agora = datetime.now().time()
+
+        # Regra 1: Horário Regular (10:30 às 17:00 BRT) -> Usa Dados ao Vivo
+        if dt_time(10, 30) <= agora <= dt_time(17, 0):
             final_close, final_change, tipo = close_val, change_val, "REGULAR"
+            
+        # Regra 2: Antes da abertura (antes das 10:30 BRT) -> Usa Pré-market
+        elif agora < dt_time(10, 30):
+            if pre_close is not None and float(pre_close) > 0 and pre_change is not None:
+                final_close, final_change, tipo = pre_close, pre_change, "PRE"
+            else:
+                final_close, final_change, tipo = close_val, change_val, "REGULAR"
+                
+        # Regra 3: Pós-mercado (depois das 17:00 BRT) -> Usa After-market
+        else:
+            if post_close is not None and float(post_close) > 0 and post_change is not None:
+                final_close, final_change, tipo = post_close, post_change, "POST"
+            else:
+                final_close, final_change, tipo = close_val, change_val, "REGULAR"
 
         if final_close is None or float(final_close) <= 0: return None
         if final_change is None: return None
@@ -141,7 +153,7 @@ def coletar_finnhub() -> List[Dict[str, Any]]:
             if "c" in res and res["c"] != 0:
                 return {"ativo": cfg["ativo"], "fonte": "FINNHUB", "timestamp": timestamp, "status": "OK", "dados_reais": {"close": float(res["c"]), "open": None, "high": None, "low": None, "change_percent": round(float(res.get("dp", 0)), 2), "volume": None, "var_abs": round(float(res.get("d", 0)), 2), "fechamento_anterior": float(res.get("pc", 0))}}
             return {"ativo": cfg["ativo"], "fonte": "FINNHUB", "timestamp": timestamp, "status": "SEM_DADOS", "dados_reais": None}
-        except Exception as e:
+        except Exception:
             return {"ativo": cfg["ativo"], "fonte": "FINNHUB", "timestamp": timestamp, "status": "ERRO", "dados_reais": None}
 
     with ThreadPoolExecutor(max_workers=min(8, len(ATIVOS_FINNHUB))) as ex:
@@ -413,6 +425,6 @@ def executar_pipeline_coleta() -> None:
 
 if __name__ == "__main__":
     print("=" * 60)
-    print(" COLETOR TURBO v2.8 — Coleta Contínua (Pre/Regular/Post)")
+    print(" COLETOR TURBO v2.9 — Sessão Inteligente (Pre/Regular/Post)")
     print("=" * 60)
     executar_pipeline_coleta()
