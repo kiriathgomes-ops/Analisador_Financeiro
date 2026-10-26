@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 """
 Módulo: pages/7.4_🤖_IA_Spike_Texto.py
-Versão: 2.6.7 — Modo Professor + Leitura do Snapshot Op 3 + max_tokens 4096.
+Versão: 2.6.8 — Consciência de Gap Extremo, Entrada SMC Expirada e Soma de ADRs.
 
-Mudanças vs. 2.6.6:
-  - Adicionada REGRAS DE COMPORTAMENTO no system_prompt: se a pergunta for teórica 
-    ou matemática (ex: "O que é um Order Block?"), ele responde como professor e
-    NÃO emite VIES FINAL. Se for pergunta de mercado, ele atua como operador.
+Mudanças vs. 2.6.7:
+  - Nova regra: "SMC EXPIRADO" (se o preço atual estiver > 500 pts da entrada, não operar).
+  - Nova regra: "GAP EXTREMO" (se gap > 1000 pts, Novo Motor tem prioridade sobre SMC).
+  - Nova regra: "SOMA DE ADRs" (entender que o indicador pode ser < -100% pois é soma bruta).
 """
 
 import os
@@ -34,9 +34,9 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 
 # ==============================================================================
-# COMPILADOR DE DADOS — v2.6.7
+# COMPILADOR DE DADOS — v2.6.8
 # ==============================================================================
-_CACHE_VERSION_CTX = "v2.6.7"
+_CACHE_VERSION_CTX = "v2.6.8"
 
 
 @st.cache_data(ttl=30)
@@ -91,9 +91,9 @@ def compilar_contexto(_ver: str = _CACHE_VERSION_CTX) -> str:
                             dt_parsed = dt_parsed.replace(year=hoje.year, month=hoje.month, day=hoje.day)
                         idade_min = (_dt.now() - dt_parsed).total_seconds() / 60.0
                         if idade_min < 0:
-                            contexto.append(f"⚠️ Timestamp do OCR ({dt_ocr}) está no futuro — verificar relógio")
+                            contexto.append(f"⚠️ Timestamp do OCR ({dt_ocr}) está no futuro")
                         elif idade_min > 30:
-                            contexto.append(f"⚠️ ATENÇÃO: leitura OCR tem {idade_min:.0f} min — pode estar DESATUALIZADA")
+                            contexto.append(f"⚠️ ATENÇÃO: leitura OCR tem {idade_min:.0f} min — DESATUALIZADA")
                         else:
                             contexto.append(f"✅ Leitura recente ({idade_min:.0f} min)")
                     else:
@@ -105,7 +105,7 @@ def compilar_contexto(_ver: str = _CACHE_VERSION_CTX) -> str:
         except Exception as e:
             contexto.append(f"Erro ao ler o CSV do OCR: {e}")
     else:
-        contexto.append("### PREÇO TEÓRICO DO LEILÃO (OCR)\n(Ainda sem leituras de OCR registradas)")
+        contexto.append("### PREÇO TEÓRICO DO LEILÃO (OCR)\n(Ainda sem leituras)")
     contexto.append("")
 
     # 2. NOTÍCIAS
@@ -165,7 +165,7 @@ def compilar_contexto(_ver: str = _CACHE_VERSION_CTX) -> str:
     if ind_comp.get("indicador_mercado_externo") is not None:
         contexto.append(f"Indicador de Mercado Externo: {ind_comp['indicador_mercado_externo']:+.2f}%")
     if ind_comp.get("indicador_adrs_brasileiras") is not None:
-        contexto.append(f"Indicador de ADRs Brasileiras: {ind_comp['indicador_adrs_brasileiras']:+.2f}%")
+        contexto.append(f"Indicador de ADRs Brasileiras (SOMA bruta): {ind_comp['indicador_adrs_brasileiras']:+.2f}")
 
     win_ajuste = (ativos.get("WIN_AJUSTE", {}) or {}).get("preco")
     win_last = ((ativos.get("WIN_LAST_TICK", {}) or {}).get("preco") or (ativos.get("WIN_FUT", {}) or {}).get("preco"))
@@ -243,14 +243,14 @@ def compilar_contexto(_ver: str = _CACHE_VERSION_CTX) -> str:
             contexto.append(f"\n--- SMC {tf_nome} ---")
             if smc.get("stale"):
                 contexto.append(f"🚨 STALE: candle de {smc.get('candle_idade_min', '?')} min atrás")
-            contexto.append(f"Viés: {smc.get('bias_direcional')} (Conf: {smc.get('confianca_visual')}%) | Preço Atual: {smc.get('preco_atual')}")
+            contexto.append(f"Viés: {smc.get('bias_direcional')} (Conf: {smc.get('confianca_visual')}%) | Preço Atual no Momento do Cálculo: {smc.get('preco_atual')}")
             contexto.append(f"BOS: {smc.get('bos')} | CHOCH: {smc.get('choch')}")
             entrada = smc.get("entrada_sugerida")
             stop = smc.get("stop_sugerido")
             alvos = smc.get("alvos", []) or []
             if entrada is not None and stop is not None:
                 risco = abs(entrada - stop)
-                contexto.append(f"Entrada: {entrada:.0f} | Stop: {stop:.0f} | Risco: {risco:.0f} pts")
+                contexto.append(f"Entrada Sugerida: {entrada:.0f} | Stop: {stop:.0f} | Risco: {risco:.0f} pts")
                 if alvos:
                     contexto.append(f"Alvos: {', '.join([f'{a:.0f}' for a in alvos])} (R:R 1º = 1:{abs(alvos[0]-entrada)/risco:.2f})")
             
@@ -277,11 +277,26 @@ def compilar_contexto(_ver: str = _CACHE_VERSION_CTX) -> str:
     else:
         contexto.append("(Snapshot do Op 3 não gerado ainda)")
 
+    # 7. DECISÃO V2 (Novo Motor)
+    contexto.append("\n### DECISÃO V2 (NOVO MOTOR / ORCHESTRATOR)")
+    dec_path = COLETAS_DIR / "Decisao_V2.json"
+    if dec_path.exists():
+        try:
+            with open(dec_path, "r", encoding="utf-8") as f:
+                dec = json.load(f)
+            nm = dec.get("decisao", {}).get("metadados", {}).get("novo_motor", {})
+            if nm:
+                contexto.append(f"Novo Motor Direção: {nm.get('direcao')}")
+                contexto.append(f"Novo Motor Gap: {nm.get('gap_pontos')} pts")
+                contexto.append(f"Novo Motor Score: {nm.get('score_magnitude')} (Força: {nm.get('score_forca')})")
+        except Exception:
+            pass
+
     return "\n".join(contexto)
 
 
 # ==============================================================================
-# INTERFACE — v2.6.7
+# INTERFACE — v2.6.8
 # ==============================================================================
 if "messages" not in st.session_state:
     st.session_state.messages = [{"role": "assistant", "content": "Fala, trader! Sou o Spike. Já cruzei seus dados e estou pronto."}]
@@ -336,12 +351,12 @@ if prompt := st.chat_input("Ex: Qual o melhor setup agora?", key="spike_chat_inp
                 Você é o "Spike", operador profissional de day trade da B3 e um mentor quantitativo.
                 Avalie os 4 Operacionais do usuário OU responda dúvidas teóricas/práticas.
 
-                REGRAS DE COMPORTAMENTO (MUITO IMPORTANTE):
-                - **Perguntas Educacionais/Teóricas:** Se o usuário perguntar "O que é...", "Como funciona...", "Me explique...", atue como professor. Responda a pergunta tecnicamente usando seu conhecimento. NÃO emita VIES FINAL nesta resposta.
-                - **Perguntas de Cálculo:** Se o usuário pedir cálculo de lote, risco, etc., faça a matemática de forma clara (ex: WIN = R$ 0,20/pto). NÃO emita VIES FINAL nesta resposta.
-                - **Perguntas de Mercado:** Se o usuário perguntar "Qual o setup?", "Onde entrar?", aplique os 4 operacionais e finalize com o VIES FINAL.
+                REGRAS DE COMPORTAMENTO:
+                - **Perguntas Educacionais/Teóricas:** Se o usuário perguntar "O que é...", "Como funciona...", atue como professor. NÃO emita VIES FINAL.
+                - **Perguntas de Cálculo:** Se pedir cálculo de lote, risco, etc., faça a matemática. NÃO emita VIES FINAL.
+                - **Perguntas de Mercado:** Aplique os 4 operacionais e finalize com o VIES FINAL.
 
-                OPERACIONAIS (Para perguntas de mercado):
+                OPERACIONAIS:
                 1. Ajuste (Gap positivo→venda, negativo→compra).
                 2. Drivers (Notícia 3★→ADRs, senão Merc. Externo. Positivo→compra, Negativo→venda).
                 3. Rompimento 10h (ORB - Máxima e Mínima da vela 10h).
@@ -353,6 +368,9 @@ if prompt := st.chat_input("Ex: Qual o melhor setup agora?", key="spike_chat_inp
                 - **OCR velho:** Se ⚠️ ATENÇÃO (>30min), avise.
                 - **Op 3 (ORB):** Se o snapshot do Op 3 estiver no contexto, analise a vela de 10h. Se a vela estiver ausente OU se a amplitude for > 700 OU se a "Regra 10" estiver ativa (gap > 500), diga que o Op 3 está BLOQUEADO.
                 - **Hierarquia Macro:** Merc. Externo negativo anula Op 1, mesmo com gap negativo.
+                - **INDICADOR DE ADRs (SOMA):** O "Indicador de ADRs Brasileiras" no contexto é uma SOMA bruta de 6 ADRs. Portanto, é NORMAL que ele passe de -100%. Não trate como uma variação percentual simples, mas como um índice de pressão extrema.
+                - **SMC EXPIRADO:** Se o SMC sugerir entrada (ex: Compra 175.215) mas o preço atual (ex: 177.135) já estiver > 500 pts distante, avise que a entrada EXPIRou e o R:R se perdeu.
+                - **GAP EXTREMO:** Se o Gap vs Ajuste B3 for > 1000 pts (para cima ou baixo), o SMC perde prioridade. O mercado está anômalo. Priorize o Novo Motor (VENDA no gap de -31k) ou AGUARDE.
 
                 {bloco_modo}
 
@@ -375,7 +393,7 @@ if prompt := st.chat_input("Ex: Qual o melhor setup agora?", key="spike_chat_inp
                     response = requests.post(url, headers=headers, json=payload, timeout=30)
                     if response.status_code == 200: break
                     elif response.status_code == 429:
-                        st.warning(f"⚠️ Limite da Groq atingido. Aguardando 3s (Tentativa {tentativa+1}/{max_retries})...")
+                        st.warning(f"⚠️ Limite da Groq atingido. Aguardando 3s...")
                         time.sleep(3)
                     else: break
 
