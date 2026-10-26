@@ -59,3 +59,8 @@ Sim: WDO, DI1 2027, DI1 2029, VIX, DXY, Ouro
 Defensivo na lista: USDBRL (não está mapeado mas mantém)
 
 Então a mudança é adicionar "Ouro" à lista ATIVOS_INVERSOS.
+
+
+
+
+python -m vulture . --exclude .venv,Coletas,.git,__pycache__ --min-confidence 80
