@@ -35,7 +35,6 @@ Raiz do Projeto
 │       ├── __init__.py
 │       ├── coletor_dados.py
 │       └── schemas.py
-├── PROXIMOS_PASSOS.md
 ├── PromptIA/
 │   ├── PromptIATeste/
 │   │   ├── Analista_SMC.txt
@@ -52,9 +51,9 @@ Raiz do Projeto
 │   │   └── padrao.txt
 │   ├── Prompt_Rompimento_10h.txt
 │   └── vision_prompt_config.json
-├── README.md
 ├── Rodar_SMC_Regras.py
 ├── Validador.py
+├── _test_mt5_vela.py
 ├── analisar_rompimento_10h.py
 ├── app_home.py
 ├── arvore_projeto.txt
@@ -120,10 +119,10 @@ Raiz do Projeto
 │   ├── mapear_regiao_ocr.py
 │   ├── minerador.py
 │   ├── rastrear_pai.py
+│   ├── testar_limite_groq.py
 │   ├── teste_ocr_direto.py
 │   ├── ver_fantasmas.py
 │   └── verificar_escrita.py
-├── gerar_snapshot_mtf_ia.py
 ├── logs/
 ├── main_pipeline.py
 ├── pages/

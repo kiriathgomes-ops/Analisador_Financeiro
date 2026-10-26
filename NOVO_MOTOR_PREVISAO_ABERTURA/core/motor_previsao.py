@@ -1,6 +1,8 @@
 # NOVO_MOTOR_PREVISAO_ABERTURA/core/motor_previsao.py
 from datetime import datetime
 from typing import Optional, Dict, Any, Tuple
+from pathlib import Path
+import yaml
 
 from config import JANELA_LEILAO_INICIO, JANELA_LEILAO_FIM
 
@@ -14,9 +16,37 @@ from .motor_ajuste import analisar_ajuste
 from .motor_cenarios import gerar_cenarios
 from .motor_score import calcular_score
 
+# ============================================================
+# CARREGAMENTO DAS CONFIGURAÇÕES (YAML)
+# ============================================================
+CONFIG_DIR = Path(__file__).resolve().parent.parent / "config"
+PESOS_PATH = CONFIG_DIR / "pesos.yaml"
 
-MAX_GAP_REALISTA = 50000.0
-MARGEM_FAIXA_PADRAO = 100.0
+def carregar_configuracoes() -> Dict[str, Any]:
+    """Carrega as configurações do motor do YAML com fallback de segurança."""
+    fallback = {
+        "max_gap_realista": 50000.0,
+        "margem_faixa_padrao": 100.0,
+        "direcao_limiares": {"ajuste_confluente": 50.0, "absoluto": 100.0}
+    }
+    if not PESOS_PATH.exists():
+        return fallback
+    
+    try:
+        with open(PESOS_PATH, "r", encoding="utf-8") as f:
+            config = yaml.safe_load(f)
+            return config.get("configuracoes_motor", fallback)
+    except Exception:
+        return fallback
+
+_CONFIG_MOTOR = carregar_configuracoes()
+MAX_GAP_REALISTA = float(_CONFIG_MOTOR.get("max_gap_realista", 50000.0))
+MARGEM_FAIXA_PADRAO = float(_CONFIG_MOTOR.get("margem_faixa_padrao", 100.0))
+
+# Limiares de direção
+_LIMIARES_DIR = _CONFIG_MOTOR.get("direcao_limiares", {})
+LIMIAR_AJUSTE_CONFLUENTE = float(_LIMIARES_DIR.get("ajuste_confluente", 50.0))
+LIMIAR_ABSOLUTO = float(_LIMIARES_DIR.get("absoluto", 100.0))
 
 
 class PrevisaoAberturaOrquestrador:
@@ -48,7 +78,6 @@ class PrevisaoAberturaOrquestrador:
             preco_atual = abertura_teorica
 
         # 1. GAP
-        # fix63: mapeia a fonte da abertura para a fonte do gap
         _mapa_fonte_gap = {
             "OCR_LEILAO": "LEILAO_REAL",
             "CALCULADO": "TEORICA_FALLBACK",
@@ -82,7 +111,7 @@ class PrevisaoAberturaOrquestrador:
         # 6. Direção (baseada no gap + ajuste)
         direcao = self._determinar_direcao(gap, ajuste_analise, score.direcao)
 
-        # 7. Divergência entre direcao_prevista e score.direcao
+        # 7. Divergência
         div_flag, div_msg = self._calcular_divergencia(direcao, score.direcao)
 
         # 8. Legado
@@ -107,7 +136,7 @@ class PrevisaoAberturaOrquestrador:
             score=score,
             metadados={
                 "fonte_dados": "Coletas/",
-                "versao_motor": "1.6.0",
+                "versao_motor": "1.7.0 (YAML Calibrado)",
                 "ajuste_utilizado": ajuste,
                 "fechamento_anterior": fechamento_anterior,
                 "preco_atual_utilizado": preco_para_ajuste,
@@ -121,6 +150,11 @@ class PrevisaoAberturaOrquestrador:
                 "gap_fonte": gap_fonte,
                 "divergencia_direcao": div_flag,
                 "divergencia_detalhes": div_msg,
+                "config_usada": {
+                    "max_gap": MAX_GAP_REALISTA,
+                    "limiar_ajuste": LIMIAR_AJUSTE_CONFLUENTE,
+                    "limiar_absoluto": LIMIAR_ABSOLUTO
+                }
             },
         )
         return self.resultado
@@ -146,32 +180,21 @@ class PrevisaoAberturaOrquestrador:
 
         if gap.intensidade in ["EXTREMO", "FORTE"]:
             return "COMPRA" if gap.gap_pontos > 0 else "VENDA"
-        if gap.gap_pontos > 50 and ajuste.posicao == "ACIMA":
+        
+        # ✅ AQUI ESTÃO AS VARIÁVEIS DO YAML SENDO USADAS
+        if gap.gap_pontos > LIMIAR_AJUSTE_CONFLUENTE and ajuste.posicao == "ACIMA":
             return "COMPRA"
-        if gap.gap_pontos < -50 and ajuste.posicao == "ABAIXO":
+        if gap.gap_pontos < -LIMIAR_AJUSTE_CONFLUENTE and ajuste.posicao == "ABAIXO":
             return "VENDA"
-        if gap.gap_pontos > 100:
+        if gap.gap_pontos > LIMIAR_ABSOLUTO:
             return "COMPRA"
-        if gap.gap_pontos < -100:
+        if gap.gap_pontos < -LIMIAR_ABSOLUTO:
             return "VENDA"
         return "NEUTRO"
 
     def _calcular_divergencia(
         self, dir_prevista: str, dir_score: str
     ) -> Tuple[bool, str]:
-        """
-        Compara direção do gap-based com direção do score.
-
-        Retorna (flag, mensagem):
-          - flag: True se há divergência
-          - mensagem: texto legível
-
-        Casos:
-          - Ambas iguais        → (False, "alinhadas")
-          - Ambas NEUTRO        → (False, "ambas neutras")
-          - Opostas             → (True, "divergência forte")
-          - Uma neutra, outra não → (True, "divergência parcial")
-        """
         if dir_prevista == dir_score:
             if dir_prevista == "NEUTRO":
                 return False, "Ambas as direções neutras"
