@@ -183,7 +183,7 @@ def _calc_adrs_br(coleta: dict) -> Optional[float]:
     vals = []
     for chaves in ADRS_COMPOSTO_KEYS:
         v = _buscar_valor(coleta, chaves)
-        if v is not None and abs(v) <= 15.0:
+        if v is not None and abs(v) <= 50.0:
             vals.append(v)
     if not vals:
         return None

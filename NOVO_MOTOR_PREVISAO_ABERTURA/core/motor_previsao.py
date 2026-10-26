@@ -15,7 +15,7 @@ from .motor_cenarios import gerar_cenarios
 from .motor_score import calcular_score
 
 
-MAX_GAP_REALISTA = 1000.0
+MAX_GAP_REALISTA = 50000.0
 MARGEM_FAIXA_PADRAO = 100.0
 
 

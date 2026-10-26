@@ -1,6 +1,6 @@
 # ============================================================
 # ARQUIVO: Calculadora.py
-# DATA: 30/07/2026
+# DATA: 30/07/2026 | Atualizado 26/10/2026
 # AUTOR: Arquiteto de Sistemas
 # MOTIVO: Fase 4 - Cálculo de Spreads, Curva DI, Mercado Externo
 #         e Indicadores Compostos alinhados aos IDs do Validador.
@@ -14,11 +14,6 @@
 #     - Resumo de desempenho de ADRs e índices globais
 #
 #   O resultado é salvo em Metricas_Calculadas.json.
-#   Ponderação definida empiricamente para o Mini Índice:
-# - EWZ captura o sentimento do Brasil via ETF
-# - Cesta de ADRs (VALE/PETR/ITUB/BBD) representa o peso setorial do Ibovespa
-# - S&P500 traz o beta com o mercado americano
-# - Commodities (minério + petróleo) capturam o lado cíclico
 # ============================================================
 
 import json
@@ -42,9 +37,6 @@ def carregar_dados_validados() -> dict:
     """
     Carrega o arquivo Dados_Validados.json e o converte em um dicionário
     indexado pelo campo 'ativo_id' para fácil acesso.
-    
-    Retorna:
-        dict: Dicionário Mapeado por ativo_id, ou None em caso de falha de leitura.
     """
     if not os.path.exists(FILE_INPUT):
         print(f"[ERRO] Arquivo não encontrado: {FILE_INPUT}")
@@ -105,7 +97,6 @@ def calcular_metricas() -> None:
     # ------------------------------------------------------------
     # 3. INDICADOR DE MERCADO EXTERNO
     #    Fórmula: -(VIX_pct) + CRUDE_OIL_pct + IRON_ORE_pct
-    #    fix51: usa F1 (front month); F2 nao esta disponivel no TV scanner.
     # ------------------------------------------------------------
     vix_obj = mapa.get("VIX", {})
     vix_close = vix_obj.get("close")
@@ -158,16 +149,16 @@ def calcular_metricas() -> None:
             }
 
             if isinstance(pct_val, (int, float)):
-                # fix66: defesa em profundidade — descarta variacao absurda
-                # (circuit breaker B3 e 10-15%; nada legitimo passa disso num dia)
-                if abs(pct_val) > 15.0:
+                # ✅ FIX v2.7: Limite aumentado de 15% para 50%.
+                # Permite capturar quedas violentas de pré-market/pânico 
+                # (como o dia da eleição), mas ainda protege contra bugs de API.
+                if abs(pct_val) > 50.0:
                     print(f"   ⚠️ {adr_id} com variacao absurda ({pct_val:+.2f}%) — ignorado do indicador")
                     continue
                 soma_variacoes_adrs += pct_val
                 qtd_adrs_validas += 1
 
     # Indicador ADRs Brasileiras = soma das variações
-    # fix66: log quantos ADRs entraram (transparencia quando algum foi descartado)
     print(f"   📊 ADRs usados no indicador: {qtd_adrs_validas}/{len(adrs_chaves)}")
     ind_adrs_brasileiras = round(soma_variacoes_adrs, 4) if qtd_adrs_validas > 0 else None
 
