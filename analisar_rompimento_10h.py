@@ -6,11 +6,7 @@ analisar_rompimento_10h.py
 Le os JSONs do pipeline + a vela M5 de 10:00 do MT5 e monta um snapshot
 pronto para o Spike Desk ou para copiar/colar no ChatGPT.
 
-Uso:
-    python analisar_rompimento_10h.py            # Roda silencioso (uso no pipeline)
-    python analisar_rompimento_10h.py --abrir    # Roda e abre o Notepad (uso manual)
-    python analisar_rompimento_10h.py --force --abrir
-    python analisar_rompimento_10h.py --vela-manual "186850,187100,186720,187050"
+Versão 3.1 - Blindagem de Erros Silenciosos.
 """
 
 from __future__ import annotations
@@ -26,7 +22,7 @@ COLETAS_DIR = BASE_DIR / "Coletas"
 PROMPT_PATH = BASE_DIR / "PromptIA" / "Prompt_Rompimento_10h.txt"
 SAIDA_PATH = COLETAS_DIR / "snapshot_rompimento_10h.txt"
 
-BRT = timezone(timedelta(hours=-3)) # Fuso horário de Brasília
+BRT = timezone(timedelta(hours=-3))
 
 ARQUIVOS = {
     "ativos":       COLETAS_DIR / "DadosAtivosUnificados.json",
@@ -56,8 +52,9 @@ def _descobrir_contrato_vigente():
                     simbolos.append(nome)
             if simbolos:
                 return simbolos
-    except Exception:
-        pass
+    except Exception as e:
+        # ✅ FIX: Log de erro em vez de silenciar
+        print(f"[AVISO] Falha ao ler contrato vigente em {JSON_MT5.name}: {e}")
     return list(SIMBOLOS_MT5_FALLBACK)
 
 
@@ -88,13 +85,15 @@ def _obter_spot_mt5():
             "last": float(getattr(tick, "last", 0) or 0),
             "time": datetime.fromtimestamp(tick.time).isoformat(),
         }
-    except Exception:
+    except Exception as e:
+        print(f"[AVISO] Falha ao obter spot MT5: {e}")
         return None
     finally:
         try:
             mt5.shutdown()
-        except Exception:
-            pass
+        except Exception as e:
+            # ✅ FIX: Log de erro em vez de silenciar
+            print(f"[AVISO] Falha ao desligar o MT5: {e}")
 
 
 def carregar_json(caminho: Path) -> dict:
@@ -103,7 +102,8 @@ def carregar_json(caminho: Path) -> dict:
     try:
         with open(caminho, "r", encoding="utf-8") as f:
             return json.load(f)
-    except Exception:
+    except Exception as e:
+        print(f"[AVISO] Falha ao ler JSON {caminho.name}: {e}")
         return {}
 
 
@@ -126,13 +126,15 @@ def fmt_pct(valor):
 
 
 def obter_vela_10h():
-    """Busca a vela M5 de 10:00 no MT5. Retorna dict ou None."""
+    """Busca a vela M5 de 10:00 no MT5 (usando fuso BRT). Retorna dict ou None."""
     try:
         import MetaTrader5 as mt5
     except ImportError:
+        print("[AVISO] MetaTrader5 nao instalado. Use --vela-manual.")
         return None
 
     if not mt5.initialize():
+        print(f"[AVISO] MT5 nao inicializou: {mt5.last_error()}")
         return None
 
     try:
@@ -141,14 +143,18 @@ def obter_vela_10h():
 
         for simbolo in simbolos:
             info = mt5.symbol_info(simbolo)
-            if info is None: continue
-            if not info.visible: mt5.symbol_select(simbolo, True)
+            if info is None:
+                continue
+            if not info.visible:
+                mt5.symbol_select(simbolo, True)
 
             rates = mt5.copy_rates_from_pos(simbolo, mt5.TIMEFRAME_M5, 0, 1000)
-            if rates is None or len(rates) == 0: continue
+            if rates is None or len(rates) == 0:
+                continue
 
             for r in rates:
                 dt = datetime.fromtimestamp(r["time"], tz=timezone.utc).astimezone(BRT)
+                
                 if dt.date() == hoje and dt.hour == 10 and dt.minute == 0:
                     agora = datetime.now(BRT)
                     em_formacao = agora.time() < dt_time(10, 5)
@@ -163,9 +169,14 @@ def obter_vela_10h():
                         "status": "EM_FORMACAO" if em_formacao else "FECHADA",
                     }
 
+        print("[AVISO] Vela 10:00 de HOJE nao encontrada no MT5.")
+        print("        O mercado pode estar em leilão/halt ou o candle ainda não foi gerado.")
         return None
     finally:
-        mt5.shutdown()
+        try:
+            mt5.shutdown()
+        except Exception as e:
+            print(f"[AVISO] Falha ao desligar o MT5: {e}")
 
 
 def vela_manual(csv: str):
@@ -183,7 +194,8 @@ def vela_manual(csv: str):
             "volume": 0.0,
             "status": "MANUAL",
         }
-    except Exception:
+    except Exception as e:
+        print(f"[AVISO] Erro ao processar vela manual: {e}")
         return None
 
 
@@ -417,8 +429,9 @@ def main() -> int:
         try:
             import subprocess; subprocess.Popen(["notepad.exe", str(SAIDA_PATH)])
             print("  [OK] Notepad aberto.")
-        except:
-            pass
+        except Exception as e:
+            # ✅ FIX: Log de erro em vez de silenciar
+            print(f"  [AVISO] Falha ao abrir Notepad: {e}")
     return 0
 
 if __name__ == "__main__":

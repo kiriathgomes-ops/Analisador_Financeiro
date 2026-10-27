@@ -3,20 +3,11 @@
 """
 Motor_SMC_Regras.py
 ===================
-Motor de regras SMC/ICT SEM IA — Versão 3.3 (Stale Detection)
+Motor de regras SMC/ICT SEM IA — Versão 3.4 (Blindagem de Logs)
 
-Mudanças v3.3:
-  - analisar_smc: adiciona metadados.stale / stale_motivo / candle_idade_min.
-    stale=True quando o último candle tem idade > 15 min (fora do pregão,
-    fim de semana, ou MT5 travado). O V2 usa esse flag para vetar a operação
-    mesmo que o pipeline rode fora de hora (scheduler externo dispara a
-    cada ~5 min ininterruptamente).
-
-Mudanças v3.2 (mantidas):
-  - calcular_entrada_stop_alvos: R:R mínimo forçado em 1:1.5.
-
-Mudanças v3.1 (mantidas):
-  - Mitigação de OBs por fechamento (Low/High), BSL/SSL por sweep.
+Mudanças v3.4:
+  - Substituição dos `except: pass` por logs de aviso (`logger.warning`).
+  - Mantida a lógica v3.3 (Stale Detection) e v3.2 (R:R 1:1.5).
 """
 
 from __future__ import annotations
@@ -34,11 +25,12 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 
+# ✅ FIX: Log de erro em vez de pass
 if sys.platform == "win32":
     try:
         sys.stdout.reconfigure(encoding="utf-8")
-    except AttributeError:
-        pass
+    except AttributeError as e:
+        print(f"[AVISO] Falha ao reconfigurar UTF-8 no Windows: {e}")
 
 logging.basicConfig(
     level=logging.INFO,
@@ -204,7 +196,8 @@ def normalizar_candles(dados: Any) -> List[Candle]:
     if hasattr(dados, "to_dict") and hasattr(dados, "columns"):
         try:
             rows = dados.to_dict(orient="records")
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Falha ao converter DataFrame para dict: {e}")
             rows = list(dados)
     else:
         rows = list(dados)
@@ -280,7 +273,8 @@ def calcular_poc_vwap(candles: List[Candle], ativo: str, config: ConfigSMC = CON
     df = pd.DataFrame([c.__dict__ for c in candles])
     try:
         df["time_dt"] = pd.to_datetime(df["time"], utc=True).dt.tz_convert(BRT)
-    except Exception:
+    except Exception as e:
+        logger.warning(f"Falha ao converter fuso horário: {e}")
         df["time_dt"] = pd.to_datetime(df["time"], errors="coerce")
 
     df["date"] = df["time_dt"].dt.date
@@ -661,7 +655,6 @@ def calcular_entrada_stop_alvos(
         if liq["ssl"]:
             alvos.extend([round(x, 0) for x in liq["ssl"][:3] if x < entrada])
 
-    # v3.2 — R:R mínimo 1:1.5
     dist = abs(entrada - stop)
     if dist > 0:
         dist_min_alvo = dist * config.rr_minimo
@@ -719,17 +712,13 @@ def _checar_divergencia_macro(bias: str) -> Optional[str]:
             return f"⚠️ DIVERGÊNCIA: Macro FORTE VENDA ({ind_ext:+.2f}%) vs SMC ALTA"
         if ind_ext > 2 and bias == "BAIXA":
             return f"⚠️ DIVERGÊNCIA: Macro FORTE COMPRA ({ind_ext:+.2f}%) vs SMC BAIXA"
-    except Exception:
+    except Exception as e:
+        logger.warning(f"Falha ao checar divergência macro: {e}")
         return None
     return None
 
 
 def _calcular_stale(candles: List[Candle], config: ConfigSMC = CONFIG) -> Tuple[bool, Optional[str], Optional[float]]:
-    """
-    v3.3 — Detecta se o SMC está rodando sobre candle velho.
-    Retorna (stale, stale_motivo, candle_idade_min).
-    stale_motivo ∈ {None, 'candle_antigo', 'sem_candles'}.
-    """
     if not candles or not candles[-1].time:
         return True, "sem_candles", None
     try:
@@ -820,14 +809,12 @@ def analisar_smc(dados_candles: Any, ativo: str = "WIN", timeframe: str = "5m", 
     conf = calcular_confianca(bias, bos, choch, fvgs_abertos, obs, ob_confluente)
     entrada, stop, alvos = calcular_entrada_stop_alvos(bias, obs, fvgs_abertos, liq, preco_atual, candles=candles, config=config)
 
-    # v3.3 — stale detection
     stale, stale_motivo, candle_idade_min = _calcular_stale(candles, config)
 
     return {
         "timestamp": datetime.now(BRT).isoformat(), "ativo": ativo, "timeframe": timeframe, "fonte": "regras_smc",
         "preco_atual": preco_atual, "timeframes_identificados": timeframe,
         "bias_direcional": bias, "direcao_estrutura": bias, "bos": bos, "choch": choch, "confianca_visual": conf,
-        # v3.3 — stale (flat no root para facilitar inspeção)
         "stale": stale,
         "stale_motivo": stale_motivo,
         "candle_idade_min": candle_idade_min,
@@ -843,7 +830,7 @@ def analisar_smc(dados_candles: Any, ativo: str = "WIN", timeframe: str = "5m", 
         "entrada_sugerida": entrada, "stop_sugerido": stop, "alvos": alvos,
         "metadados": {
             "n_candles": len(candles), "n_swings": len(swings), "n_fvgs_abertos": len(fvgs_abertos), "n_obs": len(obs),
-            "filtro_volume_real_aplicado": True, "versao_motor": "3.3",
+            "filtro_volume_real_aplicado": True, "versao_motor": "3.4",
             "rr_minimo_aplicado": config.rr_minimo,
             "stale_idade_max_min": config.stale_idade_max_min,
             "stale": stale,
@@ -871,8 +858,8 @@ def salvar_resultado(resultado: Dict[str, Any], caminho: Optional[Path] = None, 
             hist = HISTORICO_SMC_DIR / f"SMC_{ts}.json"
             with open(hist, "w", encoding="utf-8") as f:
                 json.dump(resultado, f, indent=2, ensure_ascii=False)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Falha ao salvar histórico SMC: {e}")
     return caminho
 
 
@@ -927,14 +914,14 @@ def carregar_mt5(symbol: str = "WIN$", timeframe_min: int = 5, qtd: int = 2000, 
         try:
             if "real_volume" in r.dtype.names:
                 v_real = float(r["real_volume"])
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Falha ao ler real_volume: {e}")
         if v_real <= 0:
             try:
                 if "tick_volume" in r.dtype.names:
                     v_real = float(r["tick_volume"])
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Falha ao ler tick_volume: {e}")
         dt_brt = datetime.fromtimestamp(r["time"], tz=timezone.utc).replace(tzinfo=BRT)
         out.append({"time": dt_brt.isoformat(), "open": float(r["open"]), "high": float(r["high"]), "low": float(r["low"]), "close": float(r["close"]), "volume": v_real})
     mt5.shutdown()
