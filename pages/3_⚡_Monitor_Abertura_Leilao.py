@@ -83,8 +83,11 @@ def mini_velocimetro(
                 texto_delta = "Δ 0.00%"
             else:
                 texto_delta = f"Δ {delta:+.2f}%"
-        except (TypeError, ValueError):
-            pass
+        except (TypeError, ValueError) as e:
+            logger.warning(
+                "[MONITOR_LEILAO] Falha calculando delta do velocimetro '%s': %s",
+                label, e,
+            )
 
     angulo = (real_exibicao / 10.0) * 90.0
 

@@ -1,315 +1,295 @@
 # -*- coding: utf-8 -*-
 """
 Módulo: pages/7.4_🤖_IA_Spike_Texto.py
-Versão: 2.7.3 — Fix do max_tokens no Modo Direto (evita resposta vazia)
-Objetivo: Chat interativo que adapta a resposta ao tipo de pergunta, sem estourar a cota.
+Versão: 3.6.0 — Premium (SMC Multi-TF + Coleta Dupla Diário/Ext + Regras Operacionais)
+Objetivo: Chat interativo com visão 360º do mercado.
 """
 
-import os
-import time
 import streamlit as st
-import json
-import requests
-from pathlib import Path
-from datetime import datetime as _dt
-from config import COLETAS_DIR
-from utils.KeyManager import key_manager
 
-st.set_page_config(page_title="Quant Terminal - Spike Desk", layout="wide")
+# 1. O SET_PAGE_CONFIG TEM QUE SER O PRIMEIRO COMANDO STREAMLIT DO ARQUIVO
+st.set_page_config(page_title="Quant Terminal - Spike Premium", layout="wide")
 
-st.markdown("<h2 style='color:#00d4ff;'>🐶 IA Spike Desk — Seu Operador de Mesa Virtual</h2>", unsafe_allow_html=True)
-st.caption("Converse com o Spike. Ele avalia as 4 estratégias, lê o OCR e te diz o melhor setup.")
+# 2. IMPORTAÇÕES BLINDADAS (Se der erro, avisa na tela)
+try:
+    import logging
+    import os
+    import time
+    import json
+    import requests
+    from pathlib import Path
+    from datetime import datetime as _dt
+    from config import COLETAS_DIR
+    from utils.KeyManager import key_manager
+    
+    st.markdown("<h2 style='color:#00d4ff;'>💎 IA Spike PREMIUM — Visão 360º</h2>", unsafe_allow_html=True)
+    st.caption("SMC Multi-Timeframe, Fluxo Diário/Extendido, Notícias e Operacionais Mastigados.")
+    
+    status_chaves = key_manager.verificar_presenca_credenciais()
+    if not status_chaves.get("GROQ_API_KEY"):
+        st.error("⚠️ Chave `GROQ_API_KEY` não encontrada no `.env`.")
+        st.stop()
+        
+    GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
-status_chaves = key_manager.verificar_presenca_credenciais()
-if not status_chaves.get("GROQ_API_KEY"):
-    st.error("⚠️ Chave `GROQ_API_KEY` não encontrada no `.env`.")
+except Exception as e:
+    st.error(f"❌ Erro na inicialização (Config/KeyManager): {e}")
     st.stop()
 
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-
-
-# ==============================================================================
-# COMPILADOR DE DADOS — v2.7.3 (OTIMIZADO)
-# ==============================================================================
-_CACHE_VERSION_CTX = "v2.7.3"
-
+logger = logging.getLogger(__name__)
+_CACHE_VERSION_CTX = "v3.6.0_PREMIUM"
 
 @st.cache_data(ttl=30)
 def compilar_contexto(_ver: str = _CACHE_VERSION_CTX) -> str:
     contexto = []
 
-    # 0. CANDLES (Reduzido para 5)
-    contexto.append("### ÚLTIMOS 5 CANDLES M5 (MT5) - Horário BRT")
+    # 1. Candles
+    contexto.append("### ÚLTIMOS 5 CANDLES M5 (MT5)")
+    vela_10h = None
     try:
         from cache_candles import obter_candles
-        candles, _ = obter_candles("WIN$", 5, 5)
+        candles, _ = obter_candles("WIN$", 5, 20)
+        for c in candles[-5:]:
+            contexto.append(f"{c['time'][11:16]} | O:{c['open']:.0f} H:{c['high']:.0f} L:{c['low']:.0f} C:{c['close']:.0f}")
         for c in candles:
-            hora = c['time'][11:16]
-            contexto.append(f"{hora} | O:{c['open']:.0f} H:{c['high']:.0f} L:{c['low']:.0f} C:{c['close']:.0f}")
+            if "10:00" in c['time']:
+                vela_10h = c
+                break
     except Exception as e:
         contexto.append(f"Erro ao ler candles: {e}")
     contexto.append("")
 
-    # 1. OCR (Resumido)
-    csv_ocr = COLETAS_DIR / "preco_teorico_win_fluxo.csv"
-    if csv_ocr.exists():
-        try:
-            with open(csv_ocr, "r", encoding="utf-8-sig") as f:
-                linhas = f.readlines()
-            if linhas:
-                ultima = linhas[-1].strip().split(",")
-                if len(ultima) >= 2:
-                    dt_ocr = ultima[0].strip()
-                    preco_ocr = float(ultima[1])
-                    contexto.append(f"### OCR: {preco_ocr:,.0f} pts (às {dt_ocr})")
-                    dt_parsed = None
-                    formatos = ("%Y-%m-%d %H:%M:%S.%f", "%d/%m/%Y %H:%M:%S.%f", "%Y-%m-%d %H:%M:%S", "%d/%m/%Y %H:%M:%S", "%H:%M:%S", "%H:%M")
-                    for fmt in formatos:
-                        try:
-                            dt_parsed = _dt.strptime(dt_ocr, fmt)
-                            break
-                        except ValueError: continue
-                    if dt_parsed:
-                        if ":" in dt_ocr and "-" not in dt_ocr and "/" not in dt_ocr:
-                            hoje = _dt.now()
-                            dt_parsed = dt_parsed.replace(year=hoje.year, month=hoje.month, day=hoje.day)
-                        idade_min = (_dt.now() - dt_parsed).total_seconds() / 60.0
-                        if idade_min > 30:
-                            contexto.append(f"⚠️ OCR velho ({idade_min:.0f} min)")
-                        else:
-                            contexto.append(f"✅ OCR recente ({idade_min:.0f} min)")
-        except Exception: pass
-    contexto.append("")
-
-    # 2. NOTÍCIAS E INDICADORES (Unificados)
-    contexto.append("### CONTEXTO MACRO")
-    metricas = {}
-    if (COLETAS_DIR / "Metricas_Calculadas.json").exists():
-        with open(COLETAS_DIR / "Metricas_Calculadas.json", "r", encoding="utf-8") as f:
-            metricas = json.load(f)
-    ind_comp = metricas.get("indicadores_compostos", {}) or {}
-    if ind_comp.get("indicador_mercado_externo") is not None:
-        contexto.append(f"Merc. Externo: {ind_comp['indicador_mercado_externo']:+.2f}%")
-    if ind_comp.get("indicador_adrs_brasileiras") is not None:
-        contexto.append(f"ADRs (Soma): {ind_comp['indicador_adrs_brasileiras']:+.2f}")
-
-    ativos = {}
-    if (COLETAS_DIR / "DadosAtivosUnificados.json").exists():
-        with open(COLETAS_DIR / "DadosAtivosUnificados.json", "r", encoding="utf-8") as f:
-            ativos = json.load(f).get("ativos", {})
-    win_ajuste = (ativos.get("WIN_AJUSTE", {}) or {}).get("preco")
-    win_last = ((ativos.get("WIN_LAST_TICK", {}) or {}).get("preco") or (ativos.get("WIN_FUT", {}) or {}).get("preco"))
-    if win_ajuste and win_last:
-        gap = win_last - win_ajuste
-        contexto.append(f"Gap vs Ajuste: {gap:+.0f} pts")
-
-    if (COLETAS_DIR / "Noticias_Impacto_Dia.json").exists():
-        with open(COLETAS_DIR / "Noticias_Impacto_Dia.json", "r", encoding="utf-8") as f:
-            impacto = json.load(f)
-        resumo = impacto.get("resumo", {})
-        if resumo: contexto.append(f"Impacto Notícias: {resumo.get('classificacao', '?')}")
-        if impacto.get("alertas", {}).get("risco_abertura_WIN"):
-            contexto.append("🚨 Risco de Abertura WIN ATIVO")
-    contexto.append("")
-
-    # 3. ATIVOS (Tabela reduzida para 5 janelas)
-    contexto.append("### MERCADO (5 janelas)")
-    contexto.append("Ativo | ⟲ | 55m | 30m | 15m | 5m | Agora")
-    ativos_foco = {
-        "WIN": ["WIN_FUT", "B3_AJUSTE_WIN", "B3_FECHAMENTO_WIN"],
-        "WDO": ["WDO_FUT", "B3_AJUSTE_WDO"],
+    # 2. Fluxo de 5 Janelas + Duplo (Diário / Ext)
+    contexto.append("### FLUXO DE MERCADO (Janelas Intraday + Diário)")
+    mapa_ativos = {
+        "WIN": ["WIN_FUT", "BMFBOVESPA:WIN1!", "WIN_LAST_TICK"],
+        "WDO": ["WDO_FUT", "BMFBOVESPA:WDO1!", "WDO_LAST_TICK"],
         "DI1 2027": ["DI1_2027", "BMFBOVESPA:DI1F2027"],
         "VIX": ["VIX", "TVC:VIX"],
         "DXY": ["DXY", "TVC:DXY"],
-        "EWZ": ["EWZ", "AMEX:EWZ"],
         "S&P500": ["SP500_FUT", "CME_MINI:ES1!"],
+        "EWZ": ["EWZ", "AMEX:EWZ"],
+        "VALE_ADR": ["VALE_ADR", "NYSE:VALE"],
+        "PETR_ADR": ["PETR_ADR", "NYSE:PBR"],
+        "ITUB_ADR": ["ITUB_ADR", "NYSE:ITUB"],
+        "BBAS_ADR": ["BBAS_ADR", "OTC:BDORY"],
+        "BBD_ADR": ["BBD_ADR", "NYSE:BBD"],
+        "B3_ADR": ["B3_ADR", "OTC:BOLSY"],
+        "VALE3": ["VALE3"], "PETR4": ["PETR4"], "ITUB4": ["ITUB4"],
+        "BBAS3": ["BBAS3"], "BBDC4": ["BBDC4"], "B3SA3": ["B3SA3"]
     }
-    inversos_win = {"WDO", "DI1 2027", "VIX", "DXY"}
-    janelas = [55, 30, 15, 5, 0]
+    janelas = [20, 15, 10, 5, 0]
     coletas = {tf: {} for tf in janelas}
-    for tf in janelas:
-        if (COLETAS_DIR / f"Coleta_rom-{tf}.json").exists():
-            with open(COLETAS_DIR / f"Coleta_rom-{tf}.json", "r", encoding="utf-8") as f:
-                for item in json.load(f).get("coletas", []):
-                    var = (item.get("dados_reais") or {}).get("change_percent")
-                    for nome, chaves in ativos_foco.items():
-                        if item.get("ativo") in chaves and var is not None:
-                            if nome not in coletas[tf]: coletas[tf][nome] = var
-                            break
+    diarios = {} # Armazena o change_daily da janela 0 (Agora)
     
-    for nome in ativos_foco.keys():
-        if nome in coletas[0]:
-            inv = "⟲" if nome in inversos_win else " "
-            linha = [nome, inv] + [f"{coletas[tf].get(nome, 0):+.2f}%" for tf in janelas]
-            contexto.append(" | ".join(linha))
+    for tf in janelas:
+        path = COLETAS_DIR / f"Coleta_rom-{tf}.json"
+        if path.exists():
+            with open(path, "r", encoding="utf-8") as f:
+                for item in json.load(f).get("coletas", []):
+                    dados = item.get("dados_reais") or {}
+                    var = dados.get("change_percent")
+                    var_d = dados.get("change_daily")
+                    
+                    for nome, aliases in mapa_ativos.items():
+                        if item.get("ativo") in aliases and var is not None:
+                            if nome not in coletas[tf]: 
+                                coletas[tf][nome] = var
+                                if tf == 0 and var_d is not None:
+                                    diarios[nome] = var_d
+                            break
+
+    grupos_fluxo = [
+        ("Macro", ["WIN", "WDO", "DI1 2027", "VIX", "DXY", "S&P500"]),
+        ("ADRs", ["EWZ", "VALE_ADR", "PETR_ADR", "ITUB_ADR", "BBAS_ADR", "BBD_ADR", "B3_ADR"]),
+        ("B3", ["VALE3", "PETR4", "ITUB4", "BBAS3", "BBDC4", "B3SA3"])
+    ]
+    for nome_grupo, chaves in grupos_fluxo:
+        contexto.append(f"\n[{nome_grupo}]")
+        contexto.append("Ativo    | 20m    | 15m    | 10m    | 5m     | Agora(Ext) | Diário")
+        for k in chaves:
+            if k in coletas[0]:
+                inv = "⟲ " if k in ["WDO", "DI1 2027", "VIX", "DXY"] else "  "
+                linha = [f"{inv}{k.ljust(6)}"]
+                for tf in [20, 15, 10, 5]:
+                    val = coletas[tf].get(k, 0)
+                    linha.append(f"{val:+.2f}%")
+                
+                linha.append(f"{coletas[0].get(k, 0):+.2f}%")
+                
+                v_d = diarios.get(k)
+                linha.append(f"{v_d:+.2f}%" if v_d is not None else "—")
+                
+                contexto.append(" | ".join(linha))
     contexto.append("")
 
-    # 4. SMC (Resumido)
-    contexto.append("### SMC")
-    for tf_nome, arquivo in [("M15", "AnaliseGraficaSMC_Regras_M15.json"), ("M5", "AnaliseGraficaSMC_Regras.json")]:
-        if (COLETAS_DIR / arquivo).exists():
-            with open(COLETAS_DIR / arquivo, "r", encoding="utf-8") as f:
-                smc = json.load(f)
-            stale = "🚨 STALE" if smc.get("stale") else "OK"
-            contexto.append(f"SMC {tf_nome}: {smc.get('bias_direcional')} (Conf: {smc.get('confianca_visual')}%) | {stale}")
+    # 3. Pivôs e Institucional
+    contexto.append("### PIVÔS E NÍVEIS INSTITUCIONAIS")
+    est_path = COLETAS_DIR / "EstimativaAbertura.json"
+    if est_path.exists():
+        with open(est_path, "r", encoding="utf-8") as f:
+            est = json.load(f)
+            pivots = est.get("pivot_points", {}).get("WIN_FUT", {})
+            if pivots:
+                contexto.append(f"Pivôs: R2={pivots.get('R2')} | R1={pivots.get('R1')} | PP={pivots.get('PP')} | S1={pivots.get('S1')} | S2={pivots.get('S2')}")
+            inst = est.get("pivots_institucionais", {})
+            if inst.get("poc_ontem"):
+                contexto.append(f"Institucional: POC={inst.get('poc_ontem')} | VWAP={inst.get('vwap_ontem')}")
     contexto.append("")
 
-    # 5. SNAPSHOT OP 3
-    contexto.append("### SNAPSHOT OP 3")
-    snapshot_path = COLETAS_DIR / "snapshot_rompimento_10h.txt"
-    if snapshot_path.exists():
-        texto_snap = snapshot_path.read_text(encoding="utf-8")
-        if "--- BLOCO E:" in texto_snap:
-            bloco_e = texto_snap.split("--- BLOCO E:")[1].split("--- BLOCO F:")[0]
-            contexto.append(bloco_e[:1000].strip())
-    else:
-        contexto.append("Não gerado")
+    # 4. SMC MULTI-TIMEFRAME (M15, M5, M1 + MTF)
+    contexto.append("### SMC MULTI-TIMEFRAME (Zonas e Alvos)")
+    
+    def extrair_smc(arquivo, label):
+        path = COLETAS_DIR / arquivo
+        if not path.exists(): return
+        with open(path, "r", encoding="utf-8") as f:
+            smc = json.load(f)
+        is_stale = smc.get('stale', False)
+        contexto.append(f"[{label}] Bias: {smc.get('bias_direcional')} (Conf: {smc.get('confianca_visual')}%) | Stale: {is_stale}")
+        
+        obs = smc.get("order_blocks", [])
+        if obs:
+            obs_txt = [f"{ob.get('tipo')} em {ob.get('preco')}" for ob in obs[:2]]
+            contexto.append(f"  - OBs: {' | '.join(obs_txt)}")
+            
+        fvgs = smc.get("fair_value_gaps", [])
+        if fvgs:
+            fvg_txt = [f"{fvg.get('tipo')} {fvg.get('inferior')}-{fvg.get('superior')}" for fvg in fvgs[:2]]
+            contexto.append(f"  - FVGs: {' | '.join(fvg_txt)}")
+
+    extrair_smc("AnaliseGraficaSMC_Regras_M15.json", "M15 (Macro)")
+    extrair_smc("AnaliseGraficaSMC_Regras.json", "M5 (Médio)")
+    extrair_smc("AnaliseGraficaSMC_Regras_M1.json", "M1 (Micro)")
+
+    mtf_path = COLETAS_DIR / "AnaliseGraficaSMC_MTF.json"
+    if mtf_path.exists():
+        with open(mtf_path, "r", encoding="utf-8") as f:
+            mtf = json.load(f).get("confluencia", {})
+            contexto.append(f"[MTF] Veredito: {mtf.get('veredito_mtf')} | Direção: {mtf.get('direcao_dominante')}")
     contexto.append("")
 
-    # 6. DECISÃO V2
-    contexto.append("### DECISÃO V2")
-    if (COLETAS_DIR / "Decisao_V2.json").exists():
-        with open(COLETAS_DIR / "Decisao_V2.json", "r", encoding="utf-8") as f:
+    # 5. OPERACIONAIS
+    contexto.append("### OPERACIONAIS DE ABERTURA E SMC")
+    op_path = COLETAS_DIR / "Resultado_Calculadora_Operacional_Abertura.json"
+    if op_path.exists():
+        with open(op_path, "r", encoding="utf-8") as f:
+            op_data = json.load(f)
+            ops = op_data.get("decisao_core", {}).get("win", {}).get("operacionais", {})
+            for op_nome, op_info in ops.items():
+                contexto.append(f"{op_nome.upper()}: {op_info.get('status', 'DESCONHECIDO')}")
+                detalhes = op_info.get("detalhes", {})
+                if detalhes:
+                    contexto.append(f"  Detalhes: {detalhes}")
+                escoras = op_info.get("escoras", [])
+                if escoras:
+                    contexto.append(f"  Escoras (Stop): {', '.join(escoras[:2])}")
+                barreiras = op_info.get("barreiras", [])
+                if barreiras:
+                    contexto.append(f"  Barreiras (Alvo): {', '.join(barreiras[:2])}")
+    contexto.append("")
+
+    # 6. NOTÍCIAS
+    contexto.append("### NOTÍCIAS DO DIA (Calendário)")
+    not_cal_path = COLETAS_DIR / "Noticias_Calendario.json"
+    not_imp_path = COLETAS_DIR / "Noticias_Impacto_Dia.json"
+    if not_imp_path.exists():
+        with open(not_imp_path, "r", encoding="utf-8") as f:
+            imp = json.load(f).get("resumo", {})
+            contexto.append(f"Impacto Geral: {imp.get('classificacao', '?')}")
+    if not_cal_path.exists():
+        with open(not_cal_path, "r", encoding="utf-8") as f:
+            eventos = json.load(f).get("calendario_eventos", {}).get("eventos", [])
+            for ev in eventos:
+                estrelas = "★" * ev.get("importancia", 0)
+                contexto.append(f"- {ev.get('hora')} | {ev.get('pais')} | {ev.get('evento')} | Imp: {estrelas} | Atual: {ev.get('atual')} | Prev: {ev.get('previsao')}")
+    contexto.append("")
+
+    # 7. V2
+    contexto.append("### V2")
+    dec_path = COLETAS_DIR / "Decisao_V2.json"
+    if dec_path.exists():
+        with open(dec_path, "r", encoding="utf-8") as f:
             dec = json.load(f)
-        nm = dec.get("decisao", {}).get("metadados", {}).get("novo_motor", {})
-        if nm:
-            contexto.append(f"Novo Motor: {nm.get('direcao')} (Score {nm.get('score_magnitude')}) | Gap {nm.get('gap_pontos')} pts")
+            d = dec.get("decisao", {})
+            contexto.append(f"V2 Viés: {d.get('vies_final')} | Motivo: {d.get('motivo_saida')}")
+    contexto.append("")
 
     return "\n".join(contexto)
 
+# Interface padrão
+if "messages_premium" not in st.session_state:
+    st.session_state.messages_premium = [{"role": "assistant", "content": "Spike Premium aqui. Visão 360º ativada. Qual a boa?"}]
+if "modo_direto_premium" not in st.session_state:
+    st.session_state["modo_direto_premium"] = False
 
-# ==============================================================================
-# INTERFACE — v2.7.3
-# ==============================================================================
-if "messages" not in st.session_state:
-    st.session_state.messages = [{"role": "assistant", "content": "Fala, trader! Sou o Spike. Já cruzei seus dados e estou pronto."}]
-if "modo_resposta_direta" not in st.session_state:
-    st.session_state["modo_resposta_direta"] = False
-
-st.markdown("### 💬 Mesa de Operações")
+st.markdown("### 💬 Mesa de Operações (Premium)")
 col_esq, col_dir = st.columns([4, 1])
 with col_dir:
-    st.toggle("⚡ Resposta direta", key="modo_resposta_direta", help="Marcado: veredito em até 3 linhas.")
+    st.toggle("⚡ Resposta direta", key="modo_direto_premium")
 
-for msg in st.session_state.messages:
+for msg in st.session_state.messages_premium:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
-if prompt := st.chat_input("Ex: Qual o melhor setup agora?", key="spike_chat_input"):
-    st.session_state.messages.append({"role": "user", "content": prompt})
+if prompt := st.chat_input("Pergunte algo...", key="chat_premium"):
+    st.session_state.messages_premium.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    modo_direto = bool(st.session_state.get("modo_resposta_direta", False))
-    modo_label = "direto ⚡" if modo_direto else "completo"
-
     with st.chat_message("assistant"):
-        with st.spinner(f"Spike está avaliando [{modo_label}]..."):
+        with st.spinner("Cruzando os 360 graus do mercado..."):
             try:
                 dados_contexto = compilar_contexto()
-
-                if modo_direto:
-                    bloco_modo = """
-                    🛑 MODO DIRETO ATIVADO — SUA RESPOSTA DEVE SER APENAS O FORMATO ABAIXO, SEM TEXTO NARRATIVO.
-                    Mesmo que o usuário peça "resuma em 3 linhas" ou "explique o cenário", você DEVE ignorar o formato de texto e responder EXATAMENTE neste padrão:
-
-                    🎯 Veredito: [Operacional N — COMPRA / VENDA / NEUTRO / SEM DADO]
-                    💡 Motivo: [1 frase, máx 20 palavras]
-                    ⚠️ Alertas: [stale / OCR velho / risco / "nenhum"]
-
-                    FIM. A resposta termina na linha "⚠️ Alertas:". Nada mais.
-                    """
-                else:
-                    bloco_modo = """
-                    MODO COMPLETO INTELIGENTE — Sua resposta deve se adaptar ao tipo de pergunta do usuário:
-                    
-                    1. SE A PERGUNTA FOR ESPECÍFICA (ex: "Qual o Op 3?", "Como está o SMC?", "O que diz o OCR?"):
-                       - Comece a resposta respondendo DIRETAMENTE à pergunta.
-                       - Depois, adicione um parágrafo curto de "Contexto Macro Relevante" APENAS se houver algo crítico (ex: gap extremo, inversos em alta, SMC stale) que impacte a resposta.
-                       - NÃO liste os outros operacionais e NÃO faça o "Veredito Master" a menos que o usuário peça.
-
-                    2. SE A PERGUNTA FOR GERAL (ex: "Qual o melhor setup?", "Analise o mercado", "O que fazer agora?"):
-                       - Siga a estrutura detalhada obrigatória:
-                       - **Análise Macro:** Comente os ativos (⟲ inversos), o Merc. Externo e notícias.
-                       - **Leilão/OCR:** Compare OCR com ajuste. Avise se velho.
-                       - **Avaliação dos 4 Operacionais:** Status de cada um (Op 1, Op 2, Op 3, Op 4).
-                         - **ATENÇÃO ESPECIAL AO OP 3:** Se amplitude > 700 ou Regra 10 ativa, NÃO OPERAR.
-                       - **Veredito Master:** Melhor oportunidade.
-                       - **Regra de Ouro:** Não invente dados.
-                       - ⚠️ FINALIZAÇÃO OBRIGATÓRIA: Termine com: 🎯 VIES FINAL: [COMPRA / VENDA / AGUARDAR]
-                    """
-
+                bloco_modo = "Responda em no máximo 3 linhas." if st.session_state.get("modo_direto_premium") else "Responda de forma direta e focada em ação."
+                
                 system_prompt = f"""
-                Você é o "Spike", operador profissional de day trade da B3.
-                Avalie os 4 Operacionais do usuário ou responda dúvidas.
+                Você é o Spike Premium. Foco em trade de 1 minuto.
+                Use os dados mastigados para dar respostas precisas de timing e gatilhos.
 
-                REGRAS DE COMPORTAMENTO:
-                - **Perguntas Educacionais:** Atue como professor. NÃO emita VIES FINAL.
-                - **Perguntas de Cálculo:** Faça a matemática. NÃO emita VIES FINAL.
-                - **Perguntas de Mercado:** Aplique os 4 operacionais ou responda o que foi perguntado.
+                REGRAS CRÍTICAS DOS OPERACIONAIS:
+                1. **Op 1 (Retorno ao Ajuste):** Gap NÃO bloqueia. O que bloqueia são as "Barreiras" (OBs/Pivôs) no caminho ou contra-fluxo macro.
+                2. **Op 2 (Explosão):** Gap NÃO importa. Foco na força/direção do Driver. Alvo1=250, Alvo2=400, Stop=250.
+                3. **Op 3 (ORB):** Leia os cenários exatos (Gatilho, Stop, Alvo) do JSON. Não invente valores.
+                4. **Op 4 (SMC Puro):** Se estiver STALE, ignore. Se preço > 500 pts da entrada, expirou.
 
-                OPERACIONAIS:
-                1. Ajuste (Gap positivo→venda, negativo→compra).
-                2. Drivers (Notícia 3★→ADRs, senão Merc. Externo. Positivo→compra, Negativo→venda).
-                3. Rompimento 10h (ORB).
-                4. SMC Puro (OB/FVG).
-
-                REGRAS CRÍTICAS:
-                - **Inversos:** WDO, DI1, VIX, DXY, OURO (⟲). Sobem = ruim para WIN.
-                - **Stale:** Se 🚨 STALE no SMC, avise e não recomende SMC Puro.
-                - **OCR velho:** Se ⚠️ ATENÇÃO (>30min), avise.
-                - **Op 3 (ORB):** Se a vela estiver ausente OU amplitude > 700 OU Regra 10 ativa, o Op 3 está BLOQUEADO.
-                - **Hierarquia Macro:** Merc. Externo negativo anula Op 1.
-                - **ADRs (SOMA):** Pode passar de -100%, é normal.
-                - **SMC EXPIRADO:** Se preço atual > 500 pts da entrada SMC, a entrada expirou.
-                - **GAP EXTREMO:** Se Gap > 1000 pts, SMC perde prioridade.
+                REGRAS DE LEITURA DE MERCADO:
+                5. **Coleta Dupla (Diário vs Ext):** A tabela de fluxo tem duas colunas: "Agora(Ext)" e "Diário". O Diário é o fechamento oficial. O Agora(Ext) é o pré/pós-market. SEMPRE compare os dois. Se o Diário for -2% e o Agora for +1%, o ativo caiu ontem mas tenta recuperar agora. Avise o usuário sobre essa divergência.
+                6. **SMC Multi-TF:** O M15 é o Macro (manda mais). Se o M15 for BAIXA e o M5 for ALTA, é uma armadilha.
+                7. **Inversos:** WDO, DI1, VIX e DXY (⟲). Se subirem, é ruim para o WIN.
 
                 {bloco_modo}
-
+                
                 DADOS:
                 {dados_contexto}
                 """
-
+                
                 url = "https://api.groq.com/openai/v1/chat/completions"
                 headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
                 payload = {
                     "model": "openai/gpt-oss-120b",
                     "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}],
-                    "temperature": 0.1 if modo_direto else 0.2,
-                    # ✅ FIX: Aumentado para 1024 para dar espaço ao modelo raciocinar antes de imprimir as 3 linhas
-                    "max_tokens": 1024 if modo_direto else 4096 
+                    "temperature": 0.1,
+                    "max_tokens": 2048 
                 }
-
-                max_retries = 3
-                response = None
-                for tentativa in range(max_retries):
-                    response = requests.post(url, headers=headers, json=payload, timeout=30)
-                    if response.status_code == 200: break
-                    elif response.status_code == 429:
-                        st.warning(f"⚠️ Limite da Groq atingido. Aguardando 3s...")
-                        time.sleep(3)
-                    else: break
-
-                if response is not None and response.status_code == 200:
-                    dados_api = response.json()
-                    resposta_ia = dados_api['choices'][0]['message']['content']
-                    if modo_direto: resposta_ia = "⚡ " + resposta_ia
-                    st.markdown(resposta_ia)
-                    st.session_state.messages.append({"role": "assistant", "content": resposta_ia})
+                
+                response = requests.post(url, headers=headers, json=payload, timeout=40)
+                if response.status_code == 200:
+                    resposta = response.json()['choices'][0]['message']['content']
+                    st.markdown(resposta)
+                    st.session_state.messages_premium.append({"role": "assistant", "content": resposta})
                 else:
-                    code = response.status_code if response is not None else "?"
-                    st.error(f"❌ Erro na Groq: {code}")
-                    if response is not None: st.text(response.text)
-
+                    st.error(f"Erro na API: {response.status_code}")
             except Exception as e:
-                st.error(f"❌ Erro ao processar: {e}")
+                st.error(f"Erro ao processar: {e}")
 
 with st.sidebar:
-    st.markdown("### 🔍 O que o Spike está lendo")
-    modo_atual = st.session_state.get("modo_resposta_direta", False)
-    st.markdown(f"**Modo atual:** {'⚡ DIRETO' if modo_atual else '📄 COMPLETO'}")
+    st.markdown("### 🔍 Contexto Premium")
     if st.button("🔄 Recarregar contexto"):
         compilar_contexto.clear()
         st.rerun()
-    with st.expander("Ver Dados Enviados para a IA"):
-        st.text(compilar_contexto())
+    with st.expander("Ver Dados Enviados"):
+        try:
+            st.text(compilar_contexto())
+        except Exception as e:
+            st.error(f"Erro ao compilar: {e}")

@@ -7,16 +7,28 @@
 #
 # Objetivo futuro: base estatística para probabilidades reais
 # (romper / testar / rejeitar / retornar).
+#
+# Atualização: Adicionada rotação automática (S6) para evitar
+# acúmulo infinito de arquivos no disco.
 # ============================================================
 
 from __future__ import annotations
 
 import json
+import logging
+import os
+import shutil
+import zipfile
+import glob
 from dataclasses import asdict, is_dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+logger = logging.getLogger(__name__)
+
+DIAS_RETENCAO_RAW = 7
+HISTORICO_ARQUIVO_DIR_NAME = "arquivo"
 
 def _raiz_projeto() -> Path:
     return Path(__file__).resolve().parent.parent.parent.parent
@@ -76,6 +88,67 @@ class SessionHistoryService:
 
     def _caminho_dia(self, data_ref: date) -> Path:
         return self.dir / f"{data_ref.isoformat()}.json"
+
+    def _rotacionar_historico(self):
+        """
+        Mantém os últimos DIAS_RETENCAO_RAW dias em Historico_Aberturas/ como arquivos brutos.
+        Arquivos mais antigos são agrupados por mês em Historico_Aberturas/arquivo/YYYY-MM.zip.
+
+        - Idempotente: pode rodar multiplas vezes sem problema.
+        - Nao trava: se falhar, loga warning e segue.
+        - Nao deleta dados: tudo vai pro zip antes de ser removido.
+        """
+        try:
+            if not self.dir.is_dir():
+                return
+
+            arquivo_dir = self.dir / HISTORICO_ARQUIVO_DIR_NAME
+            arquivo_dir.mkdir(parents=True, exist_ok=True)
+
+            limite_dt = datetime.now() - timedelta(days=DIAS_RETENCAO_RAW)
+            arquivos = glob.glob(str(self.dir / "*.json"))
+
+            antigos_por_mes = {}
+            for arq in arquivos:
+                try:
+                    mtime = datetime.fromtimestamp(os.path.getmtime(arq))
+                except OSError:
+                    continue
+                if mtime >= limite_dt:
+                    continue
+                mes = mtime.strftime("%Y-%m")
+                antigos_por_mes.setdefault(mes, []).append(arq)
+
+            if not antigos_por_mes:
+                return
+
+            total_rotacionados = 0
+            for mes, lista in antigos_por_mes.items():
+                zip_path = arquivo_dir / f"{mes}.zip"
+                try:
+                    with zipfile.ZipFile(zip_path, "a", zipfile.ZIP_DEFLATED) as zf:
+                        nomes_existentes = set(zf.namelist())
+                        for arq in lista:
+                            nome = os.path.basename(arq)
+                            if nome in nomes_existentes:
+                                continue
+                            zf.write(arq, nome)
+
+                    # So deleta originais se o zip foi criado/atualizado com sucesso
+                    for arq in lista:
+                        try:
+                            os.remove(arq)
+                            total_rotacionados += 1
+                        except OSError as e:
+                            logger.warning(f"[ROTACAO_SESSAO] Aviso: nao removi {arq}: {e}")
+                except Exception as e:
+                    logger.warning(f"[ROTACAO_SESSAO] Aviso: falha zipando {mes}: {e}")
+
+            if total_rotacionados > 0:
+                logger.info(f"[ROTACAO_SESSAO] {total_rotacionados} arquivo(s) rotacionado(s) para {len(antigos_por_mes)} zip(s)")
+
+        except Exception as e:
+            logger.warning(f"[ROTACAO_SESSAO] Aviso: falha geral na rotacao: {e}")
 
     def salvar_snapshot(
         self,
@@ -145,6 +218,9 @@ class SessionHistoryService:
 
         with open(caminho, "w", encoding="utf-8") as f:
             json.dump(dia, f, ensure_ascii=False, indent=2)
+
+        # S6: Rotação automática do histórico (mantém últimos X dias soltos, zipa o resto)
+        self._rotacionar_historico()
 
         return caminho
 

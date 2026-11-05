@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Módulo: pages/6_📈_Matriz_de_Influencia.py
-Versão: 2.3 — Pesos/Matriz escondidos em "Material de estudo" + popover simplificado
+Versão: 2.4 — Correção de lógica (Cenário 3 flexível, V2 confiança zero, emoji VIX)
 Objetivo: Guia rápido de correlação/influência + painel de leitura do estado atual do pré-market.
 """
 
@@ -254,7 +254,9 @@ def _detectar_cenario(s: dict):
 
     if adrs > 2.0 and sp500 > 0.3 and vix_var < -1.0:
         return 1
-    if adrs < -1.0 and sp500 < -1.0 and vix_var > 3.0:
+    # CORREÇÃO 1: Flexibilização do Cenário 3 (Risk-Off)
+    # Antes: adrs < -1.0 and sp500 < -1.0 and vix_var > 3.0
+    if adrs < -0.3 and sp500 < -0.8 and vix_var > 2.5:
         return 3
     if adrs > 1.0 and sp500 < -0.3:
         return 2
@@ -301,23 +303,38 @@ def _calcular_acao(s: dict) -> dict:
     dir_macro = _direcao_macro(s)
     dir_smc = _norm_dir(s.get("vies_smc"))
     dir_v2 = _norm_dir(s.get("vies_v2"))
+    
+    # CORREÇÃO 2: Considerar a confiança do V2
+    conf_v2_val = 0.0
+    try:
+        if s.get("conf_v2") is not None:
+            conf_v2_val = float(s.get("conf_v2"))
+    except (ValueError, TypeError):
+        pass
 
-    if dir_macro == "COMPRA" and dir_smc == "COMPRA" and dir_v2 != "VENDA":
+    if dir_macro == "COMPRA" and dir_smc == "COMPRA" and dir_v2 != "VENDA" and conf_v2_val > 0:
         return {
             "direcao": "COMPRA", "emoji": "🟢", "cor": "verde",
-            "motivo": "Macro e SMC alinhados em ALTA. V2 não discorda.",
+            "motivo": "Macro e SMC alinhados em ALTA. V2 confirma.",
         }
 
-    if dir_macro == "VENDA" and dir_smc == "VENDA" and dir_v2 != "COMPRA":
+    if dir_macro == "VENDA" and dir_smc == "VENDA" and dir_v2 != "COMPRA" and conf_v2_val > 0:
         return {
             "direcao": "VENDA", "emoji": "🔴", "cor": "vermelho",
-            "motivo": "Macro e SMC alinhados em BAIXA. V2 não discorda.",
+            "motivo": "Macro e SMC alinhados em BAIXA. V2 confirma.",
         }
 
     if (dir_macro == "COMPRA" and dir_smc == "VENDA") or (dir_macro == "VENDA" and dir_smc == "COMPRA"):
         return {
             "direcao": "AGUARDAR", "emoji": "⚠️", "cor": "amarelo",
             "motivo": f"Macro ({dir_macro}) e SMC ({dir_smc}) divergem. Não operar até alinhamento.",
+        }
+
+    # Novo fallback para quando Macro/SMC alinham, mas o V2 está sem confiança
+    if (dir_macro == "COMPRA" and dir_smc == "COMPRA") or (dir_macro == "VENDA" and dir_smc == "VENDA"):
+        return {
+            "direcao": "AGUARDAR", "emoji": "⚠️", "cor": "amarelo",
+            "motivo": f"Macro e SMC alinhados, porém o V2 está sem confiança (0%). Aguarde o V2 confirmar.",
         }
 
     return {
@@ -518,7 +535,7 @@ def _render_cenarios():
             "Cenário": "⚠️ Aversão Global a Risco (Risk-Off)",
             "ADRs BR": "🔴 Em Queda",
             "S&P / Nasdaq": "🔴 Em Queda Forte",
-            "VIX / DI": "🟢 VIX Dispara / DI Sobe",
+            "VIX / DI": "🔴 VIX Dispara / DI Sobe", # CORREÇÃO 3: Emoji ajustado de 🟢 para 🔴
             "Comportamento Projetado (WIN)": "📉 GAP de Baixa Agressivo",
             "Estratégia": "Aguardar teste no ajuste. Se perder o ajuste no leilão, preferência por continuação da venda (Explosão Venda).",
         },

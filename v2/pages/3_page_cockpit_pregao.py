@@ -6,12 +6,15 @@ Objetivo: Painel de decisão ao vivo (SMC + pivots + drivers globais) durante o 
 """
 
 import json
+import logging
 import os
 from pathlib import Path
 
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
+
+logger = logging.getLogger(__name__)
 
 
 # ==============================================================================
@@ -58,8 +61,8 @@ def _carregar_json_absoluto(nome_arquivo):
             try:
                 with open(caminho, "r", encoding="utf-8") as f:
                     return json.load(f), str(caminho)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("[COCKPIT] Falha lendo JSON %s: %s", caminho, e)
     return {}, None
 
 

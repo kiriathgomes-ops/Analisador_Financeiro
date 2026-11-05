@@ -1,4 +1,5 @@
 import cv2
+import logging
 import numpy as np
 import mss
 from PIL import Image, ImageEnhance, ImageFilter
@@ -11,6 +12,8 @@ import json
 import shutil
 from datetime import datetime, time as dt_time
 from collections import deque
+
+logger = logging.getLogger(__name__)
 
 # ==================== CONFIGURAÇÕES DE PASTAS ====================
 PASTA_COLETAS = "Coletas"
@@ -325,8 +328,8 @@ def extrair_numero(img_pil):
             preco_int = int(match6.group(0))
             if 70000 < preco_int < 300000:
                 return preco_int, 0.90
-    except:
-        pass
+    except Exception as e:
+        logger.warning("[SNIPER] Falha no OCR de preco: %s", e)
     return None, 0.0
 
 
@@ -565,4 +568,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    

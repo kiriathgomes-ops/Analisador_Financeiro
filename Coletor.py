@@ -1,11 +1,12 @@
 # ============================================================
 # ARQUIVO: Coletor.py
-# VERSÃO: 2.9 (Turbo) - Sessão Inteligente (Pré, Regular e Pós-Market)
+# VERSÃO: 2.9.3 (Fix change_daily no TradingView Global)
 # ============================================================
 
 from __future__ import annotations
 
 import json
+import logging
 import os
 import shutil
 import ssl
@@ -28,6 +29,8 @@ from config import (
     TIMEOUT_FINNHUB, TIMEOUT_BACEN, esta_na_janela_ajuste, esta_fora_do_pregao,
     JANELA_AJUSTE_INICIO, JANELA_AJUSTE_FIM,
 )
+
+logger = logging.getLogger(__name__)
 
 BASE_DIR = str(BASE_DIR)
 COLETAS_DIR = str(COLETAS_DIR)
@@ -101,6 +104,8 @@ def _coletar_tv_adr(ticker_tv: str) -> Dict[str, Any]:
         post_change = res.get("postmarket_change")
 
         agora = datetime.now().time()
+        
+        change_daily = float(change_val) if change_val is not None else 0.0
 
         # Regra 1: Horário Regular (10:30 às 17:00 BRT) -> Usa Dados ao Vivo
         if dt_time(10, 30) <= agora <= dt_time(17, 0):
@@ -111,22 +116,33 @@ def _coletar_tv_adr(ticker_tv: str) -> Dict[str, Any]:
             if pre_close is not None and float(pre_close) > 0 and pre_change is not None:
                 final_close, final_change, tipo = pre_close, pre_change, "PRE"
             else:
-                final_close, final_change, tipo = close_val, change_val, "REGULAR"
+                print(f"      [TV] {ticker_tv}: Pré-market indisponível. Descartando.")
+                return None
                 
         # Regra 3: Pós-mercado (depois das 17:00 BRT) -> Usa After-market
         else:
             if post_close is not None and float(post_close) > 0 and post_change is not None:
                 final_close, final_change, tipo = post_close, post_change, "POST"
             else:
-                final_close, final_change, tipo = close_val, change_val, "REGULAR"
+                print(f"      [TV] {ticker_tv}: After-market indisponível. Descartando.")
+                return None
 
         if final_close is None or float(final_close) <= 0: return None
         if final_change is None: return None
 
         if tipo != "REGULAR":
-            print(f"      [TV] {ticker_tv}: {tipo}-market ({final_change:+.2f}%)")
+            print(f"      [TV] {ticker_tv}: {tipo}-market ({final_change:+.2f}% | Diário: {change_daily:+.2f}%)")
 
-        return {"c": float(final_close), "d": 0.0, "dp": float(final_change), "pc": 0.0, "t": 0}
+        return {
+            "c": float(final_close), 
+            "d": 0.0, 
+            "dp": float(final_change), 
+            "pc": 0.0, 
+            "t": 0,
+            "change_daily": round(change_daily, 2),
+            "premarket_change": round(float(pre_change), 2) if pre_change is not None else None,
+            "premarket_close": float(pre_close) if pre_close is not None else None
+        }
     except Exception as e:
         print(f"      [TV] {ticker_tv}: erro {e}")
         return None
@@ -141,8 +157,17 @@ def coletar_finnhub() -> List[Dict[str, Any]]:
         
         _tv = _coletar_tv_adr(ticker_tv)
         if _tv is not None:
-            print(f"   ✅ TV OK para {ticker}: {_tv['dp']:+.2f}%")
-            return {"ativo": cfg["ativo"], "fonte": "TRADINGVIEW", "timestamp": timestamp, "status": "OK", "dados_reais": {"close": _tv["c"], "open": None, "high": None, "low": None, "change_percent": round(_tv["dp"], 2), "volume": None, "var_abs": 0.0, "fechamento_anterior": 0.0}}
+            print(f"   ✅ TV OK para {ticker}: {_tv['dp']:+.2f}% (Diário: {_tv.get('change_daily', 0.0):+.2f}%)")
+            return {
+                "ativo": cfg["ativo"], "fonte": "TRADINGVIEW", "timestamp": timestamp, "status": "OK", 
+                "dados_reais": {
+                    "close": _tv["c"], "open": None, "high": None, "low": None, 
+                    "change_percent": round(_tv["dp"], 2), "volume": None, "var_abs": 0.0, "fechamento_anterior": 0.0,
+                    "change_daily": _tv.get("change_daily", 0.0),
+                    "premarket_change": _tv.get("premarket_change"),
+                    "premarket_close": _tv.get("premarket_close")
+                }
+            }
 
         if not FINNHUB_API_KEY:
             return {"ativo": cfg["ativo"], "fonte": "NENHUMA", "timestamp": timestamp, "status": "ERRO", "dados_reais": None}
@@ -151,7 +176,17 @@ def coletar_finnhub() -> List[Dict[str, Any]]:
         try:
             res = _HTTP.get(url, timeout=TIMEOUT_FINNHUB or 5).json()
             if "c" in res and res["c"] != 0:
-                return {"ativo": cfg["ativo"], "fonte": "FINNHUB", "timestamp": timestamp, "status": "OK", "dados_reais": {"close": float(res["c"]), "open": None, "high": None, "low": None, "change_percent": round(float(res.get("dp", 0)), 2), "volume": None, "var_abs": round(float(res.get("d", 0)), 2), "fechamento_anterior": float(res.get("pc", 0))}}
+                dp = round(float(res.get("dp", 0)), 2)
+                return {
+                    "ativo": cfg["ativo"], "fonte": "FINNHUB", "timestamp": timestamp, "status": "OK", 
+                    "dados_reais": {
+                        "close": float(res["c"]), "open": None, "high": None, "low": None, 
+                        "change_percent": dp, "volume": None, "var_abs": round(float(res.get("d", 0)), 2), "fechamento_anterior": float(res.get("pc", 0)),
+                        "change_daily": dp,
+                        "premarket_change": None,
+                        "premarket_close": None
+                    }
+                }
             return {"ativo": cfg["ativo"], "fonte": "FINNHUB", "timestamp": timestamp, "status": "SEM_DADOS", "dados_reais": None}
         except Exception:
             return {"ativo": cfg["ativo"], "fonte": "FINNHUB", "timestamp": timestamp, "status": "ERRO", "dados_reais": None}
@@ -185,7 +220,16 @@ def coletar_mt5_acoes_b3(mt5_ja_inicializado: bool = False) -> List[Dict[str, An
                 resultados.append({"ativo": cfg["ativo"], "fonte": "MetaTrader5", "timestamp": timestamp, "status": "SEM_DADOS", "dados_reais": None})
                 continue
             var_pct = round(((preco / prev_close) - 1) * 100, 2) if prev_close > 0 else 0.0
-            resultados.append({"ativo": cfg["ativo"], "fonte": "MetaTrader5", "timestamp": timestamp, "status": "OK", "dados_reais": {"close": preco, "open": None, "high": None, "low": None, "change_percent": var_pct, "volume": None, "var_abs": round(preco - prev_close, 2) if prev_close > 0 else 0.0, "fechamento_anterior": prev_close}})
+            resultados.append({
+                "ativo": cfg["ativo"], "fonte": "MetaTrader5", "timestamp": timestamp, "status": "OK", 
+                "dados_reais": {
+                    "close": preco, "open": None, "high": None, "low": None, 
+                    "change_percent": var_pct, "volume": None, "var_abs": round(preco - prev_close, 2) if prev_close > 0 else 0.0, "fechamento_anterior": prev_close,
+                    "change_daily": var_pct,
+                    "premarket_change": None,
+                    "premarket_close": None
+                }
+            })
     finally:
         if own_init: mt5.shutdown()
     return resultados
@@ -214,7 +258,8 @@ def coletar_bacen_ptax() -> dict:
     try:
         res = json.loads(_fetch_url_com_retry(url_sgs, ctx=ctx, tentativas=3, timeout=TIMEOUT_BACEN or 10).decode("utf-8"))
         if res: return {"ativo": "USD_PTAX", "fonte": "BACEN", "timestamp": timestamp, "status": "OK", "dados_reais": {"close": float(res[-1]["valor"].replace(",", ".")), "open": None, "high": None, "low": None, "change_percent": None, "volume": None}}
-    except: pass
+    except Exception as e:
+        logger.warning("[COLETOR] Falha lendo BACEN PTAX: %s", e)
     return {"ativo": "USD_PTAX", "fonte": "BACEN", "timestamp": timestamp, "status": "SEM_DADOS", "dados_reais": None}
 
 def _descobrir_contrato_win() -> str:
@@ -222,7 +267,8 @@ def _descobrir_contrato_win() -> str:
         try:
             with open(FILE_MT5_V2, "r", encoding="utf-8") as f: contrato = ((json.load(f).get("ativos") or {}).get("WIN", {}).get("contrato_principal"))
             if contrato and str(contrato).upper().startswith("WIN"): return str(contrato).upper()
-        except: pass
+        except Exception as e:
+            logger.warning("[COLETOR] Falha descobrindo contrato WIN em %s: %s", FILE_MT5_V2, e)
     return "WINV26"
 
 def _descobrir_contrato_wdo() -> str:
@@ -230,7 +276,8 @@ def _descobrir_contrato_wdo() -> str:
         try:
             with open(FILE_MT5_V2, "r", encoding="utf-8") as f: contrato = ((json.load(f).get("ativos") or {}).get("WDO", {}).get("contrato_principal"))
             if contrato and str(contrato).upper().startswith("WDO"): return str(contrato).upper()
-        except: pass
+        except Exception as e:
+            logger.warning("[COLETOR] Falha descobrindo contrato WDO em %s: %s", FILE_MT5_V2, e)
     return "WDOU26"
 
 def coletar_ajuste_brapi() -> List[dict]:
@@ -240,7 +287,9 @@ def coletar_ajuste_brapi() -> List[dict]:
         url = f"https://brapi.dev/api/v2/futures/quote?symbols={_descobrir_contrato_win()},{_descobrir_contrato_wdo()}"
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
         with urllib.request.urlopen(req, timeout=15) as resp: dados = json.loads(resp.read().decode("utf-8"))
-    except: return []
+    except Exception as e:
+        logger.warning("[COLETOR] Falha na API da BRAPI (coletar_ajuste_brapi): %s", e)
+        return []
     
     for item in dados.get("quotes", []) or []:
         symbol = str(item.get("symbol", "")).upper()
@@ -264,7 +313,9 @@ def coletar_ajuste_oficial(silencioso: bool = False) -> List[dict]:
             with urllib.request.urlopen(req, timeout=TIMEOUT_TRADINGVIEW or 10) as resp:
                 res = json.loads(resp.read().decode("utf-8"))
                 return {"ativo": item["ativo"], "fonte": "TV", "timestamp": timestamp, "status": "OK", "dados_reais": {"close": float(res["close"]) if res.get("close") else None, "open": None, "high": None, "low": None, "change_percent": None, "volume": None}}
-        except: return {"ativo": item["ativo"], "fonte": "TV", "timestamp": timestamp, "status": "ERRO", "dados_reais": None}
+        except Exception as e:
+            logger.warning("[COLETOR] Falha em coletar_ajuste_oficial (%s): %s", item['ativo'], e)
+            return {"ativo": item["ativo"], "fonte": "TV", "timestamp": timestamp, "status": "ERRO", "dados_reais": None}
     with ThreadPoolExecutor(max_workers=2) as ex: return list(ex.map(_um, [{"ativo": "B3_AJUSTE_WIN", "ticker": "BMFBOVESPA:WIN1!"}, {"ativo": "B3_AJUSTE_WDO", "ticker": "BMFBOVESPA:WDO1!"}]))
 
 def coletar_tradingview() -> List[dict]:
@@ -278,9 +329,23 @@ def coletar_tradingview() -> List[dict]:
             for item in json.loads(resp.read().decode("utf-8")).get("data", []):
                 vals = item.get("d", [])
                 if len(vals) >= 5 and vals[0] is not None:
-                    resultados.append({"ativo": item.get("s"), "fonte": "TRADINGVIEW", "timestamp": timestamp, "status": "OK", "dados_reais": {"close": float(vals[0]), "open": float(vals[1]) if vals[1] else None, "high": float(vals[2]) if vals[2] else None, "low": float(vals[3]) if vals[3] else None, "change_percent": float(vals[4]) if vals[4] else 0.0, "volume": float(vals[5]) if len(vals) > 5 and vals[5] else None}})
+                    var = float(vals[4]) if vals[4] else 0.0
+                    resultados.append({
+                        "ativo": item.get("s"), "fonte": "TRADINGVIEW", "timestamp": timestamp, "status": "OK", 
+                        "dados_reais": {
+                            "close": float(vals[0]), "open": float(vals[1]) if vals[1] else None, 
+                            "high": float(vals[2]) if vals[2] else None, "low": float(vals[3]) if vals[3] else None, 
+                            "change_percent": var, 
+                            "volume": float(vals[5]) if len(vals) > 5 and vals[5] else None,
+                            "change_daily": var, # Para macro, o diário é o próprio fluxo
+                            "premarket_change": None,
+                            "premarket_close": None
+                        }
+                    })
             return resultados
-    except: return []
+    except Exception as e:
+        logger.warning("[COLETOR] Falha em coletar_tradingview: %s", e)
+        return []
 
 
 # ------------------------------------------------------------
@@ -301,8 +366,25 @@ def gerar_arquivo_unificado(coletas: List[dict]) -> None:
     for item in coletas:
         ativo_raw, dados = item.get("ativo"), (item.get("dados_reais") or {})
         nome = MAPEAMENTO_TICKERS.get(ativo_raw, ativo_raw)
-        ativos_map[nome] = {"preco": float(dados.get("close") or 0.0), "variacao_pct": float(dados.get("change_percent") or 0.0), "ticker_original": ativo_raw, "status": item.get("status", "OK"), "fonte": item.get("fonte") or "DESCONHECIDA", "timestamp_coleta": item.get("timestamp")}
-    with open(FILE_UNIFICADO, "w", encoding="utf-8") as f: json.dump({"metadata": {"timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "total_ativos": len(ativos_map)}, "ativos": ativos_map}, f, ensure_ascii=False, separators=(",", ":"))
+        
+        # Extrai os campos novos (se existirem)
+        ch_daily = dados.get("change_daily")
+        pre_ch = dados.get("premarket_change")
+        pre_close = dados.get("premarket_close")
+
+        ativos_map[nome] = {
+            "preco": float(dados.get("close") or 0.0),
+            "variacao_pct": float(dados.get("change_percent") or 0.0),
+            "change_daily": float(ch_daily) if ch_daily is not None else None,
+            "premarket_change": float(pre_ch) if pre_ch is not None else None,
+            "premarket_close": float(pre_close) if pre_close is not None else None,
+            "ticker_original": ativo_raw, 
+            "status": item.get("status", "OK"), 
+            "fonte": item.get("fonte") or "DESCONHECIDA", 
+            "timestamp_coleta": item.get("timestamp")
+        }
+    with open(FILE_UNIFICADO, "w", encoding="utf-8") as f: 
+        json.dump({"metadata": {"timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "total_ativos": len(ativos_map)}, "ativos": ativos_map}, f, ensure_ascii=False, separators=(",", ":"))
     print(f"✅ Unificado: {FILE_UNIFICADO}")
 
 def _montar_win_wdo_mt5(coletas: List[dict]) -> bool:
@@ -310,7 +392,8 @@ def _montar_win_wdo_mt5(coletas: List[dict]) -> bool:
     if os.path.exists(FILE_MT5_V2):
         try:
             with open(FILE_MT5_V2, "r", encoding="utf-8") as f: mt5_json = json.load(f)
-        except: pass
+        except Exception as e:
+            logger.warning("[COLETOR] Falha lendo %s em _montar_win_wdo_mt5: %s", FILE_MT5_V2, e)
     lasts = capturar_last_do_mt5()
     ativos_mt5 = (mt5_json.get("ativos") or {})
     ts = datetime.now().isoformat()
@@ -323,14 +406,16 @@ def _montar_win_wdo_mt5(coletas: List[dict]) -> bool:
         if os.path.exists(FILE_LAST_TICK_CONGELADO):
             try:
                 with open(FILE_LAST_TICK_CONGELADO, "r", encoding="utf-8") as f: freeze_map = json.load(f).get("ticks") or {}
-            except: pass
+            except Exception as e:
+                logger.warning("[COLETOR] Falha lendo %s (freeze_map): %s", FILE_LAST_TICK_CONGELADO, e)
         if not freeze_map:
             for arq in (FILE_RAM, FILE_ROM0):
                 if os.path.exists(arq):
                     try:
                         with open(arq, "r", encoding="utf-8") as f: cache_itens = json.load(f).get("coletas") or []
                         if cache_itens: break
-                    except: pass
+                    except Exception as e:
+                        logger.warning("[COLETOR] Falha lendo cache %s: %s", arq, e)
 
     for prefixo, (ativo_last, ativo_fut) in {"WIN": ("WIN_LAST_TICK", "BMFBOVESPA:WIN1!"), "WDO": ("WDO_LAST_TICK", "BMFBOVESPA:WDO1!")}.items():
         info = ativos_mt5.get(prefixo) or {}
@@ -378,7 +463,8 @@ def _montar_win_wdo_mt5(coletas: List[dict]) -> bool:
         if os.path.exists(FILE_LAST_TICK_CONGELADO):
             try:
                 with open(FILE_LAST_TICK_CONGELADO, "r", encoding="utf-8") as f: atual = json.load(f).get("ticks") or {}
-            except: pass
+            except Exception as e:
+                logger.warning("[COLETOR] Falha relendo %s antes de gravar: %s", FILE_LAST_TICK_CONGELADO, e)
         atual.update(ticks_para_congelar)
         with open(FILE_LAST_TICK_CONGELADO, "w", encoding="utf-8") as f:
             json.dump({"timestamp_congelamento": datetime.now().isoformat(), "fonte": "MT5", "ticks": atual}, f, ensure_ascii=False, indent=2)
@@ -411,7 +497,8 @@ def executar_pipeline_coleta() -> None:
     try:
         from Coletor_MT5_v2_2 import executar_coleta_mt5_v2
         executar_coleta_mt5_v2()
-    except: pass
+    except Exception as e:
+        logger.warning("[COLETOR] Falha executando Coletor_MT5_v2_2.executar_coleta_mt5_v2: %s", e)
 
     coletas.extend(coletar_mt5_acoes_b3())
     _montar_win_wdo_mt5(coletas)
@@ -425,6 +512,6 @@ def executar_pipeline_coleta() -> None:
 
 if __name__ == "__main__":
     print("=" * 60)
-    print(" COLETOR TURBO v2.9 — Sessão Inteligente (Pre/Regular/Post)")
+    print(" COLETOR TURBO v2.9.3 — Sessão Inteligente (Pre/Regular/Post)")
     print("=" * 60)
     executar_pipeline_coleta()

@@ -6,8 +6,11 @@ Objetivo: Consolida os arquivos de decisão, estimativas e cotações unificadas
 """
 
 import json
+import logging
 from pathlib import Path
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 # ==============================================================================
 # RESOLUÇÃO DE CAMINHOS E LEITURA DE JSON
@@ -27,8 +30,8 @@ def carregar_json(nome_arquivo):
             try:
                 with open(p, "r", encoding="utf-8") as f:
                     return json.load(f)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("[RELATORIO] Falha lendo JSON %s: %s", p, e)
     return {}
 
 # ATENCAO: os JSONs eram carregados no nivel de modulo (bug).

@@ -12,10 +12,13 @@
 #   4. Fluxo — grafo Script <-> JSON + engenharia reversa
 
 import json
+import logging
 from pathlib import Path
 from collections import Counter
 
 import streamlit as st
+
+logger = logging.getLogger(__name__)
 
 RAIZ = Path(__file__).resolve().parent.parent
 MAPA_JSON = RAIZ / "auditoria" / "mapa_mina.json"
@@ -339,8 +342,11 @@ with tab_fluxo:
                         from datetime import datetime as _dt
                         ts_str = _dt.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M:%S")
                         st.caption(f"📅 Última modificação no disco: `{ts_str}`")
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.warning(
+                            "[MAPA_MINA] Falha lendo mtime de %s: %s",
+                            path_fisico, e,
+                        )
                 else:
                     st.caption("📅 Arquivo não existe no disco (fantasma)")
 

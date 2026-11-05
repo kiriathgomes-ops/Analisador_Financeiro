@@ -6,10 +6,13 @@ Roda a analise SMC em 3 timeframes (M1, M5, M15) numa unica conexao MT5.
 """
 
 import json
+import logging
 import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
+
+logger = logging.getLogger(__name__)
 
 BASE_DIR = Path(__file__).resolve().parent
 if str(BASE_DIR) not in sys.path:
@@ -29,8 +32,8 @@ from cache_candles import obter_candles_multi_tf
 if sys.platform == "win32":
     try:
         sys.stdout.reconfigure(encoding="utf-8")
-    except AttributeError:
-        pass
+    except AttributeError as e:
+        logger.warning("[RODAR_SMC] stdout.reconfigure indisponivel: %s", e)
 
 ATIVO = "WIN$"
 

@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 """
 Módulo: pages/5_📡_Ativos_Monitorados.py
-Versão: 2.6 - Fragments por seção (KPIs/termômetro/abas @60s, rejeições @300s)
+Versão: 2.7 - Fragments por seção + Coleta Dupla (Pré/Pós + Diário)
 Objetivo: Dashboard de integridade e monitoramento dos 32 ativos validados do ecossistema.
 """
 
+import logging
 import streamlit as st
 import streamlit.components.v1 as components
 import json
@@ -12,6 +13,8 @@ import pandas as pd
 from datetime import datetime
 
 from config import FILE_VALIDADOS, COLETAS_DIR, MAPEAMENTO_TICKERS_INVERSO
+
+logger = logging.getLogger(__name__)
 
 
 # ==============================================================================
@@ -56,6 +59,7 @@ def mini_velocimetro(
     preco_fmt: str = "",
     inverter: bool = False,
     valor_anterior=None,
+    var_diaria=None,
 ) -> None:
     # ---------- Valor ATUAL ----------
     if valor is None:
@@ -111,6 +115,11 @@ def mini_velocimetro(
     else:
         cor_delta = "#8b949e"
         texto_delta = "Δ —"
+
+    # ---------- Texto Diário ----------
+    texto_diaria = ""
+    if var_diaria is not None:
+        texto_diaria = f'<div class="mini-daily">Diário: {var_diaria:+.2f}%</div>'
 
     # ---------- SVG do ponteiro anterior ----------
     if tem_anterior:
@@ -229,6 +238,14 @@ def mini_velocimetro(
             margin-top: 2px;
             line-height: 1.1;
         }}
+        .mini-daily {{
+            font-size: 10px;
+            color: #8b949e;
+            text-align: center;
+            margin-top: 2px;
+            font-weight: 600;
+            line-height: 1.1;
+        }}
     </style>
     </head>
     <body>
@@ -245,11 +262,13 @@ def mini_velocimetro(
             <div class="mini-value">{texto_valor}</div>
             <div class="mini-delta">{texto_delta}</div>
             <div class="mini-sub">{preco_fmt}</div>
+            {texto_diaria}
         </div>
     </body>
     </html>
     """
-    components.html(html, height=155, scrolling=False)
+    altura = 165 if var_diaria is not None else 155
+    components.html(html, height=altura, scrolling=False)
 
 
 # ==============================================================================
@@ -356,8 +375,11 @@ def calcular_media_categoria(ids_categoria, ativos_validados, rom_dict, ignorar_
                 if v is not None:
                     try:
                         variacoes.append(float(v))
-                    except (TypeError, ValueError):
-                        pass
+                    except (TypeError, ValueError) as e:
+                        logger.warning(
+                            "[ATIVOS_MONITORADOS] Falha convertendo change_percent de %s: %s",
+                            ativo.get("ativo_id"), e,
+                        )
 
     if not variacoes:
         return None, 0
@@ -545,7 +567,11 @@ def _render_abas_categorias():
 
                 ativo_id = ativo.get("ativo_id")
                 var_pct = ativo.get("change_percent")
+                var_daily = ativo.get("change_daily")
+                
                 var_txt = f"{var_pct:+.2f}%" if var_pct is not None else "—"
+                var_daily_txt = f"{var_daily:+.2f}%" if var_daily is not None else "—"
+                
                 vol = ativo.get("volume")
                 vol_txt = f"{vol:,.0f}" if vol is not None else "—"
 
@@ -556,7 +582,8 @@ def _render_abas_categorias():
                         f"{ativo.get('close'):,.4f}" if ativo.get("close", 0) < 100
                         else f"{ativo.get('close'):,.2f}"
                     ),
-                    "Variação Diária": var_txt,
+                    "Var Ext (Pré)": var_txt,
+                    "Var Diária": var_daily_txt,
                     "Volume Turn": vol_txt,
                     "Fonte de Coleta": ativo.get("fonte", "N/A"),
                     "Timestamp": (
@@ -579,6 +606,7 @@ def _render_abas_categorias():
                         "label": ativo_id,
                         "valor": v_atual,
                         "valor_anterior": v_ant,
+                        "var_diaria": var_daily,
                     })
 
             # -------- MINI VELOCÍMETROS POR ATIVO --------
@@ -605,6 +633,7 @@ def _render_abas_categorias():
                                 f"{item['valor']:+.2f}%",
                                 inverter=inv,
                                 valor_anterior=item["valor_anterior"],
+                                var_diaria=item.get("var_diaria"),
                             )
                 else:
                     # ============ MODO LEGACY (Mercado Local, Drivers, Commodities) ============
@@ -622,6 +651,7 @@ def _render_abas_categorias():
                                 f"{item['valor']:+.2f}%",
                                 inverter=inv,
                                 valor_anterior=item["valor_anterior"],
+                                var_diaria=item.get("var_diaria"),
                             )
 
                 st.markdown("")

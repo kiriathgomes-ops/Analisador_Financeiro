@@ -11,17 +11,23 @@ Rollover: cache é keyed no contrato real (WINV26). Quando muda, o cache
 antigo é movido para Coletas/cache/_arquivo/ e um novo é criado.
 
 fix88: fetch incremental dinâmico baseado em gap + sanity check pós-merge.
+blindagem: os 4 except silenciosos restantes viraram logger.warning
+(_rate_para_dict time, _detectar_gaps loop, _limpar_arquivo_antigo,
+gap_min em _obter_com_mt5_aberto).
 """
 
 from __future__ import annotations
 
 import json
+import logging
 import re
 import shutil
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+
+logger = logging.getLogger(__name__)
 
 BASE_DIR = Path(__file__).resolve().parent
 CACHE_DIR = BASE_DIR / "Coletas" / "cache"
@@ -39,28 +45,29 @@ GAP_ALERTA_MIN = 30           # gap > 30 min = forca refresh maior
 if sys.platform == "win32":
     try:
         sys.stdout.reconfigure(encoding="utf-8")
-    except AttributeError:
-        pass
+    except AttributeError as e:
+        logger.warning("[CACHE] stdout.reconfigure indisponivel: %s", e)
 
 
 def _rate_para_dict(rate) -> Dict[str, Any]:
     try:
         dt_brt = datetime.fromtimestamp(rate["time"], tz=timezone.utc).replace(tzinfo=BRT)
-    except Exception:
+    except Exception as e:
+        logger.warning("[CACHE] Falha convertendo time do rate: %s", e)
         dt_brt = datetime.now(BRT)
 
     v_real = 0.0
     try:
         if "real_volume" in rate.dtype.names:
             v_real = float(rate["real_volume"])
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("[CACHE] Falha lendo real_volume: %s", e)
     if v_real <= 0:
         try:
             if "tick_volume" in rate.dtype.names:
                 v_real = float(rate["tick_volume"])
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("[CACHE] Falha lendo tick_volume: %s", e)
 
     return {
         "time": dt_brt.isoformat(),
@@ -141,7 +148,10 @@ def _detectar_gaps(candles: List[Dict], tf_min: int) -> List[float]:
         try:
             t1 = datetime.fromisoformat(candles[i - 1]["time"])
             t2 = datetime.fromisoformat(candles[i]["time"])
-        except Exception:
+        except Exception as e:
+            logger.warning(
+                "[CACHE] Falha parseando time no _detectar_gaps (idx=%d): %s", i, e
+            )
             continue
 
         delta_min = (t2 - t1).total_seconds() / 60
@@ -188,7 +198,10 @@ def _limpar_arquivo_antigo(dias: int = DIAS_RETENCAO) -> int:
             if datetime.fromtimestamp(arq.stat().st_mtime) < corte:
                 arq.unlink()
                 removidos += 1
-        except Exception:
+        except Exception as e:
+            logger.warning(
+                "[CACHE] Falha limpando cache arquivado %s: %s", arq.name, e
+            )
             continue
     return removidos
 
@@ -259,8 +272,11 @@ def _obter_com_mt5_aberto(
             if candles:
                 _salvar_cache(path, contrato_real, tf_min, candles)
             return candles[-qtd:] if len(candles) > qtd else candles, contrato_real
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(
+            "[CACHE] Falha verificando obsolescencia do cache %s: %s",
+            path.name, e,
+        )
 
     # fix41b: se cache tem menos candles que o caller pediu,
     # faz refresh TOTAL em vez de incremental.
@@ -275,7 +291,11 @@ def _obter_com_mt5_aberto(
     try:
         ultimo_cache = datetime.fromisoformat(antigos[-1]["time"])
         gap_min = max(0.0, (datetime.now(BRT) - ultimo_cache).total_seconds() / 60.0)
-    except Exception:
+    except Exception as e:
+        logger.warning(
+            "[CACHE] Falha calculando gap_min para %s %dm: %s",
+            contrato_real, tf_min, e,
+        )
         gap_min = 0.0
 
     # Se gap > QTD_REFRESH_INCREMENTAL, aumenta o fetch pra cobrir
@@ -350,8 +370,8 @@ def obter_candles(
         if not ja_inicializado:
             try:
                 mt5.shutdown()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("[CACHE] Falha no mt5.shutdown (obter_candles): %s", e)
 
 
 def obter_candles_multi_tf(
@@ -392,8 +412,10 @@ def obter_candles_multi_tf(
         if not ja_inicializado:
             try:
                 mt5.shutdown()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(
+                    "[CACHE] Falha no mt5.shutdown (obter_candles_multi_tf): %s", e
+                )
 
     return resultado
 
@@ -429,8 +451,8 @@ def invalidar_cache(symbol: str = "WIN$", tf_min: Optional[int] = None) -> int:
         if not ja_inicializado:
             try:
                 mt5.shutdown()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("[CACHE] Falha no mt5.shutdown (invalidar_cache): %s", e)
 
     return removidos
 

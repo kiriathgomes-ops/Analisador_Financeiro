@@ -7,11 +7,14 @@
 #   - Fix: 'caminho = caminho or ARQUIVO_SAIDA' nao e mais perdida
 
 import json
+import logging
 import re
 import sys
 import glob
 from pathlib import Path
 from collections import defaultdict
+
+logger = logging.getLogger(__name__)
 
 RAIZ = Path(__file__).resolve().parent.parent
 OUT_DIR = RAIZ / "auditoria"
@@ -34,8 +37,11 @@ if config:
                 rel = str(valor.relative_to(RAIZ)).replace("\\", "/")
                 if rel.endswith(".json"):
                     MAPA_CONSTANTES[nome] = rel
-            except ValueError:
-                pass
+            except ValueError as e:
+                logger.warning(
+                    "[MAPEAR_FLUXO] Constante %s nao resolve relativo a raiz: %s",
+                    nome, e,
+                )
         elif isinstance(valor, str) and valor.endswith(".json"):
             v = valor.replace("\\", "/")
             if "Coletas/" in v:
@@ -219,7 +225,8 @@ def escanear_codigo():
         arq_p = Path(arq)
         try:
             rel = str(arq_p.relative_to(RAIZ)).replace("\\", "/")
-        except ValueError:
+        except ValueError as e:
+            logger.warning("[MAPEAR_FLUXO] Arquivo %s fora da raiz do projeto: %s", arq_p, e)
             continue
 
         if deve_ignorar(rel):
@@ -227,7 +234,8 @@ def escanear_codigo():
 
         try:
             texto_original = arq_p.read_text(encoding="utf-8", errors="ignore")
-        except Exception:
+        except Exception as e:
+            logger.warning("[MAPEAR_FLUXO] Falha lendo %s: %s", arq_p, e)
             continue
 
         linhas = texto_original.splitlines()

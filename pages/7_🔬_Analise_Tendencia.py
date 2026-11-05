@@ -1,15 +1,8 @@
 # -*- coding: utf-8 -*-
 """
 Módulo: pages/7_🔬_Analise_Tendencia.py
-Versão: 3.8.1 — Histograma colorido por sinal + inversão visual p/ ativos inversos
+Versão: 3.9.1 — Coluna Var Diária + Fluxo Pré-Market (Fix Float/Dict)
 Objetivo: Mapear velocidade e direção dos ativos via 12 coletas rolantes.
-
-Mudança vs. 3.8:
-  - "Ouro" adicionado ao ATIVOS_INVERSOS (safe haven, sobe com aversão a risco)
-  - _mini_histograma_svg recebe flag `inverter`. Ativos inversos são plotados
-    com sinal negado: DXY +0.5% → barra vermelha (ruim p/ WIN). Alinha o
-    histograma com o Status e o Δ Agora, sem ambiguidade visual.
-  - Tooltip mostra "+X.XXX% (inverso)" quando aplicável.
 """
 
 import json
@@ -27,8 +20,8 @@ from config import COLETAS_DIR
 st.set_page_config(page_title="Quant Terminal - Análise de Tendência", layout="wide")
 
 
-# v3.8.1 — bump quando JANELAS, formato de dados ou cálculo mudar.
-_CACHE_VERSION = "v3.8.1"
+# v3.9.1 — bump quando JANELAS, formato de dados ou cálculo mudar.
+_CACHE_VERSION = "v3.9.1"
 
 
 # ==============================================================================
@@ -71,12 +64,9 @@ CATEGORIAS = {
     ],
 }
 
-# v3.8.1 — "Ouro" incluído (safe haven, sobe com aversão a risco → ruim p/ WIN)
 ATIVOS_INVERSOS = {"DXY", "VIX", "WDO", "USDBRL", "DI1 2027", "DI1 2029", "Ouro"}
 
-# 12 janelas, ordem "mais antigo → mais recente" (55m → Agora)
 JANELAS = [55, 50, 45, 40, 35, 30, 25, 20, 15, 10, 5, 0]
-
 
 # ==============================================================================
 # CHAVES DOS INDICADORES COMPOSTOS
@@ -94,10 +84,22 @@ VIX_KEYS = ["TVC:VIX", "VIX"]
 CRUDE_KEYS = ["NYMEX:CL1!", "CRUDE_OIL"]
 IRON_KEYS = ["SGX:FEF1!", "IRON_ORE"]
 
-
 def _label_janela(j: int) -> str:
     return "Agora" if j == 0 else f"{j}m"
 
+# ==============================================================================
+# HELPERS DE EXTRAÇÃO (Tolerante a float ou dict)
+# ==============================================================================
+def _extrair_pct(val) -> Optional[float]:
+    """Retorna o change_percent puro, seja de um float ou de um dict."""
+    if val is None:
+        return None
+    if isinstance(val, dict):
+        return val.get("pct")
+    try:
+        return float(val)
+    except (TypeError, ValueError):
+        return None
 
 # ==============================================================================
 # LOADERS
@@ -124,31 +126,36 @@ def carregar_coleta_rom(minutos: int, _ver: str = _CACHE_VERSION) -> dict:
         ativo = item.get("ativo")
         if not ativo:
             continue
-        cp = (item.get("dados_reais") or {}).get("change_percent")
+            
+        dados_reais = item.get("dados_reais") or {}
+        cp = dados_reais.get("change_percent")
+        c_daily = dados_reais.get("change_daily")
+        
         if cp is None:
             continue
+            
         try:
-            resultado[ativo] = float(cp)
+            resultado[ativo] = {
+                "pct": float(cp),
+                "daily": float(c_daily) if c_daily is not None else None
+            }
         except (TypeError, ValueError):
             continue
 
     return resultado
 
-
 @st.cache_data(ttl=30)
 def carregar_todas_coletas(_ver: str = _CACHE_VERSION) -> dict:
     return {j: carregar_coleta_rom(j, _ver) for j in JANELAS}
 
-
 # ==============================================================================
 # LOOKUP / MOMENTUM / COMPOSTOS
 # ==============================================================================
-def _buscar_valor(coleta: dict, chaves: list) -> Optional[float]:
+def _buscar_valor(coleta: dict, chaves: list) -> Optional[dict]:
     for chave in chaves:
         if chave in coleta:
             return coleta[chave]
     return None
-
 
 def _calc_momentum(coletas: dict) -> dict:
     resultado: dict = {}
@@ -162,11 +169,11 @@ def _calc_momentum(coletas: dict) -> dict:
             resultado[nome_cat][nome_ativo] = valores
     return resultado
 
-
 def _media_janela(momentum_cat: dict, janela: int, inverso_por_ativo: set) -> Optional[float]:
     vals = []
     for nome, valores in momentum_cat.items():
-        v = valores.get(janela)
+        v_dict = valores.get(janela)
+        v = _extrair_pct(v_dict)
         if v is None:
             continue
         vals.append(-v if nome in inverso_por_ativo else v)
@@ -174,30 +181,27 @@ def _media_janela(momentum_cat: dict, janela: int, inverso_por_ativo: set) -> Op
         return None
     return round(sum(vals) / len(vals), 3)
 
-
 def _momentum_categoria(momentum_cat: dict, inverso_por_ativo: set) -> dict:
     return {j: _media_janela(momentum_cat, j, inverso_por_ativo) for j in JANELAS}
-
 
 def _calc_adrs_br(coleta: dict) -> Optional[float]:
     vals = []
     for chaves in ADRS_COMPOSTO_KEYS:
-        v = _buscar_valor(coleta, chaves)
+        v_dict = _buscar_valor(coleta, chaves)
+        v = _extrair_pct(v_dict)
         if v is not None and abs(v) <= 50.0:
             vals.append(v)
     if not vals:
         return None
     return round(sum(vals), 4)
 
-
 def _calc_mercado_externo(coleta: dict) -> Optional[float]:
-    vix = _buscar_valor(coleta, VIX_KEYS)
-    crude = _buscar_valor(coleta, CRUDE_KEYS)
-    iron = _buscar_valor(coleta, IRON_KEYS)
+    vix = _extrair_pct(_buscar_valor(coleta, VIX_KEYS))
+    crude = _extrair_pct(_buscar_valor(coleta, CRUDE_KEYS))
+    iron = _extrair_pct(_buscar_valor(coleta, IRON_KEYS))
     if vix is None or crude is None or iron is None:
         return None
     return round(-vix + crude + iron, 4)
-
 
 def _calc_compostos(coletas: dict) -> dict:
     adrs_por_janela = {}
@@ -211,14 +215,14 @@ def _calc_compostos(coletas: dict) -> dict:
         "Merc. Externo": externo_por_janela,
     }
 
-
 # ==============================================================================
 # STATUS / COR
 # ==============================================================================
 def _status_momentum(valores: dict, inverso: bool = False) -> str:
-    v5 = valores.get(5)
-    v30 = valores.get(30)
-    v55 = valores.get(55)
+    v5 = _extrair_pct(valores.get(5))
+    v30 = _extrair_pct(valores.get(30))
+    v55 = _extrair_pct(valores.get(55))
+
     if v5 is None and v30 is None and v55 is None:
         return "⚪ sem dados"
 
@@ -268,7 +272,6 @@ def _status_momentum(valores: dict, inverso: bool = False) -> str:
 
     return base
 
-
 def _cor_status(texto: str, inverso: bool = False) -> str:
     if "✅" in texto or "bom p/ WIN" in texto:
         return "#22c55e"
@@ -284,7 +287,6 @@ def _cor_status(texto: str, inverso: bool = False) -> str:
         return "#86efac"
     return "#8b949e"
 
-
 def _cor_valor(v, inverso: bool = False) -> str:
     if v is None:
         return "#8b949e"
@@ -297,9 +299,8 @@ def _cor_valor(v, inverso: bool = False) -> str:
     favoravel = (f > 0) != inverso
     return "#22c55e" if favoravel else "#ef4444"
 
-
 # ==============================================================================
-# HISTOGRAMA SVG INLINE (com inversão)
+# HISTOGRAMA SVG INLINE
 # ==============================================================================
 def _mini_histograma_svg(
     valores_dict: dict,
@@ -307,18 +308,7 @@ def _mini_histograma_svg(
     altura: int = 44,
     inverter: bool = False,
 ) -> str:
-    """
-    SVG de 12 barras, uma por janela. Zero-line no centro.
-
-    Se `inverter=True` (ativos inversos ao WIN), o sinal é negado ANTES de
-    plotar — assim DXY +0.5% vira barra vermelha (ruim p/ WIN).
-    O tooltip mostra o valor BRUTO + "(inverso)" para não enganar.
-
-    Escala vertical: normalizada ao maior |valor| da própria série (após
-    inversão). None → barra cinza minúscula.
-    """
-    vals_brutos = [valores_dict.get(j) for j in JANELAS]
-    # valores plotados: brutos, ou negados se inverso
+    vals_brutos = [_extrair_pct(valores_dict.get(j)) for j in JANELAS]
     vals_plot = [(-v if (v is not None and inverter) else v) for v in vals_brutos]
 
     n = len(vals_plot)
@@ -370,12 +360,12 @@ def _mini_histograma_svg(
         f'{"".join(parts)}</svg>'
     )
 
-
 # ==============================================================================
 # RENDER DE TABELA (HTML puro)
 # ==============================================================================
 COL_SPARK = "Evolução"
-COL_DELTA = "Δ Agora"
+COL_DAILY = "Var Diária"
+COL_DELTA = "Δ Agora (Pré)"
 COL_STATUS = "Status"
 
 _TABLE_STYLE = (
@@ -384,7 +374,6 @@ _TABLE_STYLE = (
 )
 _TH_STYLE = "text-align:left;padding:6px 8px;color:#8b949e;font-weight:600;border-bottom:1px solid #30363d;"
 _TD_STYLE = "padding:4px 8px;border-bottom:1px solid #1a1a1a;vertical-align:middle;"
-
 
 def _render_tabela_histograma(
     linhas: list,
@@ -402,6 +391,7 @@ def _render_tabela_histograma(
         f'<tr>'
         f'<th style="{_TH_STYLE}">{col_nome}</th>'
         f'<th style="{_TH_STYLE}">Evolução (55m → Agora)</th>'
+        f'<th style="{_TH_STYLE};text-align:right;color:#00d4ff;">{COL_DAILY}</th>'
         f'<th style="{_TH_STYLE};text-align:right;">{COL_DELTA}</th>'
         f'<th style="{_TH_STYLE}">{COL_STATUS}</th>'
         f'</tr>'
@@ -411,15 +401,19 @@ def _render_tabela_histograma(
         inv = inv_flags[i] if i < len(inv_flags) else False
         nome = linha[col_nome]
         serie = linha[COL_SPARK]
-        valores_dict = {j: serie[idx] for idx, j in enumerate(JANELAS)}
+        daily_val = linha.get(COL_DAILY)
         delta = linha[COL_DELTA]
         status = linha[COL_STATUS]
 
-        svg = _mini_histograma_svg(valores_dict, largura=largura_svg, altura=44, inverter=inv)
+        svg = _mini_histograma_svg(serie, largura=largura_svg, altura=44, inverter=inv)
+
+        cor_daily = "#e6edf3" 
+        if daily_val is not None:
+            cor_daily = "#22c55e" if daily_val > 0 else ("#ef4444" if daily_val < 0 else "#e6edf3")
+        daily_txt = f"{daily_val:+.2f}%" if daily_val is not None else "—"
 
         cor_delta = _cor_valor(delta, inv)
         delta_txt = f"{delta:+.3f}%" if delta is not None else "—"
-        # marca visualmente o Δ quando é inverso
         if inv and delta is not None:
             delta_txt += " ⟲"
 
@@ -429,6 +423,7 @@ def _render_tabela_histograma(
             f'<tr>'
             f'<td style="{_TD_STYLE};font-weight:700;">{nome}</td>'
             f'<td style="{_TD_STYLE}">{svg}</td>'
+            f'<td style="{_TD_STYLE};text-align:right;color:{cor_daily};font-weight:700;">{daily_txt}</td>'
             f'<td style="{_TD_STYLE};text-align:right;color:{cor_delta};font-weight:700;">{delta_txt}</td>'
             f'<td style="{_TD_STYLE};color:{cor_status};font-weight:700;">{status}</td>'
             f'</tr>'
@@ -436,7 +431,6 @@ def _render_tabela_histograma(
 
     html = f'<table style="{_TABLE_STYLE}">{"".join(rows)}</table>'
     st.markdown(html, unsafe_allow_html=True)
-
 
 # ==============================================================================
 # MINI VELOCÍMETRO (intacto)
@@ -523,10 +517,8 @@ st.markdown("<h2 style='color:#00d4ff;'>🔬 Análise de Tendência — Momentum
 st.caption(
     "Histograma das 12 coletas rolantes (55m → 50m → … → Agora) · "
     "🟢 verde = favorável p/ WIN · 🔴 vermelho = desfavorável · "
-    "ativos com ⟲ têm o sinal invertido (DXY/VIX/WDO/DI/Ouro) · "
-    "hover mostra o valor bruto · atualiza a cada 60s"
+    "Var Diária = fechamento de ontem · Δ Agora = pré-market/ao vivo"
 )
-
 
 # ==============================================================================
 # FRAGMENT — DASHBOARD
@@ -551,21 +543,29 @@ def _render_dashboard():
 
     # 2) Tabela de evolução das categorias
     st.markdown("##### 📋 Evolução das Categorias (55m → Agora)")
-    st.caption("Histograma = média das 12 coletas por categoria · Δ Agora = valor atual · cores = impacto no WIN")
+    st.caption("Histograma = média das 12 coletas por categoria · cores = impacto no WIN")
 
     linhas_cat, status_txts_cat, inv_flags_cat = [], [], []
     for nome_cat in CATEGORIAS.keys():
         medias = _momentum_categoria(momentum[nome_cat], ATIVOS_INVERSOS)
         status_txt = _status_momentum(medias, inverso=False)
         nome_curto = nome_cat.split(" ", 1)[-1]
+        
+        daily_val = None
+        if nome_cat in momentum and momentum[nome_cat]:
+            vals_d = [v.get("daily") for v in momentum[nome_cat].values() if v and v.get("daily") is not None]
+            if vals_d:
+                daily_val = sum(vals_d) / len(vals_d)
+
         linhas_cat.append({
             "Categoria": nome_curto,
-            COL_SPARK: [medias.get(j) for j in JANELAS],
+            COL_SPARK: medias,
+            COL_DAILY: daily_val,
             COL_DELTA: medias.get(0),
             COL_STATUS: status_txt,
         })
         status_txts_cat.append(status_txt)
-        inv_flags_cat.append(False)  # categorias já têm sinal ajustado na média
+        inv_flags_cat.append(False)
 
     _render_tabela_histograma(linhas_cat, status_txts_cat, inv_flags_cat, "Categoria")
 
@@ -573,7 +573,7 @@ def _render_dashboard():
 
     # 3) Abas por categoria
     st.markdown("### 📊 Detalhe por Categoria — evolução visual por ativo")
-    st.caption("Histograma das 12 coletas por ativo · Δ Agora = último valor · ⟲ = ativo inverso (sinal plotado invertido)")
+    st.caption("⟲ = ativo inverso (sinal invertido no histograma) · Passe o mouse nas barras para ver os valores.")
 
     abas = st.tabs(list(CATEGORIAS.keys()))
 
@@ -584,10 +584,16 @@ def _render_dashboard():
             for nome_ativo, valores in momentum[nome_cat].items():
                 inverso = nome_ativo in ATIVOS_INVERSOS
                 texto_status = _status_momentum(valores, inverso=inverso)
+                
+                v_agora = valores.get(0) or {}
+                pct_agora = v_agora.get("pct")
+                daily_agora = v_agora.get("daily")
+
                 linhas.append({
                     "Ativo": nome_ativo,
-                    COL_SPARK: [valores.get(j) for j in JANELAS],
-                    COL_DELTA: valores.get(0),
+                    COL_SPARK: valores,
+                    COL_DAILY: daily_agora,
+                    COL_DELTA: pct_agora,
                     COL_STATUS: texto_status,
                 })
                 status_txts.append(texto_status)
@@ -603,10 +609,7 @@ def _render_dashboard():
 
     # 4) Indicadores compostos
     st.markdown("### 🎯 Indicadores Compostos (Calculadora Fase 4)")
-    st.caption(
-        "ADRs Brasileiras = soma das 6 ADRs · Mercado Externo = −VIX + Petróleo + Minério · "
-        "mesmas fórmulas da `Calculadora.py`"
-    )
+    st.caption("ADRs Brasileiras = soma das 6 ADRs · Mercado Externo = −VIX + Petróleo + Minério")
 
     composto = _calc_compostos(coletas)
 
@@ -631,18 +634,17 @@ def _render_dashboard():
         status_txt = _status_momentum(valores, inverso=False)
         linhas_comp.append({
             "Composto": nome_comp,
-            COL_SPARK: [valores.get(j) for j in JANELAS],
+            COL_SPARK: valores,
+            COL_DAILY: None,
             COL_DELTA: valores.get(0),
             COL_STATUS: status_txt,
         })
         status_txts_comp.append(status_txt)
-        inv_flags_comp.append(False)  # compostos já embutem o sinal correto na fórmula
+        inv_flags_comp.append(False)
 
     _render_tabela_histograma(linhas_comp, status_txts_comp, inv_flags_comp, "Composto")
 
-
 def render_body():
     _render_dashboard()
-
 
 render_body()

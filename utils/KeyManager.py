@@ -15,8 +15,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 try:
     from dotenv import load_dotenv
     load_dotenv(dotenv_path=BASE_DIR / ".env")
-except ImportError:
-    pass
+except ImportError as e:
+    logging.warning("[KEYMANAGER] python-dotenv indisponivel — .env nao carregado: %s", e)
 
 # Configuração básica de segurança de logs
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")

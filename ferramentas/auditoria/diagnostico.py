@@ -5,9 +5,12 @@ diagnostico.py — Auditoria recorrente do Analisador Financeiro.
 
 import argparse
 import json
+import logging
 import sys
 from datetime import datetime
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -79,8 +82,8 @@ def cmd_inventario() -> str:
         info["count"] += 1
         try:
             info["bytes"] += p.stat().st_size
-        except OSError:
-            pass
+        except OSError as e:
+            logger.warning("[DIAG] Falha obtendo stat de %s: %s", p, e)
 
     ordenado = sorted(por_pasta.items(), key=lambda kv: kv[1]["count"], reverse=True)
 
@@ -106,7 +109,8 @@ def cmd_inventario() -> str:
         try:
             st = p.stat()
             todos.append((p, st.st_size, st.st_mtime))
-        except OSError:
+        except OSError as e:
+            logger.warning("[DIAG] Falha obtendo stat (top 30) de %s: %s", p, e)
             continue
     todos.sort(key=lambda x: x[1], reverse=True)
 

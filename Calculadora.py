@@ -1,19 +1,9 @@
 # ============================================================
 # ARQUIVO: Calculadora.py
-# DATA: 30/07/2026 | Atualizado 26/10/2026
+# DATA: 30/07/2026 | Atualizado 29/10/2026
 # AUTOR: Arquiteto de Sistemas
 # MOTIVO: Fase 4 - Cálculo de Spreads, Curva DI, Mercado Externo
-#         e Indicadores Compostos alinhados aos IDs do Validador.
-# DESCRICAO:
-#   Esta engine processa os dados validados (Dados_Validados.json)
-#   e calcula métricas financeiras essenciais:
-#     - Spread WDO vs PTAX (arbitragem de câmbio)
-#     - Inclinação da curva de juros (DI1 2027 vs 2029)
-#     - Indicador de Mercado Externo (VIX, Petróleo, Minério)
-#     - Indicador de ADRs Brasileiras (soma das variações percentuais)
-#     - Resumo de desempenho de ADRs e índices globais
-#
-#   O resultado é salvo em Metricas_Calculadas.json.
+#         e Indicadores Compostos (Coleta Dupla: Atual + Diário).
 # ============================================================
 
 import json
@@ -95,29 +85,38 @@ def calcular_metricas() -> None:
         inclinacao_di_bps = round((di29 - di27) * 100, 1)   # em pontos base (bps)
 
     # ------------------------------------------------------------
-    # 3. INDICADOR DE MERCADO EXTERNO
+    # 3. INDICADOR DE MERCADO EXTERNO (ATUAL E DIÁRIO)
     #    Fórmula: -(VIX_pct) + CRUDE_OIL_pct + IRON_ORE_pct
     # ------------------------------------------------------------
     vix_obj = mapa.get("VIX", {})
     vix_close = vix_obj.get("close")
     vix_pct = vix_obj.get("change_percent")
+    vix_pct_daily = vix_obj.get("change_daily")
 
     dxy = mapa.get("DXY", {}).get("close")
 
     crude_obj = mapa.get("CRUDE_OIL", {})
     crude_close = crude_obj.get("close")
     crude_pct = crude_obj.get("change_percent")
+    crude_pct_daily = crude_obj.get("change_daily")
 
     fef2_obj = mapa.get("IRON_ORE", {})
     iron_fef2_close = fef2_obj.get("close")
     iron_fef2_pct = fef2_obj.get("change_percent")
+    iron_fef2_pct_daily = fef2_obj.get("change_daily")
 
+    # Atual (Pré/Pós)
     ind_mercado_externo = None
     if all(isinstance(v, (int, float)) for v in [vix_pct, crude_pct, iron_fef2_pct]):
         ind_mercado_externo = round((-vix_pct) + crude_pct + iron_fef2_pct, 4)
 
+    # Diário (Fechamento Oficial)
+    ind_mercado_externo_diario = None
+    if all(isinstance(v, (int, float)) for v in [vix_pct_daily, crude_pct_daily, iron_fef2_pct_daily]):
+        ind_mercado_externo_diario = round((-vix_pct_daily) + crude_pct_daily + iron_fef2_pct_daily, 4)
+
     # ------------------------------------------------------------
-    # 4. DESEMPENHO DE ADRs E ÍNDICES GLOBAIS
+    # 4. DESEMPENHO DE ADRs E ÍNDICES GLOBAIS (ATUAL E DIÁRIO)
     # ------------------------------------------------------------
     ewz_var = mapa.get("EWZ", {}).get("change_percent")
     sp_var = mapa.get("SP500_FUT", {}).get("change_percent")
@@ -134,33 +133,48 @@ def calcular_metricas() -> None:
     ]
 
     resumo_adrs = {}
+    
     soma_variacoes_adrs = 0.0
     qtd_adrs_validas = 0
+
+    soma_variacoes_adrs_diario = 0.0
+    qtd_adrs_validas_diario = 0
 
     for adr_id in adrs_chaves:
         if adr_id in mapa:
             obj = mapa[adr_id]
             c_val = obj.get("close")
             pct_val = obj.get("change_percent")
+            pct_val_daily = obj.get("change_daily")
 
             resumo_adrs[adr_id] = {
                 "close": c_val,
                 "change_percent": pct_val,
+                "change_daily": pct_val_daily,
             }
 
+            # Atual (Pré/Pós)
             if isinstance(pct_val, (int, float)):
-                # ✅ FIX v2.7: Limite aumentado de 15% para 50%.
-                # Permite capturar quedas violentas de pré-market/pânico 
-                # (como o dia da eleição), mas ainda protege contra bugs de API.
                 if abs(pct_val) > 50.0:
-                    print(f"   ⚠️ {adr_id} com variacao absurda ({pct_val:+.2f}%) — ignorado do indicador")
-                    continue
-                soma_variacoes_adrs += pct_val
-                qtd_adrs_validas += 1
+                    print(f"   ⚠️ {adr_id} com variacao atual absurda ({pct_val:+.2f}%) — ignorado")
+                else:
+                    soma_variacoes_adrs += pct_val
+                    qtd_adrs_validas += 1
 
-    # Indicador ADRs Brasileiras = soma das variações
-    print(f"   📊 ADRs usados no indicador: {qtd_adrs_validas}/{len(adrs_chaves)}")
+            # Diário (Fechamento)
+            if isinstance(pct_val_daily, (int, float)):
+                if abs(pct_val_daily) > 50.0:
+                    print(f"   ⚠️ {adr_id} com variacao diaria absurda ({pct_val_daily:+.2f}%) — ignorado")
+                else:
+                    soma_variacoes_adrs_diario += pct_val_daily
+                    qtd_adrs_validas_diario += 1
+
+    # Indicador ADRs Brasileiras
+    print(f"   📊 ADRs usados no indicador Atual: {qtd_adrs_validas}/{len(adrs_chaves)}")
+    print(f"   📊 ADRs usados no indicador Diário: {qtd_adrs_validas_diario}/{len(adrs_chaves)}")
+    
     ind_adrs_brasileiras = round(soma_variacoes_adrs, 4) if qtd_adrs_validas > 0 else None
+    ind_adrs_brasileiras_diario = round(soma_variacoes_adrs_diario, 4) if qtd_adrs_validas_diario > 0 else None
 
     # ------------------------------------------------------------
     # 5. PRESERVA PENÚLTIMA COLETA (antes de sobrescrever)
@@ -172,7 +186,7 @@ def calcular_metricas() -> None:
                 metricas_anteriores = json.load(f)
             ind_ant = metricas_anteriores.get("indicadores_compostos", {})
             ts_ant = metricas_anteriores.get("metadata_calculo", {}).get("timestamp")
-            # Só grava como "anterior" se houver valores válidos
+            
             if ind_ant.get("indicador_mercado_externo") is not None or ind_ant.get("indicador_adrs_brasileiras") is not None:
                 anterior = {
                     "indicador_mercado_externo": ind_ant.get("indicador_mercado_externo"),
@@ -205,12 +219,15 @@ def calcular_metricas() -> None:
         "indicadores_macro": {
             "vix": vix_close,
             "vix_change_pct": vix_pct,
+            "vix_change_daily": vix_pct_daily,
             "dxy": dxy,
             "crude_oil": crude_close,
             "crude_oil_change_pct": crude_pct,
+            "crude_oil_change_daily": crude_pct_daily,
             "iron_ore_fef2": {
                 "close": iron_fef2_close,
                 "change_percent": iron_fef2_pct,
+                "change_daily": iron_fef2_pct_daily,
             },
         },
         "performance_relativa": {
@@ -220,8 +237,12 @@ def calcular_metricas() -> None:
             "adrs_brasileiras": resumo_adrs,
         },
         "indicadores_compostos": {
+            # Atual (Pré/Pós)
             "indicador_mercado_externo": ind_mercado_externo,
             "indicador_adrs_brasileiras": ind_adrs_brasileiras,
+            # Diário (Fechamento)
+            "indicador_mercado_externo_diario": ind_mercado_externo_diario,
+            "indicador_adrs_brasileiras_diario": ind_adrs_brasileiras_diario,
         },
         "anterior": anterior,
         "atualizado_em": agora_iso,
@@ -239,11 +260,11 @@ def calcular_metricas() -> None:
     print("=" * 60)
     print(f"Spread WDO vs PTAX      : {spread_wdo_ptax_pts} pts ({spread_wdo_ptax_pct}%)")
     print(f"Inclinação DI (29-27)   : {inclinacao_di_bps} bps")
-    print(f"VIX (Volatilidade)      : {vix_close} ({vix_pct}%)")
-    print(f"Minério de Ferro (F1)   : {iron_fef2_close} ({iron_fef2_pct}%)")
+    print(f"VIX (Volatilidade)      : {vix_close} ({vix_pct}% | Diário: {vix_pct_daily}%)")
+    print(f"Minério de Ferro (F1)   : {iron_fef2_close} ({iron_fef2_pct}% | Diário: {iron_fef2_pct_daily}%)")
     print("------------------------------------------------------------")
-    print(f"IND. MERCADO EXTERNO    : {ind_mercado_externo}%")
-    print(f"IND. ADRs BRASILEIRAS   : {ind_adrs_brasileiras}%")
+    print(f"IND. MERCADO EXTERNO    : Atual {ind_mercado_externo}% | Diário {ind_mercado_externo_diario}%")
+    print(f"IND. ADRs BRASILEIRAS   : Atual {ind_adrs_brasileiras}% | Diário {ind_adrs_brasileiras_diario}%")
     if anterior:
         print(f"PENÚLTIMA MERC. EXT.    : {anterior.get('indicador_mercado_externo')}%")
         print(f"PENÚLTIMA ADRs          : {anterior.get('indicador_adrs_brasileiras')}%")

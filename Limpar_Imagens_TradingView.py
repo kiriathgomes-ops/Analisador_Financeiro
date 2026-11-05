@@ -1,15 +1,18 @@
 import glob
+import logging
 import os
 import re
 import shutil
 import sys
 from pathlib import Path
 
+logger = logging.getLogger(__name__)
+
 if sys.platform == "win32":
     try:
         sys.stdout.reconfigure(encoding="utf-8")
-    except (AttributeError, OSError):
-        pass
+    except (AttributeError, OSError) as e:
+        logger.warning("[LIMPEZA] stdout.reconfigure indisponivel: %s", e)
 
 PASTA_DOWNLOADS = os.path.expanduser(r"~\Downloads")
 MANTER_RECENTES = 2

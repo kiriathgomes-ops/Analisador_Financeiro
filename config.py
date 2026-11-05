@@ -16,11 +16,14 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import sys
 from datetime import time
 from pathlib import Path
 from typing import Any, Dict, List
+
+logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------
 # 1. RAIZ DO PROJETO E PATH
@@ -34,8 +37,8 @@ try:
     from dotenv import load_dotenv
 
     load_dotenv(dotenv_path=BASE_DIR / ".env")
-except ImportError:
-    pass
+except ImportError as e:
+    logger.warning("[CONFIG] python-dotenv indisponivel — .env nao carregado: %s", e)
 
 # KeyManager (opcional — só falha se utils não existir ainda)
 try:
@@ -404,5 +407,3 @@ def id_interno(ticker_bruto: str) -> str:
 # Compatibilidade com código antigo que usa str
 def _as_str(p: Path) -> str:
     return str(p)
-
-

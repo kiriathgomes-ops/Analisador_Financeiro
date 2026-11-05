@@ -3,12 +3,19 @@
 # Mercado B3 - WINFUT / WDO / DI1
 #
 # NÃO ALTERA OS COLETORES ANTERIORES
+# blindagem: 7 except silenciosos viraram logger.warning
+#   (_monta_info expiracao, obter_contratos group, obter_preco_teorico,
+#    coletar_ativo OHLC inner, coletar_ativo prev_close inner,
+#    _rotacionar_historico mtime, obter_book outer).
 # ================================================================
 
 import MetaTrader5 as mt5
 import json
+import logging
 import os
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 
 # ================================================================
@@ -96,8 +103,10 @@ def conectar_mt5():
         print("   Pipeline seguirá com cache, se houver.")
         try:
             mt5.shutdown()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(
+                "[MT5] Falha no mt5.shutdown (conectar_mt5, sem conexao): %s", e
+            )
         return False
 
     return True
@@ -152,7 +161,10 @@ def obter_contratos(prefixo):
         if data_expiracao:
             try:
                 data_expiracao = datetime.fromtimestamp(data_expiracao)
-            except Exception:
+            except Exception as e:
+                logger.warning(
+                    "[MT5] Falha convertendo expiration_time de %s: %s", nome, e
+                )
                 data_expiracao = None
         else:
             data_expiracao = None
@@ -188,7 +200,11 @@ def obter_contratos(prefixo):
     for group in (f"{prefixo}*", f"*{prefixo}*"):
         try:
             simbolos = mt5.symbols_get(group=group)
-        except Exception:
+        except Exception as e:
+            logger.warning(
+                "[MT5] symbols_get(group='%s') falhou para prefixo=%s: %s",
+                group, prefixo, e,
+            )
             simbolos = None
         if not simbolos:
             continue
@@ -368,7 +384,11 @@ def obter_preco_teorico(nome):
 
         return valor
 
-    except Exception:
+    except Exception as e:
+
+        logger.warning(
+            "[MT5] Falha lendo price_theoretical de %s: %s", nome, e
+        )
 
         return None
 
@@ -455,12 +475,18 @@ def obter_book(nome):
 
         mt5.market_book_release(nome)
 
-    except Exception:
+    except Exception as erro_book:
+
+        logger.warning(
+            "[MT5] Erro inesperado em obter_book(%s): %s", nome, erro_book
+        )
 
         try:
             mt5.market_book_release(nome)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(
+                "[MT5] Falha no market_book_release (%s): %s", nome, e
+            )
 
     return resultado
 
@@ -568,7 +594,10 @@ def coletar_ativo(nome_ativo, configuracao):
                     if "tick_volume" in r_atual.dtype.names
                     else None
                 )
-            except Exception:
+            except Exception as e:
+                logger.warning(
+                    "[MT5] Fallback OHLC por indice (%s): %s", nome, e
+                )
                 open_d1 = float(r_atual[1])
                 high_d1 = float(r_atual[2])
                 low_d1 = float(r_atual[3])
@@ -580,7 +609,10 @@ def coletar_ativo(nome_ativo, configuracao):
                 r_ant = rates[-2]
                 try:
                     prev_close = float(r_ant["close"])
-                except Exception:
+                except Exception as e:
+                    logger.warning(
+                        "[MT5] Fallback prev_close por indice (%s): %s", nome, e
+                    )
                     prev_close = float(r_ant[4])
 
         preco_ref = last if last > 0 else (close_d1 or 0)
@@ -772,7 +804,10 @@ def _rotacionar_historico():
         for arq in arquivos:
             try:
                 mtime = datetime.fromtimestamp(os.path.getmtime(arq))
-            except OSError:
+            except OSError as e:
+                logger.warning(
+                    "[ROTACAO] Falha lendo mtime de %s: %s", arq, e
+                )
                 continue
             if mtime >= limite_dt:
                 continue
@@ -949,6 +984,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
