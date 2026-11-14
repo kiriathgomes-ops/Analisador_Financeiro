@@ -1,5 +1,12 @@
 @echo off
 title Launcher Quant Terminal
+:: ⬇️ ADICIONE ESTAS DUAS LINHAS AQUI ⬇️
+chcp 65001 >nul
+call .venv\Scripts\activate.bat
+:: ⬆️ ADICIONE ESTAS DUAS LINHAS AQUI ⬆️
+
+
+
 echo ============================================================
 echo 🚀 QUANT TRADING TERMINAL - LAUNCHER COMPLETO
 echo ============================================================

@@ -1,0 +1,24 @@
+# 1. Entra na pasta do projeto novo
+mkdir Meu_Projeto_Novo
+cd Meu_Projeto_Novo
+
+# 2. Cria e ativa o ambiente
+py -3.14 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+
+# 3. Instala as bibliotecas (agora sim, com segurança)
+pip install pandas streamlit
+
+# 4. Salva a "foto" das dependências
+pip freeze > requirements.txt
+
+
+
+Dicas de Ouro para o Futuro:
+Sempre que criar um projeto novo: py -3.14 -m venv .venv e selecione ele no VS Code.
+
+Se for usar o Agendador de Tarefas do Windows: Lembre-se de configurar a ação para apontar diretamente para o E:\ProjetosPython\Analisador_Financeiro\.venv\Scripts\python.exe em vez de só python.
+
+.gitignore: Como o seu projeto tem Git (vimos a branch main), certifique-se de que a pasta .venv/ está listada no .gitignore para não subir milhares de arquivos de bibliotecas para o repositório.
+
+O seu Morning Report V2 e toda a esteira do SMC já provaram que estão funcionando perfeitamente.
